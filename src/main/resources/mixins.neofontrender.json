@@ -1,0 +1,15 @@
+{
+	"package": "neofontrender.mixin",
+	"required": true,
+	"refmap": "mixins.neofontrender.refmap.json",
+	"target": "@env(DEFAULT)",
+	"minVersion": "0.8.5",
+	"compatibilityLevel": "JAVA_8",
+	"mixins": [],
+	"server": [],
+	"client": [
+		"MixinFontRenderer",
+		"MixinMinecraft",
+		"MixinTextureManager"
+	]
+}
