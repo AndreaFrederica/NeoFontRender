@@ -1,0 +1,81 @@
+{
+  "parent": "DEFAULT",
+  "override": true,
+  "defaultWidth": 18,
+  "defaultHeight": 18,
+  "background": null,
+  "hoverBackground": "none",
+  "color": "#FFFFFFFF",
+  "textColor": "#FFE6ECF3",
+  "textShadow": false,
+  "iconColor": "#FFE6ECF3",
+  "panel": {
+    "background": {
+      "type": "rectangle",
+      "cornerRadius": 8,
+      "cornerSegments": 8,
+      "color": "#F0121822"
+    }
+  },
+  "button": {
+    "background": {
+      "type": "rectangle",
+      "cornerRadius": 4,
+      "cornerSegments": 6,
+      "color": "#FF1E293B"
+    },
+    "textColor": "#FFF8FAFC",
+    "textShadow": false
+  },
+  "button:hover": {
+    "background": {
+      "type": "rectangle",
+      "cornerRadius": 4,
+      "cornerSegments": 6,
+      "color": "#FF334155"
+    }
+  },
+  "textField": {
+    "background": {
+      "type": "rectangle",
+      "cornerRadius": 4,
+      "cornerSegments": 6,
+      "color": "#FF0B1220"
+    },
+    "textColor": "#FFE6ECF3",
+    "markedColor": "#FF2563EB",
+    "hintColor": "#FF64748B"
+  },
+  "toggleButton": {
+    "background": {
+      "type": "rectangle",
+      "cornerRadius": 4,
+      "cornerSegments": 6,
+      "color": "#FF1E293B"
+    },
+    "selectedBackground": {
+      "type": "rectangle",
+      "cornerRadius": 4,
+      "cornerSegments": 6,
+      "color": "#FF166534"
+    },
+    "textColor": "#FFF8FAFC",
+    "selectedTextColor": "#FFF8FAFC",
+    "textShadow": false,
+    "selectedTextShadow": false
+  },
+  "toggleButton:hover": {
+    "background": {
+      "type": "rectangle",
+      "cornerRadius": 4,
+      "cornerSegments": 6,
+      "color": "#FF334155"
+    },
+    "selectedBackground": {
+      "type": "rectangle",
+      "cornerRadius": 4,
+      "cornerSegments": 6,
+      "color": "#FF15803D"
+    }
+  }
+}
