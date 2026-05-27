@@ -23,6 +23,10 @@ This mod improves Minecraft's font rendering by:
 - Applying brightness correction via OpenGL shaders
 - Supporting Mipmap and anisotropic filtering
 
+<p align="center">
+  <img src="docs/screenshot.png" alt="Config GUI" width="800">
+</p>
+
 ## Development Environment
 
 This project uses **CleanroomMC's TemplateDevEnv**:
