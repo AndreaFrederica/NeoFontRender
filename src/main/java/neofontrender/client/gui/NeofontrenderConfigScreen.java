@@ -619,6 +619,7 @@ public final class NeofontrenderConfigScreen {
     private static final class OptionsSection extends ParentWidget<OptionsSection> implements ILayoutWidget {
         private final ButtonWidget<?> enabled;
         private final ButtonWidget<?> engine;
+        private final ButtonWidget<?> skiaString;
         private final ButtonWidget<?> autoBase;
         private final ButtonWidget<?> aa;
         private final ButtonWidget<?> fractional;
@@ -628,6 +629,7 @@ public final class NeofontrenderConfigScreen {
         private OptionsSection(Staged staged) {
             this.enabled = toggleButton("Enabled", 80, 20, () -> staged.enabled, v -> staged.enabled = v, () -> preview(staged));
             this.engine = engineButton(staged, 96, 20);
+            this.skiaString = toggleButton("String", 80, 20, () -> staged.skiaAdvancedStringMode, v -> staged.skiaAdvancedStringMode = v, () -> preview(staged));
             this.autoBase = toggleButton("AutoBase", 80, 20, () -> staged.autoBaseline, v -> staged.autoBaseline = v, () -> preview(staged));
             this.aa = aaModeButton(staged, 140, 20);
             this.fractional = toggleButton("Fractional", 80, 20, () -> staged.fractionalMetrics, v -> staged.fractionalMetrics = v, () -> preview(staged));
@@ -635,6 +637,7 @@ public final class NeofontrenderConfigScreen {
             this.builtins = toggleButton("Builtins", 80, 20, () -> staged.builtinFallbacks, v -> staged.builtinFallbacks = v, () -> preview(staged));
             child(enabled);
             child(engine);
+            child(skiaString);
             child(autoBase);
             child(aa);
             child(fractional);
@@ -649,7 +652,7 @@ public final class NeofontrenderConfigScreen {
             if (width < 520) {
                 int buttonHeight = 22;
                 int buttonWidth = Math.max(0, (width - gap) / 2);
-                IWidget[] buttons = {engine, enabled, autoBase, aa, fractional, style, builtins};
+                IWidget[] buttons = {engine, skiaString, enabled, autoBase, aa, fractional, style, builtins};
                 for (int i = 0; i < buttons.length; i++) {
                     int col = i & 1;
                     int row = i / 2;
@@ -660,7 +663,7 @@ public final class NeofontrenderConfigScreen {
             }
             int buttonHeight = 22;
             int third = Math.max(0, (width - gap * 2) / 3);
-            IWidget[] buttons = {engine, enabled, autoBase, aa, fractional, style, builtins};
+            IWidget[] buttons = {engine, skiaString, enabled, autoBase, aa, fractional, style, builtins};
             for (int i = 0; i < buttons.length; i++) {
                 int col = i % 3;
                 int row = i / 3;
@@ -684,9 +687,11 @@ public final class NeofontrenderConfigScreen {
         private final String originalFontFallbacks = joinFonts(NeofontrenderConfig.fontFallbacks());
         private final boolean originalBuiltinFallbacks = NeofontrenderConfig.builtinFallbacksEnabled();
         private final String originalEngine = NeofontrenderConfig.renderingEngine();
+        private final boolean originalSkiaAdvancedStringMode = NeofontrenderConfig.skiaAdvancedStringMode();
 
         private boolean enabled = originalEnabled;
         private String engine = originalEngine;
+        private boolean skiaAdvancedStringMode = originalSkiaAdvancedStringMode;
         private String fontName = originalFontName;
         private String fontPath = originalFontName.endsWith(".ttf") || originalFontName.endsWith(".otf") ? originalFontName : "";
         private String fontFallbacks = originalFontFallbacks;
@@ -722,6 +727,7 @@ public final class NeofontrenderConfigScreen {
         private void writeToConfig(boolean save) {
             NeofontrenderConfig.setEnabled(enabled);
             NeofontrenderConfig.setRenderingEngine(engine);
+            NeofontrenderConfig.setSkiaAdvancedStringMode(skiaAdvancedStringMode);
             NeofontrenderConfig.setFontName(selectedFont().isEmpty() ? "SansSerif" : selectedFont());
             NeofontrenderConfig.setFontFallbacks(parseFonts(fontFallbacks));
             NeofontrenderConfig.setFontStyle(fontStyle);
@@ -741,6 +747,7 @@ public final class NeofontrenderConfigScreen {
         private void restoreOriginal() {
             NeofontrenderConfig.setEnabled(originalEnabled);
             NeofontrenderConfig.setRenderingEngine(originalEngine);
+            NeofontrenderConfig.setSkiaAdvancedStringMode(originalSkiaAdvancedStringMode);
             NeofontrenderConfig.setFontName(originalFontName);
             NeofontrenderConfig.setFontFallbacks(parseFonts(originalFontFallbacks));
             NeofontrenderConfig.setFontStyle(originalFontStyle);

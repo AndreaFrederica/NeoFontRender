@@ -1,8 +1,11 @@
 package neofontrender.core.font;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.AbstractTexture;
+import net.minecraft.client.renderer.texture.ITextureObject;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.resources.IResourceManager;
+import net.minecraft.util.ResourceLocation;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.providers.AwtTtfGlyphProvider;
 import neofontrender.core.font.providers.MissingGlyphProvider;
@@ -47,6 +50,7 @@ public class FontManager implements AutoCloseable {
         if (NeofontrenderConfig.useVanillaEngine()) {
             this.active = false;
             this.skiaActive = false;
+            resetVanillaFontTextureFiltering();
             return;
         }
 
@@ -135,6 +139,23 @@ public class FontManager implements AutoCloseable {
                 NeofontrenderConfig.fontStyle(),
                 allowDefaultFallback
         );
+    }
+
+    private void resetVanillaFontTextureFiltering() {
+        resetTextureFiltering(new ResourceLocation("textures/font/ascii.png"));
+        for (int page = 0; page < 256; page++) {
+            resetTextureFiltering(new ResourceLocation(String.format("textures/font/unicode_page_%02x.png", page)));
+        }
+    }
+
+    private void resetTextureFiltering(ResourceLocation location) {
+        if (textureManager == null) {
+            return;
+        }
+        ITextureObject texture = textureManager.getTexture(location);
+        if (texture instanceof AbstractTexture) {
+            ((AbstractTexture) texture).setBlurMipmap(false, false);
+        }
     }
 
     public synchronized boolean isActive() {

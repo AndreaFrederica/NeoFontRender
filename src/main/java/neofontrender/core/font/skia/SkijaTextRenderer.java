@@ -12,6 +12,8 @@ import io.github.humbleui.skija.paragraph.FontCollection;
 import io.github.humbleui.skija.paragraph.Paragraph;
 import io.github.humbleui.skija.paragraph.ParagraphBuilder;
 import io.github.humbleui.skija.paragraph.ParagraphStyle;
+import io.github.humbleui.skija.paragraph.DecorationLineStyle;
+import io.github.humbleui.skija.paragraph.DecorationStyle;
 import io.github.humbleui.skija.paragraph.TextStyle;
 import io.github.humbleui.skija.paragraph.TypefaceFontProvider;
 import net.minecraft.client.renderer.BufferBuilder;
@@ -119,6 +121,16 @@ public final class SkijaTextRenderer implements AutoCloseable {
         return width;
     }
 
+    public float measureFormatted(String text, int baseArgb, boolean shadow) {
+        if (text == null || text.isEmpty()) {
+            return 0.0F;
+        }
+        try (Paragraph paragraph = buildFormattedParagraph(text, baseArgb, shadow, oversample)) {
+            paragraph.layout(100000.0F * oversample);
+            return Math.max(paragraph.getMaxIntrinsicWidth(), paragraph.getLongestLine()) / oversample;
+        }
+    }
+
     public RenderedText render(String text, int argb, boolean bold, boolean italic) {
         if (text == null || text.isEmpty()) {
             return RenderedText.EMPTY;
@@ -135,6 +147,26 @@ public final class SkijaTextRenderer implements AutoCloseable {
             return rendered;
         } catch (Throwable t) {
             NeoFontRender.LOGGER.error("Failed to render Skija text run '{}'", text, t);
+            return RenderedText.EMPTY;
+        }
+    }
+
+    public RenderedText renderFormatted(String text, int baseArgb, boolean shadow) {
+        if (text == null || text.isEmpty()) {
+            return RenderedText.EMPTY;
+        }
+        RenderKey key = new RenderKey(text, normalizeBaseArgb(baseArgb), shadow, true);
+        RenderedText cached = renderCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        try {
+            RenderedText rendered = rasterizeFormatted(key);
+            renderCache.put(key, rendered);
+            return rendered;
+        } catch (Throwable t) {
+            NeoFontRender.LOGGER.error("Failed to render formatted Skija text '{}'", text, t);
             return RenderedText.EMPTY;
         }
     }
@@ -159,70 +191,152 @@ public final class SkijaTextRenderer implements AutoCloseable {
     private RenderedText rasterize(RenderKey key) throws IOException {
         float measuredWidth = Math.max(1.0F, measure(key.text, key.bold, key.italic));
         int width = Math.max(1, (int) Math.ceil((measuredWidth + 4.0F) * oversample));
+        try (Paragraph paragraph = buildParagraph(key.text, key.argb, key.bold, key.italic, oversample)) {
+            paragraph.layout(width);
+            return rasterizeParagraph(paragraph, key, measuredWidth, width);
+        }
+    }
+
+    private RenderedText rasterizeFormatted(RenderKey key) throws IOException {
+        float measuredWidth = Math.max(1.0F, measureFormatted(key.text, key.argb, key.bold));
+        int width = Math.max(1, (int) Math.ceil((measuredWidth + 4.0F) * oversample));
+        try (Paragraph paragraph = buildFormattedParagraph(key.text, key.argb, key.bold, oversample)) {
+            paragraph.layout(width);
+            return rasterizeParagraph(paragraph, key, measuredWidth, width);
+        }
+    }
+
+    private RenderedText rasterizeParagraph(Paragraph paragraph, RenderKey key, float measuredWidth, int width) throws IOException {
         int height;
         float verticalOffset;
 
-        try (Paragraph paragraph = buildParagraph(key.text, key.argb, key.bold, key.italic, oversample)) {
-            paragraph.layout(width);
-            height = Math.max(1, (int) Math.ceil(paragraph.getHeight() + 4.0F * oversample));
-            float paintY = 1.0F * oversample;
-            float baselineInTexture = (paintY + paragraph.getAlphabeticBaseline()) / oversample;
-            verticalOffset = NeofontrenderConfig.fontAutoBaseline()
-                    ? NeofontrenderConfig.fontReferenceBaseline() + NeofontrenderConfig.fontBaselineShift() - baselineInTexture
-                    : NeofontrenderConfig.fontBaselineShift();
+        height = Math.max(1, (int) Math.ceil(paragraph.getHeight() + 4.0F * oversample));
+        float paintX = 2.0F * oversample;
+        float paintY = 1.0F * oversample;
+        float baselineInTexture = (paintY + paragraph.getAlphabeticBaseline()) / oversample;
+        verticalOffset = NeofontrenderConfig.fontAutoBaseline()
+                ? NeofontrenderConfig.fontReferenceBaseline() + NeofontrenderConfig.fontBaselineShift() - baselineInTexture
+                : NeofontrenderConfig.fontBaselineShift();
+        float horizontalOffset = -paintX / oversample;
 
-            try (Surface surface = Surface.makeRasterN32Premul(width, height)) {
-                Canvas canvas = surface.getCanvas();
-                canvas.clear(0x00000000);
-                paragraph.paint(canvas, 2.0F * oversample, paintY);
+        try (Surface surface = Surface.makeRasterN32Premul(width, height)) {
+            Canvas canvas = surface.getCanvas();
+            canvas.clear(0x00000000);
+            paragraph.paint(canvas, paintX, paintY);
 
-                // Read pixels directly from Skia surface — no PNG encode/decode
-                Bitmap bitmap = new Bitmap();
-                bitmap.allocN32Pixels(width, height);
-                surface.readPixels(bitmap, 0, 0);
+            Bitmap bitmap = new Bitmap();
+            bitmap.allocN32Pixels(width, height);
+            surface.readPixels(bitmap, 0, 0);
 
-                byte[] rawBytes = bitmap.readPixels();
-                bitmap.close();
+            byte[] rawBytes = bitmap.readPixels();
+            bitmap.close();
 
-                // Bitmap.readPixels() returns bytes in native memory order.
-                // On x86 N32 = BGRA_8888: bytes are [B,G,R,A] per pixel.
-                // ByteBuffer.LITTLE_ENDIAN interprets [B,G,R,A] as int 0xAARRGGBB (ARGB),
-                // which is exactly what DynamicTexture / Minecraft expects.
-                int[] pixels = new int[width * height];
-                ByteBuffer.wrap(rawBytes).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(pixels);
+            int[] pixels = new int[width * height];
+            ByteBuffer.wrap(rawBytes).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(pixels);
 
-                // Unpremultiply: Skia renders with premultiplied alpha,
-                // Minecraft expects straight alpha for texture blending.
-                for (int i = 0; i < pixels.length; i++) {
-                    int px = pixels[i];
-                    int a = (px >>> 24);
-                    if (a > 0 && a < 255) {
-                        int r = Math.min(255, ((px >> 16) & 0xFF) * 255 / a);
-                        int g = Math.min(255, ((px >> 8) & 0xFF) * 255 / a);
-                        int b = Math.min(255, (px & 0xFF) * 255 / a);
-                        pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
-                    }
+            for (int i = 0; i < pixels.length; i++) {
+                int px = pixels[i];
+                int a = (px >>> 24);
+                if (a > 0 && a < 255) {
+                    int r = Math.min(255, ((px >> 16) & 0xFF) * 255 / a);
+                    int g = Math.min(255, ((px >> 8) & 0xFF) * 255 / a);
+                    int b = Math.min(255, (px & 0xFF) * 255 / a);
+                    pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
                 }
-
-                DynamicTexture texture = new DynamicTexture(width, height);
-                int[] target = texture.getTextureData();
-                System.arraycopy(pixels, 0, target, 0, Math.min(pixels.length, target.length));
-                texture.updateDynamicTexture();
-                texture.setBlurMipmap(NeofontrenderConfig.renderingInterpolation(), NeofontrenderConfig.renderingMipmap());
-
-                ResourceLocation location = new ResourceLocation("neofontrender",
-                        "skia/" + Integer.toHexString(key.hashCode()) + "_" + nextTextureId++);
-                textureManager.loadTexture(location, texture);
-                texture.setBlurMipmap(NeofontrenderConfig.renderingInterpolation(), NeofontrenderConfig.renderingMipmap());
-                return new RenderedText(location, texture, measuredWidth,
-                        width, height,
-                        width / oversample, height / oversample,
-                        verticalOffset);
             }
+
+            DynamicTexture texture = new DynamicTexture(width, height);
+            int[] target = texture.getTextureData();
+            System.arraycopy(pixels, 0, target, 0, Math.min(pixels.length, target.length));
+            texture.updateDynamicTexture();
+            texture.setBlurMipmap(NeofontrenderConfig.renderingInterpolation(), NeofontrenderConfig.renderingMipmap());
+
+            ResourceLocation location = new ResourceLocation("neofontrender",
+                    "skia/" + Integer.toHexString(key.hashCode()) + "_" + nextTextureId++);
+            textureManager.loadTexture(location, texture);
+            texture.setBlurMipmap(NeofontrenderConfig.renderingInterpolation(), NeofontrenderConfig.renderingMipmap());
+            return new RenderedText(location, texture, measuredWidth,
+                    width, height,
+                    width / oversample, height / oversample,
+                    horizontalOffset, verticalOffset);
         }
     }
 
     private Paragraph buildParagraph(String text, int argb, boolean bold, boolean italic, float scale) {
+        ParagraphBuilder builder = new ParagraphBuilder(new ParagraphStyle(), fontCollection);
+        appendStyledText(builder, text, argb, bold, italic, false, false, scale);
+        return builder.build();
+    }
+
+    private Paragraph buildFormattedParagraph(String text, int baseArgb, boolean shadow, float scale) {
+        ParagraphBuilder builder = new ParagraphBuilder(new ParagraphStyle(), fontCollection);
+        boolean bold = false;
+        boolean italic = false;
+        boolean underline = false;
+        boolean strikethrough = false;
+        int color = shadow ? shadowBaseArgb(baseArgb) : normalizeBaseArgb(baseArgb);
+        int runStart = 0;
+
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) != 167 || i + 1 >= text.length()) {
+                continue;
+            }
+            if (i > runStart) {
+                appendStyledText(builder, text.substring(runStart, i), color, bold, italic, underline, strikethrough, scale);
+            }
+
+            int style = "0123456789abcdefklmnor".indexOf(Character.toLowerCase(text.charAt(i + 1)));
+            if (style >= 0 && style < 16) {
+                bold = false;
+                italic = false;
+                underline = false;
+                strikethrough = false;
+                color = colorFromCode(style, shadow, baseArgb);
+            } else if (style == 17) {
+                bold = true;
+            } else if (style == 18) {
+                strikethrough = true;
+            } else if (style == 19) {
+                underline = true;
+            } else if (style == 20) {
+                italic = true;
+            } else if (style == 21) {
+                bold = false;
+                italic = false;
+                underline = false;
+                strikethrough = false;
+                color = shadow ? shadowBaseArgb(baseArgb) : normalizeBaseArgb(baseArgb);
+            }
+
+            i++;
+            runStart = i + 1;
+        }
+
+        if (runStart < text.length()) {
+            appendStyledText(builder, text.substring(runStart), color, bold, italic, underline, strikethrough, scale);
+        }
+
+        return builder.build();
+    }
+
+    private void appendStyledText(ParagraphBuilder builder, String text, int argb, boolean bold, boolean italic,
+                                  boolean underline, boolean strikethrough, float scale) {
+        if (text.isEmpty()) {
+            return;
+        }
+        try (TextStyle textStyle = makeTextStyle(argb, bold, italic, scale)) {
+            if (underline || strikethrough) {
+                textStyle.setDecorationStyle(new DecorationStyle(
+                        underline, false, strikethrough, false, opaqueRgb(argb),
+                        DecorationLineStyle.SOLID, 1.0F));
+            }
+            builder.pushStyle(textStyle);
+            builder.addText(text);
+            builder.popStyle();
+        }
+    }
+
+    private TextStyle makeTextStyle(int argb, boolean bold, boolean italic, float scale) {
         int configuredStyle = NeofontrenderConfig.fontStyle();
         boolean effectiveBold = bold || (configuredStyle & 1) != 0;
         boolean effectiveItalic = italic || (configuredStyle & 2) != 0;
@@ -230,19 +344,42 @@ public final class SkijaTextRenderer implements AutoCloseable {
                 : effectiveBold ? FontStyle.BOLD
                 : effectiveItalic ? FontStyle.ITALIC
                 : FontStyle.NORMAL;
-        TextStyle textStyle = new TextStyle()
-                .setColor(argb)
+        return new TextStyle()
+                .setColor(opaqueRgb(argb))
                 .setFontSize(NeofontrenderConfig.fontSize() * scale)
                 .setFontStyle(style)
                 .setFontFamilies(fontFamilies)
                 .setHeight(1.0F);
+    }
 
-        ParagraphBuilder builder = new ParagraphBuilder(new ParagraphStyle(), fontCollection);
-        builder.pushStyle(textStyle);
-        builder.addText(text);
-        builder.popStyle();
-        textStyle.close();
-        return builder.build();
+    private static int normalizeBaseArgb(int argb) {
+        return (argb & 0xFC000000) == 0 ? argb | 0xFF000000 : argb;
+    }
+
+    private static int opaqueRgb(int argb) {
+        return normalizeBaseArgb(argb) | 0xFF000000;
+    }
+
+    private static int shadowBaseArgb(int argb) {
+        int color = normalizeBaseArgb(argb);
+        return (color & 0xFCFCFC) >> 2 | color & 0xFF000000;
+    }
+
+    private static int colorFromCode(int index, boolean shadow, int baseArgb) {
+        int i = (index >> 3 & 1) * 85;
+        int r = (index >> 2 & 1) * 170 + i;
+        int g = (index >> 1 & 1) * 170 + i;
+        int b = (index & 1) * 170 + i;
+        if (index == 6) {
+            r += 85;
+        }
+        if (shadow) {
+            r >>= 2;
+            g >>= 2;
+            b >>= 2;
+        }
+        int a = normalizeBaseArgb(baseArgb) & 0xFF000000;
+        return a | r << 16 | g << 8 | b;
     }
 
     private String[] registerConfiguredFonts() throws IOException {
@@ -335,7 +472,7 @@ public final class SkijaTextRenderer implements AutoCloseable {
     }
 
     public static final class RenderedText implements AutoCloseable {
-        private static final RenderedText EMPTY = new RenderedText(null, null, 0.0F, 0, 0, 0.0F, 0.0F, 0.0F);
+        private static final RenderedText EMPTY = new RenderedText(null, null, 0.0F, 0, 0, 0.0F, 0.0F, 0.0F, 0.0F);
 
         private final ResourceLocation location;
         private final DynamicTexture texture;
@@ -344,10 +481,12 @@ public final class SkijaTextRenderer implements AutoCloseable {
         private final int height;
         private final float drawWidth;
         private final float drawHeight;
+        private final float horizontalOffset;
         private final float verticalOffset;
 
         private RenderedText(ResourceLocation location, DynamicTexture texture, float advance,
-                             int width, int height, float drawWidth, float drawHeight, float verticalOffset) {
+                             int width, int height, float drawWidth, float drawHeight,
+                             float horizontalOffset, float verticalOffset) {
             this.location = location;
             this.texture = texture;
             this.advance = advance;
@@ -355,6 +494,7 @@ public final class SkijaTextRenderer implements AutoCloseable {
             this.height = height;
             this.drawWidth = drawWidth;
             this.drawHeight = drawHeight;
+            this.horizontalOffset = horizontalOffset;
             this.verticalOffset = verticalOffset;
         }
 
@@ -370,15 +510,16 @@ public final class SkijaTextRenderer implements AutoCloseable {
             GlStateManager.enableTexture2D();
             GlStateManager.enableAlpha();
             GlStateManager.color(1.0F, 1.0F, 1.0F, alpha);
+            float left = x + horizontalOffset;
             float top = y + verticalOffset;
 
             Tessellator tessellator = Tessellator.getInstance();
             BufferBuilder buffer = tessellator.getBuffer();
             buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
-            buffer.pos(x, top, 0.0D).tex(0.0D, 0.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-            buffer.pos(x, top + drawHeight, 0.0D).tex(0.0D, 1.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-            buffer.pos(x + drawWidth, top + drawHeight, 0.0D).tex(1.0D, 1.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-            buffer.pos(x + drawWidth, top, 0.0D).tex(1.0D, 0.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
+            buffer.pos(left, top, 0.0D).tex(0.0D, 0.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
+            buffer.pos(left, top + drawHeight, 0.0D).tex(0.0D, 1.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
+            buffer.pos(left + drawWidth, top + drawHeight, 0.0D).tex(1.0D, 1.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
+            buffer.pos(left + drawWidth, top, 0.0D).tex(1.0D, 0.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
             tessellator.draw();
         }
 

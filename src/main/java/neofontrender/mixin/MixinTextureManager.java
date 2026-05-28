@@ -30,6 +30,10 @@ public class MixinTextureManager {
         }
         String path = resourceLoc.getPath();
         if (path.startsWith("textures/font/") || path.startsWith("font/")) {
+            if (NeofontrenderConfig.useVanillaEngine()) {
+                ((AbstractTexture) textureObj).setBlurMipmap(false, false);
+                return;
+            }
             ((AbstractTexture) textureObj).setBlurMipmap(
                     NeofontrenderConfig.renderingInterpolation(),
                     NeofontrenderConfig.renderingMipmap());

@@ -132,6 +132,10 @@ public final class NeofontrenderConfig {
         return enabled() && "skia".equals(renderingEngine());
     }
 
+    public static boolean skiaAdvancedStringMode() {
+        return config.getOrElse("rendering.skiaAdvancedStringMode", true);
+    }
+
     public static boolean useVanillaEngine() {
         return !enabled() || "vanilla".equals(renderingEngine());
     }
@@ -164,6 +168,10 @@ public final class NeofontrenderConfig {
 
     public static boolean debugImeInput() {
         return config.getOrElse("debug.imeInput", false);
+    }
+
+    public static boolean allowSignPaste() {
+        return config.getOrElse("input.allowSignPaste", true);
     }
 
     public static void setEnabled(boolean value) {
@@ -238,6 +246,10 @@ public final class NeofontrenderConfig {
 
     public static void setRenderingEngine(String value) {
         config.set("rendering.engine", normalizeRenderingEngine(value));
+    }
+
+    public static void setSkiaAdvancedStringMode(boolean value) {
+        config.set("rendering.skiaAdvancedStringMode", value);
     }
 
     public static void setPerformanceAsyncInit(boolean value) {
@@ -321,12 +333,16 @@ public final class NeofontrenderConfig {
             w.write("\n");
             w.write("[rendering]\n");
             w.write("engine = \"sfr\"\n");
+            w.write("skiaAdvancedStringMode = true\n");
             w.write("interpolation = true\n");
             w.write("mipmap = false\n");
             w.write("\n");
             w.write("[performance]\n");
             w.write("asyncInit = true\n");
             w.write("prewarmBasicLatin = true\n");
+            w.write("\n");
+            w.write("[input]\n");
+            w.write("allowSignPaste = true\n");
             w.write("\n");
             w.write("[debug]\n");
             w.write("imeInput = false\n");
@@ -353,11 +369,14 @@ public final class NeofontrenderConfig {
         config.setComment("shadow.opacity", "Shadow opacity multiplier (0.0-1.0).");
         config.setComment("rendering", "OpenGL texture rendering options.");
         config.setComment("rendering.engine", "Text renderer engine: vanilla, sfr, or skia.");
+        config.setComment("rendering.skiaAdvancedStringMode", "In Skia mode, render full formatted strings as one paragraph so shaping, ligatures, kerning, emoji ZWJ, and BiDi can work across the whole text. Disable to use legacy per-format-run rendering.");
         config.setComment("rendering.interpolation", "Use GL_LINEAR texture filtering instead of GL_NEAREST.");
         config.setComment("rendering.mipmap", "Enable mipmapping for font textures (may help at small sizes).");
         config.setComment("performance", "Performance tuning options.");
         config.setComment("performance.asyncInit", "Initialize font rasterization on a background thread.");
         config.setComment("performance.prewarmBasicLatin", "Pre-bake common Basic Latin and Latin-1 glyphs before enabling replacement rendering.");
+        config.setComment("input", "Input behavior tweaks.");
+        config.setComment("input.allowSignPaste", "Allow Ctrl+V paste in the vanilla sign editor. This is intentionally config-file only.");
         config.setComment("debug", "Debug logging options.");
         config.setComment("debug.imeInput", "Log IME input fix details to game log (for diagnosing emoji input issues).");
     }

@@ -17,6 +17,7 @@ import neofontrender.core.font.FontSet;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.GlyphInfo;
 import neofontrender.core.font.skia.SkijaTextRenderer;
+import neofontrender.core.config.NeofontrenderConfig;
 
 import java.util.Locale;
 
@@ -44,6 +45,28 @@ public class MixinFontRenderer {
     // ================================================================== //
     //  Render hook
     // ================================================================== //
+
+    @Inject(method = "drawString(Ljava/lang/String;FFIZ)I", at = @At("HEAD"), cancellable = true)
+    private void sfr$onDrawString(String text, float x, float y, int color, boolean dropShadow,
+                                  CallbackInfoReturnable<Integer> cir) {
+        if (!sfr$shouldHook() || text == null || !FontManager.INSTANCE.isSkiaActive()
+                || !NeofontrenderConfig.skiaAdvancedStringMode()) {
+            return;
+        }
+
+        GlStateManager.enableAlpha();
+        if (dropShadow) {
+            SkijaTextRenderer.RenderedText shadow = FontManager.INSTANCE.getSkijaTextRenderer()
+                    .renderFormatted(text, color, true);
+            shadow.draw(x + 1.0F, y + 1.0F, shadowAlpha(color));
+        }
+        SkijaTextRenderer.RenderedText rendered = FontManager.INSTANCE.getSkijaTextRenderer()
+                .renderFormatted(text, color, false);
+        rendered.draw(x, y, alphaFromColor(color));
+        this.posX = x + rendered.advance();
+        this.posY = y;
+        cir.setReturnValue((int) this.posX);
+    }
 
     @Inject(method = "renderStringAtPos", at = @At("HEAD"), cancellable = true)
     private void sfr$onRenderStringAtPos(String text, boolean shadow, CallbackInfo ci) {
@@ -496,6 +519,9 @@ public class MixinFontRenderer {
     }
 
     private float sfr$getFormattedStringWidthFloat(String text) {
+        if (FontManager.INSTANCE.isSkiaActive() && NeofontrenderConfig.skiaAdvancedStringMode()) {
+            return FontManager.INSTANCE.getSkijaTextRenderer().measureFormatted(text, 0xFFFFFFFF, false);
+        }
         float width = 0.0F;
         boolean bold = false;
         int runStart = 0;
@@ -526,6 +552,9 @@ public class MixinFontRenderer {
             return 0.0F;
         }
         if (FontManager.INSTANCE.isSkiaActive()) {
+            if (NeofontrenderConfig.skiaAdvancedStringMode()) {
+                return FontManager.INSTANCE.getSkijaTextRenderer().measureFormatted(run, 0xFFFFFFFF, false);
+            }
             return FontManager.INSTANCE.getSkijaTextRenderer().measure(run, bold, false);
         }
         float[] positions = FontManager.INSTANCE.getDefaultFontSet().layoutPositions(run, bold);
@@ -563,6 +592,17 @@ public class MixinFontRenderer {
         int g = Math.max(0, Math.min(255, Math.round(this.blue * 255.0F)));
         int b = Math.max(0, Math.min(255, Math.round(this.green * 255.0F)));
         return a << 24 | r << 16 | g << 8 | b;
+    }
+
+    private static float alphaFromColor(int color) {
+        if ((color & 0xFC000000) == 0) {
+            return 1.0F;
+        }
+        return (float) (color >>> 24) / 255.0F;
+    }
+
+    private static float shadowAlpha(int color) {
+        return alphaFromColor(color);
     }
 
     private boolean[] sfr$boldStateByIndex(String text) {
