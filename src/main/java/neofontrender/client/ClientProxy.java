@@ -1,6 +1,7 @@
 package neofontrender.client;
 
 import net.minecraft.client.Minecraft;
+import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
@@ -33,6 +34,7 @@ public class ClientProxy extends CommonProxy {
 
         NeofontrenderKeyHandler.init();
         MinecraftForge.EVENT_BUS.register(new NeofontrenderMainMenuBranding());
+        ClientCommandHandler.instance.registerCommand(new NeofontrenderCommand());
     }
 
     @Override

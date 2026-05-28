@@ -6,6 +6,7 @@ import net.minecraft.client.resources.IResourceManager;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.providers.AwtTtfGlyphProvider;
 import neofontrender.core.font.providers.MissingGlyphProvider;
+import neofontrender.core.font.skia.SkijaTextRenderer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +23,9 @@ public class FontManager implements AutoCloseable {
 
     private TextureManager textureManager;
     private FontSet defaultFontSet;
+    private SkijaTextRenderer skijaTextRenderer;
     private boolean active = false;
+    private boolean skiaActive = false;
 
     private FontManager() {
     }
@@ -38,11 +41,30 @@ public class FontManager implements AutoCloseable {
     /**
      * Load or reload fonts from resources.
      */
-    public void reload(IResourceManager resourceManager) {
+    public synchronized void reload(IResourceManager resourceManager) {
         close(); // dispose old atlas & providers
 
-        if (!NeofontrenderConfig.enabled()) {
+        if (NeofontrenderConfig.useVanillaEngine()) {
             this.active = false;
+            this.skiaActive = false;
+            return;
+        }
+
+        if (NeofontrenderConfig.useSkiaEngine()) {
+            try {
+                this.skijaTextRenderer = new SkijaTextRenderer(textureManager, resourceManager);
+                if (NeofontrenderConfig.performancePrewarmBasicLatin()) {
+                    this.skijaTextRenderer.prewarmBasicLatin();
+                }
+                this.skiaActive = this.skijaTextRenderer.isReady();
+                this.active = false;
+                neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with Skija renderer");
+            } catch (Throwable t) {
+                this.skijaTextRenderer = null;
+                this.skiaActive = false;
+                this.active = false;
+                neofontrender.NeoFontRender.LOGGER.error("Failed to initialize Skija renderer; keeping vanilla rendering", t);
+            }
             return;
         }
 
@@ -89,7 +111,11 @@ public class FontManager implements AutoCloseable {
 
         FontTexture atlas = new FontTexture(textureManager, new net.minecraft.util.ResourceLocation("neofontrender", "default"));
         this.defaultFontSet = new FontSet(providers, atlas);
+        if (NeofontrenderConfig.performancePrewarmBasicLatin()) {
+            this.defaultFontSet.prewarmBasicLatin();
+        }
         this.active = true;
+        this.skiaActive = false;
         neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with {} providers", providers.size());
     }
 
@@ -111,20 +137,37 @@ public class FontManager implements AutoCloseable {
         );
     }
 
-    public boolean isActive() {
+    public synchronized boolean isActive() {
         return active && defaultFontSet != null;
     }
 
-    public FontSet getDefaultFontSet() {
+    public boolean isSfrActive() {
+        return isActive();
+    }
+
+    public synchronized boolean isSkiaActive() {
+        return skiaActive && skijaTextRenderer != null;
+    }
+
+    public synchronized FontSet getDefaultFontSet() {
         return defaultFontSet;
     }
 
+    public synchronized SkijaTextRenderer getSkijaTextRenderer() {
+        return skijaTextRenderer;
+    }
+
     @Override
-    public void close() {
+    public synchronized void close() {
         if (defaultFontSet != null) {
             defaultFontSet.close();
             defaultFontSet = null;
         }
+        if (skijaTextRenderer != null) {
+            skijaTextRenderer.close();
+            skijaTextRenderer = null;
+        }
         active = false;
+        skiaActive = false;
     }
 }

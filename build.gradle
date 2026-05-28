@@ -220,6 +220,8 @@ jar {
         attributes(attribute_map)
     }
     // Add all embedded dependencies into the jar
+    exclude 'module-info.class'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(provider{ configurations.embed.collect {it.isDirectory() ? it : zipTree(it)} })
 }
 
@@ -319,6 +321,30 @@ tasks.withType(JavaCompile).configureEach {
 tasks.register('cleanroomAfterSync') {
     group 'cleanroom helpers'
     dependsOn 'injectTags', 'generateMixinJson'
+}
+
+tasks.register('skijaDebugPng', JavaExec) {
+    group = 'verification'
+    description = 'Renders a standalone Skija paragraph smoke-test PNG.'
+    classpath = sourceSets.main.runtimeClasspath
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+        vendor = JvmVendorSpec.AZUL
+    })
+    mainClass.set('neofontrender.core.font.skia.SkijaDebugTextRenderer')
+    args file("${buildDir}/skija-debug/debug-font.png").absolutePath
+}
+
+tasks.register('skijaEmojiTest', JavaExec) {
+    group = 'verification'
+    description = 'Tests emoji rendering with different font family orderings.'
+    classpath = sourceSets.main.runtimeClasspath
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+        vendor = JvmVendorSpec.AZUL
+    })
+    mainClass.set('neofontrender.core.font.skia.SkijaEmojiTest')
+    args file("${buildDir}/skija-debug").absolutePath
 }
 
 if (propertyBool('use_modern_java_syntax')) {

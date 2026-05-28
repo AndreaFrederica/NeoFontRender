@@ -16,6 +16,7 @@ import neofontrender.core.font.BakedGlyph;
 import neofontrender.core.font.FontSet;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.GlyphInfo;
+import neofontrender.core.font.skia.SkijaTextRenderer;
 
 import java.util.Locale;
 
@@ -46,7 +47,15 @@ public class MixinFontRenderer {
 
     @Inject(method = "renderStringAtPos", at = @At("HEAD"), cancellable = true)
     private void sfr$onRenderStringAtPos(String text, boolean shadow, CallbackInfo ci) {
-        if (!FontManager.INSTANCE.isActive() || text == null) {
+        if (!sfr$shouldHook() || text == null) {
+            return;
+        }
+        if (FontManager.INSTANCE.isSkiaActive() && text != null) {
+            sfr$renderSkiaFormatted(text, shadow);
+            ci.cancel();
+            return;
+        }
+        if (!FontManager.INSTANCE.isSfrActive()) {
             return;
         }
 
@@ -122,7 +131,26 @@ public class MixinFontRenderer {
 
     @Inject(method = "renderChar", at = @At("HEAD"), cancellable = true)
     private void sfr$onRenderChar(char ch, boolean italic, CallbackInfoReturnable<Float> cir) {
-        if (!FontManager.INSTANCE.isActive()) {
+        if (!sfr$shouldHook()) {
+            return;
+        }
+        if (FontManager.INSTANCE.isSkiaActive()) {
+            if (Character.isHighSurrogate(ch) || Character.isLowSurrogate(ch)) {
+                cir.setReturnValue(0.0F);
+                return;
+            }
+            if (ch == ' ' || ch == 160) {
+                cir.setReturnValue(FontManager.INSTANCE.getSkijaTextRenderer().measure(" ", this.boldStyle, italic));
+                return;
+            }
+            String text = String.valueOf(ch);
+            SkijaTextRenderer.RenderedText rendered = FontManager.INSTANCE.getSkijaTextRenderer()
+                    .render(text, sfr$currentArgb(), this.boldStyle, italic);
+            rendered.draw(this.posX, this.posY, this.alpha);
+            cir.setReturnValue(rendered.advance());
+            return;
+        }
+        if (!FontManager.INSTANCE.isSfrActive()) {
             return;
         }
 
@@ -203,6 +231,95 @@ public class MixinFontRenderer {
         this.posX = startX + width;
     }
 
+    private void sfr$renderSkiaFormatted(String text, boolean shadow) {
+        float baseRed = this.red;
+        float baseBlue = this.blue;
+        float baseGreen = this.green;
+        float baseAlpha = this.alpha;
+
+        int runStart = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch != 167 || i + 1 >= text.length()) {
+                continue;
+            }
+
+            if (i > runStart) {
+                sfr$renderSkiaRun(text.substring(runStart, i));
+            }
+
+            int style = "0123456789abcdefklmnor".indexOf(String.valueOf(text.charAt(i + 1))
+                    .toLowerCase(Locale.ROOT).charAt(0));
+            if (style < 16) {
+                this.randomStyle = false;
+                this.boldStyle = false;
+                this.strikethroughStyle = false;
+                this.underlineStyle = false;
+                this.italicStyle = false;
+
+                int colorIndex = style < 0 ? 15 : style;
+                if (shadow) {
+                    colorIndex += 16;
+                }
+                int color = this.colorCode[colorIndex];
+                this.textColor = color;
+                this.red = (float) (color >> 16 & 255) / 255.0F;
+                this.blue = (float) (color >> 8 & 255) / 255.0F;
+                this.green = (float) (color & 255) / 255.0F;
+                this.alpha = baseAlpha;
+            } else if (style == 16) {
+                this.randomStyle = true;
+            } else if (style == 17) {
+                this.boldStyle = true;
+            } else if (style == 18) {
+                this.strikethroughStyle = true;
+            } else if (style == 19) {
+                this.underlineStyle = true;
+            } else if (style == 20) {
+                this.italicStyle = true;
+            } else if (style == 21) {
+                this.randomStyle = false;
+                this.boldStyle = false;
+                this.strikethroughStyle = false;
+                this.underlineStyle = false;
+                this.italicStyle = false;
+                this.red = baseRed;
+                this.blue = baseBlue;
+                this.green = baseGreen;
+                this.alpha = baseAlpha;
+            }
+
+            i++;
+            runStart = i + 1;
+        }
+
+        if (runStart < text.length()) {
+            sfr$renderSkiaRun(text.substring(runStart));
+        }
+    }
+
+    private void sfr$renderSkiaRun(String run) {
+        if (run.isEmpty()) {
+            return;
+        }
+        float startX = this.posX;
+        SkijaTextRenderer.RenderedText rendered = FontManager.INSTANCE.getSkijaTextRenderer()
+                .render(run, sfr$currentArgb(), this.boldStyle, this.italicStyle);
+        rendered.draw(startX, this.posY, this.alpha);
+        float width = rendered.advance();
+
+        if (this.strikethroughStyle) {
+            sfr$drawEffect(startX, this.posY + (float) (this.FONT_HEIGHT / 2),
+                    startX + width, this.posY + (float) (this.FONT_HEIGHT / 2) - 1.0F);
+        }
+        if (this.underlineStyle) {
+            sfr$drawEffect(startX - 1.0F, this.posY + (float) this.FONT_HEIGHT,
+                    startX + width, this.posY + (float) this.FONT_HEIGHT - 1.0F);
+        }
+
+        this.posX = startX + width;
+    }
+
     private void sfr$drawEffect(float x0, float y0, float x1, float y1) {
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder buffer = tessellator.getBuffer();
@@ -222,7 +339,12 @@ public class MixinFontRenderer {
 
     @Inject(method = "getCharWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$onGetCharWidth(char character, CallbackInfoReturnable<Integer> cir) {
-        if (!FontManager.INSTANCE.isActive()) {
+        if (!sfr$isAnyActive()) {
+            return;
+        }
+
+        if (FontManager.INSTANCE.isSkiaActive()) {
+            cir.setReturnValue((int) Math.ceil(sfr$getCharWidthFloat(character == 160 ? ' ' : character, this.boldStyle)));
             return;
         }
 
@@ -252,7 +374,7 @@ public class MixinFontRenderer {
 
     @Inject(method = "getStringWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$onGetStringWidth(String text, CallbackInfoReturnable<Integer> cir) {
-        if (!FontManager.INSTANCE.isActive() || text == null) {
+        if (!sfr$isAnyActive() || text == null) {
             return;
         }
         cir.setReturnValue((int) Math.ceil(sfr$getFormattedStringWidthFloat(text)));
@@ -260,7 +382,7 @@ public class MixinFontRenderer {
 
     @Inject(method = "trimStringToWidth(Ljava/lang/String;IZ)Ljava/lang/String;", at = @At("HEAD"), cancellable = true)
     private void sfr$onTrimStringToWidth(String text, int width, boolean reverse, CallbackInfoReturnable<String> cir) {
-        if (!FontManager.INSTANCE.isActive() || text == null) {
+        if (!sfr$isAnyActive() || text == null) {
             return;
         }
 
@@ -321,7 +443,7 @@ public class MixinFontRenderer {
 
     @Inject(method = "sizeStringToWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$onSizeStringToWidth(String str, int wrapWidth, CallbackInfoReturnable<Integer> cir) {
-        if (!FontManager.INSTANCE.isActive() || str == null) {
+        if (!sfr$isAnyActive() || str == null) {
             return;
         }
 
@@ -403,6 +525,9 @@ public class MixinFontRenderer {
         if (run.isEmpty()) {
             return 0.0F;
         }
+        if (FontManager.INSTANCE.isSkiaActive()) {
+            return FontManager.INSTANCE.getSkijaTextRenderer().measure(run, bold, false);
+        }
         float[] positions = FontManager.INSTANCE.getDefaultFontSet().layoutPositions(run, bold);
         return positions[positions.length - 1];
     }
@@ -411,8 +536,33 @@ public class MixinFontRenderer {
         if (codePoint == 167) {
             return -1.0F;
         }
+        if (Character.isHighSurrogate((char) codePoint) || Character.isLowSurrogate((char) codePoint)) {
+            return 0.0F;
+        }
+        if (FontManager.INSTANCE.isSkiaActive()) {
+            return FontManager.INSTANCE.getSkijaTextRenderer()
+                    .measure(new String(Character.toChars(codePoint == 160 ? ' ' : codePoint)), bold, false);
+        }
         GlyphInfo info = FontManager.INSTANCE.getDefaultFontSet().getGlyphInfo(codePoint == 160 ? ' ' : codePoint);
         return info == null ? 0.0F : info.getAdvance(bold);
+    }
+
+    private boolean sfr$isAnyActive() {
+        return sfr$shouldHook() && (FontManager.INSTANCE.isSfrActive() || FontManager.INSTANCE.isSkiaActive());
+    }
+
+    private boolean sfr$shouldHook() {
+        String className = ((Object) this).getClass().getName();
+        return !className.equals("net.minecraftforge.fml.client.SplashProgress$SplashFontRenderer")
+                && !className.endsWith("SimpleModelFontRenderer");
+    }
+
+    private int sfr$currentArgb() {
+        int a = Math.max(0, Math.min(255, Math.round(this.alpha * 255.0F)));
+        int r = Math.max(0, Math.min(255, Math.round(this.red * 255.0F)));
+        int g = Math.max(0, Math.min(255, Math.round(this.blue * 255.0F)));
+        int b = Math.max(0, Math.min(255, Math.round(this.green * 255.0F)));
+        return a << 24 | r << 16 | g << 8 | b;
     }
 
     private boolean[] sfr$boldStateByIndex(String text) {

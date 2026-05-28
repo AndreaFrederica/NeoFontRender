@@ -1,10 +1,12 @@
 package neofontrender.mixin;
 
 import net.minecraft.client.Minecraft;
+import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import neofontrender.client.input.ImeInputHelper;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.FontManager;
 
@@ -18,6 +20,12 @@ public class MixinMinecraft {
     private void sfr$onStartGame(CallbackInfo ci) {
         Minecraft mc = Minecraft.getMinecraft();
         NeofontrenderConfig.load();
+        if (NeofontrenderConfig.fixImeInput()) {
+            long window = GLFW.glfwGetCurrentContext();
+            if (window != 0) {
+                ImeInputHelper.init(window);
+            }
+        }
         if (mc.getTextureManager() != null) {
             FontManager.INSTANCE.init(mc.getTextureManager());
         }

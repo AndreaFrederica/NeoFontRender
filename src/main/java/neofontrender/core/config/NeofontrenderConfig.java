@@ -120,6 +120,22 @@ public final class NeofontrenderConfig {
     }
 
     // ===================== Rendering =====================
+    public static String renderingEngine() {
+        return normalizeRenderingEngine(config.getOrElse("rendering.engine", "sfr"));
+    }
+
+    public static boolean useSfrEngine() {
+        return enabled() && "sfr".equals(renderingEngine());
+    }
+
+    public static boolean useSkiaEngine() {
+        return enabled() && "skia".equals(renderingEngine());
+    }
+
+    public static boolean useVanillaEngine() {
+        return !enabled() || "vanilla".equals(renderingEngine());
+    }
+
     public static boolean renderingInterpolation() {
         return config.getOrElse("rendering.interpolation", true);
     }
@@ -133,9 +149,21 @@ public final class NeofontrenderConfig {
         return config.getOrElse("performance.asyncInit", true);
     }
 
+    public static boolean performancePrewarmBasicLatin() {
+        return config.getOrElse("performance.prewarmBasicLatin", true);
+    }
+
     // ===================== General =====================
     public static boolean enabled() {
         return config.getOrElse("enabled", true);
+    }
+
+    public static boolean fixImeInput() {
+        return config.getOrElse("fixImeInput", true);
+    }
+
+    public static boolean debugImeInput() {
+        return config.getOrElse("debug.imeInput", false);
     }
 
     public static void setEnabled(boolean value) {
@@ -208,8 +236,16 @@ public final class NeofontrenderConfig {
         config.set("rendering.mipmap", value);
     }
 
+    public static void setRenderingEngine(String value) {
+        config.set("rendering.engine", normalizeRenderingEngine(value));
+    }
+
     public static void setPerformanceAsyncInit(boolean value) {
         config.set("performance.asyncInit", value);
+    }
+
+    public static void setPerformancePrewarmBasicLatin(boolean value) {
+        config.set("performance.prewarmBasicLatin", value);
     }
 
     public static void save() {
@@ -284,11 +320,16 @@ public final class NeofontrenderConfig {
             w.write("opacity = 0.25\n");
             w.write("\n");
             w.write("[rendering]\n");
+            w.write("engine = \"sfr\"\n");
             w.write("interpolation = true\n");
             w.write("mipmap = false\n");
             w.write("\n");
             w.write("[performance]\n");
             w.write("asyncInit = true\n");
+            w.write("prewarmBasicLatin = true\n");
+            w.write("\n");
+            w.write("[debug]\n");
+            w.write("imeInput = false\n");
         }
     }
 
@@ -311,10 +352,14 @@ public final class NeofontrenderConfig {
         config.setComment("shadow.length", "Shadow offset distance in pixels.");
         config.setComment("shadow.opacity", "Shadow opacity multiplier (0.0-1.0).");
         config.setComment("rendering", "OpenGL texture rendering options.");
+        config.setComment("rendering.engine", "Text renderer engine: vanilla, sfr, or skia.");
         config.setComment("rendering.interpolation", "Use GL_LINEAR texture filtering instead of GL_NEAREST.");
         config.setComment("rendering.mipmap", "Enable mipmapping for font textures (may help at small sizes).");
         config.setComment("performance", "Performance tuning options.");
         config.setComment("performance.asyncInit", "Initialize font rasterization on a background thread.");
+        config.setComment("performance.prewarmBasicLatin", "Pre-bake common Basic Latin and Latin-1 glyphs before enabling replacement rendering.");
+        config.setComment("debug", "Debug logging options.");
+        config.setComment("debug.imeInput", "Log IME input fix details to game log (for diagnosing emoji input issues).");
     }
 
     private static float getFloat(String key, float defaultValue) {
@@ -366,6 +411,30 @@ public final class NeofontrenderConfig {
                 return mode;
             default:
                 return "on";
+        }
+    }
+
+    private static String normalizeRenderingEngine(String value) {
+        if (value == null) {
+            return "sfr";
+        }
+        String mode = value.trim().toLowerCase().replace('-', '_');
+        switch (mode) {
+            case "off":
+            case "original":
+            case "default":
+            case "minecraft":
+            case "vanilla":
+                return "vanilla";
+            case "smr":
+            case "sfr":
+            case "awt":
+                return "sfr";
+            case "skija":
+            case "skia":
+                return "skia";
+            default:
+                return "sfr";
         }
     }
 

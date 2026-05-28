@@ -1,6 +1,7 @@
 apply from: 'gradle/scripts/helpers.gradle'
 
 repositories {
+    mavenCentral()
     // Other repositories described by default:
     // CleanroomMC: https://maven.cleanroommc.com
     exclusiveContent {
@@ -59,6 +60,14 @@ dependencies {
     api ('com.cleanroommc:modularui:2.5.0-rc5') {
         transitive = false
     }
+
+    // Skija spike: Windows x64 first. The target Prism client runs on a modern
+    // JVM, so we can use the maintained HumbleUI package line.
+    embed 'io.github.humbleui:skija-windows-x64:0.143.11'
+
+    // LWJGL3 GLFW for IME input fix (available at runtime via Cleanroom)
+    compileOnly 'org.lwjgl:lwjgl-glfw:3.3.6'
+    compileOnly 'org.lwjgl:lwjgl:3.3.6'
 
     // Common dependency types (configuration):
     // implementation = dependency available at both compile time and runtime

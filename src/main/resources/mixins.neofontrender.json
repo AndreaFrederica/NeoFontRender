@@ -9,6 +9,7 @@
 	"server": [],
 	"client": [
 		"MixinFontRenderer",
+		"MixinGuiScreen",
 		"MixinMinecraft",
 		"MixinTextureManager"
 	]

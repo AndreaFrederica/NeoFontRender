@@ -10,6 +10,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.input.Keyboard;
 import neofontrender.client.gui.NeofontrenderConfigScreen;
+import neofontrender.client.gui.NeofontrenderEmojiTestScreen;
 
 /**
  * Handles the mod's key bindings on the client side.
@@ -23,10 +24,17 @@ public final class NeofontrenderKeyHandler {
             "key.categories.neofontrender"
     );
 
+    public static final KeyBinding OPEN_EMOJI_TEST = new KeyBinding(
+            "key.neofontrender.emojiTest",
+            Keyboard.KEY_P,
+            "key.categories.neofontrender"
+    );
+
     private NeofontrenderKeyHandler() {}
 
     public static void init() {
         ClientRegistry.registerKeyBinding(OPEN_CONFIG);
+        ClientRegistry.registerKeyBinding(OPEN_EMOJI_TEST);
         MinecraftForge.EVENT_BUS.register(new NeofontrenderKeyHandler());
     }
 
@@ -34,6 +42,9 @@ public final class NeofontrenderKeyHandler {
     public void onKeyInput(InputEvent.KeyInputEvent event) {
         if (OPEN_CONFIG.isPressed()) {
             NeofontrenderConfigScreen.open();
+        }
+        if (OPEN_EMOJI_TEST.isPressed()) {
+            NeofontrenderEmojiTestScreen.open();
         }
     }
 }

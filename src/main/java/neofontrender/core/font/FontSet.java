@@ -109,6 +109,22 @@ public class FontSet implements AutoCloseable {
         return bakedGlyphs.computeIfAbsent(codePoint, this::bakeGlyph);
     }
 
+    public void prewarmBasicLatin() {
+        for (int cp = 32; cp <= 126; cp++) {
+            prewarmGlyph(cp);
+        }
+        for (int cp = 160; cp <= 255; cp++) {
+            prewarmGlyph(cp);
+        }
+    }
+
+    private void prewarmGlyph(int codePoint) {
+        getGlyphInfo(codePoint);
+        if (codePoint != ' ' && codePoint != 160) {
+            getGlyph(codePoint);
+        }
+    }
+
     @Nullable
     private BakedGlyph bakeGlyph(int codePoint) {
         GlyphInfo info = getGlyphInfo(codePoint);

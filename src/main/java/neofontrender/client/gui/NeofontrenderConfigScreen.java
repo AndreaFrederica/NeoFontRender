@@ -153,6 +153,52 @@ public final class NeofontrenderConfigScreen {
                 });
     }
 
+    private static ButtonWidget<?> engineButton(Staged staged, int width, int height) {
+        return new TextButton(() -> "Engine: " + engineName(staged.engine), true)
+                .onMousePressed(mouseButton -> {
+                    staged.engine = nextEngine(staged.engine);
+                    staged.enabled = !"vanilla".equals(staged.engine);
+                    preview(staged);
+                    return true;
+                });
+    }
+
+    private static String nextEngine(String engine) {
+        String normalized = normalizeEngine(engine);
+        if ("sfr".equals(normalized)) {
+            return "skia";
+        }
+        if ("skia".equals(normalized)) {
+            return "vanilla";
+        }
+        return "sfr";
+    }
+
+    private static String engineName(String engine) {
+        String normalized = normalizeEngine(engine);
+        if ("skia".equals(normalized)) {
+            return "Skia";
+        }
+        if ("vanilla".equals(normalized)) {
+            return "Vanilla";
+        }
+        return "SFR";
+    }
+
+    private static String normalizeEngine(String engine) {
+        if (engine == null) {
+            return "sfr";
+        }
+        String normalized = engine.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        if ("skija".equals(normalized) || "skia".equals(normalized)) {
+            return "skia";
+        }
+        if ("vanilla".equals(normalized) || "original".equals(normalized) || "minecraft".equals(normalized)) {
+            return "vanilla";
+        }
+        return "sfr";
+    }
+
     private static String nextAaMode(String mode) {
         String normalized = normalizeAaMode(mode);
         for (int i = 0; i < AA_MODES.length; i++) {
@@ -487,8 +533,9 @@ public final class NeofontrenderConfigScreen {
             y += metricsHeight + gap;
             place(oversample, 0, y, width, 46);
             y += 46 + gap;
-            place(options, 0, y, width, width < 520 ? 108 : 54);
-            y += (width < 520 ? 108 : 54) + gap;
+            int optionsHeight = width < 520 ? 112 : 82;
+            place(options, 0, y, width, optionsHeight);
+            y += optionsHeight + gap;
             place(preview, 0, y, width, Math.max(0, height - y));
         }
     }
@@ -571,6 +618,7 @@ public final class NeofontrenderConfigScreen {
 
     private static final class OptionsSection extends ParentWidget<OptionsSection> implements ILayoutWidget {
         private final ButtonWidget<?> enabled;
+        private final ButtonWidget<?> engine;
         private final ButtonWidget<?> autoBase;
         private final ButtonWidget<?> aa;
         private final ButtonWidget<?> fractional;
@@ -579,12 +627,14 @@ public final class NeofontrenderConfigScreen {
 
         private OptionsSection(Staged staged) {
             this.enabled = toggleButton("Enabled", 80, 20, () -> staged.enabled, v -> staged.enabled = v, () -> preview(staged));
+            this.engine = engineButton(staged, 96, 20);
             this.autoBase = toggleButton("AutoBase", 80, 20, () -> staged.autoBaseline, v -> staged.autoBaseline = v, () -> preview(staged));
             this.aa = aaModeButton(staged, 140, 20);
             this.fractional = toggleButton("Fractional", 80, 20, () -> staged.fractionalMetrics, v -> staged.fractionalMetrics = v, () -> preview(staged));
             this.style = styleButton(staged, 80, 20);
             this.builtins = toggleButton("Builtins", 80, 20, () -> staged.builtinFallbacks, v -> staged.builtinFallbacks = v, () -> preview(staged));
             child(enabled);
+            child(engine);
             child(autoBase);
             child(aa);
             child(fractional);
@@ -599,7 +649,7 @@ public final class NeofontrenderConfigScreen {
             if (width < 520) {
                 int buttonHeight = 22;
                 int buttonWidth = Math.max(0, (width - gap) / 2);
-                IWidget[] buttons = {enabled, autoBase, aa, fractional, style, builtins};
+                IWidget[] buttons = {engine, enabled, autoBase, aa, fractional, style, builtins};
                 for (int i = 0; i < buttons.length; i++) {
                     int col = i & 1;
                     int row = i / 2;
@@ -610,12 +660,13 @@ public final class NeofontrenderConfigScreen {
             }
             int buttonHeight = 22;
             int third = Math.max(0, (width - gap * 2) / 3);
-            place(enabled, 0, 0, third, buttonHeight);
-            place(autoBase, third + gap, 0, third, buttonHeight);
-            place(aa, third * 2 + gap * 2, 0, Math.max(0, width - third * 2 - gap * 2), buttonHeight);
-            place(fractional, 0, buttonHeight + gap, third, buttonHeight);
-            place(style, third + gap, buttonHeight + gap, third, buttonHeight);
-            place(builtins, third * 2 + gap * 2, buttonHeight + gap, Math.max(0, width - third * 2 - gap * 2), buttonHeight);
+            IWidget[] buttons = {engine, enabled, autoBase, aa, fractional, style, builtins};
+            for (int i = 0; i < buttons.length; i++) {
+                int col = i % 3;
+                int row = i / 3;
+                int x = col * (third + gap);
+                place(buttons[i], x, row * (buttonHeight + gap), col == 2 ? Math.max(0, width - x) : third, buttonHeight);
+            }
         }
     }
 
@@ -632,8 +683,10 @@ public final class NeofontrenderConfigScreen {
         private final boolean originalFractionalMetrics = NeofontrenderConfig.fontFractionalMetrics();
         private final String originalFontFallbacks = joinFonts(NeofontrenderConfig.fontFallbacks());
         private final boolean originalBuiltinFallbacks = NeofontrenderConfig.builtinFallbacksEnabled();
+        private final String originalEngine = NeofontrenderConfig.renderingEngine();
 
         private boolean enabled = originalEnabled;
+        private String engine = originalEngine;
         private String fontName = originalFontName;
         private String fontPath = originalFontName.endsWith(".ttf") || originalFontName.endsWith(".otf") ? originalFontName : "";
         private String fontFallbacks = originalFontFallbacks;
@@ -668,6 +721,7 @@ public final class NeofontrenderConfigScreen {
 
         private void writeToConfig(boolean save) {
             NeofontrenderConfig.setEnabled(enabled);
+            NeofontrenderConfig.setRenderingEngine(engine);
             NeofontrenderConfig.setFontName(selectedFont().isEmpty() ? "SansSerif" : selectedFont());
             NeofontrenderConfig.setFontFallbacks(parseFonts(fontFallbacks));
             NeofontrenderConfig.setFontStyle(fontStyle);
@@ -686,6 +740,7 @@ public final class NeofontrenderConfigScreen {
 
         private void restoreOriginal() {
             NeofontrenderConfig.setEnabled(originalEnabled);
+            NeofontrenderConfig.setRenderingEngine(originalEngine);
             NeofontrenderConfig.setFontName(originalFontName);
             NeofontrenderConfig.setFontFallbacks(parseFonts(originalFontFallbacks));
             NeofontrenderConfig.setFontStyle(originalFontStyle);
