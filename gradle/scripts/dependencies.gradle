@@ -57,7 +57,7 @@ dependencies {
     embed 'com.electronwill.night-config:toml:3.8.3'
 
     // ModularUI for modern config GUI
-    api ('com.cleanroommc:modularui:2.5.0-rc5') {
+    api ('com.cleanroommc:modularui:3.1.6') {
         transitive = false
     }
 

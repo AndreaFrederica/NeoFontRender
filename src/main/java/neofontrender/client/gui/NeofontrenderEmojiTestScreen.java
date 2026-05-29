@@ -6,7 +6,7 @@ import com.cleanroommc.modularui.factory.ClientGUI;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.ModularScreen;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
-import com.cleanroommc.modularui.theme.WidgetTheme;
+import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.widget.Widget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -68,7 +68,7 @@ public final class NeofontrenderEmojiTestScreen {
         }
 
         @Override
-        public void draw(ModularGuiContext context, WidgetTheme widgetTheme) {
+        public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
             super.draw(context, widgetTheme);
 
             int areaX = getArea().x();

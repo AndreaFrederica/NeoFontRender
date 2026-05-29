@@ -2,6 +2,25 @@
 
 All notable changes to Neo Font Render will be documented in this file.
 
+## [0.2.3] - 2026-05-29
+
+### Added
+- Added bundled Sarasa UI SC and Noto Color Emoji as built-in font resources.
+
+### Changed
+- Changed the default primary font to the bundled Sarasa UI SC resource.
+- Renamed bundled font assets to lowercase resource paths.
+- Updated README badges and release metadata for version 0.2.3.
+
+### Fixed
+- Fixed the ModularUI dependency declaration to require version 3.1.6+ without creating an FML load-order cycle.
+
+## [0.2.2] - Unreleased
+
+### Fixed
+- Fixed the ModularUI config screen crash on newer runtime API versions by making `TextWidget` color calls compatible with both `color(Integer)` and `color(int)` signatures.
+- Fixed the in-game mod version metadata so the `@Mod` version now matches the packaged jar version.
+
 ## [0.2.1] - Unreleased
 
 ### Added

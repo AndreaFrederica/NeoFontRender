@@ -9,6 +9,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,9 +21,11 @@ import java.util.Set;
 public final class NeofontrenderConfig {
 
     private static final String CONFIG_NAME = "neofontrender.toml";
+    private static final String DEFAULT_FONT = "neofontrender:fonts/sarasa_ui_sc_regular.ttf";
     private static Path configPath;
     private static CommentedFileConfig config;
-    private static final List<BuiltinFont> BUILTIN_FONTS = Collections.unmodifiableList(Collections.singletonList(
+    private static final List<BuiltinFont> BUILTIN_FONTS = Collections.unmodifiableList(Arrays.asList(
+            new BuiltinFont("Sarasa UI SC", DEFAULT_FONT),
             new BuiltinFont("Noto Color Emoji", "neofontrender:fonts/noto_color_emoji_regular.ttf")
     ));
 
@@ -32,7 +35,7 @@ public final class NeofontrenderConfig {
 
     // ===================== Font =====================
     public static String fontName() {
-        return config.getOrElse("font.name", "SansSerif");
+        return normalizeFontLocation(config.getOrElse("font.name", DEFAULT_FONT));
     }
 
     public static List<String> fontFamily() {
@@ -45,7 +48,7 @@ public final class NeofontrenderConfig {
             }
         }
         if (fonts.isEmpty()) {
-            fonts.add("SansSerif");
+            fonts.add(DEFAULT_FONT);
         }
         return Collections.unmodifiableList(new ArrayList<>(fonts));
     }
@@ -70,7 +73,7 @@ public final class NeofontrenderConfig {
     }
 
     public static float fontSize() {
-        return getFloat("font.size", 8.0f);
+        return getFloat("font.size", 10.0f);
     }
 
     public static float fontOversample() {
@@ -354,10 +357,10 @@ public final class NeofontrenderConfig {
             w.write("enabled = true\n");
             w.write("\n");
             w.write("[font]\n");
-            w.write("name = \"SansSerif\"\n");
+            w.write("name = \"" + DEFAULT_FONT + "\"\n");
             w.write("fallbacks = [\"Serif\", \"Monospaced\"]\n");
             w.write("style = 0\n");
-            w.write("size = 8.0\n");
+            w.write("size = 10.0\n");
             w.write("oversample = 12.0\n");
             w.write("autoBaseline = true\n");
             w.write("baselineShift = 0.0\n");
@@ -400,7 +403,7 @@ public final class NeofontrenderConfig {
         config.setComment("font.name", "Primary font name or TTF file path. Comma/semicolon-separated font family lists are also supported.");
         config.setComment("font.fallbacks", "Fallback font names or TTF file paths queried after font.name when a glyph is missing.");
         config.setComment("font.style", "Font style: 0=Plain, 1=Bold, 2=Italic, 3=Bold+Italic.");
-        config.setComment("font.size", "Font size in pixels. 8.0 is close to vanilla 1.12 UI text height.");
+        config.setComment("font.size", "Font size in pixels. 10.0 is a comfortable default.");
         config.setComment("font.oversample", "Rasterization oversampling factor. Raster resolution is size * oversample; 8.0 at size 8.0 is a 64px glyph raster.");
         config.setComment("font.autoBaseline", "Align each font's measured AWT baseline to the Minecraft reference baseline before manual shift.");
         config.setComment("font.baselineShift", "Additional vertical glyph shift in Minecraft pixels after automatic baseline alignment. Positive moves glyphs down.");
@@ -454,6 +457,9 @@ public final class NeofontrenderConfig {
     private static String normalizeFontLocation(String font) {
         if ("neofontrender:fonts/NotoColorEmoji-Regular.ttf".equals(font)) {
             return "neofontrender:fonts/noto_color_emoji_regular.ttf";
+        }
+        if ("neofontrender:fonts/IBMPlexSansSC-Regular.ttf".equals(font)) {
+            return DEFAULT_FONT;
         }
         return font;
     }

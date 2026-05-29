@@ -11,7 +11,7 @@ import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.ModularScreen;
 import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
-import com.cleanroommc.modularui.theme.WidgetTheme;
+import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.Widget;
@@ -427,7 +427,7 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void layoutWidgets() {
+        public boolean layoutWidgets() {
             int width = getArea().w();
             int height = getArea().h();
             int titleHeight = 16;
@@ -456,6 +456,7 @@ public final class NeofontrenderConfigScreen {
             place(advancedButton, PAD + buttonWidth + GAP, y, buttonWidth, footerHeight);
             place(cancelButton, width - PAD - buttonWidth, y, buttonWidth, footerHeight);
             place(applyButton, width - PAD - buttonWidth * 2 - GAP, y, buttonWidth, footerHeight);
+            return true;
         }
     }
 
@@ -496,7 +497,7 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void layoutWidgets() {
+        public boolean layoutWidgets() {
             int width = getArea().w();
             int height = getArea().h();
             int footerHeight = 24;
@@ -521,6 +522,7 @@ public final class NeofontrenderConfigScreen {
             place(backButton, PAD, footerY, buttonWidth, footerHeight);
             place(cancelButton, width - PAD - buttonWidth, footerY, buttonWidth, footerHeight);
             place(applyButton, width - PAD - buttonWidth * 2 - GAP, footerY, buttonWidth, footerHeight);
+            return true;
         }
     }
 
@@ -563,7 +565,7 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void layoutWidgets() {
+        public boolean layoutWidgets() {
             int width = getArea().w();
             int height = getArea().h();
             int y = 0;
@@ -584,6 +586,7 @@ public final class NeofontrenderConfigScreen {
             place(sourceTitle, 0, y, width, 12);
             y += 18;
             place(fontList, 0, y, width, Math.max(30, height - y));
+            return true;
         }
     }
 
@@ -624,7 +627,7 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void layoutWidgets() {
+        public boolean layoutWidgets() {
             int width = getArea().w();
             int height = getArea().h();
             int y = 0;
@@ -646,6 +649,7 @@ public final class NeofontrenderConfigScreen {
             place(options, 0, y, width, optionsHeight);
             y += optionsHeight + gap;
             place(preview, 0, y, width, Math.max(0, height - y));
+            return true;
         }
     }
 
@@ -661,10 +665,11 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void layoutWidgets() {
+        public boolean layoutWidgets() {
             int width = getArea().w();
             place(label, 0, 0, width, 12);
             place(field, 0, 16, width, Math.max(18, getArea().h() - 16));
+            return true;
         }
     }
 
@@ -684,18 +689,19 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void layoutWidgets() {
+        public boolean layoutWidgets() {
             int width = getArea().w();
             if (width < 360) {
                 int half = Math.max(18, (getArea().h() - 8) / 2);
                 place(size, 0, 0, width, half);
                 place(baseline, 0, half + 8, width, half);
-                return;
+                return true;
             }
             int gap = 10;
             int item = Math.max(0, (width - gap) / 2);
             place(size, 0, 0, item, getArea().h());
             place(baseline, item + gap, 0, Math.max(0, width - item - gap), getArea().h());
+            return true;
         }
     }
 
@@ -720,9 +726,10 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void layoutWidgets() {
+        public boolean layoutWidgets() {
             place(label, 0, 0, getArea().w(), 12);
             place(slider, 0, 18, getArea().w(), Math.max(20, getArea().h() - 18));
+            return true;
         }
     }
 
@@ -759,7 +766,7 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void layoutWidgets() {
+        public boolean layoutWidgets() {
             int width = getArea().w();
             int gap = 8;
             if (width < 520) {
@@ -772,7 +779,7 @@ public final class NeofontrenderConfigScreen {
                     int x = col == 0 ? 0 : buttonWidth + gap;
                     place(buttons[i], x, row * (buttonHeight + gap), col == 0 ? buttonWidth : width - x, buttonHeight);
                 }
-                return;
+                return true;
             }
             int buttonHeight = 22;
             int third = Math.max(0, (width - gap * 2) / 3);
@@ -783,6 +790,7 @@ public final class NeofontrenderConfigScreen {
                 int x = col * (third + gap);
                 place(buttons[i], x, row * (buttonHeight + gap), col == 2 ? Math.max(0, width - x) : third, buttonHeight);
             }
+            return true;
         }
     }
 
@@ -810,7 +818,7 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void layoutWidgets() {
+        public boolean layoutWidgets() {
             int width = getArea().w();
             int gap = 8;
             int buttonHeight = 22;
@@ -823,7 +831,7 @@ public final class NeofontrenderConfigScreen {
                     int x = col == 0 ? 0 : buttonWidth + gap;
                     place(buttons[i], x, row * (buttonHeight + gap), col == 0 ? buttonWidth : width - x, buttonHeight);
                 }
-                return;
+                return true;
             }
             int third = Math.max(0, (width - gap * 2) / 3);
             IWidget[] buttons = {autoScale, interpolation, mipmap, pipeline, shader, edgeBleed};
@@ -833,6 +841,7 @@ public final class NeofontrenderConfigScreen {
                 int x = col * (third + gap);
                 place(buttons[i], x, row * (buttonHeight + gap), col == 2 ? Math.max(0, width - x) : third, buttonHeight);
             }
+            return true;
         }
     }
 
@@ -856,9 +865,10 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void layoutWidgets() {
+        public boolean layoutWidgets() {
             place(label, 0, 0, getArea().w(), 12);
             place(slider, 0, 18, getArea().w(), Math.max(20, getArea().h() - 18));
+            return true;
         }
     }
 
@@ -870,7 +880,7 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void draw(ModularGuiContext context, WidgetTheme widgetTheme) {
+        public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
             super.draw(context, widgetTheme);
             FontRenderTuning.updateFromCurrentGlState();
             float configured = parseFloat(staged.oversample, 8.0F, 1.0F, 16.0F);
@@ -976,10 +986,12 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setShaderTextPipeline(shaderTextPipeline);
             NeofontrenderConfig.setRenderingBrightness(parseFloat(brightness, 3.0F, 0.0F, 12.0F));
             NeofontrenderConfig.setTextureEdgeBleed(textureEdgeBleed);
-            NeofontrenderConfig.setFontName(selectedFont().isEmpty() ? "SansSerif" : selectedFont());
+                NeofontrenderConfig.setFontName(selectedFont().isEmpty()
+                    ? "neofontrender:fonts/sarasa_ui_sc_regular.ttf"
+                    : selectedFont());
             NeofontrenderConfig.setFontFallbacks(parseFonts(fontFallbacks));
             NeofontrenderConfig.setFontStyle(fontStyle);
-            NeofontrenderConfig.setFontSize(parseFloat(fontSize, 8.0F, 4.0F, 64.0F));
+            NeofontrenderConfig.setFontSize(parseFloat(fontSize, 10.0F, 4.0F, 64.0F));
             NeofontrenderConfig.setFontOversample(parseFloat(oversample, 8.0F, 1.0F, 16.0F));
             NeofontrenderConfig.setFontAutoBaseline(autoBaseline);
             NeofontrenderConfig.setFontBaselineShift(parseFloat(baselineShift, 0.0F, -16.0F, 16.0F));
@@ -1127,7 +1139,10 @@ public final class NeofontrenderConfigScreen {
 
         private void refresh() {
             for (int i = 0; i < getChildren().size() && i < fonts.size(); i++) {
-                getChildren().get(i).setEnabled(staged.matchesSearch(fonts.get(i).displayName));
+                Object child = getChildren().get(i);
+                if (child instanceof IWidget) {
+                    ((IWidget) child).setEnabled(staged.matchesSearch(fonts.get(i).displayName));
+                }
             }
             if (isValid()) {
                 getScrollData().scrollTo(getScrollArea(), 0);
@@ -1136,43 +1151,49 @@ public final class NeofontrenderConfigScreen {
         }
 
         private ButtonWidget<?> fontButton(FontEntry font) {
-            ButtonWidget<?> button = new ButtonWidget<>()
-                    .child(new TextWidget(IKey.dynamic(() -> staged.isSelected(font)
-                            ? "> " + font.displayName : font.displayName))
-                            .alignment(Alignment.CenterLeft)
-                            .color(0xFFFFFF)
-                            .paddingLeft(6))
-                    .onMousePressed(mouseButton -> {
-                        staged.fontName = font.displayName;
-                        staged.fontPath = font.path;
-                        if (nameField[0] != null) {
-                            nameField[0].setText(font.displayName);
-                        }
-                        if (pathField[0] != null) {
-                            pathField[0].setText(font.path);
-                        }
-                        preview(staged);
-                        return true;
-                    })
-                    .height(16);
+            ButtonWidget<?> button = new ButtonWidget<>();
+            TextWidget label = new TextWidget(IKey.dynamic(() -> staged.isSelected(font)
+                ? "> " + font.displayName : font.displayName));
+            label.alignment(Alignment.CenterLeft);
+            label.color(0xFFFFFF);
+            label.paddingLeft(6);
+            button.child(label);
+            button.onMousePressed(mouseButton -> {
+                staged.fontName = font.displayName;
+                staged.fontPath = font.path;
+                if (nameField[0] != null) {
+                    nameField[0].setText(font.displayName);
+                }
+                if (pathField[0] != null) {
+                    pathField[0].setText(font.path);
+                }
+                preview(staged);
+                return true;
+            });
+            button.height(16);
             return button;
         }
 
         @Override
-        public void layoutWidgets() {
-            int y = getArea().getPadding().top;
+        public boolean layoutWidgets() {
+            int y = getArea().getPadding().getTop();
             int width = Math.max(0, getArea().w() - getArea().getPadding().horizontal());
-            for (IWidget child : getChildren()) {
+            for (Object childObject : getChildren()) {
+                if (!(childObject instanceof IWidget)) {
+                    continue;
+                }
+                IWidget child = (IWidget) childObject;
                 if (!child.isEnabled()) {
                     continue;
                 }
-                place(child, getArea().getPadding().left, y, width, 16);
+                place(child, getArea().getPadding().getLeft(), y, width, 16);
                 if (!child.getChildren().isEmpty()) {
                     place(child.getChildren().get(0), 0, 0, width, 16);
                 }
                 y += 16;
             }
-            getScrollData().setScrollSize(y + getArea().getPadding().bottom);
+            getScrollData().setScrollSize(y + getArea().getPadding().getBottom());
+            return true;
         }
     }
 
@@ -1204,6 +1225,11 @@ public final class NeofontrenderConfigScreen {
         public void setValue(String value) {
             setStringValue(value);
         }
+
+        @Override
+        public Class<String> getValueType() {
+            return String.class;
+        }
     }
 
     private static final class DoubleValue implements IDoubleValue<Double> {
@@ -1234,6 +1260,11 @@ public final class NeofontrenderConfigScreen {
         public void setValue(Double value) {
             setDoubleValue(value);
         }
+
+        @Override
+        public Class<Double> getValueType() {
+            return Double.class;
+        }
     }
 
     private static final class PreviewWidget extends Widget<PreviewWidget> {
@@ -1244,7 +1275,7 @@ public final class NeofontrenderConfigScreen {
         }
 
         @Override
-        public void draw(ModularGuiContext context, WidgetTheme widgetTheme) {
+        public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
             super.draw(context, widgetTheme);
             int x = getArea().x() + 8;
             int y = getArea().y() + 8;

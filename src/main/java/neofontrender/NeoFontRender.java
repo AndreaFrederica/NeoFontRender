@@ -13,7 +13,7 @@ import neofontrender.common.CommonProxy;
         modid = Tags.MOD_ID,
         name = Tags.MOD_NAME,
         version = Tags.VERSION,
-        dependencies = "before:*",
+    dependencies = "required-after:modularui@[3.1.6,)",
         clientSideOnly = true,
         acceptedMinecraftVersions = "[1.12,1.13)"
 )

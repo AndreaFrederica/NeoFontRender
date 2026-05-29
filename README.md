@@ -5,6 +5,11 @@
 <h1 align="center">Neo Font Render</h1>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/version-0.2.3-blue" alt="Version 0.2.3">
+  <img src="https://img.shields.io/badge/modularui-3.1.6%2B-green" alt="ModularUI 3.1.6+">
+</p>
+
+<p align="center">
   A modern font rendering enhancement mod for Minecraft 1.12.2.<br>
   It combines a configurable AWT atlas renderer with a Skia paragraph renderer for advanced shaping and emoji.
 </p>
@@ -22,7 +27,7 @@ Neo Font Render replaces the old bitmap font path in Minecraft 1.12.2 with a con
 Current highlights:
 
 - Custom system fonts and external TTF files with fallback chains
-- Built-in emoji fallback support via bundled Noto Color Emoji resources
+- Built-in font resources, including bundled Sarasa UI SC and Noto Color Emoji
 - Skia paragraph rendering for ligatures, kerning, fallback, BiDi, complex scripts, and emoji
 - Automatic fallback to the AWT atlas renderer when Skia is unavailable or initialization fails
 - Advanced rendering controls for oversample, adaptive raster scale, mipmap, interpolation, shader compensation, and texture edge handling
@@ -56,7 +61,7 @@ The current codebase includes more than just font replacement:
 - AWT glyph atlas fallback with configurable rasterization and filtering
 - Unicode IME fix in GUI input handling for emoji and other non-BMP characters
 - Ctrl+V paste support in the sign editor with width-aware wrapping
-- Configurable built-in fallback fonts, including bundled emoji resources
+- Configurable built-in fonts, including bundled Sarasa UI SC and emoji resources
 - Runtime texture filter overrides for custom font textures
 - In-game emoji test screen and font diagnostics command surface
 
@@ -93,13 +98,13 @@ enabled = true
 # Font selection and rasterization settings.
 [font]
 # Primary font name or TTF file path. Comma/semicolon-separated font family lists are also supported.
-name = "SansSerif"
+name = "neofontrender:fonts/sarasa_ui_sc_regular.ttf"
 # Fallback font names or TTF file paths queried after font.name when a glyph is missing.
 fallbacks = ["Serif", "Monospaced"]
 # Font style: 0=Plain, 1=Bold, 2=Italic, 3=Bold+Italic.
 style = 0
 # Font size in pixels. 8.0 is close to vanilla 1.12 UI text height.
-size = 8.0
+size = 10.0
 # Rasterization oversampling factor. Raster resolution is size * oversample.
 oversample = 12.0
 # Align each font's measured AWT baseline to the Minecraft reference baseline before manual shift.
