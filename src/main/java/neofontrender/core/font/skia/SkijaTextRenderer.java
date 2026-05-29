@@ -6,7 +6,10 @@ import io.github.humbleui.skija.Data;
 import io.github.humbleui.skija.FontMgr;
 import io.github.humbleui.skija.FontStyle;
 import io.github.humbleui.skija.ImageInfo;
+import io.github.humbleui.skija.Paint;
+import io.github.humbleui.skija.PixelGeometry;
 import io.github.humbleui.skija.Surface;
+import io.github.humbleui.skija.SurfaceProps;
 import io.github.humbleui.skija.Typeface;
 import io.github.humbleui.skija.paragraph.FontCollection;
 import io.github.humbleui.skija.paragraph.Paragraph;
@@ -41,6 +44,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +56,7 @@ import java.util.Map;
  */
 public final class SkijaTextRenderer implements TextRenderBackend {
 
-    private static final int MAX_CACHE_SIZE = 512;
+    private static final int DEFAULT_CACHE_SIZE = 512;
     private static final String[] PLATFORM_EMOJI_FONTS = {
             "Segoe UI Emoji",
             "Apple Color Emoji",
@@ -67,12 +71,11 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     private final FontCollection fontCollection;
     private final List<Typeface> ownedTypefaces = new ArrayList<>();
     private final String[] fontFamilies;
-    private final float oversample;
     private final Map<RenderKey, RenderedText> renderCache = Collections.synchronizedMap(
-            new LinkedHashMap<RenderKey, RenderedText>(MAX_CACHE_SIZE, 0.75F, true) {
+            new LinkedHashMap<RenderKey, RenderedText>(DEFAULT_CACHE_SIZE, 0.75F, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<RenderKey, RenderedText> eldest) {
-                    if (size() <= MAX_CACHE_SIZE) {
+                    if (size() <= maxRenderCacheEntries()) {
                         return false;
                     }
                     eldest.getValue().close();
@@ -80,10 +83,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 }
             });
     private final Map<MeasureKey, Float> measureCache = Collections.synchronizedMap(
-            new LinkedHashMap<MeasureKey, Float>(MAX_CACHE_SIZE, 0.75F, true) {
+            new LinkedHashMap<MeasureKey, Float>(DEFAULT_CACHE_SIZE, 0.75F, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<MeasureKey, Float> eldest) {
-                    return size() > MAX_CACHE_SIZE;
+                    return size() > maxMeasureCacheEntries();
                 }
             });
     private int nextTextureId = 0;
@@ -92,7 +95,6 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         this.textureManager = textureManager;
         this.resourceManager = resourceManager;
         this.fontProvider = new TypefaceFontProvider();
-        this.oversample = FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample());
         this.fontFamilies = registerConfiguredFonts();
         this.fontCollection = new FontCollection()
                 .setAssetFontManager(fontProvider)
@@ -112,17 +114,19 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         if (text == null || text.isEmpty()) {
             return 0.0F;
         }
-        MeasureKey key = MeasureKey.plain(text, bold, italic);
+        float scale = currentRasterScale();
+        MeasureKey key = MeasureKey.plain(text, bold, italic, scale);
         Float cached = measureCache.get(key);
         if (cached != null) {
             return cached;
         }
         float measured;
-        try (Paragraph paragraph = buildParagraph(text, 0xFFFFFFFF, bold, italic, oversample)) {
-            paragraph.layout(100000.0F * oversample);
-            measured = Math.max(paragraph.getMaxIntrinsicWidth(), paragraph.getLongestLine()) / oversample;
+        try (Paragraph paragraph = buildParagraph(text, 0xFFFFFFFF, bold, italic, scale)) {
+            paragraph.layout(100000.0F * scale);
+            measured = Math.max(paragraph.getMaxIntrinsicWidth(), paragraph.getLongestLine()) / scale;
         }
         measureCache.put(key, measured);
+        trimMeasureCache();
         return measured;
     }
 
@@ -130,17 +134,19 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         if (text == null || text.isEmpty()) {
             return 0.0F;
         }
-        MeasureKey key = MeasureKey.formatted(text, shadow);
+        float scale = currentRasterScale();
+        MeasureKey key = MeasureKey.formatted(text, shadow, scale);
         Float cached = measureCache.get(key);
         if (cached != null) {
             return cached;
         }
         float measured;
-        try (Paragraph paragraph = buildFormattedParagraph(text, baseArgb, shadow, oversample)) {
-            paragraph.layout(100000.0F * oversample);
-            measured = Math.max(paragraph.getMaxIntrinsicWidth(), paragraph.getLongestLine()) / oversample;
+        try (Paragraph paragraph = buildFormattedParagraph(text, baseArgb, shadow, scale)) {
+            paragraph.layout(100000.0F * scale);
+            measured = Math.max(paragraph.getMaxIntrinsicWidth(), paragraph.getLongestLine()) / scale;
         }
         measureCache.put(key, measured);
+        trimMeasureCache();
         return measured;
     }
 
@@ -148,14 +154,17 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         if (text == null || text.isEmpty()) {
             return RenderedText.EMPTY;
         }
-        RenderKey key = RenderKey.plain(text, argb, bold, italic);
+        float scale = currentRasterScale();
+        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale);
         RenderedText cached = renderCache.get(key);
         if (cached != null) {
+            cached.touch();
             return cached;
         }
         try {
-            RenderedText rendered = rasterize(text, argb, bold, italic, key.hashCode());
+            RenderedText rendered = rasterize(text, argb, bold, italic, scale, key.hashCode());
             renderCache.put(key, rendered);
+            trimRenderCache();
             return rendered;
         } catch (Throwable t) {
             NeoFontRender.LOGGER.error("Failed to render Skija text run '{}'", text, t);
@@ -168,14 +177,17 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return RenderedText.EMPTY;
         }
         int normalizedArgb = normalizeBaseArgb(baseArgb);
-        RenderKey key = RenderKey.formatted(text, normalizedArgb, shadow);
+        float scale = currentRasterScale();
+        RenderKey key = RenderKey.formatted(text, normalizedArgb, shadow, scale);
         RenderedText cached = renderCache.get(key);
         if (cached != null) {
+            cached.touch();
             return cached;
         }
         try {
-            RenderedText rendered = rasterizeFormatted(text, normalizedArgb, shadow, key.hashCode());
+            RenderedText rendered = rasterizeFormatted(text, normalizedArgb, shadow, scale, key.hashCode());
             renderCache.put(key, rendered);
+            trimRenderCache();
             return rendered;
         } catch (Throwable t) {
             NeoFontRender.LOGGER.error("Failed to render formatted Skija text '{}'", text, t);
@@ -200,25 +212,26 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
     }
 
-    private RenderedText rasterize(String text, int argb, boolean bold, boolean italic, int cacheHash) throws IOException {
+    private RenderedText rasterize(String text, int argb, boolean bold, boolean italic, float oversample, int cacheHash) throws IOException {
         float measuredWidth = Math.max(1.0F, measure(text, bold, italic));
         int width = Math.max(1, (int) Math.ceil((measuredWidth + 4.0F) * oversample));
         try (Paragraph paragraph = buildParagraph(text, argb, bold, italic, oversample)) {
             paragraph.layout(width);
-            return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width);
+            return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width, oversample);
         }
     }
 
-    private RenderedText rasterizeFormatted(String text, int argb, boolean shadow, int cacheHash) throws IOException {
+    private RenderedText rasterizeFormatted(String text, int argb, boolean shadow, float oversample, int cacheHash) throws IOException {
         float measuredWidth = Math.max(1.0F, measureFormatted(text, argb, shadow));
         int width = Math.max(1, (int) Math.ceil((measuredWidth + 4.0F) * oversample));
         try (Paragraph paragraph = buildFormattedParagraph(text, argb, shadow, oversample)) {
             paragraph.layout(width);
-            return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width);
+            return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width, oversample);
         }
     }
 
-    private RenderedText rasterizeParagraph(Paragraph paragraph, int cacheHash, float measuredWidth, int width) throws IOException {
+    private RenderedText rasterizeParagraph(Paragraph paragraph, int cacheHash, float measuredWidth, int width,
+                                           float oversample) throws IOException {
         int height;
         float verticalOffset;
 
@@ -231,7 +244,8 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 : NeofontrenderConfig.fontBaselineShift();
         float horizontalOffset = -paintX / oversample;
 
-        try (Surface surface = Surface.makeRasterN32Premul(width, height)) {
+        ImageInfo imageInfo = ImageInfo.makeN32Premul(width, height);
+        try (Surface surface = Surface.makeRaster(imageInfo, imageInfo.getMinRowBytes(), skiaSurfaceProps())) {
             Canvas canvas = surface.getCanvas();
             canvas.clear(0x00000000);
             paragraph.paint(canvas, paintX, paintY);
@@ -260,21 +274,36 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 FontPixelUtils.normalizeTransparentRgb(pixels, width, height);
             }
 
-            DynamicTexture texture = new DynamicTexture(width, height);
+            float textureScale = FontRenderTuning.textureScale(oversample);
+            int uploadWidth = width;
+            int uploadHeight = height;
+            if (textureScale > 1.0F) {
+                int scale = Math.round(textureScale);
+                pixels = FontPixelUtils.scaleNearest(pixels, width, height, scale);
+                uploadWidth = width * scale;
+                uploadHeight = height * scale;
+            }
+            float actualRasterScale = oversample * textureScale;
+
+            DynamicTexture texture = new DynamicTexture(uploadWidth, uploadHeight);
             int[] target = texture.getTextureData();
             System.arraycopy(pixels, 0, target, 0, Math.min(pixels.length, target.length));
             texture.updateDynamicTexture();
-            FontRenderTuning.applyFontTextureFilter(texture, oversample);
+            FontRenderTuning.applyFontTextureFilter(texture, actualRasterScale);
 
             ResourceLocation location = new ResourceLocation("neofontrender",
             "skia/" + Integer.toHexString(cacheHash) + "_" + nextTextureId++);
             textureManager.loadTexture(location, texture);
-            FontRenderTuning.applyFontTextureFilter(texture, oversample);
+            FontRenderTuning.applyFontTextureFilter(texture, actualRasterScale);
             return new RenderedText(location, texture, measuredWidth,
-                    width, height,
-                    width / oversample, height / oversample,
-                    oversample, horizontalOffset, verticalOffset);
+                    uploadWidth, uploadHeight,
+                    uploadWidth / actualRasterScale, uploadHeight / actualRasterScale,
+                    actualRasterScale, horizontalOffset, verticalOffset);
         }
+    }
+
+    private float currentRasterScale() {
+        return FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample());
     }
 
     private Paragraph buildParagraph(String text, int argb, boolean bold, boolean italic, float scale) {
@@ -339,7 +368,9 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         if (text.isEmpty()) {
             return;
         }
-        try (TextStyle textStyle = makeTextStyle(argb, bold, italic, scale)) {
+        try (TextStyle textStyle = makeTextStyle(argb, bold, italic, scale);
+             Paint foreground = makeForegroundPaint(argb)) {
+            textStyle.setForeground(foreground);
             if (underline || strikethrough) {
                 textStyle.setDecorationStyle(new DecorationStyle(
                         underline, false, strikethrough, false, opaqueRgb(argb),
@@ -365,6 +396,34 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 .setFontStyle(style)
                 .setFontFamilies(fontFamilies)
                 .setHeight(1.0F);
+    }
+
+    private static Paint makeForegroundPaint(int argb) {
+        return new Paint()
+                .setColor(opaqueRgb(argb))
+                .setAntiAlias(!"off".equals(NeofontrenderConfig.fontAntialiasMode()));
+    }
+
+    private static SurfaceProps skiaSurfaceProps() {
+        return new SurfaceProps(false, skiaPixelGeometry(NeofontrenderConfig.fontAntialiasMode()));
+    }
+
+    private static PixelGeometry skiaPixelGeometry(String mode) {
+        if (mode == null) {
+            return PixelGeometry.UNKNOWN;
+        }
+        switch (mode) {
+            case "lcd_hrgb":
+                return PixelGeometry.RGB_H;
+            case "lcd_hbgr":
+                return PixelGeometry.BGR_H;
+            case "lcd_vrgb":
+                return PixelGeometry.RGB_V;
+            case "lcd_vbgr":
+                return PixelGeometry.BGR_V;
+            default:
+                return PixelGeometry.UNKNOWN;
+        }
     }
 
     private static int normalizeBaseArgb(int argb) {
@@ -395,6 +454,61 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
         int a = normalizeBaseArgb(baseArgb) & 0xFF000000;
         return a | r << 16 | g << 8 | b;
+    }
+
+    private void trimRenderCache() {
+        synchronized (renderCache) {
+            int max = maxRenderCacheEntries();
+            Iterator<Map.Entry<RenderKey, RenderedText>> iterator = renderCache.entrySet().iterator();
+            while (renderCache.size() > max && iterator.hasNext()) {
+                Map.Entry<RenderKey, RenderedText> eldest = iterator.next();
+                eldest.getValue().close();
+                iterator.remove();
+            }
+
+            long ttlMillis = renderCacheTtlMillis();
+            if (ttlMillis <= 0L) {
+                return;
+            }
+            int min = minRenderCacheEntries(max);
+            long now = System.currentTimeMillis();
+            iterator = renderCache.entrySet().iterator();
+            while (renderCache.size() > min && iterator.hasNext()) {
+                Map.Entry<RenderKey, RenderedText> eldest = iterator.next();
+                if (!eldest.getValue().isExpired(now, ttlMillis)) {
+                    break;
+                }
+                eldest.getValue().close();
+                iterator.remove();
+            }
+        }
+    }
+
+    private void trimMeasureCache() {
+        synchronized (measureCache) {
+            int max = maxMeasureCacheEntries();
+            Iterator<MeasureKey> iterator = measureCache.keySet().iterator();
+            while (measureCache.size() > max && iterator.hasNext()) {
+                iterator.next();
+                iterator.remove();
+            }
+        }
+    }
+
+    private static int maxRenderCacheEntries() {
+        return Math.max(1, NeofontrenderConfig.skiaTextCacheMaxEntries());
+    }
+
+    private static int minRenderCacheEntries(int max) {
+        return Math.max(0, Math.min(max, NeofontrenderConfig.skiaTextCacheMinEntries()));
+    }
+
+    private static int maxMeasureCacheEntries() {
+        return Math.max(1, NeofontrenderConfig.skiaMeasureCacheMaxEntries());
+    }
+
+    private static long renderCacheTtlMillis() {
+        return (long) (NeofontrenderConfig.skiaTextCacheTtlSeconds() * 1000.0F);
     }
 
     private String[] registerConfiguredFonts() throws IOException {
@@ -499,6 +613,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         private final float rasterScale;
         private final float horizontalOffset;
         private final float verticalOffset;
+        private volatile long lastAccessMillis;
 
         private RenderedText(ResourceLocation location, DynamicTexture texture, float advance,
                              int width, int height, float drawWidth, float drawHeight,
@@ -513,6 +628,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             this.rasterScale = rasterScale;
             this.horizontalOffset = horizontalOffset;
             this.verticalOffset = verticalOffset;
+            this.lastAccessMillis = System.currentTimeMillis();
         }
 
         public float advance() {
@@ -523,6 +639,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             if (location == null || texture == null || width <= 0 || height <= 0) {
                 return;
             }
+            touch();
             net.minecraft.client.Minecraft.getMinecraft().getTextureManager().bindTexture(location);
             GlStateManager.enableTexture2D();
             GlStateManager.enableAlpha();
@@ -549,6 +666,14 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 texture.deleteGlTexture();
             }
         }
+
+        private void touch() {
+            lastAccessMillis = System.currentTimeMillis();
+        }
+
+        private boolean isExpired(long nowMillis, long ttlMillis) {
+            return nowMillis - lastAccessMillis >= ttlMillis;
+        }
     }
 
     private static final class RenderKey {
@@ -557,21 +682,24 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         private final boolean formatted;
         private final boolean primaryStyle;
         private final boolean secondaryStyle;
+        private final int scaleBucket;
 
-        private RenderKey(String text, int argb, boolean formatted, boolean primaryStyle, boolean secondaryStyle) {
+        private RenderKey(String text, int argb, boolean formatted, boolean primaryStyle, boolean secondaryStyle,
+                          float scale) {
             this.text = text;
             this.argb = argb;
             this.formatted = formatted;
             this.primaryStyle = primaryStyle;
             this.secondaryStyle = secondaryStyle;
+            this.scaleBucket = scaleBucket(scale);
         }
 
-        private static RenderKey plain(String text, int argb, boolean bold, boolean italic) {
-            return new RenderKey(text, argb, false, bold, italic);
+        private static RenderKey plain(String text, int argb, boolean bold, boolean italic, float scale) {
+            return new RenderKey(text, argb, false, bold, italic, scale);
         }
 
-        private static RenderKey formatted(String text, int argb, boolean shadow) {
-            return new RenderKey(text, argb, true, shadow, false);
+        private static RenderKey formatted(String text, int argb, boolean shadow, float scale) {
+            return new RenderKey(text, argb, true, shadow, false, scale);
         }
 
         @Override
@@ -587,6 +715,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                     && formatted == other.formatted
                     && primaryStyle == other.primaryStyle
                     && secondaryStyle == other.secondaryStyle
+                    && scaleBucket == other.scaleBucket
                     && text.equals(other.text);
         }
 
@@ -597,6 +726,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             result = 31 * result + (formatted ? 1 : 0);
             result = 31 * result + (primaryStyle ? 1 : 0);
             result = 31 * result + (secondaryStyle ? 1 : 0);
+            result = 31 * result + scaleBucket;
             return result;
         }
     }
@@ -606,20 +736,22 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         private final boolean formatted;
         private final boolean primaryStyle;
         private final boolean secondaryStyle;
+        private final int scaleBucket;
 
-        private MeasureKey(String text, boolean formatted, boolean primaryStyle, boolean secondaryStyle) {
+        private MeasureKey(String text, boolean formatted, boolean primaryStyle, boolean secondaryStyle, float scale) {
             this.text = text;
             this.formatted = formatted;
             this.primaryStyle = primaryStyle;
             this.secondaryStyle = secondaryStyle;
+            this.scaleBucket = scaleBucket(scale);
         }
 
-        private static MeasureKey plain(String text, boolean bold, boolean italic) {
-            return new MeasureKey(text, false, bold, italic);
+        private static MeasureKey plain(String text, boolean bold, boolean italic, float scale) {
+            return new MeasureKey(text, false, bold, italic, scale);
         }
 
-        private static MeasureKey formatted(String text, boolean shadow) {
-            return new MeasureKey(text, true, shadow, false);
+        private static MeasureKey formatted(String text, boolean shadow, float scale) {
+            return new MeasureKey(text, true, shadow, false, scale);
         }
 
         @Override
@@ -634,6 +766,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return formatted == other.formatted
                     && primaryStyle == other.primaryStyle
                     && secondaryStyle == other.secondaryStyle
+                    && scaleBucket == other.scaleBucket
                     && text.equals(other.text);
         }
 
@@ -643,8 +776,13 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             result = 31 * result + (formatted ? 1 : 0);
             result = 31 * result + (primaryStyle ? 1 : 0);
             result = 31 * result + (secondaryStyle ? 1 : 0);
+            result = 31 * result + scaleBucket;
             return result;
         }
+    }
+
+    private static int scaleBucket(float scale) {
+        return Math.round(scale * 100.0F);
     }
 
 }

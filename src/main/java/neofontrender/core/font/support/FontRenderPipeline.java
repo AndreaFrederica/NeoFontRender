@@ -66,7 +66,8 @@ public final class FontRenderPipeline {
         if (brightness <= 0.0F) {
             return 1.0F;
         }
-        float scaleCompensation = Math.max(1.0F, rasterScale / Math.max(1.0F, FontRenderTuning.currentGuiScale()));
+        float scaleCompensation = Math.max(1.0F,
+                rasterScale / Math.max(1.0F, FontRenderTuning.currentDrawContext().pixelScale()));
         return Math.min(1.35F, 1.0F + brightness * 0.035F * Math.min(1.4F, scaleCompensation));
     }
 

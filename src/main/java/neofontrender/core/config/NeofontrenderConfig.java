@@ -155,6 +155,54 @@ public final class NeofontrenderConfig {
         return config.getOrElse("rendering.adaptiveRasterScale", true);
     }
 
+    public static float adaptiveRasterMin() {
+        return getFloat("rendering.adaptiveRasterMin", 1.5f);
+    }
+
+    public static float adaptiveRasterMax() {
+        return getFloat("rendering.adaptiveRasterMax", 14.0f);
+    }
+
+    public static float adaptiveRasterStep() {
+        return getFloat("rendering.adaptiveRasterStep", 0.5f);
+    }
+
+    public static boolean excludeIntegerScale() {
+        return config.getOrElse("rendering.excludeIntegerScale", true);
+    }
+
+    public static boolean excludeHighMagnification() {
+        return config.getOrElse("rendering.excludeHighMagnification", true);
+    }
+
+    public static float limitMagnification() {
+        return getFloat("rendering.limitMagnification", 3.0f);
+    }
+
+    public static float scaleRoundingToleranceRate() {
+        return getFloat("rendering.scaleRoundingTolerance", 0.5f) * 0.01f;
+    }
+
+    public static float mipmapLodBias() {
+        return getFloat("rendering.mipmapLodBias", -0.3f);
+    }
+
+    public static float overlayMipmapLodBias() {
+        return getFloat("rendering.overlayMipmapLodBias", -0.5f);
+    }
+
+    public static boolean anisotropicFiltering() {
+        return config.getOrElse("rendering.anisotropicFiltering", true);
+    }
+
+    public static float blurReductionThreshold() {
+        return getFloat("rendering.blurReduction", 10.0f);
+    }
+
+    public static float smoothShadowThreshold() {
+        return getFloat("rendering.smoothShadowThreshold", 24.0f);
+    }
+
     public static boolean enhancedTextPipeline() {
         return config.getOrElse("rendering.enhancedTextPipeline", false);
     }
@@ -178,6 +226,22 @@ public final class NeofontrenderConfig {
 
     public static boolean performancePrewarmBasicLatin() {
         return config.getOrElse("performance.prewarmBasicLatin", true);
+    }
+
+    public static int skiaTextCacheMinEntries() {
+        return Math.max(0, getInt("performance.skiaTextCacheMinEntries", 64));
+    }
+
+    public static int skiaTextCacheMaxEntries() {
+        return Math.max(1, getInt("performance.skiaTextCacheMaxEntries", 512));
+    }
+
+    public static float skiaTextCacheTtlSeconds() {
+        return Math.max(0.0f, getFloat("performance.skiaTextCacheTtlSeconds", 120.0f));
+    }
+
+    public static int skiaMeasureCacheMaxEntries() {
+        return Math.max(1, getInt("performance.skiaMeasureCacheMaxEntries", 512));
     }
 
     // ===================== General =====================
@@ -271,6 +335,54 @@ public final class NeofontrenderConfig {
         config.set("rendering.adaptiveRasterScale", value);
     }
 
+    public static void setAdaptiveRasterMin(float value) {
+        config.set("rendering.adaptiveRasterMin", value);
+    }
+
+    public static void setAdaptiveRasterMax(float value) {
+        config.set("rendering.adaptiveRasterMax", value);
+    }
+
+    public static void setAdaptiveRasterStep(float value) {
+        config.set("rendering.adaptiveRasterStep", value);
+    }
+
+    public static void setExcludeIntegerScale(boolean value) {
+        config.set("rendering.excludeIntegerScale", value);
+    }
+
+    public static void setExcludeHighMagnification(boolean value) {
+        config.set("rendering.excludeHighMagnification", value);
+    }
+
+    public static void setLimitMagnification(float value) {
+        config.set("rendering.limitMagnification", value);
+    }
+
+    public static void setScaleRoundingTolerance(float value) {
+        config.set("rendering.scaleRoundingTolerance", value);
+    }
+
+    public static void setMipmapLodBias(float value) {
+        config.set("rendering.mipmapLodBias", value);
+    }
+
+    public static void setOverlayMipmapLodBias(float value) {
+        config.set("rendering.overlayMipmapLodBias", value);
+    }
+
+    public static void setAnisotropicFiltering(boolean value) {
+        config.set("rendering.anisotropicFiltering", value);
+    }
+
+    public static void setBlurReductionThreshold(float value) {
+        config.set("rendering.blurReduction", value);
+    }
+
+    public static void setSmoothShadowThreshold(float value) {
+        config.set("rendering.smoothShadowThreshold", value);
+    }
+
     public static void setEnhancedTextPipeline(boolean value) {
         config.set("rendering.enhancedTextPipeline", value);
     }
@@ -301,6 +413,22 @@ public final class NeofontrenderConfig {
 
     public static void setPerformancePrewarmBasicLatin(boolean value) {
         config.set("performance.prewarmBasicLatin", value);
+    }
+
+    public static void setSkiaTextCacheMinEntries(int value) {
+        config.set("performance.skiaTextCacheMinEntries", value);
+    }
+
+    public static void setSkiaTextCacheMaxEntries(int value) {
+        config.set("performance.skiaTextCacheMaxEntries", value);
+    }
+
+    public static void setSkiaTextCacheTtlSeconds(float value) {
+        config.set("performance.skiaTextCacheTtlSeconds", value);
+    }
+
+    public static void setSkiaMeasureCacheMaxEntries(int value) {
+        config.set("performance.skiaMeasureCacheMaxEntries", value);
     }
 
     public static void save() {
@@ -380,6 +508,18 @@ public final class NeofontrenderConfig {
             w.write("interpolation = false\n");
             w.write("mipmap = true\n");
             w.write("adaptiveRasterScale = true\n");
+            w.write("adaptiveRasterMin = 1.5\n");
+            w.write("adaptiveRasterMax = 14.0\n");
+            w.write("adaptiveRasterStep = 0.5\n");
+            w.write("excludeIntegerScale = true\n");
+            w.write("excludeHighMagnification = true\n");
+            w.write("limitMagnification = 3.0\n");
+            w.write("scaleRoundingTolerance = 0.5\n");
+            w.write("mipmapLodBias = -0.3\n");
+            w.write("overlayMipmapLodBias = -0.5\n");
+            w.write("anisotropicFiltering = true\n");
+            w.write("blurReduction = 10.0\n");
+            w.write("smoothShadowThreshold = 24.0\n");
             w.write("enhancedTextPipeline = false\n");
             w.write("shaderTextPipeline = false\n");
             w.write("brightness = 0.0\n");
@@ -388,6 +528,10 @@ public final class NeofontrenderConfig {
             w.write("[performance]\n");
             w.write("asyncInit = true\n");
             w.write("prewarmBasicLatin = true\n");
+            w.write("skiaTextCacheMinEntries = 64\n");
+            w.write("skiaTextCacheMaxEntries = 512\n");
+            w.write("skiaTextCacheTtlSeconds = 120.0\n");
+            w.write("skiaMeasureCacheMaxEntries = 512\n");
             w.write("\n");
             w.write("[input]\n");
             w.write("allowSignPaste = true\n");
@@ -420,7 +564,19 @@ public final class NeofontrenderConfig {
         config.setComment("rendering.skiaAdvancedStringMode", "In Skia mode, render full formatted strings as one paragraph so shaping, ligatures, kerning, emoji ZWJ, and BiDi can work across the whole text. Disable to use legacy per-format-run rendering.");
         config.setComment("rendering.interpolation", "Use GL_LINEAR texture filtering instead of GL_NEAREST.");
         config.setComment("rendering.mipmap", "Enable mipmapping for font textures (may help at small sizes).");
-        config.setComment("rendering.adaptiveRasterScale", "Cap SFR/Skia rasterization scale to the current GUI pixel scale and use nearest filtering for 1:1/integer pixel output to avoid over-downsample blur.");
+        config.setComment("rendering.adaptiveRasterScale", "Use a 1.5x-14x adaptive raster scale based on the current framebuffer text scale, and use nearest filtering for 1:1/integer pixel output to avoid over-downsample blur.");
+        config.setComment("rendering.adaptiveRasterMin", "Minimum adaptive raster scale bucket.");
+        config.setComment("rendering.adaptiveRasterMax", "Maximum adaptive raster scale bucket.");
+        config.setComment("rendering.adaptiveRasterStep", "Adaptive raster scale bucket step.");
+        config.setComment("rendering.excludeIntegerScale", "When adaptiveRasterScale is enabled, use nearest filtering for near-integer raster/screen scale ratios.");
+        config.setComment("rendering.excludeHighMagnification", "When adaptiveRasterScale is enabled, use nearest filtering when text is magnified far beyond the font texture resolution.");
+        config.setComment("rendering.limitMagnification", "Magnification threshold used by excludeHighMagnification.");
+        config.setComment("rendering.scaleRoundingTolerance", "Percent tolerance used when rounding the measured framebuffer text scale.");
+        config.setComment("rendering.mipmapLodBias", "Mipmap LOD bias for perspective/world text while adaptiveRasterScale is enabled.");
+        config.setComment("rendering.overlayMipmapLodBias", "Mipmap LOD bias for orthographic GUI text while adaptiveRasterScale is enabled.");
+        config.setComment("rendering.anisotropicFiltering", "Enable anisotropic filtering for perspective/world text while adaptiveRasterScale is enabled.");
+        config.setComment("rendering.blurReduction", "If the effective font resolution is at or below this value, upload a 2x nearest-neighbor texture to reduce blur.");
+        config.setComment("rendering.smoothShadowThreshold", "Minimum effective font resolution where shadow text is allowed to use smooth filtering.");
         config.setComment("rendering.enhancedTextPipeline", "Use a dedicated text draw pipeline that forces straight-alpha blending and restores previous GL state after rendering. Keep this OFF for color emoji; it can alter emoji colors.");
         config.setComment("rendering.shaderTextPipeline", "Use a tiny fixed-pipeline-compatible shader to compensate thin anti-aliased glyph edges. Automatically falls back if shader compilation fails.");
         config.setComment("rendering.brightness", "Text edge compensation strength used by the enhanced shader pipeline. 0 disables extra alpha boost; 3 is close to SmoothFont-style defaults.");
@@ -428,6 +584,10 @@ public final class NeofontrenderConfig {
         config.setComment("performance", "Performance tuning options.");
         config.setComment("performance.asyncInit", "Initialize font rasterization on a background thread.");
         config.setComment("performance.prewarmBasicLatin", "Pre-bake common Basic Latin and Latin-1 glyphs before enabling replacement rendering.");
+        config.setComment("performance.skiaTextCacheMinEntries", "Minimum number of Skia rendered text textures kept when TTL cleanup runs.");
+        config.setComment("performance.skiaTextCacheMaxEntries", "Maximum number of Skia rendered text textures kept in the LRU cache.");
+        config.setComment("performance.skiaTextCacheTtlSeconds", "Seconds before an unused Skia rendered text texture can be evicted. 0 disables TTL cleanup.");
+        config.setComment("performance.skiaMeasureCacheMaxEntries", "Maximum number of Skia text measurement results kept in memory.");
         config.setComment("input", "Input behavior tweaks.");
         config.setComment("input.allowSignPaste", "Allow Ctrl+V paste in the vanilla sign editor. This is intentionally config-file only.");
         config.setComment("debug", "Debug logging options.");
@@ -438,6 +598,14 @@ public final class NeofontrenderConfig {
         Object val = config.get(key);
         if (val instanceof Number) {
             return ((Number) val).floatValue();
+        }
+        return defaultValue;
+    }
+
+    private static int getInt(String key, int defaultValue) {
+        Object val = config.get(key);
+        if (val instanceof Number) {
+            return ((Number) val).intValue();
         }
         return defaultValue;
     }

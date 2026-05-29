@@ -128,7 +128,8 @@ public class FontManager implements AutoCloseable {
 
         providers.add(new MissingGlyphProvider());
 
-        FontTexture atlas = new FontTexture(textureManager, new net.minecraft.util.ResourceLocation("neofontrender", "default"), rasterScale);
+        FontTexture atlas = new FontTexture(textureManager, new net.minecraft.util.ResourceLocation("neofontrender", "default"),
+                rasterScale * FontRenderTuning.textureScale(rasterScale));
         this.defaultFontSet = new FontSet(providers, atlas);
         if (NeofontrenderConfig.performancePrewarmBasicLatin()) {
             this.defaultFontSet.prewarmBasicLatin();

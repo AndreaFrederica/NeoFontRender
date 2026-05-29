@@ -51,7 +51,7 @@ public class MixinFontRenderer {
     @Inject(method = "drawString(Ljava/lang/String;FFIZ)I", at = @At("HEAD"), cancellable = true)
     private void sfr$onDrawString(String text, float x, float y, int color, boolean dropShadow,
                                   CallbackInfoReturnable<Integer> cir) {
-        FontRenderTuning.updateFromCurrentGlState();
+        FontRenderTuning.updateFromCurrentGlState(dropShadow);
         if (!sfr$shouldHook() || text == null || !FontManager.INSTANCE.isSkiaActive()
                 || !NeofontrenderConfig.skiaAdvancedStringMode()) {
             return;
@@ -75,7 +75,7 @@ public class MixinFontRenderer {
 
     @Inject(method = "renderStringAtPos", at = @At("HEAD"), cancellable = true)
     private void sfr$onRenderStringAtPos(String text, boolean shadow, CallbackInfo ci) {
-        FontRenderTuning.updateFromCurrentGlState();
+        FontRenderTuning.updateFromCurrentGlState(shadow);
         if (!sfr$shouldHook() || text == null) {
             return;
         }

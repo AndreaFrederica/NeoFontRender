@@ -8,6 +8,7 @@ import neofontrender.core.font.awt.FontTexture;
 import neofontrender.core.font.awt.GlyphInfo;
 import neofontrender.core.font.awt.GlyphProvider;
 import neofontrender.core.font.support.FontPixelUtils;
+import neofontrender.core.font.support.FontRenderTuning;
 
 import javax.annotation.Nullable;
 import java.awt.Color;
@@ -368,6 +369,12 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
 
             int[] pixels = image.getRGB(0, 0, rasterW, rasterH, null, 0, rasterW);
             FontPixelUtils.normalizeWhiteStraightAlpha(pixels);
+            int textureScale = Math.round(FontRenderTuning.textureScale(oversample));
+            if (textureScale > 1) {
+                pixels = FontPixelUtils.scaleNearest(pixels, rasterW, rasterH, textureScale);
+                rasterW *= textureScale;
+                rasterH *= textureScale;
+            }
 
             return atlas.add(pixels, rasterW, rasterH,
                     minX / oversample,

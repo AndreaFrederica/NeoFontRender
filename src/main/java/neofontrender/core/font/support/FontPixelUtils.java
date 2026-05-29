@@ -67,4 +67,27 @@ public final class FontPixelUtils {
             }
         }
     }
+
+    public static int[] scaleNearest(int[] pixels, int width, int height, int scale) {
+        if (pixels == null || width <= 0 || height <= 0 || scale <= 1) {
+            return pixels;
+        }
+        int newWidth = width * scale;
+        int newHeight = height * scale;
+        int[] out = new int[newWidth * newHeight];
+        for (int y = 0; y < height; y++) {
+            int srcRow = y * width;
+            for (int sy = 0; sy < scale; sy++) {
+                int dstRow = (y * scale + sy) * newWidth;
+                for (int x = 0; x < width; x++) {
+                    int value = pixels[srcRow + x];
+                    int dst = dstRow + x * scale;
+                    for (int sx = 0; sx < scale; sx++) {
+                        out[dst + sx] = value;
+                    }
+                }
+            }
+        }
+        return out;
+    }
 }

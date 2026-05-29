@@ -12,27 +12,33 @@ import java.nio.FloatBuffer;
 /**
  * Runtime choices for font raster scale and texture filtering.
  *
- * <p>The configured oversample is treated as a quality ceiling. In GUI space a
- * glyph that is rasterized much larger than the current physical GUI scale has
- * to be downsampled by OpenGL, which softens text. Keeping the raster scale near
- * the current GUI scale lets baked anti-aliased pixels land close to 1:1 on the
- * framebuffer.</p>
+ * <p>When adaptive scaling is enabled, the configured oversample is only the
+ * manual-mode value. Adaptive mode follows the current physical text scale and
+ * snaps it into a bounded set of cache buckets so small UI text is not baked far
+ * above its final framebuffer size.</p>
  */
 public final class FontRenderTuning {
 
     private static final float INTEGER_EPSILON = 0.03F;
+    private static final int GL_TEXTURE_LOD_BIAS = 0x8501;
+    private static final int GL_TEXTURE_MAX_ANISOTROPY_EXT = 0x84FE;
+    private static final int GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT = 0x84FF;
     private static final float[] MODELVIEW = new float[16];
     private static final float[] PROJECTION = new float[16];
-    private static volatile float currentGuiPixelScale = 0.0F;
+    private static volatile DrawContext currentContext;
 
     private FontRenderTuning() {
     }
 
-    public static void updateFromCurrentGlState() {
+    public static DrawContext updateFromCurrentGlState() {
+        return updateFromCurrentGlState(false);
+    }
+
+    public static DrawContext updateFromCurrentGlState(boolean shadow) {
         try {
             Minecraft mc = Minecraft.getMinecraft();
             if (mc == null || mc.displayWidth <= 0 || mc.displayHeight <= 0) {
-                return;
+                return currentContext;
             }
 
             FloatBuffer buffer = BufferUtils.createFloatBuffer(16);
@@ -49,10 +55,22 @@ public final class FontRenderTuning {
             float scaleY = distance(origin, yAxis);
             float scale = (scaleX + scaleY) * 0.5F;
             if (Float.isFinite(scale) && scale > 0.0F) {
-                currentGuiPixelScale = clamp(scale, 0.25F, 64.0F);
+                boolean orthographic = Math.abs(PROJECTION[15]) > 0.5F;
+                boolean rotation = Math.abs(MODELVIEW[1]) > 0.0001F || Math.abs(MODELVIEW[4]) > 0.0001F;
+                boolean fractional = !isNearInteger(origin[0]) || !isNearInteger(origin[1]);
+                float clamped = clamp(scale, 0.25F, 64.0F);
+                currentContext = new DrawContext(
+                        clamped,
+                        roundIf(clamped, clamped * NeofontrenderConfig.scaleRoundingToleranceRate()),
+                        orthographic,
+                        rotation,
+                        fractional,
+                        !orthographic,
+                        shadow);
             }
         } catch (RuntimeException | LinkageError ignored) {
         }
+        return currentContext;
     }
 
     public static float rasterScale(float configuredOversample) {
@@ -60,8 +78,29 @@ public final class FontRenderTuning {
         if (!NeofontrenderConfig.adaptiveRasterScale()) {
             return configured;
         }
-        float target = Math.max(4.0F, currentGuiScale() * 2.0F);
-        return clamp(Math.min(configured, target), 1.0F, configured);
+        float min = adaptiveRasterMin();
+        float max = adaptiveRasterMax(min);
+        float target = currentDrawContext().roundedPixelScale() * 2.0F;
+        return rasterScaleBucket(clamp(target, min, max), configured);
+    }
+
+    public static float rasterScaleBucket(float rasterScale, float configuredOversample) {
+        float configured = clamp(configuredOversample, 1.0F, 16.0F);
+        if (!NeofontrenderConfig.adaptiveRasterScale()) {
+            return configured;
+        }
+        float min = adaptiveRasterMin();
+        float max = adaptiveRasterMax(min);
+        float step = adaptiveRasterStep();
+        float bucket = Math.round(rasterScale / step) * step;
+        return clamp(bucket, min, max);
+    }
+
+    public static float textureScale(float rasterScale) {
+        if (!NeofontrenderConfig.adaptiveRasterScale()) {
+            return 1.0F;
+        }
+        return rasterScale * 8.0F <= NeofontrenderConfig.blurReductionThreshold() ? 2.0F : 1.0F;
     }
 
     public static void applyFontTextureFilter(AbstractTexture texture, float rasterScale) {
@@ -77,6 +116,10 @@ public final class FontRenderTuning {
         int mag = linear ? GL11.GL_LINEAR : GL11.GL_NEAREST;
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, min);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, mag);
+        if (NeofontrenderConfig.adaptiveRasterScale()) {
+            applyLodBias();
+            applyAnisotropicFiltering();
+        }
     }
 
     public static boolean useLinearFiltering(float rasterScale) {
@@ -87,7 +130,22 @@ public final class FontRenderTuning {
             return true;
         }
 
-        float screenScale = currentGuiScale();
+        DrawContext context = currentDrawContext();
+        float fontResolution = rasterScale * 8.0F;
+        if (context.shadow() && fontResolution < NeofontrenderConfig.smoothShadowThreshold()) {
+            return false;
+        }
+        if (NeofontrenderConfig.excludeHighMagnification()
+                && context.roundedPixelScale() >= rasterScale * NeofontrenderConfig.limitMagnification()) {
+            return false;
+        }
+        if (NeofontrenderConfig.excludeIntegerScale()
+                && context.orthographic()
+                && isNearInteger(context.roundedPixelScale() / Math.max(1.0F, rasterScale))) {
+            return false;
+        }
+
+        float screenScale = context.pixelScale();
         float ratio = screenScale / Math.max(1.0F, rasterScale);
         if (ratio >= 1.0F && isNearInteger(ratio)) {
             return false;
@@ -99,10 +157,15 @@ public final class FontRenderTuning {
     }
 
     public static float currentGuiScale() {
-        float measured = currentGuiPixelScale;
-        if (measured > 0.0F) {
+        DrawContext context = currentContext;
+        float measured = context == null ? 0.0F : context.pixelScale();
+        if (measured > 0.0F && context != null) {
             return measured;
         }
+        return scaledResolutionScale();
+    }
+
+    private static float scaledResolutionScale() {
         try {
             Minecraft mc = Minecraft.getMinecraft();
             if (mc != null && mc.displayWidth > 0 && mc.displayHeight > 0) {
@@ -113,12 +176,45 @@ public final class FontRenderTuning {
         return 1.0F;
     }
 
+    public static DrawContext currentDrawContext() {
+        DrawContext context = currentContext;
+        return context == null ? DrawContext.fallback(scaledResolutionScale()) : context;
+    }
+
     public static float alignToPixel(float value) {
-        float scale = currentGuiScale();
+        DrawContext context = currentDrawContext();
+        if (NeofontrenderConfig.adaptiveRasterScale() && (!context.orthographic() || context.rotation())) {
+            return value;
+        }
+        float scale = context.pixelScale();
         if (scale <= 0.0F) {
             return value;
         }
         return Math.round(value * scale) / scale;
+    }
+
+    private static void applyLodBias() {
+        if (!NeofontrenderConfig.renderingMipmap()) {
+            return;
+        }
+        DrawContext context = currentDrawContext();
+        float bias = context.orthographic()
+                ? NeofontrenderConfig.overlayMipmapLodBias()
+                : NeofontrenderConfig.mipmapLodBias();
+        GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, bias);
+    }
+
+    private static void applyAnisotropicFiltering() {
+        if (!NeofontrenderConfig.anisotropicFiltering() || currentDrawContext().orthographic()) {
+            return;
+        }
+        try {
+            float max = GL11.glGetFloat(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+            if (max > 1.0F) {
+                GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, max);
+            }
+        } catch (RuntimeException | LinkageError ignored) {
+        }
     }
 
     private static float[] projectToFramebuffer(float x, float y, float z, int displayWidth, int displayHeight) {
@@ -155,7 +251,79 @@ public final class FontRenderTuning {
         return Math.abs(value - Math.round(value)) <= INTEGER_EPSILON;
     }
 
+    private static float roundIf(float value, float tolerance) {
+        float rounded = Math.round(value);
+        return Math.abs(value - rounded) <= Math.max(INTEGER_EPSILON, tolerance) ? rounded : value;
+    }
+
+    private static float adaptiveRasterMin() {
+        return clamp(NeofontrenderConfig.adaptiveRasterMin(), 0.25F, 64.0F);
+    }
+
+    private static float adaptiveRasterMax(float min) {
+        return clamp(Math.max(min, NeofontrenderConfig.adaptiveRasterMax()), min, 64.0F);
+    }
+
+    private static float adaptiveRasterStep() {
+        return clamp(NeofontrenderConfig.adaptiveRasterStep(), 0.125F, 8.0F);
+    }
+
     private static float clamp(float value, float min, float max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    public static final class DrawContext {
+        private final float pixelScale;
+        private final float roundedPixelScale;
+        private final boolean orthographic;
+        private final boolean rotation;
+        private final boolean fractionalCoordinate;
+        private final boolean perspective;
+        private final boolean shadow;
+
+        private DrawContext(float pixelScale, float roundedPixelScale, boolean orthographic,
+                            boolean rotation, boolean fractionalCoordinate, boolean perspective,
+                            boolean shadow) {
+            this.pixelScale = pixelScale;
+            this.roundedPixelScale = roundedPixelScale;
+            this.orthographic = orthographic;
+            this.rotation = rotation;
+            this.fractionalCoordinate = fractionalCoordinate;
+            this.perspective = perspective;
+            this.shadow = shadow;
+        }
+
+        private static DrawContext fallback(float scale) {
+            float safeScale = clamp(scale, 0.25F, 64.0F);
+            return new DrawContext(safeScale, Math.round(safeScale), true, false, false, false, false);
+        }
+
+        public float pixelScale() {
+            return pixelScale;
+        }
+
+        public float roundedPixelScale() {
+            return roundedPixelScale;
+        }
+
+        public boolean orthographic() {
+            return orthographic;
+        }
+
+        public boolean rotation() {
+            return rotation;
+        }
+
+        public boolean fractionalCoordinate() {
+            return fractionalCoordinate;
+        }
+
+        public boolean perspective() {
+            return perspective;
+        }
+
+        public boolean shadow() {
+            return shadow;
+        }
     }
 }

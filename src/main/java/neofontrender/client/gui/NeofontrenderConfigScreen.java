@@ -511,7 +511,7 @@ public final class NeofontrenderConfigScreen {
             place(pipelineInfo, PAD, y, contentWidth, infoHeight);
             y += infoHeight + GAP;
 
-            int optionsHeight = width < 520 ? 112 : 52;
+            int optionsHeight = width < 520 ? 142 : 82;
             place(options, PAD, y, contentWidth, optionsHeight);
             y += optionsHeight + GAP;
 
@@ -801,6 +801,9 @@ public final class NeofontrenderConfigScreen {
         private final ButtonWidget<?> pipeline;
         private final ButtonWidget<?> shader;
         private final ButtonWidget<?> edgeBleed;
+        private final ButtonWidget<?> integerScale;
+        private final ButtonWidget<?> highMag;
+        private final ButtonWidget<?> anisotropic;
 
         private AdvancedOptionsSection(Staged staged) {
             this.autoScale = toggleButtonKey("neofontrender.gui.option.autoscale", "neofontrender.tooltip.autoscale", 80, 20, () -> staged.adaptiveRasterScale, v -> staged.adaptiveRasterScale = v, () -> preview(staged));
@@ -809,12 +812,18 @@ public final class NeofontrenderConfigScreen {
             this.pipeline = toggleButtonKey("neofontrender.gui.option.pipeline", "neofontrender.tooltip.pipeline", 80, 20, () -> staged.enhancedTextPipeline, v -> staged.enhancedTextPipeline = v, () -> preview(staged));
             this.shader = toggleButtonKey("neofontrender.gui.option.shader", "neofontrender.tooltip.shader", 80, 20, () -> staged.shaderTextPipeline, v -> staged.shaderTextPipeline = v, () -> preview(staged));
             this.edgeBleed = toggleButtonKey("neofontrender.gui.option.edge_bleed", "neofontrender.tooltip.edge_bleed", 80, 20, () -> staged.textureEdgeBleed, v -> staged.textureEdgeBleed = v, () -> preview(staged));
+            this.integerScale = toggleButtonKey("neofontrender.gui.option.integer_scale", "neofontrender.tooltip.integer_scale", 80, 20, () -> staged.excludeIntegerScale, v -> staged.excludeIntegerScale = v, () -> preview(staged));
+            this.highMag = toggleButtonKey("neofontrender.gui.option.high_mag", "neofontrender.tooltip.high_mag", 80, 20, () -> staged.excludeHighMagnification, v -> staged.excludeHighMagnification = v, () -> preview(staged));
+            this.anisotropic = toggleButtonKey("neofontrender.gui.option.anisotropic", "neofontrender.tooltip.anisotropic", 80, 20, () -> staged.anisotropicFiltering, v -> staged.anisotropicFiltering = v, () -> preview(staged));
             child(autoScale);
             child(interpolation);
             child(mipmap);
             child(pipeline);
             child(shader);
             child(edgeBleed);
+            child(integerScale);
+            child(highMag);
+            child(anisotropic);
         }
 
         @Override
@@ -824,7 +833,7 @@ public final class NeofontrenderConfigScreen {
             int buttonHeight = 22;
             if (width < 520) {
                 int buttonWidth = Math.max(0, (width - gap) / 2);
-                IWidget[] buttons = {autoScale, interpolation, mipmap, pipeline, shader, edgeBleed};
+                IWidget[] buttons = {autoScale, interpolation, mipmap, pipeline, shader, edgeBleed, integerScale, highMag, anisotropic};
                 for (int i = 0; i < buttons.length; i++) {
                     int col = i & 1;
                     int row = i / 2;
@@ -834,7 +843,7 @@ public final class NeofontrenderConfigScreen {
                 return true;
             }
             int third = Math.max(0, (width - gap * 2) / 3);
-            IWidget[] buttons = {autoScale, interpolation, mipmap, pipeline, shader, edgeBleed};
+            IWidget[] buttons = {autoScale, interpolation, mipmap, pipeline, shader, edgeBleed, integerScale, highMag, anisotropic};
             for (int i = 0; i < buttons.length; i++) {
                 int col = i % 3;
                 int row = i / 3;
@@ -907,6 +916,9 @@ public final class NeofontrenderConfigScreen {
             mc.fontRenderer.drawString(tr("neofontrender.gui.option.autoscale") + ": " + onOff(staged.adaptiveRasterScale)
                     + "  " + tr("neofontrender.gui.option.linear") + ": " + onOff(staged.interpolation)
                     + "  " + tr("neofontrender.gui.option.mipmap") + ": " + onOff(staged.mipmap), x, y + line * 4, 0xD8D8D8);
+            mc.fontRenderer.drawString(tr("neofontrender.gui.option.integer_scale") + ": " + onOff(staged.excludeIntegerScale)
+                    + "  " + tr("neofontrender.gui.option.high_mag") + ": " + onOff(staged.excludeHighMagnification)
+                    + "  " + tr("neofontrender.gui.option.anisotropic") + ": " + onOff(staged.anisotropicFiltering), x, y + line * 5, 0xD8D8D8);
         }
     }
 
@@ -926,6 +938,9 @@ public final class NeofontrenderConfigScreen {
         private final String originalEngine = NeofontrenderConfig.renderingEngine();
         private final boolean originalSkiaAdvancedStringMode = NeofontrenderConfig.skiaAdvancedStringMode();
         private final boolean originalAdaptiveRasterScale = NeofontrenderConfig.adaptiveRasterScale();
+        private final boolean originalExcludeIntegerScale = NeofontrenderConfig.excludeIntegerScale();
+        private final boolean originalExcludeHighMagnification = NeofontrenderConfig.excludeHighMagnification();
+        private final boolean originalAnisotropicFiltering = NeofontrenderConfig.anisotropicFiltering();
         private final boolean originalInterpolation = NeofontrenderConfig.renderingInterpolation();
         private final boolean originalMipmap = NeofontrenderConfig.renderingMipmap();
         private final boolean originalEnhancedTextPipeline = NeofontrenderConfig.enhancedTextPipeline();
@@ -937,6 +952,9 @@ public final class NeofontrenderConfigScreen {
         private String engine = originalEngine;
         private boolean skiaAdvancedStringMode = originalSkiaAdvancedStringMode;
         private boolean adaptiveRasterScale = originalAdaptiveRasterScale;
+        private boolean excludeIntegerScale = originalExcludeIntegerScale;
+        private boolean excludeHighMagnification = originalExcludeHighMagnification;
+        private boolean anisotropicFiltering = originalAnisotropicFiltering;
         private boolean interpolation = originalInterpolation;
         private boolean mipmap = originalMipmap;
         private boolean enhancedTextPipeline = originalEnhancedTextPipeline;
@@ -980,6 +998,9 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setRenderingEngine(engine);
             NeofontrenderConfig.setSkiaAdvancedStringMode(skiaAdvancedStringMode);
             NeofontrenderConfig.setAdaptiveRasterScale(adaptiveRasterScale);
+            NeofontrenderConfig.setExcludeIntegerScale(excludeIntegerScale);
+            NeofontrenderConfig.setExcludeHighMagnification(excludeHighMagnification);
+            NeofontrenderConfig.setAnisotropicFiltering(anisotropicFiltering);
             NeofontrenderConfig.setRenderingInterpolation(interpolation);
             NeofontrenderConfig.setRenderingMipmap(mipmap);
             NeofontrenderConfig.setEnhancedTextPipeline(enhancedTextPipeline);
@@ -1009,6 +1030,9 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setRenderingEngine(originalEngine);
             NeofontrenderConfig.setSkiaAdvancedStringMode(originalSkiaAdvancedStringMode);
             NeofontrenderConfig.setAdaptiveRasterScale(originalAdaptiveRasterScale);
+            NeofontrenderConfig.setExcludeIntegerScale(originalExcludeIntegerScale);
+            NeofontrenderConfig.setExcludeHighMagnification(originalExcludeHighMagnification);
+            NeofontrenderConfig.setAnisotropicFiltering(originalAnisotropicFiltering);
             NeofontrenderConfig.setRenderingInterpolation(originalInterpolation);
             NeofontrenderConfig.setRenderingMipmap(originalMipmap);
             NeofontrenderConfig.setEnhancedTextPipeline(originalEnhancedTextPipeline);
