@@ -145,14 +145,11 @@ public final class FontRenderTuning {
             return false;
         }
 
-        float screenScale = context.pixelScale();
-        float ratio = screenScale / Math.max(1.0F, rasterScale);
-        if (ratio >= 1.0F && isNearInteger(ratio)) {
-            return false;
-        }
-        if (ratio > 0.0F && ratio < 1.0F && isNearInteger(1.0F / ratio)) {
-            return false;
-        }
+        // NOTE: SmoothFont only excludes at exact multiples of (fontRes/8).
+        // The old ratio-based exclusions (ratio near-integer, 1/ratio near-integer)
+        // were too aggressive — they fired at screenScale=3, rasterScale=6 (1/ratio=2)
+        // which is a perfectly normal GUI rendering scenario. Removed to match
+        // SmoothFont behavior where linear filtering is almost never excluded.
         return true;
     }
 

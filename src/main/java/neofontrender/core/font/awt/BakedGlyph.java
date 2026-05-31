@@ -1,11 +1,14 @@
 package neofontrender.core.font.awt;
 
 import net.minecraft.client.renderer.BufferBuilder;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
+import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.support.FontRenderPipeline;
 import neofontrender.core.font.support.FontRenderTuning;
+import org.lwjgl.opengl.GL11;
 
 /**
  * A glyph that has been uploaded to a texture atlas and can be rendered with a single quad.
@@ -68,6 +71,18 @@ public class BakedGlyph {
         float slant0 = italic ? 1.0F - 0.25F * f2 : 0.0F;
         float slant1 = italic ? 1.0F - 0.25F * f3 : 0.0F;
         FontRenderTuning.applyBoundTextureFilter(rasterScale);
+
+        // Same fix as SkijaTextRenderer: MC code paths like renderItemOverlayIntoGUI
+        // disable GL_BLEND before drawStringWithShadow. Anti-aliased AWT glyph textures
+        // have multi-bit alpha edges that need blend for correct compositing.
+        if (NeofontrenderConfig.forceBlendForText() && !GL11.glIsEnabled(GL11.GL_BLEND)) {
+            GlStateManager.enableBlend();
+            if (NeofontrenderConfig.enablePremultipliedAlpha()) {
+                GlStateManager.tryBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
+            } else {
+                GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
+            }
+        }
 
         try (FontRenderPipeline.State ignored = FontRenderPipeline.begin(rasterScale)) {
             Tessellator tessellator = Tessellator.getInstance();

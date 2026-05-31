@@ -105,6 +105,10 @@ public final class NeofontrenderConfig {
         return config.getOrElse("font.fractionalMetrics", true);
     }
 
+    public static boolean fontLcdSubpixel() {
+        return config.getOrElse("font.lcdSubpixel", false);
+    }
+
     public static boolean builtinFallbacksEnabled() {
         return config.getOrElse("font.builtinFallbacks", true);
     }
@@ -219,6 +223,40 @@ public final class NeofontrenderConfig {
         return config.getOrElse("rendering.textureEdgeBleed", false);
     }
 
+    public static boolean renderingBrightnessAuto() {
+        return config.getOrElse("rendering.brightnessAuto", true);
+    }
+
+    public static boolean enablePremultipliedAlpha() {
+        return config.getOrElse("rendering.premultipliedAlpha", false);
+    }
+
+    /**
+     * Force GL_BLEND enabled when drawing Skia-rendered text.
+     *
+     * <p>Vanilla MC disables blend in some code paths (e.g.
+     * {@code RenderItem.renderItemOverlayIntoGUI} for item counts,
+     * durability bars, cooldown overlays) because the default bitmap
+     * font uses 1-bit alpha — every pixel is either fully opaque or
+     * fully transparent, so blend is unnecessary.</p>
+     *
+     * <p>Skia, however, produces anti-aliased text with multi-bit
+     * alpha (semi-transparent edge pixels).  When GL_BLEND is off,
+     * those edge pixels write their raw RGB directly to the
+     * framebuffer instead of blending with the background, causing
+     * dark fringes and jagged edges — especially visible on inventory
+     * item counts.</p>
+     *
+     * <p>Setting this to true ensures blend is always on during Skia
+     * text rendering regardless of what the calling MC code path
+     * requested.  This is the correct behavior for alpha-composited
+     * anti-aliased text and matches how SmoothFont handles the same
+     * situation.</p>
+     */
+    public static boolean forceBlendForText() {
+        return config.getOrElse("rendering.forceBlendForText", true);
+    }
+
     // ===================== Performance =====================
     public static boolean performanceAsyncInit() {
         return config.getOrElse("performance.asyncInit", true);
@@ -311,6 +349,10 @@ public final class NeofontrenderConfig {
         config.set("font.fractionalMetrics", value);
     }
 
+    public static void setFontLcdSubpixel(boolean value) {
+        config.set("font.lcdSubpixel", value);
+    }
+
     public static void setBuiltinFallbacksEnabled(boolean value) {
         config.set("font.builtinFallbacks", value);
     }
@@ -397,6 +439,18 @@ public final class NeofontrenderConfig {
 
     public static void setTextureEdgeBleed(boolean value) {
         config.set("rendering.textureEdgeBleed", value);
+    }
+
+    public static void setRenderingBrightnessAuto(boolean value) {
+        config.set("rendering.brightnessAuto", value);
+    }
+
+    public static void setEnablePremultipliedAlpha(boolean value) {
+        config.set("rendering.premultipliedAlpha", value);
+    }
+
+    public static void setForceBlendForText(boolean value) {
+        config.set("rendering.forceBlendForText", value);
     }
 
     public static void setRenderingEngine(String value) {
@@ -496,6 +550,7 @@ public final class NeofontrenderConfig {
             w.write("antialias = true\n");
             w.write("antialiasMode = \"on\"\n");
             w.write("fractionalMetrics = true\n");
+            w.write("lcdSubpixel = false\n");
             w.write("builtinFallbacks = true\n");
             w.write("\n");
             w.write("[shadow]\n");
@@ -523,7 +578,10 @@ public final class NeofontrenderConfig {
             w.write("enhancedTextPipeline = false\n");
             w.write("shaderTextPipeline = false\n");
             w.write("brightness = 0.0\n");
+            w.write("brightnessAuto = true\n");
+            w.write("premultipliedAlpha = false\n");
             w.write("textureEdgeBleed = false\n");
+            w.write("forceBlendForText = true\n");
             w.write("\n");
             w.write("[performance]\n");
             w.write("asyncInit = true\n");
@@ -555,6 +613,7 @@ public final class NeofontrenderConfig {
         config.setComment("font.antialias", "Enable AWT anti-aliasing during glyph rasterization.");
         config.setComment("font.antialiasMode", "AWT text anti-aliasing mode: off, on, gasp, lcd_hrgb, lcd_hbgr, lcd_vrgb, lcd_vbgr.");
         config.setComment("font.fractionalMetrics", "Enable fractional font metrics for more precise positioning.");
+        config.setComment("font.lcdSubpixel", "Enable LCD subpixel anti-aliasing in Skia rasterization. Produces sharper text on standard RGB monitors but may show color fringes.");
         config.setComment("font.builtinFallbacks", "Always append bundled fonts, such as Noto Color Emoji, to the fallback family.");
         config.setComment("shadow", "Text shadow rendering options.");
         config.setComment("shadow.length", "Shadow offset distance in pixels.");
@@ -580,7 +639,10 @@ public final class NeofontrenderConfig {
         config.setComment("rendering.enhancedTextPipeline", "Use a dedicated text draw pipeline that forces straight-alpha blending and restores previous GL state after rendering. Keep this OFF for color emoji; it can alter emoji colors.");
         config.setComment("rendering.shaderTextPipeline", "Use a tiny fixed-pipeline-compatible shader to compensate thin anti-aliased glyph edges. Automatically falls back if shader compilation fails.");
         config.setComment("rendering.brightness", "Text edge compensation strength used by the enhanced shader pipeline. 0 disables extra alpha boost; 3 is close to SmoothFont-style defaults.");
+        config.setComment("rendering.brightnessAuto", "Automatically detect brightness compensation from sample glyph rasterization. When true, rendering.brightness is ignored.");
+        config.setComment("rendering.premultipliedAlpha", "Upload glyph textures with premultiplied alpha. Requires the enhanced shader pipeline to look correct. Matches SmoothFont's premultiplied-alpha mode.");
         config.setComment("rendering.textureEdgeBleed", "Fill fully-transparent Skia text pixels with neighboring RGB to prevent black fringes when linear filtering samples color outside glyph edges.");
+        config.setComment("rendering.forceBlendForText", "Force GL_BLEND on when drawing Skia text. MC disables blend in some paths (e.g. renderItemOverlayIntoGUI for item counts) because the vanilla bitmap font uses 1-bit alpha. Skia produces anti-aliased text with multi-bit alpha that needs blend to composite correctly; without it, semi-transparent edge pixels write raw RGB causing dark fringes and jagged edges.");
         config.setComment("performance", "Performance tuning options.");
         config.setComment("performance.asyncInit", "Initialize font rasterization on a background thread.");
         config.setComment("performance.prewarmBasicLatin", "Pre-bake common Basic Latin and Latin-1 glyphs before enabling replacement rendering.");

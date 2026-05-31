@@ -8,12 +8,11 @@ import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL20;
 
 /**
- * GL state guard for font quads.
+ * GL state guard for font quads with SmoothFont-style brightness correction.
  *
- * <p>The renderer uploads straight-alpha textures. This pipeline makes the
- * blend function explicit, optionally applies a small alpha compensation
- * shader for high-resolution antialiasing edges, then restores the caller's
- * GL state.</p>
+ * <p>The renderer uploads straight-alpha or premultiplied-alpha textures.
+ * This pipeline applies a colorBias uniform that offsets RGB and scales Alpha
+ * to compensate for darkening introduced by GL_LINEAR bilinear filtering.</p>
  */
 public final class FontRenderPipeline {
 
@@ -37,11 +36,21 @@ public final class FontRenderPipeline {
         GlStateManager.enableTexture2D();
         GlStateManager.enableAlpha();
         GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(
-                GL11.GL_SRC_ALPHA,
-                GL11.GL_ONE_MINUS_SRC_ALPHA,
-                GL11.GL_ONE,
-                GL11.GL_ZERO);
+
+        boolean premultiplied = NeofontrenderConfig.enablePremultipliedAlpha();
+        if (premultiplied) {
+            GlStateManager.tryBlendFuncSeparate(
+                    GL11.GL_ONE,
+                    GL11.GL_ONE_MINUS_SRC_ALPHA,
+                    GL11.GL_ONE,
+                    GL11.GL_ZERO);
+        } else {
+            GlStateManager.tryBlendFuncSeparate(
+                    GL11.GL_SRC_ALPHA,
+                    GL11.GL_ONE_MINUS_SRC_ALPHA,
+                    GL11.GL_ONE,
+                    GL11.GL_ZERO);
+        }
 
         if (NeofontrenderConfig.shaderTextPipeline() && state.previousProgram == 0) {
             int shader = getOrCreateProgram();
@@ -51,8 +60,8 @@ public final class FontRenderPipeline {
                     GL20.glUniform1i(textureUniform, 0);
                 }
                 if (colorBiasUniform >= 0) {
-                    float alphaBoost = alphaBoost(rasterScale);
-                    GL20.glUniform4f(colorBiasUniform, 0.0F, 0.0F, 0.0F, alphaBoost);
+                    float[] bias = computeColorBias(rasterScale, premultiplied);
+                    GL20.glUniform4f(colorBiasUniform, bias[0], bias[1], bias[2], bias[3]);
                 }
                 state.shaderChanged = true;
             }
@@ -61,14 +70,48 @@ public final class FontRenderPipeline {
         return state;
     }
 
-    private static float alphaBoost(float rasterScale) {
-        float brightness = Math.max(0.0F, Math.min(12.0F, NeofontrenderConfig.renderingBrightness()));
-        if (brightness <= 0.0F) {
-            return 1.0F;
+    /**
+     * Computes the colorBias uniform matching SmoothFont's formula.
+     *
+     * @param rasterScale     current raster scale
+     * @param premultiplied   whether premultiplied alpha mode is active
+     * @return float[4] = {r, g, b, a}
+     */
+    public static float[] computeColorBias(float rasterScale, boolean premultiplied) {
+        float brightness;
+        float boundaryScaleFactor;
+
+        if (NeofontrenderConfig.renderingBrightnessAuto() && FontBrightnessEstimator.isAutoDetected()) {
+            brightness = FontBrightnessEstimator.getBrightness();
+            boundaryScaleFactor = FontBrightnessEstimator.getBoundaryScaleFactor();
+        } else {
+            brightness = Math.max(0.0F, Math.min(20.0F, NeofontrenderConfig.renderingBrightness()));
+            boundaryScaleFactor = FontBrightnessEstimator.getBoundaryScaleFactor();
         }
-        float scaleCompensation = Math.max(1.0F,
-                rasterScale / Math.max(1.0F, FontRenderTuning.currentDrawContext().pixelScale()));
-        return Math.min(1.35F, 1.0F + brightness * 0.035F * Math.min(1.4F, scaleCompensation));
+
+        if (brightness <= 0.0F) {
+            return premultiplied ? new float[]{0.0F, 0.0F, 0.0F, 1.0F} : new float[]{0.0F, 0.0F, 0.0F, 1.0F};
+        }
+
+        float scale = FontRenderTuning.currentDrawContext().pixelScale();
+        float factor;
+        if (scale < 1.5f) {
+            factor = 7.0f;
+        } else {
+            factor = scale < boundaryScaleFactor
+                    ? 20.0f - 13.0f / (boundaryScaleFactor - 1.5f) * (boundaryScaleFactor - scale)
+                    : 20.0f;
+        }
+
+        float alpha = 1.0f + brightness / factor;
+        float rgb;
+        if (premultiplied) {
+            rgb = (alpha - 1.0f) / 2.0f;
+        } else {
+            rgb = 0.0f;
+        }
+
+        return new float[]{rgb, rgb, rgb, alpha};
     }
 
     private static int getOrCreateProgram() {
@@ -92,6 +135,9 @@ public final class FontRenderPipeline {
                     "uniform vec4 colorBias;\n" +
                     "void main() {\n" +
                     "    vec4 sampled = texture2D(fontTexture, gl_TexCoord[0].st);\n" +
+                    "    sampled.r = clamp(sampled.r + colorBias.r, 0.0, 1.0);\n" +
+                    "    sampled.g = clamp(sampled.g + colorBias.g, 0.0, 1.0);\n" +
+                    "    sampled.b = clamp(sampled.b + colorBias.b, 0.0, 1.0);\n" +
                     "    sampled.a = clamp(sampled.a * colorBias.a, 0.0, 1.0);\n" +
                     "    gl_FragColor = sampled * gl_Color;\n" +
                     "}\n");

@@ -32,9 +32,11 @@ import neofontrender.NeoFontRender;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
+import neofontrender.core.font.support.FontBrightnessEstimator;
 import neofontrender.core.font.support.FontPixelUtils;
 import neofontrender.core.font.support.FontRenderPipeline;
 import neofontrender.core.font.support.FontRenderTuning;
+import org.lwjgl.opengl.GL11;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -90,6 +92,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 }
             });
     private int nextTextureId = 0;
+    private float autoRefBaseline = Float.NaN;
 
     public SkijaTextRenderer(TextureManager textureManager, IResourceManager resourceManager) throws IOException {
         this.textureManager = textureManager;
@@ -108,6 +111,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
 
     public String[] getFontFamilies() {
         return fontFamilies;
+    }
+
+    public FontCollection getFontCollection() {
+        return fontCollection;
     }
 
     public float measure(String text, boolean bold, boolean italic) {
@@ -196,11 +203,17 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     }
 
     public void prewarmBasicLatin() {
+        FontBrightnessEstimator.reset();
+        int fontRes = Math.round(NeofontrenderConfig.fontSize() * NeofontrenderConfig.fontOversample());
         for (int cp = 32; cp <= 126; cp++) {
             String text = new String(Character.toChars(cp));
             measure(text, false, false);
             if (cp != ' ') {
-                render(text, 0xFFFFFFFF, false, false);
+                RenderedText rt = render(text, 0xFFFFFFFF, false, false);
+                if (rt != null && rt.getTexture() != null && (cp == '1' || cp == '/' || cp == 'I')) {
+                    int[] pixels = rt.getTexture().getTextureData();
+                    FontBrightnessEstimator.feedSample(pixels, rt.width, rt.height, fontRes);
+                }
             }
         }
         for (int cp = 160; cp <= 255; cp++) {
@@ -212,36 +225,47 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
     }
 
+    private static int computeBorder(float oversample) {
+        int border = Math.max(4, (int) (oversample * 8.0f / 16.0f) * 2);
+        border += border % 2;
+        return Math.max(border, 4);
+    }
+
     private RenderedText rasterize(String text, int argb, boolean bold, boolean italic, float oversample, int cacheHash) throws IOException {
         float measuredWidth = Math.max(1.0F, measure(text, bold, italic));
-        int width = Math.max(1, (int) Math.ceil((measuredWidth + 4.0F) * oversample));
+        int border = computeBorder(oversample);
+        int width = Math.max(1, (int) Math.ceil((measuredWidth + border * 2.0F) * oversample));
         try (Paragraph paragraph = buildParagraph(text, argb, bold, italic, oversample)) {
             paragraph.layout(width);
-            return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width, oversample);
+            return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width, oversample, border);
         }
     }
 
     private RenderedText rasterizeFormatted(String text, int argb, boolean shadow, float oversample, int cacheHash) throws IOException {
         float measuredWidth = Math.max(1.0F, measureFormatted(text, argb, shadow));
-        int width = Math.max(1, (int) Math.ceil((measuredWidth + 4.0F) * oversample));
+        int border = computeBorder(oversample);
+        int width = Math.max(1, (int) Math.ceil((measuredWidth + border * 2.0F) * oversample));
         try (Paragraph paragraph = buildFormattedParagraph(text, argb, shadow, oversample)) {
             paragraph.layout(width);
-            return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width, oversample);
+            return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width, oversample, border);
         }
     }
 
     private RenderedText rasterizeParagraph(Paragraph paragraph, int cacheHash, float measuredWidth, int width,
-                                           float oversample) throws IOException {
+                                           float oversample, int border) throws IOException {
         int height;
         float verticalOffset;
 
-        height = Math.max(1, (int) Math.ceil(paragraph.getHeight() + 4.0F * oversample));
-        float paintX = 2.0F * oversample;
-        float paintY = 1.0F * oversample;
+        height = Math.max(1, (int) Math.ceil((paragraph.getHeight() + border * 2.0F) * oversample));
+        float paintX = border * oversample;
+        float paintY = border * oversample / 2.0f;
         float baselineInTexture = (paintY + paragraph.getAlphabeticBaseline()) / oversample;
-        verticalOffset = NeofontrenderConfig.fontAutoBaseline()
-                ? NeofontrenderConfig.fontReferenceBaseline() + NeofontrenderConfig.fontBaselineShift() - baselineInTexture
-                : NeofontrenderConfig.fontBaselineShift();
+        if (NeofontrenderConfig.fontAutoBaseline()) {
+            float refBaseline = Float.isNaN(autoRefBaseline) ? computeAutoRefBaseline() : autoRefBaseline;
+            verticalOffset = refBaseline + NeofontrenderConfig.fontBaselineShift() - baselineInTexture;
+        } else {
+            verticalOffset = NeofontrenderConfig.fontReferenceBaseline() + NeofontrenderConfig.fontBaselineShift() - baselineInTexture;
+        }
         float horizontalOffset = -paintX / oversample;
 
         ImageInfo imageInfo = ImageInfo.makeN32Premul(width, height);
@@ -260,14 +284,18 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             int[] pixels = new int[width * height];
             ByteBuffer.wrap(rawBytes).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(pixels);
 
-            for (int i = 0; i < pixels.length; i++) {
-                int px = pixels[i];
-                int a = (px >>> 24);
-                if (a > 0 && a < 255) {
-                    int r = Math.min(255, ((px >> 16) & 0xFF) * 255 / a);
-                    int g = Math.min(255, ((px >> 8) & 0xFF) * 255 / a);
-                    int b = Math.min(255, (px & 0xFF) * 255 / a);
-                    pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
+            boolean premultiplied = NeofontrenderConfig.enablePremultipliedAlpha();
+            if (!premultiplied) {
+                // Convert Skia premultiplied output to straight alpha
+                for (int i = 0; i < pixels.length; i++) {
+                    int px = pixels[i];
+                    int a = (px >>> 24);
+                    if (a > 0 && a < 255) {
+                        int r = Math.min(255, ((px >> 16) & 0xFF) * 255 / a);
+                        int g = Math.min(255, ((px >> 8) & 0xFF) * 255 / a);
+                        int b = Math.min(255, (px & 0xFF) * 255 / a);
+                        pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
+                    }
                 }
             }
             if (NeofontrenderConfig.textureEdgeBleed()) {
@@ -299,6 +327,17 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                     uploadWidth, uploadHeight,
                     uploadWidth / actualRasterScale, uploadHeight / actualRasterScale,
                     actualRasterScale, horizontalOffset, verticalOffset);
+        }
+    }
+
+    private float computeAutoRefBaseline() {
+        try (Paragraph para = buildParagraph("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 0xFFFFFFFF, false, false, 1.0f)) {
+            para.layout(10000);
+            float alphabeticBaseline = para.getAlphabeticBaseline();
+            float mcBaseline = 7.0f;
+            autoRefBaseline = mcBaseline + (alphabeticBaseline - mcBaseline) / 2.0f;
+            NeoFontRender.LOGGER.debug("Auto reference baseline computed: {}", autoRefBaseline);
+            return autoRefBaseline;
         }
     }
 
@@ -405,7 +444,11 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     }
 
     private static SurfaceProps skiaSurfaceProps() {
-        return new SurfaceProps(false, skiaPixelGeometry(NeofontrenderConfig.fontAntialiasMode()));
+        PixelGeometry geometry = skiaPixelGeometry(NeofontrenderConfig.fontAntialiasMode());
+        if (geometry == PixelGeometry.UNKNOWN && NeofontrenderConfig.fontLcdSubpixel()) {
+            geometry = PixelGeometry.RGB_H;
+        }
+        return new SurfaceProps(false, geometry);
     }
 
     private static PixelGeometry skiaPixelGeometry(String mode) {
@@ -602,6 +645,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
 
     public static final class RenderedText implements TextRenderResult, AutoCloseable {
         private static final RenderedText EMPTY = new RenderedText(null, null, 0.0F, 0, 0, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F);
+        private static final java.util.Map<ResourceLocation, Float> LAST_FILTER_SCALE = new java.util.HashMap<>();
 
         private final ResourceLocation location;
         private final DynamicTexture texture;
@@ -631,6 +675,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             this.lastAccessMillis = System.currentTimeMillis();
         }
 
+        DynamicTexture getTexture() {
+            return texture;
+        }
+
         public float advance() {
             return advance;
         }
@@ -644,7 +692,26 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             GlStateManager.enableTexture2D();
             GlStateManager.enableAlpha();
             GlStateManager.color(1.0F, 1.0F, 1.0F, alpha);
-            FontRenderTuning.applyBoundTextureFilter(rasterScale);
+
+            // CRITICAL: Some MC code paths (e.g. RenderItem.renderItemOverlayIntoGUI)
+            // disable GL_BLEND before calling drawStringWithShadow. Alpha-blended text
+            // textures MUST be drawn with blending enabled, otherwise semi-transparent
+            // edge pixels write their raw RGB directly to the framebuffer causing dark
+            // fringes / jagged edges. See rendering.forceBlendForText config comment.
+            if (NeofontrenderConfig.forceBlendForText() && !GL11.glIsEnabled(GL11.GL_BLEND)) {
+                GlStateManager.enableBlend();
+                if (NeofontrenderConfig.enablePremultipliedAlpha()) {
+                    GlStateManager.tryBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
+                } else {
+                    GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
+                }
+            }
+
+            Float lastScale = LAST_FILTER_SCALE.get(location);
+            if (lastScale == null || Math.abs(lastScale - rasterScale) > 0.01f) {
+                FontRenderTuning.applyBoundTextureFilter(rasterScale);
+                LAST_FILTER_SCALE.put(location, rasterScale);
+            }
             float left = FontRenderTuning.alignToPixel(x + horizontalOffset);
             float top = FontRenderTuning.alignToPixel(y + verticalOffset);
 

@@ -20,6 +20,7 @@ import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.StringErrorCorrector;
 
 import java.util.Locale;
 
@@ -268,6 +269,7 @@ public class MixinFontRenderer {
         float baseBlue = this.blue;
         float baseGreen = this.green;
         float baseAlpha = this.alpha;
+        StringErrorCorrector corrector = new StringErrorCorrector();
 
         int runStart = 0;
         for (int i = 0; i < text.length(); i++) {
@@ -277,7 +279,7 @@ public class MixinFontRenderer {
             }
 
             if (i > runStart) {
-                sfr$renderSkiaRun(text.substring(runStart, i));
+                sfr$renderSkiaRun(text.substring(runStart, i), corrector);
             }
 
             int style = "0123456789abcdefklmnor".indexOf(String.valueOf(text.charAt(i + 1))
@@ -326,11 +328,11 @@ public class MixinFontRenderer {
         }
 
         if (runStart < text.length()) {
-            sfr$renderSkiaRun(text.substring(runStart));
+            sfr$renderSkiaRun(text.substring(runStart), corrector);
         }
     }
 
-    private void sfr$renderSkiaRun(String run) {
+    private void sfr$renderSkiaRun(String run, StringErrorCorrector corrector) {
         if (run.isEmpty()) {
             return;
         }
@@ -340,19 +342,20 @@ public class MixinFontRenderer {
             return;
         }
         TextRenderResult rendered = backend.render(run, sfr$currentArgb(), this.boldStyle, this.italicStyle);
-        rendered.draw(startX, this.posY, this.alpha);
         float width = rendered.advance();
+        float correctedX = corrector.correct(startX, width);
+        rendered.draw(correctedX, this.posY, this.alpha);
 
         if (this.strikethroughStyle) {
-            sfr$drawEffect(startX, this.posY + (float) (this.FONT_HEIGHT / 2),
-                    startX + width, this.posY + (float) (this.FONT_HEIGHT / 2) - 1.0F);
+            sfr$drawEffect(correctedX, this.posY + (float) (this.FONT_HEIGHT / 2),
+                    correctedX + width, this.posY + (float) (this.FONT_HEIGHT / 2) - 1.0F);
         }
         if (this.underlineStyle) {
-            sfr$drawEffect(startX - 1.0F, this.posY + (float) this.FONT_HEIGHT,
-                    startX + width, this.posY + (float) this.FONT_HEIGHT - 1.0F);
+            sfr$drawEffect(correctedX - 1.0F, this.posY + (float) this.FONT_HEIGHT,
+                    correctedX + width, this.posY + (float) this.FONT_HEIGHT - 1.0F);
         }
 
-        this.posX = startX + width;
+        this.posX = correctedX + width;
     }
 
     private void sfr$drawEffect(float x0, float y0, float x1, float y1) {
