@@ -21,7 +21,9 @@ import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.StringErrorCorrector;
+import neofontrender.core.font.skia.SkiaTextSegmenter;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -80,7 +82,7 @@ public class MixinFontRenderer {
         if (!sfr$shouldHook() || text == null) {
             return;
         }
-        if (FontManager.INSTANCE.isSkiaActive() && text != null) {
+        if (FontManager.INSTANCE.isSkiaActive()) {
             sfr$renderSkiaFormatted(text, shadow);
             ci.cancel();
             return;
@@ -341,6 +343,36 @@ public class MixinFontRenderer {
         if (backend == null) {
             return;
         }
+        List<String> segments = this.randomStyle ? null : SkiaTextSegmenter.segment(run);
+        if (segments != null) {
+            float currentX = startX;
+            for (String segment : segments) {
+                float width;
+                if (sfr$isWhitespaceSegment(segment)) {
+                    width = backend.measure(segment, this.boldStyle, this.italicStyle);
+                    currentX += width;
+                    continue;
+                }
+                TextRenderResult rendered = backend.renderSegment(segment, sfr$currentArgb(), this.boldStyle, this.italicStyle);
+                width = rendered.advance();
+                rendered.draw(currentX, this.posY, this.alpha);
+                currentX += width;
+            }
+
+            if (this.strikethroughStyle) {
+                sfr$drawEffect(startX, this.posY + (float) (this.FONT_HEIGHT / 2),
+                        currentX, this.posY + (float) (this.FONT_HEIGHT / 2) - 1.0F);
+            }
+            if (this.underlineStyle) {
+                sfr$drawEffect(startX - 1.0F, this.posY + (float) this.FONT_HEIGHT,
+                        currentX, this.posY + (float) this.FONT_HEIGHT - 1.0F);
+            }
+
+            corrector.reset();
+            this.posX = currentX;
+            return;
+        }
+
         TextRenderResult rendered = backend.render(run, sfr$currentArgb(), this.boldStyle, this.italicStyle);
         float width = rendered.advance();
         float correctedX = corrector.correct(startX, width);
@@ -356,6 +388,17 @@ public class MixinFontRenderer {
         }
 
         this.posX = correctedX + width;
+    }
+
+    private static boolean sfr$isWhitespaceSegment(String text) {
+        for (int i = 0; i < text.length(); ) {
+            int codePoint = text.codePointAt(i);
+            if (!Character.isWhitespace(codePoint)) {
+                return false;
+            }
+            i += Character.charCount(codePoint);
+        }
+        return true;
     }
 
     private void sfr$drawEffect(float x0, float y0, float x1, float y1) {
@@ -574,6 +617,14 @@ public class MixinFontRenderer {
             }
             if (NeofontrenderConfig.skiaAdvancedStringMode()) {
                 return backend.measureFormatted(run, 0xFFFFFFFF, false);
+            }
+            List<String> segments = SkiaTextSegmenter.segment(run);
+            if (segments != null) {
+                float width = 0.0F;
+                for (String segment : segments) {
+                    width += backend.measure(segment, bold, false);
+                }
+                return width;
             }
             return backend.measure(run, bold, false);
         }

@@ -104,14 +104,22 @@ public final class FontRenderTuning {
     }
 
     public static void applyFontTextureFilter(AbstractTexture texture, float rasterScale) {
+        applyFontTextureFilter(texture, rasterScale, true);
+    }
+
+    public static void applyFontTextureFilter(AbstractTexture texture, float rasterScale, boolean allowMipmap) {
         boolean linear = useLinearFiltering(rasterScale);
-        texture.setBlurMipmap(linear, linear && NeofontrenderConfig.renderingMipmap());
+        texture.setBlurMipmap(linear, allowMipmap && linear && NeofontrenderConfig.renderingMipmap());
     }
 
     public static void applyBoundTextureFilter(float rasterScale) {
+        applyBoundTextureFilter(rasterScale, true);
+    }
+
+    public static void applyBoundTextureFilter(float rasterScale, boolean allowMipmap) {
         boolean linear = useLinearFiltering(rasterScale);
         int min = linear
-                ? (NeofontrenderConfig.renderingMipmap() ? GL11.GL_LINEAR_MIPMAP_LINEAR : GL11.GL_LINEAR)
+                ? (allowMipmap && NeofontrenderConfig.renderingMipmap() ? GL11.GL_LINEAR_MIPMAP_LINEAR : GL11.GL_LINEAR)
                 : GL11.GL_NEAREST;
         int mag = linear ? GL11.GL_LINEAR : GL11.GL_NEAREST;
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, min);

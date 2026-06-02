@@ -2,7 +2,7 @@
 
 All notable changes to Neo Font Render will be documented in this file.
 
-## [0.2.4] - 2026-06-01
+## [0.2.5] - 2026-06-03
 
 ### Added
 - Added `/neofontrender export` diagnostic command with multi-scenario PNG export and report.txt (GL state, filter decision analysis).

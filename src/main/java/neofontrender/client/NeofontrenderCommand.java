@@ -25,8 +25,10 @@ import net.minecraft.util.text.TextFormatting;
 import neofontrender.client.gui.NeofontrenderEmojiTestScreen;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.FontManager;
+import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
+import neofontrender.core.font.skia.SkiaTextSegmenter;
 import neofontrender.core.font.skia.SkijaTextRenderer;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
@@ -163,6 +165,67 @@ public class NeofontrenderCommand extends CommandBase {
         sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Font name: " + neofontrender.core.config.NeofontrenderConfig.fontName()));
         sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Font size: " + neofontrender.core.config.NeofontrenderConfig.fontSize()));
         sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Oversample: " + neofontrender.core.config.NeofontrenderConfig.fontOversample()));
+        SkijaTextRenderer renderer = FontManager.INSTANCE.getSkijaTextRenderer();
+        if (renderer != null) {
+            SkijaTextRenderer.DebugState state = renderer.debugState();
+            sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia GPU offscreen requested: " + state.gpuRequested()));
+            sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia GPU mode: "
+                    + (state.gpuRequested()
+                    ? (neofontrender.core.config.NeofontrenderConfig.skiaGpuSubmitViaCpuTexture()
+                    ? "isolated-context + DynamicTexture submit"
+                    : "isolated-context + shared texture")
+                    : "off")));
+            sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia last raster path: " + state.lastRasterPath()));
+            sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia GPU context: " + state.gpuContextCreated()));
+            sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia GPU unavailable: " + state.gpuUnavailable()));
+            if (state.lastGpuFallbackReason() != null && !state.lastGpuFallbackReason().isEmpty()) {
+                sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "  Skia GPU fallback reason: " + state.lastGpuFallbackReason()));
+            }
+            if (state.lastDrawState() != null && !state.lastDrawState().isEmpty()) {
+                sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia last draw: " + state.lastDrawState()));
+            }
+            if (state.lastRasterStats() != null && !state.lastRasterStats().isEmpty()) {
+                sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia raster stats: " + state.lastRasterStats()));
+            }
+            sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia cache: text "
+                    + state.renderCacheSize() + "/" + state.renderCacheMax()
+                    + ", segment " + state.segmentCacheSize() + "/" + state.segmentCacheMax()
+                    + ", measure " + state.measureCacheSize() + "/" + state.measureCacheMax()));
+            if (neofontrender.core.config.NeofontrenderConfig.debugRenderStats()) {
+                sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia cache h/m/e: text "
+                        + state.renderCacheHits() + "/" + state.renderCacheMisses() + "/" + state.renderCacheEvictions()
+                        + ", segment " + state.segmentCacheHits() + "/" + state.segmentCacheMisses()
+                        + "/" + state.segmentCacheEvictions()
+                        + ", measure " + state.measureCacheHits() + "/" + state.measureCacheMisses()
+                        + "/" + state.measureCacheEvictions()));
+                SkiaTextSegmenter.DebugState segmentState = SkiaTextSegmenter.debugState();
+                sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia segment cache: "
+                        + segmentState.enabled()
+                        + " attempts/runs/reject/segs " + segmentState.attempts()
+                        + "/" + segmentState.segmentedRuns()
+                        + "/" + segmentState.rejectedRuns()
+                        + "/" + segmentState.emittedSegments()));
+            } else {
+                sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia debug stats: disabled"));
+            }
+            sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia raster count cpu/gpu: "
+                    + state.cpuRasterCount() + "/" + state.gpuRasterCount()));
+        }
+        FontSet.DebugState sfrState = FontManager.INSTANCE.getSfrDebugState();
+        if (sfrState != null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  SFR glyph cache: info "
+                    + sfrState.glyphInfoCacheSize()
+                    + ", baked " + sfrState.bakedGlyphCacheSize()
+                    + ", buckets " + sfrState.glyphWidthBuckets()));
+            sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  SFR glyph h/m: info "
+                    + sfrState.glyphInfoHits() + "/" + sfrState.glyphInfoMisses()
+                    + ", baked " + sfrState.bakedGlyphHits() + "/" + sfrState.bakedGlyphMisses()));
+            sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  SFR layout cache: "
+                    + sfrState.layoutCacheSize() + "/" + sfrState.layoutCacheMax()
+                    + " h/m/e " + sfrState.layoutCacheHits()
+                    + "/" + sfrState.layoutCacheMisses()
+                    + "/" + sfrState.layoutCacheEvictions()));
+        }
     }
 
     private void executeReload(ICommandSender sender) {
@@ -250,6 +313,8 @@ public class NeofontrenderCommand extends CommandBase {
                 log.append("antialiasMode: ").append(NeofontrenderConfig.fontAntialiasMode()).append("\n");
                 log.append("premultipliedAlpha: ").append(NeofontrenderConfig.enablePremultipliedAlpha()).append("\n");
                 log.append("textureEdgeBleed: ").append(NeofontrenderConfig.textureEdgeBleed()).append("\n");
+                log.append("skiaGpuOffscreen: ").append(NeofontrenderConfig.skiaGpuOffscreen()).append("\n");
+                log.append("skiaGpuSubmitViaCpuTexture: ").append(NeofontrenderConfig.skiaGpuSubmitViaCpuTexture()).append("\n");
                 log.append("interpolation: ").append(NeofontrenderConfig.renderingInterpolation()).append("\n");
                 log.append("mipmap: ").append(NeofontrenderConfig.renderingMipmap()).append("\n");
                 log.append("adaptiveRasterScale: ").append(NeofontrenderConfig.adaptiveRasterScale()).append("\n");
@@ -263,6 +328,20 @@ public class NeofontrenderCommand extends CommandBase {
                 log.append("brightnessAuto: ").append(NeofontrenderConfig.renderingBrightnessAuto()).append("\n");
                 log.append("displaySize: ").append(mc.displayWidth).append("x").append(mc.displayHeight).append("\n");
                 log.append("guiScale: ").append(mc.gameSettings.guiScale).append("\n\n");
+
+                log.append("--- Part 0: CPU vs Isolated GPU Texture Export ---\n");
+                try {
+                    String textureReport = renderer.exportGpuDiagnostics(outputDir, finalText);
+                    log.append(textureReport).append("\n");
+                    log.append("  files: cpu_reference_texture.png, gpu_isolated_readback.png\n\n");
+                    sender.sendMessage(new TextComponentString(TextFormatting.GREEN
+                            + "CPU/GPU texture PNGs exported."));
+                } catch (Throwable t) {
+                    log.append("  texture export FAILED: ").append(t.getClass().getSimpleName())
+                            .append(": ").append(t.getMessage()).append("\n\n");
+                    sender.sendMessage(new TextComponentString(TextFormatting.RED
+                            + "CPU/GPU texture export failed: " + t.getMessage()));
+                }
 
                 FontCollection fonts = renderer.getFontCollection();
                 String[] families = renderer.getFontFamilies();

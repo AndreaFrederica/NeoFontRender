@@ -195,6 +195,10 @@ public class FontManager implements AutoCloseable {
         return defaultFontSet;
     }
 
+    public synchronized FontSet.DebugState getSfrDebugState() {
+        return defaultFontSet == null ? null : defaultFontSet.debugState();
+    }
+
     public synchronized TextRenderBackend getTextRenderBackend() {
         return textRenderBackend;
     }

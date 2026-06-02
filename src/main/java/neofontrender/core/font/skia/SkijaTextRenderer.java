@@ -1,14 +1,20 @@
 package neofontrender.core.font.skia;
 
 import io.github.humbleui.skija.Bitmap;
+import io.github.humbleui.skija.BackendRenderTarget;
 import io.github.humbleui.skija.Canvas;
+import io.github.humbleui.skija.ColorSpace;
+import io.github.humbleui.skija.ColorType;
 import io.github.humbleui.skija.Data;
+import io.github.humbleui.skija.DirectContext;
 import io.github.humbleui.skija.FontMgr;
 import io.github.humbleui.skija.FontStyle;
+import io.github.humbleui.skija.FramebufferFormat;
 import io.github.humbleui.skija.ImageInfo;
 import io.github.humbleui.skija.Paint;
 import io.github.humbleui.skija.PixelGeometry;
 import io.github.humbleui.skija.Surface;
+import io.github.humbleui.skija.SurfaceOrigin;
 import io.github.humbleui.skija.SurfaceProps;
 import io.github.humbleui.skija.Typeface;
 import io.github.humbleui.skija.paragraph.FontCollection;
@@ -22,7 +28,9 @@ import io.github.humbleui.skija.paragraph.TypefaceFontProvider;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.client.renderer.texture.TextureUtil;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.resources.IResource;
@@ -36,12 +44,17 @@ import neofontrender.core.font.support.FontBrightnessEstimator;
 import neofontrender.core.font.support.FontPixelUtils;
 import neofontrender.core.font.support.FontRenderPipeline;
 import neofontrender.core.font.support.FontRenderTuning;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL14;
+import org.lwjgl.opengl.GL30;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.awt.image.BufferedImage;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
@@ -50,6 +63,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.imageio.ImageIO;
 
 /**
  * First Skija-backed renderer path. It renders shaped paragraph runs into
@@ -80,6 +94,23 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                     if (size() <= maxRenderCacheEntries()) {
                         return false;
                     }
+                    if (debugRenderStats()) {
+                        renderCacheEvictions++;
+                    }
+                    eldest.getValue().close();
+                    return true;
+                }
+            });
+    private final Map<RenderKey, RenderedText> segmentCache = Collections.synchronizedMap(
+            new LinkedHashMap<RenderKey, RenderedText>(DEFAULT_CACHE_SIZE, 0.75F, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<RenderKey, RenderedText> eldest) {
+                    if (size() <= maxSegmentCacheEntries()) {
+                        return false;
+                    }
+                    if (debugRenderStats()) {
+                        segmentCacheEvictions++;
+                    }
                     eldest.getValue().close();
                     return true;
                 }
@@ -88,11 +119,43 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             new LinkedHashMap<MeasureKey, Float>(DEFAULT_CACHE_SIZE, 0.75F, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<MeasureKey, Float> eldest) {
+                    if (size() > maxMeasureCacheEntries()) {
+                        if (debugRenderStats()) {
+                            measureCacheEvictions++;
+                        }
+                        return true;
+                    }
                     return size() > maxMeasureCacheEntries();
                 }
             });
     private int nextTextureId = 0;
     private float autoRefBaseline = Float.NaN;
+    private IsolatedGpuContext isolatedGpuContext;
+    private boolean gpuUnavailable;
+    private boolean gpuFallbackLogged;
+    private boolean gpuSkipLogged;
+    private boolean gpuActiveLogged;
+    private boolean prewarming;
+    private long cpuRasterCount;
+    private long gpuRasterCount;
+    private long renderCacheHits;
+    private long renderCacheMisses;
+    private long renderCacheEvictions;
+    private long segmentCacheHits;
+    private long segmentCacheMisses;
+    private long segmentCacheEvictions;
+    private long measureCacheHits;
+    private long measureCacheMisses;
+    private long measureCacheEvictions;
+    private volatile String lastRasterPath = "none";
+    private volatile String lastGpuFallbackReason = "";
+    private volatile String lastRasterStats = "";
+    private static volatile String lastDrawState = "";
+    private int gpuCompareSamples;
+
+    private static boolean debugRenderStats() {
+        return NeofontrenderConfig.debugRenderStats();
+    }
 
     public SkijaTextRenderer(TextureManager textureManager, IResourceManager resourceManager) throws IOException {
         this.textureManager = textureManager;
@@ -124,8 +187,15 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         float scale = currentRasterScale();
         MeasureKey key = MeasureKey.plain(text, bold, italic, scale);
         Float cached = measureCache.get(key);
+        boolean stats = debugRenderStats();
         if (cached != null) {
+            if (stats) {
+                measureCacheHits++;
+            }
             return cached;
+        }
+        if (stats) {
+            measureCacheMisses++;
         }
         float measured;
         try (Paragraph paragraph = buildParagraph(text, 0xFFFFFFFF, bold, italic, scale)) {
@@ -141,11 +211,22 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         if (text == null || text.isEmpty()) {
             return 0.0F;
         }
+        Float segmented = tryMeasureFormattedSegments(text, baseArgb, shadow);
+        if (segmented != null) {
+            return segmented;
+        }
         float scale = currentRasterScale();
         MeasureKey key = MeasureKey.formatted(text, shadow, scale);
         Float cached = measureCache.get(key);
+        boolean stats = debugRenderStats();
         if (cached != null) {
+            if (stats) {
+                measureCacheHits++;
+            }
             return cached;
+        }
+        if (stats) {
+            measureCacheMisses++;
         }
         float measured;
         try (Paragraph paragraph = buildFormattedParagraph(text, baseArgb, shadow, scale)) {
@@ -164,9 +245,16 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         float scale = currentRasterScale();
         RenderKey key = RenderKey.plain(text, argb, bold, italic, scale);
         RenderedText cached = renderCache.get(key);
+        boolean stats = debugRenderStats();
         if (cached != null) {
+            if (stats) {
+                renderCacheHits++;
+            }
             cached.touch();
             return cached;
+        }
+        if (stats) {
+            renderCacheMisses++;
         }
         try {
             RenderedText rendered = rasterize(text, argb, bold, italic, scale, key.hashCode());
@@ -179,17 +267,58 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
     }
 
-    public RenderedText renderFormatted(String text, int baseArgb, boolean shadow) {
+    @Override
+    public RenderedText renderSegment(String text, int argb, boolean bold, boolean italic) {
         if (text == null || text.isEmpty()) {
             return RenderedText.EMPTY;
+        }
+        float scale = currentRasterScale();
+        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale);
+        RenderedText cached = segmentCache.get(key);
+        boolean stats = debugRenderStats();
+        if (cached != null) {
+            if (stats) {
+                segmentCacheHits++;
+            }
+            cached.touch();
+            return cached;
+        }
+        if (stats) {
+            segmentCacheMisses++;
+        }
+        try {
+            RenderedText rendered = rasterize(text, argb, bold, italic, scale, key.hashCode());
+            segmentCache.put(key, rendered);
+            trimSegmentCache();
+            return rendered;
+        } catch (Throwable t) {
+            NeoFontRender.LOGGER.error("Failed to render Skija segment '{}'", text, t);
+            return RenderedText.EMPTY;
+        }
+    }
+
+    public TextRenderResult renderFormatted(String text, int baseArgb, boolean shadow) {
+        if (text == null || text.isEmpty()) {
+            return RenderedText.EMPTY;
+        }
+        TextRenderResult segmented = tryRenderFormattedSegments(text, baseArgb, shadow);
+        if (segmented != null) {
+            return segmented;
         }
         int normalizedArgb = normalizeBaseArgb(baseArgb);
         float scale = currentRasterScale();
         RenderKey key = RenderKey.formatted(text, normalizedArgb, shadow, scale);
         RenderedText cached = renderCache.get(key);
+        boolean stats = debugRenderStats();
         if (cached != null) {
+            if (stats) {
+                renderCacheHits++;
+            }
             cached.touch();
             return cached;
+        }
+        if (stats) {
+            renderCacheMisses++;
         }
         try {
             RenderedText rendered = rasterizeFormatted(text, normalizedArgb, shadow, scale, key.hashCode());
@@ -203,25 +332,30 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     }
 
     public void prewarmBasicLatin() {
-        FontBrightnessEstimator.reset();
-        int fontRes = Math.round(NeofontrenderConfig.fontSize() * NeofontrenderConfig.fontOversample());
-        for (int cp = 32; cp <= 126; cp++) {
-            String text = new String(Character.toChars(cp));
-            measure(text, false, false);
-            if (cp != ' ') {
-                RenderedText rt = render(text, 0xFFFFFFFF, false, false);
-                if (rt != null && rt.getTexture() != null && (cp == '1' || cp == '/' || cp == 'I')) {
-                    int[] pixels = rt.getTexture().getTextureData();
-                    FontBrightnessEstimator.feedSample(pixels, rt.width, rt.height, fontRes);
+        prewarming = true;
+        try {
+            FontBrightnessEstimator.reset();
+            int fontRes = Math.round(NeofontrenderConfig.fontSize() * NeofontrenderConfig.fontOversample());
+            for (int cp = 32; cp <= 126; cp++) {
+                String text = new String(Character.toChars(cp));
+                measure(text, false, false);
+                if (cp != ' ') {
+                    RenderedText rt = render(text, 0xFFFFFFFF, false, false);
+                    if (rt != null && rt.getCpuTexture() != null && (cp == '1' || cp == '/' || cp == 'I')) {
+                        int[] pixels = rt.getCpuTexture().getTextureData();
+                        FontBrightnessEstimator.feedSample(pixels, rt.width, rt.height, fontRes);
+                    }
                 }
             }
-        }
-        for (int cp = 160; cp <= 255; cp++) {
-            String text = new String(Character.toChars(cp));
-            measure(text, false, false);
-            if (cp != 160) {
-                render(text, 0xFFFFFFFF, false, false);
+            for (int cp = 160; cp <= 255; cp++) {
+                String text = new String(Character.toChars(cp));
+                measure(text, false, false);
+                if (cp != 160) {
+                    render(text, 0xFFFFFFFF, false, false);
+                }
             }
+        } finally {
+            prewarming = false;
         }
     }
 
@@ -253,10 +387,24 @@ public final class SkijaTextRenderer implements TextRenderBackend {
 
     private RenderedText rasterizeParagraph(Paragraph paragraph, int cacheHash, float measuredWidth, int width,
                                            float oversample, int border) throws IOException {
+        if (shouldUseGpuOffscreen()) {
+            try {
+                return rasterizeParagraphGpu(paragraph, cacheHash, measuredWidth, width, oversample, border);
+            } catch (Throwable t) {
+                gpuUnavailable = true;
+                lastGpuFallbackReason = "isolated failed: " + t.getClass().getSimpleName();
+                if (!gpuFallbackLogged) {
+                    gpuFallbackLogged = true;
+                    NeoFontRender.LOGGER.warn("Isolated Skia GPU offscreen rendering failed; falling back to CPU rasterization", t);
+                }
+            }
+        }
+        cpuRasterCount++;
+        lastRasterPath = "cpu";
         int height;
         float verticalOffset;
 
-        height = Math.max(1, (int) Math.ceil((paragraph.getHeight() + border * 2.0F) * oversample));
+        height = paragraphTextureHeight(paragraph, oversample, border);
         float paintX = border * oversample;
         float paintY = border * oversample / 2.0f;
         float baselineInTexture = (paintY + paragraph.getAlphabeticBaseline()) / oversample;
@@ -311,6 +459,11 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 uploadWidth = width * scale;
                 uploadHeight = height * scale;
             }
+            if (debugRenderStats()) {
+                lastRasterStats = "cpu " + RasterStats.fromArgb(pixels, uploadWidth, uploadHeight);
+            } else {
+                lastRasterStats = "";
+            }
             float actualRasterScale = oversample * textureScale;
 
             DynamicTexture texture = new DynamicTexture(uploadWidth, uploadHeight);
@@ -326,8 +479,260 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return new RenderedText(location, texture, measuredWidth,
                     uploadWidth, uploadHeight,
                     uploadWidth / actualRasterScale, uploadHeight / actualRasterScale,
-                    actualRasterScale, horizontalOffset, verticalOffset);
+                    actualRasterScale, horizontalOffset, verticalOffset, false);
         }
+    }
+
+    private RenderedText rasterizeParagraphGpu(Paragraph paragraph, int cacheHash, float measuredWidth, int width,
+                                               float oversample, int border) throws IOException {
+        gpuRasterCount++;
+        lastRasterPath = "gpu-isolated";
+        if (!gpuActiveLogged) {
+            gpuActiveLogged = true;
+            NeoFontRender.LOGGER.info("Isolated Skia GPU offscreen rendering is active");
+        }
+
+        int height = paragraphTextureHeight(paragraph, oversample, border);
+        float paintX = border * oversample;
+        float paintY = border * oversample / 2.0f;
+        float baselineInTexture = (paintY + paragraph.getAlphabeticBaseline()) / oversample;
+        float verticalOffset;
+        if (NeofontrenderConfig.fontAutoBaseline()) {
+            float refBaseline = Float.isNaN(autoRefBaseline) ? computeAutoRefBaseline() : autoRefBaseline;
+            verticalOffset = refBaseline + NeofontrenderConfig.fontBaselineShift() - baselineInTexture;
+        } else {
+            verticalOffset = NeofontrenderConfig.fontReferenceBaseline() + NeofontrenderConfig.fontBaselineShift() - baselineInTexture;
+        }
+        float horizontalOffset = -paintX / oversample;
+
+        float textureScale = FontRenderTuning.textureScale(oversample);
+        int scale = Math.max(1, Math.round(textureScale));
+        int uploadWidth = width * scale;
+        int uploadHeight = height * scale;
+        float actualRasterScale = oversample * scale;
+
+        if (NeofontrenderConfig.skiaGpuSubmitViaCpuTexture()) {
+            lastRasterPath = "gpu-isolated-cpu-submit";
+            boolean statsEnabled = debugRenderStats();
+            GpuReadback readback = getOrCreateIsolatedGpuContext()
+                    .renderReadback(paragraph, uploadWidth, uploadHeight, scale, paintX, paintY, statsEnabled);
+            int[] pixels = readback.argbPixels;
+            if (NeofontrenderConfig.textureEdgeBleed()) {
+                FontPixelUtils.normalizeTransparentRgb(pixels, uploadWidth, uploadHeight);
+            }
+
+            DynamicTexture texture = new DynamicTexture(uploadWidth, uploadHeight);
+            int[] target = texture.getTextureData();
+            System.arraycopy(pixels, 0, target, 0, Math.min(pixels.length, target.length));
+            texture.updateDynamicTexture();
+
+            if (statsEnabled) {
+                String stats = "gpu-cpu-submit " + readback.stats;
+                if (gpuCompareSamples < 8) {
+                    gpuCompareSamples++;
+                    stats += " ref " + rasterizeReferenceStats(paragraph, uploadWidth, uploadHeight, scale, paintX, paintY);
+                }
+                lastRasterStats = stats;
+            } else {
+                lastRasterStats = "";
+            }
+
+            ResourceLocation location = new ResourceLocation("neofontrender",
+                    "skia_gpu_cpu_submit/" + Integer.toHexString(cacheHash) + "_" + nextTextureId++);
+            FontRenderTuning.applyFontTextureFilter(texture, actualRasterScale);
+            textureManager.loadTexture(location, texture);
+            FontRenderTuning.applyFontTextureFilter(texture, actualRasterScale);
+            return new RenderedText(location, texture, measuredWidth,
+                    uploadWidth, uploadHeight,
+                    uploadWidth / actualRasterScale, uploadHeight / actualRasterScale,
+                    actualRasterScale, horizontalOffset, verticalOffset, false);
+        }
+
+        boolean statsEnabled = debugRenderStats();
+        GpuTextTexture texture = getOrCreateIsolatedGpuContext()
+                .render(paragraph, uploadWidth, uploadHeight, scale, paintX, paintY, statsEnabled);
+        if (statsEnabled) {
+            String stats = "gpu " + texture.debugStats();
+            if (gpuCompareSamples < 8) {
+                gpuCompareSamples++;
+                stats += " ref " + rasterizeReferenceStats(paragraph, uploadWidth, uploadHeight, scale, paintX, paintY);
+            }
+            lastRasterStats = stats;
+        } else {
+            lastRasterStats = "";
+        }
+        ResourceLocation location = new ResourceLocation("neofontrender",
+                "skia_gpu_iso/" + Integer.toHexString(cacheHash) + "_" + nextTextureId++);
+        textureManager.loadTexture(location, texture);
+        FontRenderTuning.applyFontTextureFilter(texture, actualRasterScale, texture.hasMipmaps());
+        return new RenderedText(location, texture, measuredWidth,
+                uploadWidth, uploadHeight,
+                uploadWidth / actualRasterScale, uploadHeight / actualRasterScale,
+                actualRasterScale, horizontalOffset, verticalOffset, true);
+    }
+
+    private boolean shouldUseGpuOffscreen() {
+        if (!NeofontrenderConfig.skiaGpuOffscreen() || gpuUnavailable || prewarming) {
+            return false;
+        }
+        if (!NeofontrenderConfig.enablePremultipliedAlpha()) {
+            return skipGpuOffscreen("rendering.premultipliedAlpha is false");
+        }
+        return true;
+    }
+
+    private boolean skipGpuOffscreen(String reason) {
+        lastGpuFallbackReason = reason;
+        if (!gpuSkipLogged) {
+            gpuSkipLogged = true;
+            NeoFontRender.LOGGER.warn("Isolated Skia GPU offscreen rendering is enabled but cannot be used: {}. Using CPU rasterization.", reason);
+        }
+        return false;
+    }
+
+    private RasterStats rasterizeReferenceStats(Paragraph paragraph, int width, int height, int textureScale,
+                                                float paintX, float paintY) {
+        ImageInfo imageInfo = ImageInfo.makeN32Premul(width, height);
+        try (Surface surface = Surface.makeRaster(imageInfo, imageInfo.getMinRowBytes(), skiaSurfaceProps())) {
+            Canvas canvas = surface.getCanvas();
+            canvas.clear(0x00000000);
+            if (textureScale != 1) {
+                int save = canvas.save();
+                canvas.scale(textureScale, textureScale);
+                paragraph.paint(canvas, paintX, paintY);
+                canvas.restoreToCount(save);
+            } else {
+                paragraph.paint(canvas, paintX, paintY);
+            }
+
+            Bitmap bitmap = new Bitmap();
+            bitmap.allocN32Pixels(width, height);
+            surface.readPixels(bitmap, 0, 0);
+            byte[] rawBytes = bitmap.readPixels();
+            bitmap.close();
+            int[] pixels = new int[width * height];
+            ByteBuffer.wrap(rawBytes).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(pixels);
+            return RasterStats.fromArgb(pixels, width, height);
+        } catch (Throwable t) {
+            return RasterStats.error(t);
+        }
+    }
+
+    private static int paragraphTextureHeight(Paragraph paragraph, float oversample, int border) {
+        return Math.max(1, (int) Math.ceil(paragraph.getHeight() + border * 2.0F * oversample));
+    }
+
+    private IsolatedGpuContext getOrCreateIsolatedGpuContext() throws IOException {
+        if (isolatedGpuContext == null) {
+            isolatedGpuContext = IsolatedGpuContext.create();
+        }
+        return isolatedGpuContext;
+    }
+
+    public DebugState debugState() {
+        synchronized (renderCache) {
+            synchronized (segmentCache) {
+                synchronized (measureCache) {
+                    return new DebugState(
+                            NeofontrenderConfig.skiaGpuOffscreen(),
+                            isolatedGpuContext != null,
+                            gpuUnavailable,
+                            lastRasterPath,
+                            lastGpuFallbackReason,
+                            lastRasterStats,
+                            lastDrawState,
+                            cpuRasterCount,
+                            gpuRasterCount,
+                            renderCache.size(),
+                            segmentCache.size(),
+                            measureCache.size(),
+                            maxRenderCacheEntries(),
+                            maxSegmentCacheEntries(),
+                            maxMeasureCacheEntries(),
+                            renderCacheHits,
+                            renderCacheMisses,
+                            renderCacheEvictions,
+                            segmentCacheHits,
+                            segmentCacheMisses,
+                            segmentCacheEvictions,
+                            measureCacheHits,
+                            measureCacheMisses,
+                            measureCacheEvictions);
+                }
+            }
+        }
+    }
+
+    public String exportGpuDiagnostics(File outputDir, String text) throws IOException {
+        if (text == null || text.isEmpty()) {
+            text = "Hello World 你好世界";
+        }
+        if (!outputDir.isDirectory() && !outputDir.mkdirs()) {
+            throw new IOException("Cannot create export directory: " + outputDir);
+        }
+
+        float oversample = currentRasterScale();
+        float measuredWidth = Math.max(1.0F, measure(text, false, false));
+        int border = computeBorder(oversample);
+        int width = Math.max(1, (int) Math.ceil((measuredWidth + border * 2.0F) * oversample));
+        try (Paragraph paragraph = buildParagraph(text, 0xFFFFFFFF, false, false, oversample)) {
+            paragraph.layout(width);
+            int height = paragraphTextureHeight(paragraph, oversample, border);
+            float paintX = border * oversample;
+            float paintY = border * oversample / 2.0F;
+            float textureScale = FontRenderTuning.textureScale(oversample);
+            int scale = Math.max(1, Math.round(textureScale));
+            int uploadWidth = width * scale;
+            int uploadHeight = height * scale;
+
+            int[] cpuPixels = renderReferencePixels(paragraph, uploadWidth, uploadHeight, scale, paintX, paintY);
+            ImageIO.write(toImage(cpuPixels, uploadWidth, uploadHeight), "PNG",
+                    new File(outputDir, "cpu_reference_texture.png"));
+            RasterStats cpuStats = RasterStats.fromArgb(cpuPixels, uploadWidth, uploadHeight);
+
+            GpuReadback gpu = getOrCreateIsolatedGpuContext()
+                    .renderReadback(paragraph, uploadWidth, uploadHeight, scale, paintX, paintY, true);
+            ImageIO.write(toImage(gpu.argbPixels, uploadWidth, uploadHeight), "PNG",
+                    new File(outputDir, "gpu_isolated_readback.png"));
+
+            return "textureSize=" + uploadWidth + "x" + uploadHeight
+                    + " oversample=" + oversample
+                    + " textureScale=" + scale
+                    + "\n  cpu_reference_texture.png: " + cpuStats
+                    + "\n  gpu_isolated_readback.png: " + gpu.stats;
+        }
+    }
+
+    private int[] renderReferencePixels(Paragraph paragraph, int width, int height, int textureScale,
+                                        float paintX, float paintY) {
+        ImageInfo imageInfo = ImageInfo.makeN32Premul(width, height);
+        try (Surface surface = Surface.makeRaster(imageInfo, imageInfo.getMinRowBytes(), skiaSurfaceProps())) {
+            Canvas canvas = surface.getCanvas();
+            canvas.clear(0x00000000);
+            if (textureScale != 1) {
+                int save = canvas.save();
+                canvas.scale(textureScale, textureScale);
+                paragraph.paint(canvas, paintX, paintY);
+                canvas.restoreToCount(save);
+            } else {
+                paragraph.paint(canvas, paintX, paintY);
+            }
+
+            Bitmap bitmap = new Bitmap();
+            bitmap.allocN32Pixels(width, height);
+            surface.readPixels(bitmap, 0, 0);
+            byte[] rawBytes = bitmap.readPixels();
+            bitmap.close();
+            int[] pixels = new int[width * height];
+            ByteBuffer.wrap(rawBytes).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(pixels);
+            return pixels;
+        }
+    }
+
+    private static BufferedImage toImage(int[] argbPixels, int width, int height) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        image.setRGB(0, 0, width, height, argbPixels, 0, width);
+        return image;
     }
 
     private float computeAutoRefBaseline() {
@@ -353,6 +758,126 @@ public final class SkijaTextRenderer implements TextRenderBackend {
 
     private Paragraph buildFormattedParagraph(String text, int baseArgb, boolean shadow, float scale) {
         ParagraphBuilder builder = new ParagraphBuilder(new ParagraphStyle(), fontCollection);
+        for (FormattedRun run : splitFormattedRuns(text, baseArgb, shadow)) {
+            appendStyledText(builder, run.text, run.argb, run.bold, run.italic, run.underline, run.strikethrough, scale);
+        }
+
+        return builder.build();
+    }
+
+    private Paragraph buildStyledParagraph(String text, int argb, boolean bold, boolean italic,
+                                           boolean underline, boolean strikethrough, float scale) {
+        ParagraphBuilder builder = new ParagraphBuilder(new ParagraphStyle(), fontCollection);
+        appendStyledText(builder, text, argb, bold, italic, underline, strikethrough, scale);
+        return builder.build();
+    }
+
+    private Float tryMeasureFormattedSegments(String text, int baseArgb, boolean shadow) {
+        if (!NeofontrenderConfig.skiaSegmentCache()) {
+            return null;
+        }
+        List<FormattedRun> runs = splitFormattedRuns(text, baseArgb, shadow);
+        if (runs.isEmpty()) {
+            return 0.0F;
+        }
+        boolean segmentedAny = false;
+        float width = 0.0F;
+        for (FormattedRun run : runs) {
+            List<String> segments = SkiaTextSegmenter.segment(run.text);
+            if (segments != null) {
+                segmentedAny = true;
+                for (String segment : segments) {
+                    width += measure(segment, run.bold, run.italic);
+                }
+                continue;
+            }
+            width += measure(run.text, run.bold, run.italic);
+        }
+        return segmentedAny ? width : null;
+    }
+
+    private TextRenderResult tryRenderFormattedSegments(String text, int baseArgb, boolean shadow) {
+        if (!NeofontrenderConfig.skiaSegmentCache()) {
+            return null;
+        }
+        List<FormattedRun> runs = splitFormattedRuns(text, baseArgb, shadow);
+        if (runs.isEmpty()) {
+            return RenderedText.EMPTY;
+        }
+        ArrayList<CompositePiece> pieces = new ArrayList<>();
+        boolean segmentedAny = false;
+        float advance = 0.0F;
+
+        for (FormattedRun run : runs) {
+            List<String> segments = SkiaTextSegmenter.segment(run.text);
+            if (segments != null) {
+                segmentedAny = true;
+                for (String segment : segments) {
+                    TextRenderResult rendered = renderStyledSegment(segment, run.argb, run.bold, run.italic,
+                            run.underline, run.strikethrough);
+                    float pieceAdvance = measure(segment, run.bold, run.italic);
+                    pieces.add(new CompositePiece(rendered, advance));
+                    advance += pieceAdvance;
+                }
+                continue;
+            }
+
+            TextRenderResult rendered = renderStyledSegment(run.text, run.argb, run.bold, run.italic,
+                    run.underline, run.strikethrough);
+            pieces.add(new CompositePiece(rendered, advance));
+            advance += measure(run.text, run.bold, run.italic);
+        }
+
+        return segmentedAny ? new CompositeRenderedText(advance, pieces) : null;
+    }
+
+    private TextRenderResult renderStyledSegment(String text, int argb, boolean bold, boolean italic,
+                                                 boolean underline, boolean strikethrough) {
+        if (!underline && !strikethrough) {
+            return renderSegment(text, argb, bold, italic);
+        }
+        if (text == null || text.isEmpty()) {
+            return RenderedText.EMPTY;
+        }
+        float scale = currentRasterScale();
+        RenderKey key = RenderKey.decoratedSegment(text, argb, bold, italic, underline, strikethrough, scale);
+        RenderedText cached = segmentCache.get(key);
+        boolean stats = debugRenderStats();
+        if (cached != null) {
+            if (stats) {
+                segmentCacheHits++;
+            }
+            cached.touch();
+            return cached;
+        }
+        if (stats) {
+            segmentCacheMisses++;
+        }
+        try {
+            RenderedText rendered = rasterizeStyled(text, argb, bold, italic, underline, strikethrough, scale, key.hashCode());
+            segmentCache.put(key, rendered);
+            trimSegmentCache();
+            return rendered;
+        } catch (Throwable t) {
+            NeoFontRender.LOGGER.error("Failed to render formatted Skija segment '{}'", text, t);
+            return RenderedText.EMPTY;
+        }
+    }
+
+    private RenderedText rasterizeStyled(String text, int argb, boolean bold, boolean italic,
+                                         boolean underline, boolean strikethrough, float oversample,
+                                         int cacheHash) throws IOException {
+        float measuredWidth = Math.max(1.0F, measure(text, bold, italic));
+        int border = computeBorder(oversample);
+        int width = Math.max(1, (int) Math.ceil((measuredWidth + border * 2.0F) * oversample));
+        try (Paragraph paragraph = buildStyledParagraph(text, argb, bold, italic, underline, strikethrough, oversample)) {
+            paragraph.layout(width);
+            return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width, oversample, border);
+        }
+    }
+
+    private List<FormattedRun> splitFormattedRuns(String text, int baseArgb, boolean shadow) {
+        ArrayList<FormattedRun> runs = new ArrayList<>();
         boolean bold = false;
         boolean italic = false;
         boolean underline = false;
@@ -365,7 +890,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 continue;
             }
             if (i > runStart) {
-                appendStyledText(builder, text.substring(runStart, i), color, bold, italic, underline, strikethrough, scale);
+                runs.add(new FormattedRun(text.substring(runStart, i), color, bold, italic, underline, strikethrough));
             }
 
             int style = "0123456789abcdefklmnor".indexOf(Character.toLowerCase(text.charAt(i + 1)));
@@ -396,10 +921,9 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
 
         if (runStart < text.length()) {
-            appendStyledText(builder, text.substring(runStart), color, bold, italic, underline, strikethrough, scale);
+            runs.add(new FormattedRun(text.substring(runStart), color, bold, italic, underline, strikethrough));
         }
-
-        return builder.build();
+        return runs;
     }
 
     private void appendStyledText(ParagraphBuilder builder, String text, int argb, boolean bold, boolean italic,
@@ -507,6 +1031,9 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 Map.Entry<RenderKey, RenderedText> eldest = iterator.next();
                 eldest.getValue().close();
                 iterator.remove();
+                if (debugRenderStats()) {
+                    renderCacheEvictions++;
+                }
             }
 
             long ttlMillis = renderCacheTtlMillis();
@@ -523,6 +1050,43 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 }
                 eldest.getValue().close();
                 iterator.remove();
+                if (debugRenderStats()) {
+                    renderCacheEvictions++;
+                }
+            }
+        }
+    }
+
+    private void trimSegmentCache() {
+        synchronized (segmentCache) {
+            int max = maxSegmentCacheEntries();
+            Iterator<Map.Entry<RenderKey, RenderedText>> iterator = segmentCache.entrySet().iterator();
+            while (segmentCache.size() > max && iterator.hasNext()) {
+                Map.Entry<RenderKey, RenderedText> eldest = iterator.next();
+                eldest.getValue().close();
+                iterator.remove();
+                if (debugRenderStats()) {
+                    segmentCacheEvictions++;
+                }
+            }
+
+            long ttlMillis = segmentCacheTtlMillis();
+            if (ttlMillis <= 0L) {
+                return;
+            }
+            int min = minSegmentCacheEntries(max);
+            long now = System.currentTimeMillis();
+            iterator = segmentCache.entrySet().iterator();
+            while (segmentCache.size() > min && iterator.hasNext()) {
+                Map.Entry<RenderKey, RenderedText> eldest = iterator.next();
+                if (!eldest.getValue().isExpired(now, ttlMillis)) {
+                    break;
+                }
+                eldest.getValue().close();
+                iterator.remove();
+                if (debugRenderStats()) {
+                    segmentCacheEvictions++;
+                }
             }
         }
     }
@@ -534,6 +1098,9 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             while (measureCache.size() > max && iterator.hasNext()) {
                 iterator.next();
                 iterator.remove();
+                if (debugRenderStats()) {
+                    measureCacheEvictions++;
+                }
             }
         }
     }
@@ -542,8 +1109,16 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         return Math.max(1, NeofontrenderConfig.skiaTextCacheMaxEntries());
     }
 
+    private static int maxSegmentCacheEntries() {
+        return Math.max(1, NeofontrenderConfig.skiaSegmentTextureCacheMaxEntries());
+    }
+
     private static int minRenderCacheEntries(int max) {
         return Math.max(0, Math.min(max, NeofontrenderConfig.skiaTextCacheMinEntries()));
+    }
+
+    private static int minSegmentCacheEntries(int max) {
+        return Math.max(0, Math.min(max, NeofontrenderConfig.skiaSegmentTextureCacheMinEntries()));
     }
 
     private static int maxMeasureCacheEntries() {
@@ -552,6 +1127,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
 
     private static long renderCacheTtlMillis() {
         return (long) (NeofontrenderConfig.skiaTextCacheTtlSeconds() * 1000.0F);
+    }
+
+    private static long segmentCacheTtlMillis() {
+        return (long) (NeofontrenderConfig.skiaSegmentTextureCacheTtlSeconds() * 1000.0F);
     }
 
     private String[] registerConfiguredFonts() throws IOException {
@@ -633,22 +1212,709 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         for (RenderedText text : renderCache.values()) {
             text.close();
         }
+        for (RenderedText text : segmentCache.values()) {
+            text.close();
+        }
         renderCache.clear();
+        segmentCache.clear();
         measureCache.clear();
         for (Typeface typeface : ownedTypefaces) {
             typeface.close();
         }
         ownedTypefaces.clear();
+        if (isolatedGpuContext != null) {
+            isolatedGpuContext.close();
+            isolatedGpuContext = null;
+        }
         fontCollection.close();
         fontProvider.close();
     }
 
+    private static final class IsolatedGpuContext implements AutoCloseable {
+        private static final int GL_FRAMEBUFFER_BINDING = 0x8CA6;
+        private static final int GL_RENDERBUFFER_BINDING = 0x8CA7;
+        private static final int GL_TEXTURE_BASE_LEVEL = 0x813C;
+        private static final int GL_TEXTURE_MAX_LEVEL = 0x813D;
+
+        private final long window;
+        private final Object capabilities;
+        private final DirectContext context;
+
+        private IsolatedGpuContext(long window, Object capabilities, DirectContext context) {
+            this.window = window;
+            this.capabilities = capabilities;
+            this.context = context;
+        }
+
+        private static IsolatedGpuContext create() throws IOException {
+            long mainWindow = GLFW.glfwGetCurrentContext();
+            if (mainWindow == 0L) {
+                throw new IOException("Cannot create isolated Skia GPU context without a current Minecraft GLFW context");
+            }
+            Object mainCapabilities = currentCapabilities();
+            GLFW.glfwDefaultWindowHints();
+            GLFW.glfwWindowHint(GLFW.GLFW_VISIBLE, GLFW.GLFW_FALSE);
+            GLFW.glfwWindowHint(GLFW.GLFW_FOCUSED, GLFW.GLFW_FALSE);
+            GLFW.glfwWindowHint(GLFW.GLFW_RESIZABLE, GLFW.GLFW_FALSE);
+            GLFW.glfwWindowHint(GLFW.GLFW_CLIENT_API, GLFW.GLFW_OPENGL_API);
+            long isolatedWindow = GLFW.glfwCreateWindow(1, 1, "NeoFontRender Skia GPU", 0L, mainWindow);
+            GLFW.glfwDefaultWindowHints();
+            if (isolatedWindow == 0L) {
+                throw new IOException("GLFW failed to create isolated Skia GPU context");
+            }
+
+            try {
+                GLFW.glfwMakeContextCurrent(isolatedWindow);
+                Object isolatedCapabilities = createCapabilities();
+                DirectContext directContext = DirectContext.makeGL();
+                if (directContext == null) {
+                    throw new IOException("Skia DirectContext.makeGL() returned null in isolated context");
+                }
+                GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 4);
+                GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 4);
+                GLFW.glfwMakeContextCurrent(mainWindow);
+                setCapabilities(mainCapabilities);
+                NeoFontRender.LOGGER.info("Created isolated Skia GPU OpenGL context");
+                return new IsolatedGpuContext(isolatedWindow, isolatedCapabilities, directContext);
+            } catch (Throwable t) {
+                GLFW.glfwMakeContextCurrent(mainWindow);
+                setCapabilities(mainCapabilities);
+                GLFW.glfwDestroyWindow(isolatedWindow);
+                if (t instanceof IOException) {
+                    throw (IOException) t;
+                }
+                throw new IOException("Failed to initialize isolated Skia GPU context", t);
+            }
+        }
+
+        private GpuTextTexture render(Paragraph paragraph, int width, int height, int textureScale,
+                                      float paintX, float paintY, boolean collectStats) throws IOException {
+            if (width <= 0 || height <= 0) {
+                throw new IOException("Invalid isolated GPU text texture size " + width + "x" + height);
+            }
+
+            ContextSwitch contextSwitch = makeCurrent();
+            int textureId = 0;
+            int framebufferId = 0;
+            int stencilBufferId = 0;
+            boolean keepTexture = false;
+            try {
+                clearGlErrors();
+                textureId = GL11.glGenTextures();
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, 33071);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, 33071);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+                GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, width, height, 0,
+                        GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
+                checkGlError("isolated texture setup");
+
+                framebufferId = GL30.glGenFramebuffers();
+                stencilBufferId = GL30.glGenRenderbuffers();
+                if (framebufferId <= 0 || stencilBufferId <= 0) {
+                    throw new IOException("OpenGL framebuffer/renderbuffer objects are unavailable in isolated context");
+                }
+                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, framebufferId);
+                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0,
+                        GL11.GL_TEXTURE_2D, textureId, 0);
+                GL30.glBindRenderbuffer(GL30.GL_RENDERBUFFER, stencilBufferId);
+                GL30.glRenderbufferStorage(GL30.GL_RENDERBUFFER, GL30.GL_STENCIL_INDEX8, width, height);
+                GL30.glFramebufferRenderbuffer(GL30.GL_FRAMEBUFFER, GL30.GL_STENCIL_ATTACHMENT,
+                        GL30.GL_RENDERBUFFER, stencilBufferId);
+                checkGlError("isolated framebuffer setup");
+                int status = GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER);
+                if (status != GL30.GL_FRAMEBUFFER_COMPLETE) {
+                    throw new IOException("Incomplete isolated Skia GPU framebuffer: status=0x" + Integer.toHexString(status));
+                }
+
+                GL11.glViewport(0, 0, width, height);
+                context.resetGLAll();
+                checkGlError("isolated before Skia surface");
+                try (BackendRenderTarget target = BackendRenderTarget.makeGL(
+                        width, height, 0, 8, framebufferId, FramebufferFormat.GR_GL_RGBA8);
+                     ColorSpace colorSpace = ColorSpace.getSRGB()) {
+                    Surface surface = Surface.makeFromBackendRenderTarget(
+                            context, target, SurfaceOrigin.BOTTOM_LEFT, ColorType.RGBA_8888, colorSpace, skiaSurfaceProps());
+                    if (surface == null) {
+                        throw new IOException("Skia failed to create isolated GPU text surface");
+                    }
+                    try (Surface closeableSurface = surface) {
+                        Canvas canvas = closeableSurface.getCanvas();
+                        canvas.clear(0x00000000);
+                        if (textureScale != 1) {
+                            int save = canvas.save();
+                            canvas.scale(textureScale, textureScale);
+                            paragraph.paint(canvas, paintX, paintY);
+                            canvas.restoreToCount(save);
+                        } else {
+                            paragraph.paint(canvas, paintX, paintY);
+                        }
+                        context.flushAndSubmit(closeableSurface);
+                        GL11.glFinish();
+                        checkGlError("isolated Skia flush");
+                    }
+                } finally {
+                    context.resetGLAll();
+                }
+
+                RasterStats stats = null;
+                if (collectStats) {
+                    ByteBuffer readback = BufferUtils.createByteBuffer(width * height * 4);
+                    GL11.glReadPixels(0, 0, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, readback);
+                    checkGlError("isolated readback stats");
+                    stats = RasterStats.fromRgba(readback, width, height);
+                }
+
+                boolean mipmapsGenerated = false;
+                if (NeofontrenderConfig.renderingMipmap()) {
+                    GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
+                    int maxLevel = Math.max(0, (int) Math.floor(Math.log(Math.max(width, height)) / Math.log(2.0D)));
+                    GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+                    GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, maxLevel);
+                    GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
+                    checkGlError("isolated mipmap generation");
+                    mipmapsGenerated = true;
+                }
+
+                keepTexture = true;
+                return new GpuTextTexture(textureId, mipmapsGenerated, stats);
+            } finally {
+                try {
+                    GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+                    GL30.glBindRenderbuffer(GL30.GL_RENDERBUFFER, 0);
+                    if (stencilBufferId > 0) {
+                        GL30.glDeleteRenderbuffers(stencilBufferId);
+                    }
+                    if (framebufferId > 0) {
+                        GL30.glDeleteFramebuffers(framebufferId);
+                    }
+                    if (!keepTexture && textureId > 0) {
+                        GL11.glDeleteTextures(textureId);
+                    }
+                    drainGlErrors();
+                } finally {
+                    contextSwitch.restore();
+                }
+            }
+        }
+
+        private GpuReadback renderReadback(Paragraph paragraph, int width, int height, int textureScale,
+                                           float paintX, float paintY, boolean collectStats) throws IOException {
+            if (width <= 0 || height <= 0) {
+                throw new IOException("Invalid isolated GPU diagnostic size " + width + "x" + height);
+            }
+
+            ContextSwitch contextSwitch = makeCurrent();
+            int textureId = 0;
+            int framebufferId = 0;
+            int stencilBufferId = 0;
+            try {
+                clearGlErrors();
+                textureId = GL11.glGenTextures();
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, 33071);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, 33071);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+                GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, width, height, 0,
+                        GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
+                checkGlError("diagnostic texture setup");
+
+                framebufferId = GL30.glGenFramebuffers();
+                stencilBufferId = GL30.glGenRenderbuffers();
+                GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, framebufferId);
+                GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0,
+                        GL11.GL_TEXTURE_2D, textureId, 0);
+                GL30.glBindRenderbuffer(GL30.GL_RENDERBUFFER, stencilBufferId);
+                GL30.glRenderbufferStorage(GL30.GL_RENDERBUFFER, GL30.GL_STENCIL_INDEX8, width, height);
+                GL30.glFramebufferRenderbuffer(GL30.GL_FRAMEBUFFER, GL30.GL_STENCIL_ATTACHMENT,
+                        GL30.GL_RENDERBUFFER, stencilBufferId);
+                checkGlError("diagnostic framebuffer setup");
+                int status = GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER);
+                if (status != GL30.GL_FRAMEBUFFER_COMPLETE) {
+                    throw new IOException("Incomplete diagnostic GPU framebuffer: status=0x" + Integer.toHexString(status));
+                }
+
+                GL11.glViewport(0, 0, width, height);
+                context.resetGLAll();
+                checkGlError("diagnostic before Skia surface");
+                try (BackendRenderTarget target = BackendRenderTarget.makeGL(
+                        width, height, 0, 8, framebufferId, FramebufferFormat.GR_GL_RGBA8);
+                     ColorSpace colorSpace = ColorSpace.getSRGB()) {
+                    Surface surface = Surface.makeFromBackendRenderTarget(
+                            context, target, SurfaceOrigin.BOTTOM_LEFT, ColorType.RGBA_8888, colorSpace, skiaSurfaceProps());
+                    if (surface == null) {
+                        throw new IOException("Skia failed to create diagnostic GPU surface");
+                    }
+                    try (Surface closeableSurface = surface) {
+                        Canvas canvas = closeableSurface.getCanvas();
+                        canvas.clear(0x00000000);
+                        if (textureScale != 1) {
+                            int save = canvas.save();
+                            canvas.scale(textureScale, textureScale);
+                            paragraph.paint(canvas, paintX, paintY);
+                            canvas.restoreToCount(save);
+                        } else {
+                            paragraph.paint(canvas, paintX, paintY);
+                        }
+                        context.flushAndSubmit(closeableSurface);
+                        GL11.glFinish();
+                        checkGlError("diagnostic Skia flush");
+                    }
+                } finally {
+                    context.resetGLAll();
+                }
+
+                ByteBuffer readback = BufferUtils.createByteBuffer(width * height * 4);
+                GL11.glReadPixels(0, 0, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, readback);
+                checkGlError("diagnostic readback");
+                return GpuReadback.fromBottomLeftRgba(readback, width, height, collectStats);
+            } finally {
+                try {
+                    GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+                    GL30.glBindRenderbuffer(GL30.GL_RENDERBUFFER, 0);
+                    if (stencilBufferId > 0) {
+                        GL30.glDeleteRenderbuffers(stencilBufferId);
+                    }
+                    if (framebufferId > 0) {
+                        GL30.glDeleteFramebuffers(framebufferId);
+                    }
+                    if (textureId > 0) {
+                        GL11.glDeleteTextures(textureId);
+                    }
+                    drainGlErrors();
+                } finally {
+                    contextSwitch.restore();
+                }
+            }
+        }
+
+        private ContextSwitch makeCurrent() {
+            long previousWindow = GLFW.glfwGetCurrentContext();
+            Object previousCapabilities = currentCapabilities();
+            GLFW.glfwMakeContextCurrent(window);
+            setCapabilities(capabilities);
+            return new ContextSwitch(previousWindow, previousCapabilities);
+        }
+
+        @Override
+        public void close() {
+            ContextSwitch contextSwitch = null;
+            try {
+                contextSwitch = makeCurrent();
+                context.close();
+            } catch (RuntimeException | LinkageError ignored) {
+            } finally {
+                if (contextSwitch != null) {
+                    contextSwitch.restore();
+                }
+                GLFW.glfwDestroyWindow(window);
+            }
+        }
+
+        private static Object currentCapabilities() {
+            try {
+                Class<?> glClass = Class.forName("org.lwjgl.opengl.GL");
+                return glClass.getMethod("getCapabilities").invoke(null);
+            } catch (Throwable ignored) {
+                return null;
+            }
+        }
+
+        private static Object createCapabilities() throws IOException {
+            try {
+                Class<?> glClass = Class.forName("org.lwjgl.opengl.GL");
+                return glClass.getMethod("createCapabilities").invoke(null);
+            } catch (Throwable t) {
+                throw new IOException("LWJGL3 GL capabilities API is unavailable", t);
+            }
+        }
+
+        private static void setCapabilities(Object capabilities) {
+            try {
+                Class<?> glClass = Class.forName("org.lwjgl.opengl.GL");
+                Class<?> capabilitiesClass = Class.forName("org.lwjgl.opengl.GLCapabilities");
+                glClass.getMethod("setCapabilities", capabilitiesClass).invoke(null, capabilities);
+            } catch (Throwable ignored) {
+            }
+        }
+
+        private static void clearGlErrors() {
+            drainGlErrors();
+        }
+
+        private static int drainGlErrors() {
+            int first = GL11.GL_NO_ERROR;
+            int error;
+            while ((error = GL11.glGetError()) != GL11.GL_NO_ERROR) {
+                if (first == GL11.GL_NO_ERROR) {
+                    first = error;
+                }
+            }
+            return first;
+        }
+
+        private static void checkGlError(String stage) throws IOException {
+            int error = drainGlErrors();
+            if (error != GL11.GL_NO_ERROR) {
+                throw new IOException("Skia isolated GPU GL error at " + stage + ": 0x" + Integer.toHexString(error));
+            }
+        }
+
+        private static final class ContextSwitch {
+            private final long previousWindow;
+            private final Object previousCapabilities;
+
+            private ContextSwitch(long previousWindow, Object previousCapabilities) {
+                this.previousWindow = previousWindow;
+                this.previousCapabilities = previousCapabilities;
+            }
+
+            private void restore() {
+                GLFW.glfwMakeContextCurrent(previousWindow);
+                setCapabilities(previousCapabilities);
+            }
+        }
+    }
+
+    private static final class GpuTextTexture extends AbstractTexture {
+        private final int textureId;
+        private final boolean mipmapsGenerated;
+        private final RasterStats debugStats;
+
+        private GpuTextTexture(int textureId, boolean mipmapsGenerated, RasterStats debugStats) {
+            this.textureId = textureId;
+            this.mipmapsGenerated = mipmapsGenerated;
+            this.debugStats = debugStats;
+        }
+
+        @Override
+        public int getGlTextureId() {
+            return textureId;
+        }
+
+        @Override
+        public void deleteGlTexture() {
+            TextureUtil.deleteTexture(textureId);
+        }
+
+        @Override
+        public void loadTexture(IResourceManager resourceManager) {
+        }
+
+        @Override
+        public void setBlurMipmap(boolean blur, boolean mipmap) {
+            super.setBlurMipmap(blur, mipmap && mipmapsGenerated);
+        }
+
+        private boolean hasMipmaps() {
+            return mipmapsGenerated;
+        }
+
+        private RasterStats debugStats() {
+            return debugStats;
+        }
+    }
+
+    private static final class GpuReadback {
+        private final int[] argbPixels;
+        private final RasterStats stats;
+
+        private GpuReadback(int[] argbPixels, RasterStats stats) {
+            this.argbPixels = argbPixels;
+            this.stats = stats;
+        }
+
+        private static GpuReadback fromBottomLeftRgba(ByteBuffer rgba, int width, int height, boolean collectStats) {
+            int[] argb = new int[width * height];
+            for (int y = 0; y < height; y++) {
+                int srcY = height - 1 - y;
+                for (int x = 0; x < width; x++) {
+                    int src = (srcY * width + x) * 4;
+                    int r = rgba.get(src) & 0xFF;
+                    int g = rgba.get(src +  1) & 0xFF;
+                    int b = rgba.get(src + 2) & 0xFF;
+                    int a = rgba.get(src + 3) & 0xFF;
+                    argb[y * width + x] = (a << 24) | (r << 16) | (g << 8) | b;
+                }
+            }
+            return new GpuReadback(argb, collectStats ? RasterStats.fromArgb(argb, width, height) : null);
+        }
+    }
+
+    private static final class RasterStats {
+        private final int width;
+        private final int height;
+        private final int nonZeroAlpha;
+        private final int strongAlpha;
+        private final int maxAlpha;
+        private final int minX;
+        private final int minY;
+        private final int maxX;
+        private final int maxY;
+        private final String error;
+
+        private RasterStats(int width, int height, int nonZeroAlpha, int strongAlpha, int maxAlpha,
+                            int minX, int minY, int maxX, int maxY, String error) {
+            this.width = width;
+            this.height = height;
+            this.nonZeroAlpha = nonZeroAlpha;
+            this.strongAlpha = strongAlpha;
+            this.maxAlpha = maxAlpha;
+            this.minX = minX;
+            this.minY = minY;
+            this.maxX = maxX;
+            this.maxY = maxY;
+            this.error = error;
+        }
+
+        private static RasterStats fromArgb(int[] pixels, int width, int height) {
+            StatsBuilder stats = new StatsBuilder(width, height);
+            for (int i = 0; i < pixels.length; i++) {
+                stats.feed(i % width, i / width, (pixels[i] >>> 24) & 0xFF);
+            }
+            return stats.build();
+        }
+
+        private static RasterStats fromRgba(ByteBuffer pixels, int width, int height) {
+            StatsBuilder stats = new StatsBuilder(width, height);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int offset = (y * width + x) * 4 + 3;
+                    stats.feed(x, y, pixels.get(offset) & 0xFF);
+                }
+            }
+            return stats.build();
+        }
+
+        private static RasterStats error(Throwable t) {
+            return new RasterStats(0, 0, 0, 0, 0, 0, 0, -1, -1,
+                    "err=" + t.getClass().getSimpleName());
+        }
+
+        @Override
+        public String toString() {
+            if (error != null) {
+                return error;
+            }
+            String box = maxX >= minX && maxY >= minY
+                    ? minX + "," + minY + "-" + maxX + "," + maxY
+                    : "empty";
+            return width + "x" + height
+                    + " a>0=" + nonZeroAlpha
+                    + " a>8=" + strongAlpha
+                    + " maxA=" + maxAlpha
+                    + " box=" + box;
+        }
+    }
+
+    private static final class StatsBuilder {
+        private final int width;
+        private final int height;
+        private int nonZeroAlpha;
+        private int strongAlpha;
+        private int maxAlpha;
+        private int minX = Integer.MAX_VALUE;
+        private int minY = Integer.MAX_VALUE;
+        private int maxX = -1;
+        private int maxY = -1;
+
+        private StatsBuilder(int width, int height) {
+            this.width = width;
+            this.height = height;
+        }
+
+        private void feed(int x, int y, int alpha) {
+            if (alpha <= 0) {
+                return;
+            }
+            nonZeroAlpha++;
+            if (alpha > 8) {
+                strongAlpha++;
+                if (x < minX) minX = x;
+                if (y < minY) minY = y;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+            }
+            if (alpha > maxAlpha) {
+                maxAlpha = alpha;
+            }
+        }
+
+        private RasterStats build() {
+            return new RasterStats(width, height, nonZeroAlpha, strongAlpha, maxAlpha,
+                    minX == Integer.MAX_VALUE ? 0 : minX,
+                    minY == Integer.MAX_VALUE ? 0 : minY,
+                    maxX, maxY, null);
+        }
+    }
+
+    public static final class DebugState {
+        private final boolean gpuRequested;
+        private final boolean gpuContextCreated;
+        private final boolean gpuUnavailable;
+        private final String lastRasterPath;
+        private final String lastGpuFallbackReason;
+        private final String lastRasterStats;
+        private final String lastDrawState;
+        private final long cpuRasterCount;
+        private final long gpuRasterCount;
+        private final int renderCacheSize;
+        private final int segmentCacheSize;
+        private final int measureCacheSize;
+        private final int renderCacheMax;
+        private final int segmentCacheMax;
+        private final int measureCacheMax;
+        private final long renderCacheHits;
+        private final long renderCacheMisses;
+        private final long renderCacheEvictions;
+        private final long segmentCacheHits;
+        private final long segmentCacheMisses;
+        private final long segmentCacheEvictions;
+        private final long measureCacheHits;
+        private final long measureCacheMisses;
+        private final long measureCacheEvictions;
+
+        private DebugState(boolean gpuRequested, boolean gpuContextCreated, boolean gpuUnavailable,
+                           String lastRasterPath, String lastGpuFallbackReason,
+                           String lastRasterStats,
+                           String lastDrawState,
+                           long cpuRasterCount, long gpuRasterCount,
+                           int renderCacheSize, int segmentCacheSize, int measureCacheSize,
+                           int renderCacheMax, int segmentCacheMax, int measureCacheMax,
+                           long renderCacheHits, long renderCacheMisses, long renderCacheEvictions,
+                           long segmentCacheHits, long segmentCacheMisses, long segmentCacheEvictions,
+                           long measureCacheHits, long measureCacheMisses, long measureCacheEvictions) {
+            this.gpuRequested = gpuRequested;
+            this.gpuContextCreated = gpuContextCreated;
+            this.gpuUnavailable = gpuUnavailable;
+            this.lastRasterPath = lastRasterPath;
+            this.lastGpuFallbackReason = lastGpuFallbackReason;
+            this.lastRasterStats = lastRasterStats;
+            this.lastDrawState = lastDrawState;
+            this.cpuRasterCount = cpuRasterCount;
+            this.gpuRasterCount = gpuRasterCount;
+            this.renderCacheSize = renderCacheSize;
+            this.segmentCacheSize = segmentCacheSize;
+            this.measureCacheSize = measureCacheSize;
+            this.renderCacheMax = renderCacheMax;
+            this.segmentCacheMax = segmentCacheMax;
+            this.measureCacheMax = measureCacheMax;
+            this.renderCacheHits = renderCacheHits;
+            this.renderCacheMisses = renderCacheMisses;
+            this.renderCacheEvictions = renderCacheEvictions;
+            this.segmentCacheHits = segmentCacheHits;
+            this.segmentCacheMisses = segmentCacheMisses;
+            this.segmentCacheEvictions = segmentCacheEvictions;
+            this.measureCacheHits = measureCacheHits;
+            this.measureCacheMisses = measureCacheMisses;
+            this.measureCacheEvictions = measureCacheEvictions;
+        }
+
+        public boolean gpuRequested() {
+            return gpuRequested;
+        }
+
+        public boolean gpuContextCreated() {
+            return gpuContextCreated;
+        }
+
+        public boolean gpuUnavailable() {
+            return gpuUnavailable;
+        }
+
+        public String lastRasterPath() {
+            return lastRasterPath;
+        }
+
+        public String lastGpuFallbackReason() {
+            return lastGpuFallbackReason;
+        }
+
+        public String lastRasterStats() {
+            return lastRasterStats;
+        }
+
+        public String lastDrawState() {
+            return lastDrawState;
+        }
+
+        public long cpuRasterCount() {
+            return cpuRasterCount;
+        }
+
+        public long gpuRasterCount() {
+            return gpuRasterCount;
+        }
+
+        public int renderCacheSize() {
+            return renderCacheSize;
+        }
+
+        public int segmentCacheSize() {
+            return segmentCacheSize;
+        }
+
+        public int measureCacheSize() {
+            return measureCacheSize;
+        }
+
+        public int renderCacheMax() {
+            return renderCacheMax;
+        }
+
+        public int segmentCacheMax() {
+            return segmentCacheMax;
+        }
+
+        public int measureCacheMax() {
+            return measureCacheMax;
+        }
+
+        public long renderCacheHits() {
+            return renderCacheHits;
+        }
+
+        public long renderCacheMisses() {
+            return renderCacheMisses;
+        }
+
+        public long renderCacheEvictions() {
+            return renderCacheEvictions;
+        }
+
+        public long segmentCacheHits() {
+            return segmentCacheHits;
+        }
+
+        public long segmentCacheMisses() {
+            return segmentCacheMisses;
+        }
+
+        public long segmentCacheEvictions() {
+            return segmentCacheEvictions;
+        }
+
+        public long measureCacheHits() {
+            return measureCacheHits;
+        }
+
+        public long measureCacheMisses() {
+            return measureCacheMisses;
+        }
+
+        public long measureCacheEvictions() {
+            return measureCacheEvictions;
+        }
+    }
+
     public static final class RenderedText implements TextRenderResult, AutoCloseable {
-        private static final RenderedText EMPTY = new RenderedText(null, null, 0.0F, 0, 0, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F);
+        private static final RenderedText EMPTY = new RenderedText(null, null, 0.0F, 0, 0, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F, false);
         private static final java.util.Map<ResourceLocation, Float> LAST_FILTER_SCALE = new java.util.HashMap<>();
 
         private final ResourceLocation location;
-        private final DynamicTexture texture;
+        private final AbstractTexture texture;
         private final float advance;
         private final int width;
         private final int height;
@@ -657,11 +1923,12 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         private final float rasterScale;
         private final float horizontalOffset;
         private final float verticalOffset;
+        private final boolean flipY;
         private volatile long lastAccessMillis;
 
-        private RenderedText(ResourceLocation location, DynamicTexture texture, float advance,
+        private RenderedText(ResourceLocation location, AbstractTexture texture, float advance,
                              int width, int height, float drawWidth, float drawHeight,
-                             float rasterScale, float horizontalOffset, float verticalOffset) {
+                             float rasterScale, float horizontalOffset, float verticalOffset, boolean flipY) {
             this.location = location;
             this.texture = texture;
             this.advance = advance;
@@ -672,11 +1939,12 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             this.rasterScale = rasterScale;
             this.horizontalOffset = horizontalOffset;
             this.verticalOffset = verticalOffset;
+            this.flipY = flipY;
             this.lastAccessMillis = System.currentTimeMillis();
         }
 
-        DynamicTexture getTexture() {
-            return texture;
+        DynamicTexture getCpuTexture() {
+            return texture instanceof DynamicTexture ? (DynamicTexture) texture : null;
         }
 
         public float advance() {
@@ -693,36 +1961,26 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             GlStateManager.enableAlpha();
             GlStateManager.color(1.0F, 1.0F, 1.0F, alpha);
 
-            // CRITICAL: Some MC code paths (e.g. RenderItem.renderItemOverlayIntoGUI)
-            // disable GL_BLEND before calling drawStringWithShadow. Alpha-blended text
-            // textures MUST be drawn with blending enabled, otherwise semi-transparent
-            // edge pixels write their raw RGB directly to the framebuffer causing dark
-            // fringes / jagged edges. See rendering.forceBlendForText config comment.
-            if (NeofontrenderConfig.forceBlendForText() && !GL11.glIsEnabled(GL11.GL_BLEND)) {
-                GlStateManager.enableBlend();
-                if (NeofontrenderConfig.enablePremultipliedAlpha()) {
-                    GlStateManager.tryBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
-                } else {
-                    GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
-                }
-            }
-
             Float lastScale = LAST_FILTER_SCALE.get(location);
             if (lastScale == null || Math.abs(lastScale - rasterScale) > 0.01f) {
-                FontRenderTuning.applyBoundTextureFilter(rasterScale);
+                FontRenderTuning.applyBoundTextureFilter(rasterScale, !(texture instanceof GpuTextTexture)
+                        || ((GpuTextTexture) texture).hasMipmaps());
                 LAST_FILTER_SCALE.put(location, rasterScale);
             }
             float left = FontRenderTuning.alignToPixel(x + horizontalOffset);
             float top = FontRenderTuning.alignToPixel(y + verticalOffset);
 
             try (FontRenderPipeline.State ignored = FontRenderPipeline.begin(rasterScale)) {
+                lastDrawState = drawState(texture);
                 Tessellator tessellator = Tessellator.getInstance();
                 BufferBuilder buffer = tessellator.getBuffer();
+                double topV = flipY ? 1.0D : 0.0D;
+                double bottomV = flipY ? 0.0D : 1.0D;
                 buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
-                buffer.pos(left, top, 0.0D).tex(0.0D, 0.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-                buffer.pos(left, top + drawHeight, 0.0D).tex(0.0D, 1.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-                buffer.pos(left + drawWidth, top + drawHeight, 0.0D).tex(1.0D, 1.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-                buffer.pos(left + drawWidth, top, 0.0D).tex(1.0D, 0.0D).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
+                buffer.pos(left, top, 0.0D).tex(0.0D, topV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
+                buffer.pos(left, top + drawHeight, 0.0D).tex(0.0D, bottomV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
+                buffer.pos(left + drawWidth, top + drawHeight, 0.0D).tex(1.0D, bottomV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
+                buffer.pos(left + drawWidth, top, 0.0D).tex(1.0D, topV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
                 tessellator.draw();
             }
         }
@@ -738,8 +1996,89 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             lastAccessMillis = System.currentTimeMillis();
         }
 
+        private static String drawState(AbstractTexture texture) {
+            boolean gpu = texture instanceof GpuTextTexture;
+            boolean mip = gpu && ((GpuTextTexture) texture).hasMipmaps();
+            return "tex=" + (gpu ? "gpu" : "cpu")
+                    + " mip=" + mip
+                    + " min=" + getTexParameteri(GL11.GL_TEXTURE_MIN_FILTER, -1)
+                    + " mag=" + getTexParameteri(GL11.GL_TEXTURE_MAG_FILTER, -1)
+                    + " blend=" + GL11.glIsEnabled(GL11.GL_BLEND)
+                    + " func=" + getInteger(GL14.GL_BLEND_SRC_RGB, -1)
+                    + "/" + getInteger(GL14.GL_BLEND_DST_RGB, -1)
+                    + "/" + getInteger(GL14.GL_BLEND_SRC_ALPHA, -1)
+                    + "/" + getInteger(GL14.GL_BLEND_DST_ALPHA, -1);
+        }
+
+        private static int getInteger(int key, int fallback) {
+            try {
+                return GL11.glGetInteger(key);
+            } catch (RuntimeException | LinkageError ignored) {
+                return fallback;
+            }
+        }
+
+        private static int getTexParameteri(int key, int fallback) {
+            try {
+                return GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, key);
+            } catch (RuntimeException | LinkageError ignored) {
+                return fallback;
+            }
+        }
+
         private boolean isExpired(long nowMillis, long ttlMillis) {
             return nowMillis - lastAccessMillis >= ttlMillis;
+        }
+    }
+
+    private static final class CompositeRenderedText implements TextRenderResult {
+        private final float advance;
+        private final List<CompositePiece> pieces;
+
+        private CompositeRenderedText(float advance, List<CompositePiece> pieces) {
+            this.advance = advance;
+            this.pieces = pieces;
+        }
+
+        @Override
+        public float advance() {
+            return advance;
+        }
+
+        @Override
+        public void draw(float x, float y, float alpha) {
+            for (CompositePiece piece : pieces) {
+                piece.result.draw(x + piece.offsetX, y, alpha);
+            }
+        }
+    }
+
+    private static final class CompositePiece {
+        private final TextRenderResult result;
+        private final float offsetX;
+
+        private CompositePiece(TextRenderResult result, float offsetX) {
+            this.result = result;
+            this.offsetX = offsetX;
+        }
+    }
+
+    private static final class FormattedRun {
+        private final String text;
+        private final int argb;
+        private final boolean bold;
+        private final boolean italic;
+        private final boolean underline;
+        private final boolean strikethrough;
+
+        private FormattedRun(String text, int argb, boolean bold, boolean italic,
+                             boolean underline, boolean strikethrough) {
+            this.text = text;
+            this.argb = argb;
+            this.bold = bold;
+            this.italic = italic;
+            this.underline = underline;
+            this.strikethrough = strikethrough;
         }
     }
 
@@ -747,26 +2086,28 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         private final String text;
         private final int argb;
         private final boolean formatted;
-        private final boolean primaryStyle;
-        private final boolean secondaryStyle;
+        private final int styleFlags;
         private final int scaleBucket;
 
-        private RenderKey(String text, int argb, boolean formatted, boolean primaryStyle, boolean secondaryStyle,
-                          float scale) {
+        private RenderKey(String text, int argb, boolean formatted, int styleFlags, float scale) {
             this.text = text;
             this.argb = argb;
             this.formatted = formatted;
-            this.primaryStyle = primaryStyle;
-            this.secondaryStyle = secondaryStyle;
+            this.styleFlags = styleFlags;
             this.scaleBucket = scaleBucket(scale);
         }
 
         private static RenderKey plain(String text, int argb, boolean bold, boolean italic, float scale) {
-            return new RenderKey(text, argb, false, bold, italic, scale);
+            return new RenderKey(text, argb, false, styleFlags(bold, italic, false, false, false), scale);
         }
 
         private static RenderKey formatted(String text, int argb, boolean shadow, float scale) {
-            return new RenderKey(text, argb, true, shadow, false, scale);
+            return new RenderKey(text, argb, true, styleFlags(false, false, false, false, shadow), scale);
+        }
+
+        private static RenderKey decoratedSegment(String text, int argb, boolean bold, boolean italic,
+                                                  boolean underline, boolean strikethrough, float scale) {
+            return new RenderKey(text, argb, true, styleFlags(bold, italic, underline, strikethrough, false), scale);
         }
 
         @Override
@@ -780,8 +2121,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             RenderKey other = (RenderKey) obj;
             return argb == other.argb
                     && formatted == other.formatted
-                    && primaryStyle == other.primaryStyle
-                    && secondaryStyle == other.secondaryStyle
+                    && styleFlags == other.styleFlags
                     && scaleBucket == other.scaleBucket
                     && text.equals(other.text);
         }
@@ -791,10 +2131,30 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             int result = text.hashCode();
             result = 31 * result + argb;
             result = 31 * result + (formatted ? 1 : 0);
-            result = 31 * result + (primaryStyle ? 1 : 0);
-            result = 31 * result + (secondaryStyle ? 1 : 0);
+            result = 31 * result + styleFlags;
             result = 31 * result + scaleBucket;
             return result;
+        }
+
+        private static int styleFlags(boolean bold, boolean italic, boolean underline,
+                                      boolean strikethrough, boolean shadow) {
+            int flags = 0;
+            if (bold) {
+                flags |= 1;
+            }
+            if (italic) {
+                flags |= 1 << 1;
+            }
+            if (underline) {
+                flags |= 1 << 2;
+            }
+            if (strikethrough) {
+                flags |= 1 << 3;
+            }
+            if (shadow) {
+                flags |= 1 << 4;
+            }
+            return flags;
         }
     }
 

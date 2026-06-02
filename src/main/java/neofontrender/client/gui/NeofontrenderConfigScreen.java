@@ -511,7 +511,7 @@ public final class NeofontrenderConfigScreen {
             place(pipelineInfo, PAD, y, contentWidth, infoHeight);
             y += infoHeight + GAP;
 
-            int optionsHeight = width < 520 ? 142 : 82;
+            int optionsHeight = width < 520 ? 172 : 112;
             place(options, PAD, y, contentWidth, optionsHeight);
             y += optionsHeight + GAP;
 
@@ -801,9 +801,12 @@ public final class NeofontrenderConfigScreen {
         private final ButtonWidget<?> pipeline;
         private final ButtonWidget<?> shader;
         private final ButtonWidget<?> edgeBleed;
+        private final ButtonWidget<?> gpuOffscreen;
+        private final ButtonWidget<?> gpuCpuSubmit;
         private final ButtonWidget<?> integerScale;
         private final ButtonWidget<?> highMag;
         private final ButtonWidget<?> anisotropic;
+        private final ButtonWidget<?> debugStats;
 
         private AdvancedOptionsSection(Staged staged) {
             this.autoScale = toggleButtonKey("neofontrender.gui.option.autoscale", "neofontrender.tooltip.autoscale", 80, 20, () -> staged.adaptiveRasterScale, v -> staged.adaptiveRasterScale = v, () -> preview(staged));
@@ -812,18 +815,34 @@ public final class NeofontrenderConfigScreen {
             this.pipeline = toggleButtonKey("neofontrender.gui.option.pipeline", "neofontrender.tooltip.pipeline", 80, 20, () -> staged.enhancedTextPipeline, v -> staged.enhancedTextPipeline = v, () -> preview(staged));
             this.shader = toggleButtonKey("neofontrender.gui.option.shader", "neofontrender.tooltip.shader", 80, 20, () -> staged.shaderTextPipeline, v -> staged.shaderTextPipeline = v, () -> preview(staged));
             this.edgeBleed = toggleButtonKey("neofontrender.gui.option.edge_bleed", "neofontrender.tooltip.edge_bleed", 80, 20, () -> staged.textureEdgeBleed, v -> staged.textureEdgeBleed = v, () -> preview(staged));
+            this.gpuOffscreen = toggleButtonKey("neofontrender.gui.option.gpu_offscreen", "neofontrender.tooltip.gpu_offscreen", 80, 20, () -> staged.skiaGpuOffscreen, v -> {
+                staged.skiaGpuOffscreen = v;
+                if (v) {
+                    staged.skiaGpuSubmitViaCpuTexture = true;
+                }
+            }, () -> preview(staged));
+            this.gpuCpuSubmit = toggleButtonKey("neofontrender.gui.option.gpu_cpu_submit", "neofontrender.tooltip.gpu_cpu_submit", 80, 20, () -> staged.skiaGpuSubmitViaCpuTexture, v -> {
+                staged.skiaGpuSubmitViaCpuTexture = v;
+                if (v) {
+                    staged.skiaGpuOffscreen = true;
+                }
+            }, () -> preview(staged));
             this.integerScale = toggleButtonKey("neofontrender.gui.option.integer_scale", "neofontrender.tooltip.integer_scale", 80, 20, () -> staged.excludeIntegerScale, v -> staged.excludeIntegerScale = v, () -> preview(staged));
             this.highMag = toggleButtonKey("neofontrender.gui.option.high_mag", "neofontrender.tooltip.high_mag", 80, 20, () -> staged.excludeHighMagnification, v -> staged.excludeHighMagnification = v, () -> preview(staged));
             this.anisotropic = toggleButtonKey("neofontrender.gui.option.anisotropic", "neofontrender.tooltip.anisotropic", 80, 20, () -> staged.anisotropicFiltering, v -> staged.anisotropicFiltering = v, () -> preview(staged));
+            this.debugStats = toggleButtonKey("neofontrender.gui.option.debug_stats", "neofontrender.tooltip.debug_stats", 80, 20, () -> staged.debugRenderStats, v -> staged.debugRenderStats = v, () -> preview(staged));
             child(autoScale);
             child(interpolation);
             child(mipmap);
             child(pipeline);
             child(shader);
             child(edgeBleed);
+            child(gpuOffscreen);
+            child(gpuCpuSubmit);
             child(integerScale);
             child(highMag);
             child(anisotropic);
+            child(debugStats);
         }
 
         @Override
@@ -833,7 +852,7 @@ public final class NeofontrenderConfigScreen {
             int buttonHeight = 22;
             if (width < 520) {
                 int buttonWidth = Math.max(0, (width - gap) / 2);
-                IWidget[] buttons = {autoScale, interpolation, mipmap, pipeline, shader, edgeBleed, integerScale, highMag, anisotropic};
+                IWidget[] buttons = {autoScale, interpolation, mipmap, pipeline, shader, edgeBleed, gpuOffscreen, gpuCpuSubmit, integerScale, highMag, anisotropic, debugStats};
                 for (int i = 0; i < buttons.length; i++) {
                     int col = i & 1;
                     int row = i / 2;
@@ -843,7 +862,7 @@ public final class NeofontrenderConfigScreen {
                 return true;
             }
             int third = Math.max(0, (width - gap * 2) / 3);
-            IWidget[] buttons = {autoScale, interpolation, mipmap, pipeline, shader, edgeBleed, integerScale, highMag, anisotropic};
+            IWidget[] buttons = {autoScale, interpolation, mipmap, pipeline, shader, edgeBleed, gpuOffscreen, gpuCpuSubmit, integerScale, highMag, anisotropic, debugStats};
             for (int i = 0; i < buttons.length; i++) {
                 int col = i % 3;
                 int row = i / 3;
@@ -919,6 +938,9 @@ public final class NeofontrenderConfigScreen {
             mc.fontRenderer.drawString(tr("neofontrender.gui.option.integer_scale") + ": " + onOff(staged.excludeIntegerScale)
                     + "  " + tr("neofontrender.gui.option.high_mag") + ": " + onOff(staged.excludeHighMagnification)
                     + "  " + tr("neofontrender.gui.option.anisotropic") + ": " + onOff(staged.anisotropicFiltering), x, y + line * 5, 0xD8D8D8);
+            mc.fontRenderer.drawString(tr("neofontrender.gui.option.gpu_offscreen") + ": " + onOff(staged.skiaGpuOffscreen)
+                    + "  " + tr("neofontrender.gui.option.gpu_cpu_submit") + ": " + onOff(staged.skiaGpuSubmitViaCpuTexture)
+                    + "  " + tr("neofontrender.gui.option.debug_stats") + ": " + onOff(staged.debugRenderStats), x, y + line * 6, 0xD8D8D8);
         }
     }
 
@@ -945,6 +967,9 @@ public final class NeofontrenderConfigScreen {
         private final boolean originalMipmap = NeofontrenderConfig.renderingMipmap();
         private final boolean originalEnhancedTextPipeline = NeofontrenderConfig.enhancedTextPipeline();
         private final boolean originalShaderTextPipeline = NeofontrenderConfig.shaderTextPipeline();
+        private final boolean originalSkiaGpuOffscreen = NeofontrenderConfig.skiaGpuOffscreen();
+        private final boolean originalSkiaGpuSubmitViaCpuTexture = NeofontrenderConfig.skiaGpuSubmitViaCpuTexture();
+        private final boolean originalDebugRenderStats = NeofontrenderConfig.debugRenderStats();
         private final String originalBrightness = Float.toString(NeofontrenderConfig.renderingBrightness());
         private final boolean originalTextureEdgeBleed = NeofontrenderConfig.textureEdgeBleed();
 
@@ -959,6 +984,9 @@ public final class NeofontrenderConfigScreen {
         private boolean mipmap = originalMipmap;
         private boolean enhancedTextPipeline = originalEnhancedTextPipeline;
         private boolean shaderTextPipeline = originalShaderTextPipeline;
+        private boolean skiaGpuOffscreen = originalSkiaGpuOffscreen;
+        private boolean skiaGpuSubmitViaCpuTexture = originalSkiaGpuSubmitViaCpuTexture;
+        private boolean debugRenderStats = originalDebugRenderStats;
         private String brightness = originalBrightness;
         private boolean textureEdgeBleed = originalTextureEdgeBleed;
         private String fontName = originalFontName;
@@ -1005,6 +1033,9 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setRenderingMipmap(mipmap);
             NeofontrenderConfig.setEnhancedTextPipeline(enhancedTextPipeline);
             NeofontrenderConfig.setShaderTextPipeline(shaderTextPipeline);
+            NeofontrenderConfig.setSkiaGpuOffscreen(skiaGpuOffscreen);
+            NeofontrenderConfig.setSkiaGpuSubmitViaCpuTexture(skiaGpuSubmitViaCpuTexture);
+            NeofontrenderConfig.setDebugRenderStats(debugRenderStats);
             NeofontrenderConfig.setRenderingBrightness(parseFloat(brightness, 3.0F, 0.0F, 12.0F));
             NeofontrenderConfig.setTextureEdgeBleed(textureEdgeBleed);
                 NeofontrenderConfig.setFontName(selectedFont().isEmpty()
@@ -1037,6 +1068,9 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setRenderingMipmap(originalMipmap);
             NeofontrenderConfig.setEnhancedTextPipeline(originalEnhancedTextPipeline);
             NeofontrenderConfig.setShaderTextPipeline(originalShaderTextPipeline);
+            NeofontrenderConfig.setSkiaGpuOffscreen(originalSkiaGpuOffscreen);
+            NeofontrenderConfig.setSkiaGpuSubmitViaCpuTexture(originalSkiaGpuSubmitViaCpuTexture);
+            NeofontrenderConfig.setDebugRenderStats(originalDebugRenderStats);
             NeofontrenderConfig.setRenderingBrightness(parseFloat(originalBrightness, 3.0F, 0.0F, 12.0F));
             NeofontrenderConfig.setTextureEdgeBleed(originalTextureEdgeBleed);
             NeofontrenderConfig.setFontName(originalFontName);

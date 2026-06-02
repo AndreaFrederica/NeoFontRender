@@ -53,11 +53,18 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
     private final boolean antialias;
     private final Object antialiasHint;
     private final boolean fractionalMetrics;
+    private long layoutCacheHits;
+    private long layoutCacheMisses;
+    private long layoutCacheEvictions;
     private final Map<LayoutKey, float[]> layoutCache = Collections.synchronizedMap(
             new LinkedHashMap<LayoutKey, float[]>(MAX_LAYOUT_CACHE_SIZE, 0.75F, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<LayoutKey, float[]> eldest) {
-                    return size() > MAX_LAYOUT_CACHE_SIZE;
+                    if (size() > MAX_LAYOUT_CACHE_SIZE) {
+                        layoutCacheEvictions++;
+                        return true;
+                    }
+                    return false;
                 }
             });
 
@@ -194,8 +201,10 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
         LayoutKey key = new LayoutKey(text, bold);
         float[] cached = layoutCache.get(key);
         if (cached != null) {
+            layoutCacheHits++;
             return cached;
         }
+        layoutCacheMisses++;
 
         int len = text.length();
         float[] positions = new float[len + 1];
@@ -258,6 +267,26 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
         }
         layoutCache.put(key, positions);
         return positions;
+    }
+
+    public int layoutCacheSize() {
+        return layoutCache.size();
+    }
+
+    public int layoutCacheMax() {
+        return MAX_LAYOUT_CACHE_SIZE;
+    }
+
+    public long layoutCacheHits() {
+        return layoutCacheHits;
+    }
+
+    public long layoutCacheMisses() {
+        return layoutCacheMisses;
+    }
+
+    public long layoutCacheEvictions() {
+        return layoutCacheEvictions;
     }
 
     private static final class LayoutKey {

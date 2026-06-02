@@ -5,7 +5,7 @@
 <h1 align="center">Neo Font Render</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.2.4-blue" alt="版本 0.2.4">
+  <img src="https://img.shields.io/badge/version-0.2.5-blue" alt="版本 0.2.5">
   <img src="https://img.shields.io/badge/modularui-3.1.6%2B-green" alt="ModularUI 3.1.6+">
 </p>
 

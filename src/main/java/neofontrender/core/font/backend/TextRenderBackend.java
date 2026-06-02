@@ -16,6 +16,10 @@ public interface TextRenderBackend extends AutoCloseable {
 
     TextRenderResult render(String text, int argb, boolean bold, boolean italic);
 
+    default TextRenderResult renderSegment(String text, int argb, boolean bold, boolean italic) {
+        return render(text, argb, bold, italic);
+    }
+
     TextRenderResult renderFormatted(String text, int baseArgb, boolean shadow);
 
     default String[] getFontFamilies() {

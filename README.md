@@ -5,7 +5,7 @@
 <h1 align="center">Neo Font Render</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.2.4-blue" alt="Version 0.2.4">
+  <img src="https://img.shields.io/badge/version-0.2.5-blue" alt="Version 0.2.5">
   <img src="https://img.shields.io/badge/modularui-3.1.6%2B-green" alt="ModularUI 3.1.6+">
 </p>
 
@@ -208,6 +208,19 @@ allowSignPaste = true
 - Default renderer preset: Skia with adaptive raster scale enabled
 - Build target: Java 8 bytecode
 - Skia runtime requirement: Java 9+
+
+### Known Performance Bottleneck: Per-Quad GL Blend Queries
+
+Anti-aliased replacement fonts require `GL_BLEND` to composite correctly, but Minecraft 1.12.2 turns blend off in many code paths (e.g. `Gui.drawRect`). To guarantee correct rendering, `FontRenderPipeline` currently **captures and restores blend state around every single glyph quad** via:
+
+- `glIsEnabled(GL_BLEND)`
+- 3× `glGetInteger` for blend func factors
+- `enableBlend()` + `tryBlendFuncSeparate()`
+- Restore on `close()`
+
+This means **tens to hundreds of synchronous GPU queries per frame** when a lot of text is on screen. We attempted a string-level blend guard (once per `drawString` / `renderStringAtPos`), but Minecraft's GL state is mutated in too many undocumented places (other mods, vanilla GUI code, etc.) for this to be reliable—text ends up corrupted in buttons, books, and other UI elements.
+
+**If you have ideas for a robust string-level or batch-level blend optimization that doesn't break when MC secretly pollutes state, PRs are very welcome.** See `docs/blend-architecture.md` for the current design.
 
 ## Architecture
 

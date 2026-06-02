@@ -24,6 +24,7 @@ public final class NeofontrenderConfig {
     private static final String DEFAULT_FONT = "neofontrender:fonts/sarasa_ui_sc_regular.ttf";
     private static Path configPath;
     private static CommentedFileConfig config;
+    private static volatile boolean cachedDebugRenderStats;
     private static final List<BuiltinFont> BUILTIN_FONTS = Collections.unmodifiableList(Arrays.asList(
             new BuiltinFont("Sarasa UI SC", DEFAULT_FONT),
             new BuiltinFont("Noto Color Emoji", "neofontrender:fonts/noto_color_emoji_regular.ttf")
@@ -141,6 +142,30 @@ public final class NeofontrenderConfig {
 
     public static boolean skiaAdvancedStringMode() {
         return config.getOrElse("rendering.skiaAdvancedStringMode", true);
+    }
+
+    public static boolean skiaGpuOffscreen() {
+        return config.getOrElse("rendering.skiaGpuOffscreen", false);
+    }
+
+    public static boolean skiaGpuSubmitViaCpuTexture() {
+        return config.getOrElse("rendering.skiaGpuSubmitViaCpuTexture", true);
+    }
+
+    public static boolean skiaSegmentCache() {
+        return config.getOrElse("rendering.skiaSegmentCache", true);
+    }
+
+    public static int skiaSegmentCacheMinRunLength() {
+        return Math.max(1, getInt("rendering.skiaSegmentCacheMinRunLength", 8));
+    }
+
+    public static int skiaSegmentCacheMaxRunCodePoints() {
+        return Math.max(1, getInt("rendering.skiaSegmentCacheMaxRunCodePoints", 24));
+    }
+
+    public static int skiaSegmentCacheMaxSegments() {
+        return Math.max(2, getInt("rendering.skiaSegmentCacheMaxSegments", 96));
     }
 
     public static boolean useVanillaEngine() {
@@ -267,19 +292,31 @@ public final class NeofontrenderConfig {
     }
 
     public static int skiaTextCacheMinEntries() {
-        return Math.max(0, getInt("performance.skiaTextCacheMinEntries", 64));
+        return Math.max(0, getInt("performance.skiaTextCacheMinEntries", 256));
     }
 
     public static int skiaTextCacheMaxEntries() {
-        return Math.max(1, getInt("performance.skiaTextCacheMaxEntries", 512));
+        return Math.max(1, getInt("performance.skiaTextCacheMaxEntries", 2048));
     }
 
     public static float skiaTextCacheTtlSeconds() {
-        return Math.max(0.0f, getFloat("performance.skiaTextCacheTtlSeconds", 120.0f));
+        return Math.max(0.0f, getFloat("performance.skiaTextCacheTtlSeconds", 300.0f));
     }
 
     public static int skiaMeasureCacheMaxEntries() {
-        return Math.max(1, getInt("performance.skiaMeasureCacheMaxEntries", 512));
+        return Math.max(1, getInt("performance.skiaMeasureCacheMaxEntries", 4096));
+    }
+
+    public static int skiaSegmentTextureCacheMinEntries() {
+        return Math.max(0, getInt("performance.skiaSegmentTextureCacheMinEntries", 512));
+    }
+
+    public static int skiaSegmentTextureCacheMaxEntries() {
+        return Math.max(1, getInt("performance.skiaSegmentTextureCacheMaxEntries", 4096));
+    }
+
+    public static float skiaSegmentTextureCacheTtlSeconds() {
+        return Math.max(0.0f, getFloat("performance.skiaSegmentTextureCacheTtlSeconds", 600.0f));
     }
 
     // ===================== General =====================
@@ -293,6 +330,10 @@ public final class NeofontrenderConfig {
 
     public static boolean debugImeInput() {
         return config.getOrElse("debug.imeInput", false);
+    }
+
+    public static boolean debugRenderStats() {
+        return cachedDebugRenderStats;
     }
 
     public static boolean allowSignPaste() {
@@ -461,6 +502,14 @@ public final class NeofontrenderConfig {
         config.set("rendering.skiaAdvancedStringMode", value);
     }
 
+    public static void setSkiaGpuOffscreen(boolean value) {
+        config.set("rendering.skiaGpuOffscreen", value);
+    }
+
+    public static void setSkiaGpuSubmitViaCpuTexture(boolean value) {
+        config.set("rendering.skiaGpuSubmitViaCpuTexture", value);
+    }
+
     public static void setPerformanceAsyncInit(boolean value) {
         config.set("performance.asyncInit", value);
     }
@@ -483,6 +532,11 @@ public final class NeofontrenderConfig {
 
     public static void setSkiaMeasureCacheMaxEntries(int value) {
         config.set("performance.skiaMeasureCacheMaxEntries", value);
+    }
+
+    public static void setDebugRenderStats(boolean value) {
+        cachedDebugRenderStats = value;
+        config.set("debug.renderStats", value);
     }
 
     public static void save() {
@@ -517,7 +571,12 @@ public final class NeofontrenderConfig {
             addComments();
             config.save();
         }
+        refreshCachedOptions();
         ensureFontDirectory();
+    }
+
+    private static void refreshCachedOptions() {
+        cachedDebugRenderStats = config.getOrElse("debug.renderStats", false);
     }
 
     public static File fontDirectory() {
@@ -560,6 +619,12 @@ public final class NeofontrenderConfig {
             w.write("[rendering]\n");
             w.write("engine = \"skia\"\n");
             w.write("skiaAdvancedStringMode = true\n");
+            w.write("skiaGpuOffscreen = false\n");
+            w.write("skiaGpuSubmitViaCpuTexture = true\n");
+            w.write("skiaSegmentCache = true\n");
+            w.write("skiaSegmentCacheMinRunLength = 8\n");
+            w.write("skiaSegmentCacheMaxRunCodePoints = 24\n");
+            w.write("skiaSegmentCacheMaxSegments = 96\n");
             w.write("interpolation = false\n");
             w.write("mipmap = true\n");
             w.write("adaptiveRasterScale = true\n");
@@ -586,16 +651,20 @@ public final class NeofontrenderConfig {
             w.write("[performance]\n");
             w.write("asyncInit = true\n");
             w.write("prewarmBasicLatin = true\n");
-            w.write("skiaTextCacheMinEntries = 64\n");
-            w.write("skiaTextCacheMaxEntries = 512\n");
-            w.write("skiaTextCacheTtlSeconds = 120.0\n");
-            w.write("skiaMeasureCacheMaxEntries = 512\n");
+            w.write("skiaTextCacheMinEntries = 256\n");
+            w.write("skiaTextCacheMaxEntries = 2048\n");
+            w.write("skiaTextCacheTtlSeconds = 300.0\n");
+            w.write("skiaMeasureCacheMaxEntries = 4096\n");
+            w.write("skiaSegmentTextureCacheMinEntries = 512\n");
+            w.write("skiaSegmentTextureCacheMaxEntries = 4096\n");
+            w.write("skiaSegmentTextureCacheTtlSeconds = 600.0\n");
             w.write("\n");
             w.write("[input]\n");
             w.write("allowSignPaste = true\n");
             w.write("\n");
             w.write("[debug]\n");
             w.write("imeInput = false\n");
+            w.write("renderStats = false\n");
         }
     }
 
@@ -621,6 +690,12 @@ public final class NeofontrenderConfig {
         config.setComment("rendering", "OpenGL texture rendering options.");
         config.setComment("rendering.engine", "Text renderer engine: vanilla, sfr, or skia.");
         config.setComment("rendering.skiaAdvancedStringMode", "In Skia mode, render full formatted strings as one paragraph so shaping, ligatures, kerning, emoji ZWJ, and BiDi can work across the whole text. Disable to use legacy per-format-run rendering.");
+        config.setComment("rendering.skiaGpuOffscreen", "Experimental: render Skia text cache textures in an isolated hidden OpenGL context shared with Minecraft, instead of CPU rasterization. Requires rendering.premultipliedAlpha=true. Failures automatically fall back to CPU rasterization.");
+        config.setComment("rendering.skiaGpuSubmitViaCpuTexture", "Default safe mode for skiaGpuOffscreen: rasterize in the isolated GPU context, read pixels back, then submit through Minecraft DynamicTexture like the CPU path. Disable only to test the experimental shared-GL texture path.");
+        config.setComment("rendering.skiaSegmentCache", "When skiaAdvancedStringMode=false, split safe Skia text runs into reusable cache tokens: Latin words, individual digits, CJK/Hiragana/Katakana/Hangul characters, and simple punctuation. Complex shaping text stays on the full-run path.");
+        config.setComment("rendering.skiaSegmentCacheMinRunLength", "Minimum formatted run length before Skia token cache segmentation is attempted.");
+        config.setComment("rendering.skiaSegmentCacheMaxRunCodePoints", "Maximum code points kept in one reusable Skia segment before forcing another token boundary.");
+        config.setComment("rendering.skiaSegmentCacheMaxSegments", "Maximum number of Skia segments produced from one formatted run. Runs exceeding this limit render as one full texture to avoid too many draw calls.");
         config.setComment("rendering.interpolation", "Use GL_LINEAR texture filtering instead of GL_NEAREST.");
         config.setComment("rendering.mipmap", "Enable mipmapping for font textures (may help at small sizes).");
         config.setComment("rendering.adaptiveRasterScale", "Use a 1.5x-14x adaptive raster scale based on the current framebuffer text scale, and use nearest filtering for 1:1/integer pixel output to avoid over-downsample blur.");
@@ -650,10 +725,14 @@ public final class NeofontrenderConfig {
         config.setComment("performance.skiaTextCacheMaxEntries", "Maximum number of Skia rendered text textures kept in the LRU cache.");
         config.setComment("performance.skiaTextCacheTtlSeconds", "Seconds before an unused Skia rendered text texture can be evicted. 0 disables TTL cleanup.");
         config.setComment("performance.skiaMeasureCacheMaxEntries", "Maximum number of Skia text measurement results kept in memory.");
+        config.setComment("performance.skiaSegmentTextureCacheMinEntries", "Minimum number of reusable Skia segment textures kept when TTL cleanup runs.");
+        config.setComment("performance.skiaSegmentTextureCacheMaxEntries", "Maximum number of reusable Skia segment textures kept in the segment LRU cache.");
+        config.setComment("performance.skiaSegmentTextureCacheTtlSeconds", "Seconds before an unused Skia segment texture can be evicted. 0 disables TTL cleanup.");
         config.setComment("input", "Input behavior tweaks.");
         config.setComment("input.allowSignPaste", "Allow Ctrl+V paste in the vanilla sign editor. This is intentionally config-file only.");
         config.setComment("debug", "Debug logging options.");
         config.setComment("debug.imeInput", "Log IME input fix details to game log (for diagnosing emoji input issues).");
+        config.setComment("debug.renderStats", "Collect high-frequency font renderer hit/miss/eviction counters, segment counters, and expensive raster pixel statistics for F3/commands. Disable for normal gameplay.");
     }
 
     private static float getFloat(String key, float defaultValue) {

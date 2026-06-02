@@ -29,6 +29,10 @@ public class FontSet implements AutoCloseable {
     private final Map<Integer, GlyphInfo> glyphInfos = new HashMap<>();
     private final Map<Integer, BakedGlyph> bakedGlyphs = new HashMap<>();
     private final Map<Integer, List<Integer>> glyphsByWidth = new HashMap<>();
+    private long glyphInfoHits;
+    private long glyphInfoMisses;
+    private long bakedGlyphHits;
+    private long bakedGlyphMisses;
 
     public FontSet(List<GlyphProvider> providers, FontTexture atlas) {
         this.providers = providers;
@@ -87,7 +91,15 @@ public class FontSet implements AutoCloseable {
     }
 
     public GlyphInfo getGlyphInfo(int codePoint) {
-        return glyphInfos.computeIfAbsent(codePoint, this::findGlyphInfo);
+        GlyphInfo cached = glyphInfos.get(codePoint);
+        if (cached != null || glyphInfos.containsKey(codePoint)) {
+            glyphInfoHits++;
+            return cached;
+        }
+        glyphInfoMisses++;
+        GlyphInfo loaded = findGlyphInfo(codePoint);
+        glyphInfos.put(codePoint, loaded);
+        return loaded;
     }
 
     private GlyphInfo findGlyphInfo(int codePoint) {
@@ -102,7 +114,15 @@ public class FontSet implements AutoCloseable {
 
     @Nullable
     public BakedGlyph getGlyph(int codePoint) {
-        return bakedGlyphs.computeIfAbsent(codePoint, this::bakeGlyph);
+        BakedGlyph cached = bakedGlyphs.get(codePoint);
+        if (cached != null || bakedGlyphs.containsKey(codePoint)) {
+            bakedGlyphHits++;
+            return cached;
+        }
+        bakedGlyphMisses++;
+        BakedGlyph loaded = bakeGlyph(codePoint);
+        bakedGlyphs.put(codePoint, loaded);
+        return loaded;
     }
 
     public void prewarmBasicLatin() {
@@ -171,5 +191,99 @@ public class FontSet implements AutoCloseable {
         glyphInfos.clear();
         bakedGlyphs.clear();
         glyphsByWidth.clear();
+    }
+
+    public DebugState debugState() {
+        int layoutSize = layoutProvider == null ? 0 : layoutProvider.layoutCacheSize();
+        int layoutMax = layoutProvider == null ? 0 : layoutProvider.layoutCacheMax();
+        long layoutHits = layoutProvider == null ? 0L : layoutProvider.layoutCacheHits();
+        long layoutMisses = layoutProvider == null ? 0L : layoutProvider.layoutCacheMisses();
+        long layoutEvictions = layoutProvider == null ? 0L : layoutProvider.layoutCacheEvictions();
+        return new DebugState(
+                glyphInfos.size(), bakedGlyphs.size(), glyphsByWidth.size(),
+                glyphInfoHits, glyphInfoMisses, bakedGlyphHits, bakedGlyphMisses,
+                layoutSize, layoutMax, layoutHits, layoutMisses, layoutEvictions);
+    }
+
+    public static final class DebugState {
+        private final int glyphInfoCacheSize;
+        private final int bakedGlyphCacheSize;
+        private final int glyphWidthBuckets;
+        private final long glyphInfoHits;
+        private final long glyphInfoMisses;
+        private final long bakedGlyphHits;
+        private final long bakedGlyphMisses;
+        private final int layoutCacheSize;
+        private final int layoutCacheMax;
+        private final long layoutCacheHits;
+        private final long layoutCacheMisses;
+        private final long layoutCacheEvictions;
+
+        private DebugState(int glyphInfoCacheSize, int bakedGlyphCacheSize, int glyphWidthBuckets,
+                           long glyphInfoHits, long glyphInfoMisses,
+                           long bakedGlyphHits, long bakedGlyphMisses,
+                           int layoutCacheSize, int layoutCacheMax,
+                           long layoutCacheHits, long layoutCacheMisses, long layoutCacheEvictions) {
+            this.glyphInfoCacheSize = glyphInfoCacheSize;
+            this.bakedGlyphCacheSize = bakedGlyphCacheSize;
+            this.glyphWidthBuckets = glyphWidthBuckets;
+            this.glyphInfoHits = glyphInfoHits;
+            this.glyphInfoMisses = glyphInfoMisses;
+            this.bakedGlyphHits = bakedGlyphHits;
+            this.bakedGlyphMisses = bakedGlyphMisses;
+            this.layoutCacheSize = layoutCacheSize;
+            this.layoutCacheMax = layoutCacheMax;
+            this.layoutCacheHits = layoutCacheHits;
+            this.layoutCacheMisses = layoutCacheMisses;
+            this.layoutCacheEvictions = layoutCacheEvictions;
+        }
+
+        public int glyphInfoCacheSize() {
+            return glyphInfoCacheSize;
+        }
+
+        public int bakedGlyphCacheSize() {
+            return bakedGlyphCacheSize;
+        }
+
+        public int glyphWidthBuckets() {
+            return glyphWidthBuckets;
+        }
+
+        public long glyphInfoHits() {
+            return glyphInfoHits;
+        }
+
+        public long glyphInfoMisses() {
+            return glyphInfoMisses;
+        }
+
+        public long bakedGlyphHits() {
+            return bakedGlyphHits;
+        }
+
+        public long bakedGlyphMisses() {
+            return bakedGlyphMisses;
+        }
+
+        public int layoutCacheSize() {
+            return layoutCacheSize;
+        }
+
+        public int layoutCacheMax() {
+            return layoutCacheMax;
+        }
+
+        public long layoutCacheHits() {
+            return layoutCacheHits;
+        }
+
+        public long layoutCacheMisses() {
+            return layoutCacheMisses;
+        }
+
+        public long layoutCacheEvictions() {
+            return layoutCacheEvictions;
+        }
     }
 }

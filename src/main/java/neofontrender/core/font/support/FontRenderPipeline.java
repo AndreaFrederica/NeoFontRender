@@ -26,7 +26,11 @@ public final class FontRenderPipeline {
     }
 
     public static State begin(float rasterScale) {
-        if (!NeofontrenderConfig.isLoaded() || !NeofontrenderConfig.enhancedTextPipeline()) {
+        if (!NeofontrenderConfig.isLoaded()) {
+            return State.NOOP;
+        }
+        boolean enhanced = NeofontrenderConfig.enhancedTextPipeline();
+        if (!enhanced && !NeofontrenderConfig.forceBlendForText()) {
             return State.NOOP;
         }
 
@@ -35,9 +39,8 @@ public final class FontRenderPipeline {
 
         GlStateManager.enableTexture2D();
         GlStateManager.enableAlpha();
-        GlStateManager.enableBlend();
-
         boolean premultiplied = NeofontrenderConfig.enablePremultipliedAlpha();
+        GlStateManager.enableBlend();
         if (premultiplied) {
             GlStateManager.tryBlendFuncSeparate(
                     GL11.GL_ONE,
@@ -52,7 +55,7 @@ public final class FontRenderPipeline {
                     GL11.GL_ZERO);
         }
 
-        if (NeofontrenderConfig.shaderTextPipeline() && state.previousProgram == 0) {
+        if (enhanced && NeofontrenderConfig.shaderTextPipeline() && state.previousProgram == 0) {
             int shader = getOrCreateProgram();
             if (shader != 0) {
                 GL20.glUseProgram(shader);
