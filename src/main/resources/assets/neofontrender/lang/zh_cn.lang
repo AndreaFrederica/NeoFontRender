@@ -1,7 +1,7 @@
 key.neofontrender.openConfig=打开 Neo Font Render 设置
 key.categories.neofontrender=Neo Font Render
 
-neofontrender.options.button=Neo Font Render
+neofontrender.options.button=字体渲染
 neofontrender.gui.title=Neo Font Render
 neofontrender.gui.title.advanced=Neo Font Render / 高级
 neofontrender.gui.button.preview=预览

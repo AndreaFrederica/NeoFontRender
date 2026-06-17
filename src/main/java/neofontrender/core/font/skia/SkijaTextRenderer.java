@@ -243,7 +243,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return RenderedText.EMPTY;
         }
         float scale = currentRasterScale();
-        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale);
+        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale, sharedGpuTextureCacheBucket());
         RenderedText cached = renderCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -273,7 +273,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return RenderedText.EMPTY;
         }
         float scale = currentRasterScale();
-        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale);
+        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale, sharedGpuTextureCacheBucket());
         RenderedText cached = segmentCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -307,7 +307,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
         int normalizedArgb = normalizeBaseArgb(baseArgb);
         float scale = currentRasterScale();
-        RenderKey key = RenderKey.formatted(text, normalizedArgb, shadow, scale);
+        RenderKey key = RenderKey.formatted(text, normalizedArgb, shadow, scale, sharedGpuTextureCacheBucket());
         RenderedText cached = renderCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -511,8 +511,12 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         int uploadHeight = height * scale;
         float actualRasterScale = oversample * scale;
 
-        if (NeofontrenderConfig.skiaGpuSubmitViaCpuTexture()) {
-            lastRasterPath = "gpu-isolated-cpu-submit";
+        boolean perspective = FontRenderTuning.currentDrawContext().perspective();
+        boolean submitViaCpuTexture = NeofontrenderConfig.skiaGpuSubmitViaCpuTexture() || perspective;
+        if (submitViaCpuTexture) {
+            lastRasterPath = perspective && !NeofontrenderConfig.skiaGpuSubmitViaCpuTexture()
+                    ? "gpu-isolated-world-cpu-submit"
+                    : "gpu-isolated-cpu-submit";
             boolean statsEnabled = debugRenderStats();
             GpuReadback readback = getOrCreateIsolatedGpuContext()
                     .renderReadback(paragraph, uploadWidth, uploadHeight, scale, paintX, paintY, statsEnabled);
@@ -569,6 +573,12 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 uploadWidth, uploadHeight,
                 uploadWidth / actualRasterScale, uploadHeight / actualRasterScale,
                 actualRasterScale, horizontalOffset, verticalOffset, true);
+    }
+
+    private static boolean sharedGpuTextureCacheBucket() {
+        return NeofontrenderConfig.skiaGpuOffscreen()
+                && !NeofontrenderConfig.skiaGpuSubmitViaCpuTexture()
+                && !FontRenderTuning.currentDrawContext().perspective();
     }
 
     private boolean shouldUseGpuOffscreen() {
@@ -840,7 +850,8 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return RenderedText.EMPTY;
         }
         float scale = currentRasterScale();
-        RenderKey key = RenderKey.decoratedSegment(text, argb, bold, italic, underline, strikethrough, scale);
+        RenderKey key = RenderKey.decoratedSegment(text, argb, bold, italic, underline, strikethrough, scale,
+                sharedGpuTextureCacheBucket());
         RenderedText cached = segmentCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -1970,6 +1981,20 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             float left = FontRenderTuning.alignToPixel(x + horizontalOffset);
             float top = FontRenderTuning.alignToPixel(y + verticalOffset);
 
+            boolean premultiplied = flipY;
+            boolean wasBlend = GL11.glIsEnabled(GL11.GL_BLEND);
+            int origSrcRgb = 0, origDstRgb = 0, origSrcAlpha = 0, origDstAlpha = 0;
+            if (premultiplied) {
+                origSrcRgb = getInteger(GL14.GL_BLEND_SRC_RGB, GL11.GL_SRC_ALPHA);
+                origDstRgb = getInteger(GL14.GL_BLEND_DST_RGB, GL11.GL_ONE_MINUS_SRC_ALPHA);
+                origSrcAlpha = getInteger(GL14.GL_BLEND_SRC_ALPHA, GL11.GL_ONE);
+                origDstAlpha = getInteger(GL14.GL_BLEND_DST_ALPHA, GL11.GL_ZERO);
+                GlStateManager.enableBlend();
+                GlStateManager.tryBlendFuncSeparate(
+                        GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA,
+                        GL11.GL_ONE, GL11.GL_ZERO);
+            }
+
             try (FontRenderPipeline.State ignored = FontRenderPipeline.begin(rasterScale)) {
                 lastDrawState = drawState(texture);
                 Tessellator tessellator = Tessellator.getInstance();
@@ -1982,6 +2007,13 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 buffer.pos(left + drawWidth, top + drawHeight, 0.0D).tex(1.0D, bottomV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
                 buffer.pos(left + drawWidth, top, 0.0D).tex(1.0D, topV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
                 tessellator.draw();
+            }
+
+            if (premultiplied) {
+                GL14.glBlendFuncSeparate(origSrcRgb, origDstRgb, origSrcAlpha, origDstAlpha);
+                if (!wasBlend) {
+                    GlStateManager.disableBlend();
+                }
             }
         }
 
@@ -2088,26 +2120,35 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         private final boolean formatted;
         private final int styleFlags;
         private final int scaleBucket;
+        private final boolean sharedGpuTexture;
 
-        private RenderKey(String text, int argb, boolean formatted, int styleFlags, float scale) {
+        private RenderKey(String text, int argb, boolean formatted, int styleFlags, float scale,
+                          boolean sharedGpuTexture) {
             this.text = text;
             this.argb = argb;
             this.formatted = formatted;
             this.styleFlags = styleFlags;
             this.scaleBucket = scaleBucket(scale);
+            this.sharedGpuTexture = sharedGpuTexture;
         }
 
-        private static RenderKey plain(String text, int argb, boolean bold, boolean italic, float scale) {
-            return new RenderKey(text, argb, false, styleFlags(bold, italic, false, false, false), scale);
+        private static RenderKey plain(String text, int argb, boolean bold, boolean italic, float scale,
+                                       boolean sharedGpuTexture) {
+            return new RenderKey(text, argb, false, styleFlags(bold, italic, false, false, false), scale,
+                    sharedGpuTexture);
         }
 
-        private static RenderKey formatted(String text, int argb, boolean shadow, float scale) {
-            return new RenderKey(text, argb, true, styleFlags(false, false, false, false, shadow), scale);
+        private static RenderKey formatted(String text, int argb, boolean shadow, float scale,
+                                           boolean sharedGpuTexture) {
+            return new RenderKey(text, argb, true, styleFlags(false, false, false, false, shadow), scale,
+                    sharedGpuTexture);
         }
 
         private static RenderKey decoratedSegment(String text, int argb, boolean bold, boolean italic,
-                                                  boolean underline, boolean strikethrough, float scale) {
-            return new RenderKey(text, argb, true, styleFlags(bold, italic, underline, strikethrough, false), scale);
+                                                  boolean underline, boolean strikethrough, float scale,
+                                                  boolean sharedGpuTexture) {
+            return new RenderKey(text, argb, true, styleFlags(bold, italic, underline, strikethrough, false), scale,
+                    sharedGpuTexture);
         }
 
         @Override
@@ -2123,6 +2164,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                     && formatted == other.formatted
                     && styleFlags == other.styleFlags
                     && scaleBucket == other.scaleBucket
+                    && sharedGpuTexture == other.sharedGpuTexture
                     && text.equals(other.text);
         }
 
@@ -2133,6 +2175,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             result = 31 * result + (formatted ? 1 : 0);
             result = 31 * result + styleFlags;
             result = 31 * result + scaleBucket;
+            result = 31 * result + (sharedGpuTexture ? 1 : 0);
             return result;
         }
 

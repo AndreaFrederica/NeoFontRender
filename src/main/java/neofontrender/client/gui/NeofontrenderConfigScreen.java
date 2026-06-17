@@ -56,11 +56,27 @@ public final class NeofontrenderConfigScreen {
     private static final int SOURCE_FOLDER = 1;
     private static final int SOURCE_BUILTIN = 2;
 
+    private static net.minecraft.client.gui.GuiScreen returnScreen;
+
     private NeofontrenderConfigScreen() {
     }
 
     public static void open() {
+        open(null);
+    }
+
+    public static void open(net.minecraft.client.gui.GuiScreen parent) {
+        returnScreen = parent;
         openMain(new Staged());
+    }
+
+    private static void closeToParent() {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+        if (returnScreen != null) {
+            mc.displayGuiScreen(returnScreen);
+        } else {
+            ClientGUI.close();
+        }
     }
 
     private static void openMain(Staged staged) {
@@ -409,12 +425,12 @@ public final class NeofontrenderConfigScreen {
             this.advancedButton = actionButtonKey("neofontrender.gui.button.advanced", 90, 20, () -> openAdvanced(staged));
             this.applyButton = actionButtonKey("neofontrender.gui.button.apply", 74, 20, () -> {
                 apply(staged);
-                ClientGUI.close();
+                closeToParent();
             });
             this.cancelButton = actionButtonKey("neofontrender.gui.button.cancel", 74, 20, () -> {
                 staged.restoreOriginal();
                 reloadFontManager();
-                ClientGUI.close();
+                closeToParent();
             });
 
             child(title);
@@ -479,12 +495,12 @@ public final class NeofontrenderConfigScreen {
             this.backButton = actionButtonKey("neofontrender.gui.button.back", 80, 20, () -> openMain(staged));
             this.applyButton = actionButtonKey("neofontrender.gui.button.apply", 80, 20, () -> {
                 apply(staged);
-                ClientGUI.close();
+                closeToParent();
             });
             this.cancelButton = actionButtonKey("neofontrender.gui.button.cancel", 80, 20, () -> {
                 staged.restoreOriginal();
                 reloadFontManager();
-                ClientGUI.close();
+                closeToParent();
             });
 
             child(title);
