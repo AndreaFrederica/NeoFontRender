@@ -810,6 +810,7 @@ public final class NeofontrenderConfigScreen {
                         staged.skiaGpuOffscreen = true;
                     }
                 }, () -> preview(staged)))
+                .child(toggleButtonKey("neofontrender.gui.option.monochrome_text", "neofontrender.tooltip.monochrome_text", 80, 20, () -> staged.skiaMonochromeText, v -> staged.skiaMonochromeText = v, () -> preview(staged)))
                 .child(toggleButtonKey("neofontrender.gui.option.integer_scale", "neofontrender.tooltip.integer_scale", 80, 20, () -> staged.excludeIntegerScale, v -> staged.excludeIntegerScale = v, () -> preview(staged)))
                 .child(toggleButtonKey("neofontrender.gui.option.high_mag", "neofontrender.tooltip.high_mag", 80, 20, () -> staged.excludeHighMagnification, v -> staged.excludeHighMagnification = v, () -> preview(staged)))
                 .child(toggleButtonKey("neofontrender.gui.option.anisotropic", "neofontrender.tooltip.anisotropic", 80, 20, () -> staged.anisotropicFiltering, v -> staged.anisotropicFiltering = v, () -> preview(staged)))
@@ -928,6 +929,7 @@ public final class NeofontrenderConfigScreen {
         private final boolean originalShaderTextPipeline = NeofontrenderConfig.shaderTextPipeline();
         private final boolean originalSkiaGpuOffscreen = NeofontrenderConfig.skiaGpuOffscreen();
         private final boolean originalSkiaGpuSubmitViaCpuTexture = NeofontrenderConfig.skiaGpuSubmitViaCpuTexture();
+        private final boolean originalSkiaMonochromeText = NeofontrenderConfig.skiaMonochromeText();
         private final boolean originalDebugRenderStats = NeofontrenderConfig.debugRenderStats();
         private final String originalBrightness = Float.toString(NeofontrenderConfig.renderingBrightness());
         private final boolean originalTextureEdgeBleed = NeofontrenderConfig.textureEdgeBleed();
@@ -945,6 +947,7 @@ public final class NeofontrenderConfigScreen {
         private boolean shaderTextPipeline = originalShaderTextPipeline;
         private boolean skiaGpuOffscreen = originalSkiaGpuOffscreen;
         private boolean skiaGpuSubmitViaCpuTexture = originalSkiaGpuSubmitViaCpuTexture;
+        private boolean skiaMonochromeText = originalSkiaMonochromeText;
         private boolean debugRenderStats = originalDebugRenderStats;
         private String brightness = originalBrightness;
         private boolean textureEdgeBleed = originalTextureEdgeBleed;
@@ -994,6 +997,7 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setShaderTextPipeline(shaderTextPipeline);
             NeofontrenderConfig.setSkiaGpuOffscreen(skiaGpuOffscreen);
             NeofontrenderConfig.setSkiaGpuSubmitViaCpuTexture(skiaGpuSubmitViaCpuTexture);
+            NeofontrenderConfig.setSkiaMonochromeText(skiaMonochromeText);
             NeofontrenderConfig.setDebugRenderStats(debugRenderStats);
             NeofontrenderConfig.setRenderingBrightness(parseFloat(brightness, 3.0F, 0.0F, 12.0F));
             NeofontrenderConfig.setTextureEdgeBleed(textureEdgeBleed);
@@ -1029,6 +1033,7 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setShaderTextPipeline(originalShaderTextPipeline);
             NeofontrenderConfig.setSkiaGpuOffscreen(originalSkiaGpuOffscreen);
             NeofontrenderConfig.setSkiaGpuSubmitViaCpuTexture(originalSkiaGpuSubmitViaCpuTexture);
+            NeofontrenderConfig.setSkiaMonochromeText(originalSkiaMonochromeText);
             NeofontrenderConfig.setDebugRenderStats(originalDebugRenderStats);
             NeofontrenderConfig.setRenderingBrightness(parseFloat(originalBrightness, 3.0F, 0.0F, 12.0F));
             NeofontrenderConfig.setTextureEdgeBleed(originalTextureEdgeBleed);

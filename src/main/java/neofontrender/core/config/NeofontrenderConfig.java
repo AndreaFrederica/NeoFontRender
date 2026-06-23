@@ -152,6 +152,10 @@ public final class NeofontrenderConfig {
         return config.getOrElse("rendering.skiaGpuSubmitViaCpuTexture", true);
     }
 
+    public static boolean skiaMonochromeText() {
+        return config.getOrElse("rendering.skiaMonochromeText", true);
+    }
+
     public static boolean skiaSegmentCache() {
         return config.getOrElse("rendering.skiaSegmentCache", true);
     }
@@ -510,6 +514,10 @@ public final class NeofontrenderConfig {
         config.set("rendering.skiaGpuSubmitViaCpuTexture", value);
     }
 
+    public static void setSkiaMonochromeText(boolean value) {
+        config.set("rendering.skiaMonochromeText", value);
+    }
+
     public static void setPerformanceAsyncInit(boolean value) {
         config.set("performance.asyncInit", value);
     }
@@ -621,6 +629,7 @@ public final class NeofontrenderConfig {
             w.write("skiaAdvancedStringMode = true\n");
             w.write("skiaGpuOffscreen = false\n");
             w.write("skiaGpuSubmitViaCpuTexture = true\n");
+            w.write("skiaMonochromeText = true\n");
             w.write("skiaSegmentCache = true\n");
             w.write("skiaSegmentCacheMinRunLength = 8\n");
             w.write("skiaSegmentCacheMaxRunCodePoints = 24\n");
@@ -692,6 +701,7 @@ public final class NeofontrenderConfig {
         config.setComment("rendering.skiaAdvancedStringMode", "In Skia mode, render full formatted strings as one paragraph so shaping, ligatures, kerning, emoji ZWJ, and BiDi can work across the whole text. Disable to use legacy per-format-run rendering.");
         config.setComment("rendering.skiaGpuOffscreen", "Experimental: render Skia text cache textures in an isolated hidden OpenGL context shared with Minecraft, instead of CPU rasterization. Requires rendering.premultipliedAlpha=true. Failures automatically fall back to CPU rasterization.");
         config.setComment("rendering.skiaGpuSubmitViaCpuTexture", "Default safe mode for skiaGpuOffscreen: rasterize in the isolated GPU context, read pixels back, then submit through Minecraft DynamicTexture like the CPU path. Disable only to test the experimental shared-GL texture path.");
+        config.setComment("rendering.skiaMonochromeText", "Rasterize monochrome (single-color) text runs as white glyphs and tint them with vertex color at draw time, so one glyph texture is reused across all colors instead of being re-rasterized per color. Greatly improves Skia cache hit rate. Only applies to premultiplied-alpha rendering (bypassed automatically when premultipliedAlpha=false). Disable to fall back to baking color into textures.");
         config.setComment("rendering.skiaSegmentCache", "When skiaAdvancedStringMode=false, split safe Skia text runs into reusable cache tokens: Latin words, individual digits, CJK/Hiragana/Katakana/Hangul characters, and simple punctuation. Complex shaping text stays on the full-run path.");
         config.setComment("rendering.skiaSegmentCacheMinRunLength", "Minimum formatted run length before Skia token cache segmentation is attempted.");
         config.setComment("rendering.skiaSegmentCacheMaxRunCodePoints", "Maximum code points kept in one reusable Skia segment before forcing another token boundary.");
