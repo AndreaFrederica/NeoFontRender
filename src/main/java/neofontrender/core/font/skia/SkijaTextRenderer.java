@@ -245,7 +245,8 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return RenderedText.EMPTY;
         }
         float scale = currentRasterScale();
-        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale, sharedGpuTextureCacheBucket());
+        boolean monochrome = useMonochromeText(text);
+        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale, sharedGpuTextureCacheBucket(), !monochrome);
         RenderedText cached = renderCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -259,7 +260,11 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             renderCacheMisses++;
         }
         try {
-            RenderedText rendered = rasterize(text, argb, bold, italic, scale, key.hashCode());
+            int rasterArgb = monochrome ? 0xFFFFFFFF : argb;
+            RenderedText rendered = rasterize(text, rasterArgb, bold, italic, scale, key.hashCode());
+            if (monochrome && rendered != RenderedText.EMPTY) {
+                rendered.setTint(argb);
+            }
             renderCache.put(key, rendered);
             trimRenderCache();
             return rendered;
@@ -275,7 +280,8 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return RenderedText.EMPTY;
         }
         float scale = currentRasterScale();
-        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale, sharedGpuTextureCacheBucket());
+        boolean monochrome = useMonochromeText(text);
+        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale, sharedGpuTextureCacheBucket(), !monochrome);
         RenderedText cached = segmentCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -289,7 +295,11 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             segmentCacheMisses++;
         }
         try {
-            RenderedText rendered = rasterize(text, argb, bold, italic, scale, key.hashCode());
+            int rasterArgb = monochrome ? 0xFFFFFFFF : argb;
+            RenderedText rendered = rasterize(text, rasterArgb, bold, italic, scale, key.hashCode());
+            if (monochrome && rendered != RenderedText.EMPTY) {
+                rendered.setTint(argb);
+            }
             segmentCache.put(key, rendered);
             trimSegmentCache();
             return rendered;
@@ -309,7 +319,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
         int normalizedArgb = normalizeBaseArgb(baseArgb);
         float scale = currentRasterScale();
-        RenderKey key = RenderKey.formatted(text, normalizedArgb, shadow, scale, sharedGpuTextureCacheBucket());
+        RenderKey key = RenderKey.formatted(text, normalizedArgb, shadow, scale, sharedGpuTextureCacheBucket(), true);
         RenderedText cached = renderCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -583,6 +593,25 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 && !FontRenderTuning.currentDrawContext().perspective();
     }
 
+    /**
+     * Whether a plain (single-color) text run may use the monochrome fast path:
+     * a white glyph texture reused across all colors and tinted at draw time.
+     * Requires the config flag, premultiplied alpha (the tint math is only
+     * correct under premultiplied blending), and a run with no color glyphs.
+     */
+    private boolean useMonochromeText(String text) {
+        if (!NeofontrenderConfig.skiaMonochromeText()) {
+            return false;
+        }
+        if (!NeofontrenderConfig.enablePremultipliedAlpha()) {
+            return false;
+        }
+        if (colorGlyphDetector == null) {
+            return true;
+        }
+        return !colorGlyphDetector.isColorRun(text);
+    }
+
     private boolean shouldUseGpuOffscreen() {
         if (!NeofontrenderConfig.skiaGpuOffscreen() || gpuUnavailable || prewarming) {
             return false;
@@ -853,7 +882,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
         float scale = currentRasterScale();
         RenderKey key = RenderKey.decoratedSegment(text, argb, bold, italic, underline, strikethrough, scale,
-                sharedGpuTextureCacheBucket());
+                sharedGpuTextureCacheBucket(), true);
         RenderedText cached = segmentCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -1941,6 +1970,8 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         private final float horizontalOffset;
         private final float verticalOffset;
         private final boolean flipY;
+        private boolean needsTinting;
+        private int tintArgb;
         private volatile long lastAccessMillis;
 
         private RenderedText(ResourceLocation location, AbstractTexture texture, float advance,
@@ -1976,7 +2007,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             net.minecraft.client.Minecraft.getMinecraft().getTextureManager().bindTexture(location);
             GlStateManager.enableTexture2D();
             GlStateManager.enableAlpha();
-            GlStateManager.color(1.0F, 1.0F, 1.0F, alpha);
+            float tintR = needsTinting ? ((tintArgb >>> 16) & 0xFF) / 255.0F : 1.0F;
+            float tintG = needsTinting ? ((tintArgb >>> 8) & 0xFF) / 255.0F : 1.0F;
+            float tintB = needsTinting ? (tintArgb & 0xFF) / 255.0F : 1.0F;
+            GlStateManager.color(tintR, tintG, tintB, alpha);
 
             Float lastScale = LAST_FILTER_SCALE.get(location);
             if (lastScale == null || Math.abs(lastScale - rasterScale) > 0.01f) {
@@ -2008,10 +2042,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 double topV = flipY ? 1.0D : 0.0D;
                 double bottomV = flipY ? 0.0D : 1.0D;
                 buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
-                buffer.pos(left, top, 0.0D).tex(0.0D, topV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-                buffer.pos(left, top + drawHeight, 0.0D).tex(0.0D, bottomV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-                buffer.pos(left + drawWidth, top + drawHeight, 0.0D).tex(1.0D, bottomV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-                buffer.pos(left + drawWidth, top, 0.0D).tex(1.0D, topV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
+                buffer.pos(left, top, 0.0D).tex(0.0D, topV).color(tintR, tintG, tintB, alpha).endVertex();
+                buffer.pos(left, top + drawHeight, 0.0D).tex(0.0D, bottomV).color(tintR, tintG, tintB, alpha).endVertex();
+                buffer.pos(left + drawWidth, top + drawHeight, 0.0D).tex(1.0D, bottomV).color(tintR, tintG, tintB, alpha).endVertex();
+                buffer.pos(left + drawWidth, top, 0.0D).tex(1.0D, topV).color(tintR, tintG, tintB, alpha).endVertex();
                 tessellator.draw();
             }
 
@@ -2032,6 +2066,12 @@ public final class SkijaTextRenderer implements TextRenderBackend {
 
         private void touch() {
             lastAccessMillis = System.currentTimeMillis();
+        }
+
+        /** Mark this white-glyph texture to be tinted with {@code argb} at draw time (monochrome path). */
+        void setTint(int argb) {
+            this.needsTinting = true;
+            this.tintArgb = argb;
         }
 
         private static String drawState(AbstractTexture texture) {
@@ -2127,34 +2167,36 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         private final int styleFlags;
         private final int scaleBucket;
         private final boolean sharedGpuTexture;
+        private final boolean colorBaked;
 
         private RenderKey(String text, int argb, boolean formatted, int styleFlags, float scale,
-                          boolean sharedGpuTexture) {
+                          boolean sharedGpuTexture, boolean colorBaked) {
             this.text = text;
             this.argb = argb;
             this.formatted = formatted;
             this.styleFlags = styleFlags;
             this.scaleBucket = scaleBucket(scale);
             this.sharedGpuTexture = sharedGpuTexture;
+            this.colorBaked = colorBaked;
         }
 
         private static RenderKey plain(String text, int argb, boolean bold, boolean italic, float scale,
-                                       boolean sharedGpuTexture) {
+                                       boolean sharedGpuTexture, boolean colorBaked) {
             return new RenderKey(text, argb, false, styleFlags(bold, italic, false, false, false), scale,
-                    sharedGpuTexture);
+                    sharedGpuTexture, colorBaked);
         }
 
         private static RenderKey formatted(String text, int argb, boolean shadow, float scale,
-                                           boolean sharedGpuTexture) {
+                                           boolean sharedGpuTexture, boolean colorBaked) {
             return new RenderKey(text, argb, true, styleFlags(false, false, false, false, shadow), scale,
-                    sharedGpuTexture);
+                    sharedGpuTexture, colorBaked);
         }
 
         private static RenderKey decoratedSegment(String text, int argb, boolean bold, boolean italic,
                                                   boolean underline, boolean strikethrough, float scale,
-                                                  boolean sharedGpuTexture) {
+                                                  boolean sharedGpuTexture, boolean colorBaked) {
             return new RenderKey(text, argb, true, styleFlags(bold, italic, underline, strikethrough, false), scale,
-                    sharedGpuTexture);
+                    sharedGpuTexture, colorBaked);
         }
 
         @Override
@@ -2166,22 +2208,26 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 return false;
             }
             RenderKey other = (RenderKey) obj;
-            return argb == other.argb
-                    && formatted == other.formatted
+            return formatted == other.formatted
                     && styleFlags == other.styleFlags
                     && scaleBucket == other.scaleBucket
                     && sharedGpuTexture == other.sharedGpuTexture
+                    && colorBaked == other.colorBaked
+                    && (!colorBaked || argb == other.argb)
                     && text.equals(other.text);
         }
 
         @Override
         public int hashCode() {
             int result = text.hashCode();
-            result = 31 * result + argb;
             result = 31 * result + (formatted ? 1 : 0);
             result = 31 * result + styleFlags;
             result = 31 * result + scaleBucket;
             result = 31 * result + (sharedGpuTexture ? 1 : 0);
+            result = 31 * result + (colorBaked ? 1 : 0);
+            if (colorBaked) {
+                result = 31 * result + argb;
+            }
             return result;
         }
 
