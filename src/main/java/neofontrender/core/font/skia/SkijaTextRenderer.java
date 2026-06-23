@@ -131,6 +131,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     private int nextTextureId = 0;
     private float autoRefBaseline = Float.NaN;
     private IsolatedGpuContext isolatedGpuContext;
+    private ColorGlyphDetector colorGlyphDetector;
     private boolean gpuUnavailable;
     private boolean gpuFallbackLogged;
     private boolean gpuSkipLogged;
@@ -166,6 +167,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 .setAssetFontManager(fontProvider)
                 .setDefaultFontManager(FontMgr.getDefault())
                 .setEnableFallback(true);
+        this.colorGlyphDetector = ColorGlyphDetector.create(PLATFORM_EMOJI_FONTS);
     }
 
     public boolean isReady() {
@@ -1236,6 +1238,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         if (isolatedGpuContext != null) {
             isolatedGpuContext.close();
             isolatedGpuContext = null;
+        }
+        if (colorGlyphDetector != null) {
+            colorGlyphDetector.close();
+            colorGlyphDetector = null;
         }
         fontCollection.close();
         fontProvider.close();
