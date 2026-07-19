@@ -129,7 +129,7 @@ public final class NeofontrenderConfig {
 
     // ===================== Rendering =====================
     public static String renderingEngine() {
-        return normalizeRenderingEngine(config.getOrElse("rendering.engine", "skia"));
+        return normalizeRenderingEngine(config.getOrElse("rendering.engine", "cosmic"));
     }
 
     public static boolean useSfrEngine() {
@@ -637,6 +637,18 @@ public final class NeofontrenderConfig {
         config.set("performance.skiaMeasureCacheMaxEntries", value);
     }
 
+    public static void setSkiaSegmentTextureCacheMinEntries(int value) {
+        config.set("performance.skiaSegmentTextureCacheMinEntries", value);
+    }
+
+    public static void setSkiaSegmentTextureCacheMaxEntries(int value) {
+        config.set("performance.skiaSegmentTextureCacheMaxEntries", value);
+    }
+
+    public static void setSkiaSegmentTextureCacheTtlSeconds(float value) {
+        config.set("performance.skiaSegmentTextureCacheTtlSeconds", value);
+    }
+
     public static void setDebugRenderStats(boolean value) {
         cachedDebugRenderStats = value;
         config.set("debug.renderStats", value);
@@ -720,7 +732,7 @@ public final class NeofontrenderConfig {
             w.write("opacity = 0.25\n");
             w.write("\n");
             w.write("[rendering]\n");
-            w.write("engine = \"skia\"\n");
+            w.write("engine = \"cosmic\"\n");
             w.write("skiaAdvancedStringMode = true\n");
             w.write("skiaGpuOffscreen = false\n");
             w.write("skiaGpuSubmitViaCpuTexture = true\n");

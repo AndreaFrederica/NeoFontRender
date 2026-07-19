@@ -174,7 +174,7 @@ imeInput = false
 
 几个实用说明：
 
-- `rendering.engine` 支持 `vanilla`、`sfr`、`skia`
+- `rendering.engine` 支持 `vanilla`、`sfr`、`skia`、`cosmic`；新安装默认使用 `cosmic`
 - `font.builtinFallbacks = true` 会把内置字体，例如 Noto Color Emoji，追加到 fallback 链尾部
 - `input.allowSignPaste` 目前故意只提供配置文件开关
 - `debug.imeInput = true` 适合排查 IME / emoji 输入问题

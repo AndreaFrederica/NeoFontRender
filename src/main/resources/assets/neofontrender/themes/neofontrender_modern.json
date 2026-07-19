@@ -6,7 +6,7 @@
   "background": null,
   "hoverBackground": "none",
   "color": "#FFFFFFFF",
-  "textColor": "#FFE6ECF3",
+  "textColor": "#FFF2F2F2",
   "textShadow": false,
   "iconColor": "#FFE6ECF3",
   "panel": {
@@ -14,77 +14,77 @@
       "type": "rectangle",
       "cornerRadius": 0,
       "cornerSegments": 0,
-      "color": "#F0121822"
+      "color": "#C8000000"
     }
   },
   "button": {
     "background": {
       "type": "rectangle",
-      "cornerRadius": 4,
-      "cornerSegments": 6,
-      "color": "#FF1E293B"
+      "cornerRadius": 0,
+      "cornerSegments": 0,
+      "color": "#B0000000"
     },
-    "textColor": "#FFF8FAFC",
+    "textColor": "#FFF2F2F2",
     "textShadow": false
   },
   "button:hover": {
     "background": {
       "type": "rectangle",
-      "cornerRadius": 4,
-      "cornerSegments": 6,
-      "color": "#FF334155"
+      "cornerRadius": 0,
+      "cornerSegments": 0,
+      "color": "#B8333333"
     }
   },
   "textField": {
     "background": {
       "type": "rectangle",
-      "cornerRadius": 4,
-      "cornerSegments": 6,
-      "color": "#FF0B1220"
+      "cornerRadius": 0,
+      "cornerSegments": 0,
+      "color": "#C8101010"
     },
-    "textColor": "#FFE6ECF3",
-    "markedColor": "#FF2563EB",
-    "hintColor": "#FF64748B"
+    "textColor": "#FFF2F2F2",
+    "markedColor": "#FF00D9E6",
+    "hintColor": "#FF8A8A8A"
   },
   "scrollbar": {
     "background": {
       "type": "rectangle",
-      "cornerRadius": 2,
-      "cornerSegments": 6,
-      "color": "#FF1E293B"
+      "cornerRadius": 0,
+      "cornerSegments": 0,
+      "color": "#B0303030"
     },
-    "color": "#FF94A3B8"
+    "color": "#FFB8B8B8"
   },
   "toggleButton": {
     "background": {
       "type": "rectangle",
-      "cornerRadius": 4,
-      "cornerSegments": 6,
-      "color": "#FF1E293B"
+      "cornerRadius": 0,
+      "cornerSegments": 0,
+      "color": "#B0000000"
     },
     "selectedBackground": {
       "type": "rectangle",
-      "cornerRadius": 4,
-      "cornerSegments": 6,
-      "color": "#FF166534"
+      "cornerRadius": 0,
+      "cornerSegments": 0,
+      "color": "#B000737A"
     },
-    "textColor": "#FFF8FAFC",
-    "selectedTextColor": "#FFF8FAFC",
+    "textColor": "#FFF2F2F2",
+    "selectedTextColor": "#FFFFFFFF",
     "textShadow": false,
     "selectedTextShadow": false
   },
   "toggleButton:hover": {
     "background": {
       "type": "rectangle",
-      "cornerRadius": 4,
-      "cornerSegments": 6,
-      "color": "#FF334155"
+      "cornerRadius": 0,
+      "cornerSegments": 0,
+      "color": "#B8333333"
     },
     "selectedBackground": {
       "type": "rectangle",
-      "cornerRadius": 4,
-      "cornerSegments": 6,
-      "color": "#FF15803D"
+      "cornerRadius": 0,
+      "cornerSegments": 0,
+      "color": "#B800AEB8"
     }
   }
 }
