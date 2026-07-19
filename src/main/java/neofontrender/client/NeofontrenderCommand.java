@@ -160,6 +160,7 @@ public class NeofontrenderCommand extends CommandBase {
         sender.sendMessage(new TextComponentString(TextFormatting.GOLD + "=== Engine Status ==="));
         sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  SFR active: " + FontManager.INSTANCE.isSfrActive()));
         sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Skia active: " + FontManager.INSTANCE.isSkiaActive()));
+        sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Cosmic active: " + FontManager.INSTANCE.isCosmicActive()));
         sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Engine config: " + neofontrender.core.config.NeofontrenderConfig.renderingEngine()));
         sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Enabled: " + neofontrender.core.config.NeofontrenderConfig.enabled()));
         sender.sendMessage(new TextComponentString(TextFormatting.WHITE + "  Font name: " + neofontrender.core.config.NeofontrenderConfig.fontName()));

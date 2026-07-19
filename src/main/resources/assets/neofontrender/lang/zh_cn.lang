@@ -55,6 +55,7 @@ neofontrender.gui.option.sign_cross_batch=告示牌跨实体合批
 neofontrender.gui.option.sign_occlusion=告示牌方块遮挡剔除
 neofontrender.gui.engine.sfr=SFR
 neofontrender.gui.engine.skia=Skia
+neofontrender.gui.engine.cosmic=Cosmic Text
 neofontrender.gui.engine.vanilla=原版
 neofontrender.gui.aa.off=关闭
 neofontrender.gui.aa.on=开启

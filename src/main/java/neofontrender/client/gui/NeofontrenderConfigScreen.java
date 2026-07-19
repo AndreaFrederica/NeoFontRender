@@ -233,6 +233,9 @@ public final class NeofontrenderConfigScreen {
             return "skia";
         }
         if ("skia".equals(normalized)) {
+            return "cosmic";
+        }
+        if ("cosmic".equals(normalized)) {
             return "vanilla";
         }
         return "sfr";
@@ -242,6 +245,9 @@ public final class NeofontrenderConfigScreen {
         String normalized = normalizeEngine(engine);
         if ("skia".equals(normalized)) {
             return tr("neofontrender.gui.engine.skia");
+        }
+        if ("cosmic".equals(normalized)) {
+            return tr("neofontrender.gui.engine.cosmic");
         }
         if ("vanilla".equals(normalized)) {
             return tr("neofontrender.gui.engine.vanilla");
@@ -256,6 +262,9 @@ public final class NeofontrenderConfigScreen {
         String normalized = engine.trim().toLowerCase(Locale.ROOT).replace('-', '_');
         if ("skija".equals(normalized) || "skia".equals(normalized)) {
             return "skia";
+        }
+        if ("cosmic_text".equals(normalized) || "cosmic".equals(normalized)) {
+            return "cosmic";
         }
         if ("vanilla".equals(normalized) || "original".equals(normalized) || "minecraft".equals(normalized)) {
             return "vanilla";

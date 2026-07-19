@@ -55,6 +55,7 @@ neofontrender.gui.option.sign_cross_batch=Cross-sign batching
 neofontrender.gui.option.sign_occlusion=Sign block occlusion
 neofontrender.gui.engine.sfr=SFR
 neofontrender.gui.engine.skia=Skia
+neofontrender.gui.engine.cosmic=Cosmic Text
 neofontrender.gui.engine.vanilla=Vanilla
 neofontrender.gui.aa.off=Off
 neofontrender.gui.aa.on=On

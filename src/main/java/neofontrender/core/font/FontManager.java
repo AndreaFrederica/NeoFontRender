@@ -13,6 +13,8 @@ import neofontrender.core.font.awt.GlyphProvider;
 import neofontrender.core.font.awt.providers.AwtTtfGlyphProvider;
 import neofontrender.core.font.awt.providers.MissingGlyphProvider;
 import neofontrender.core.font.backend.TextRenderBackend;
+import neofontrender.core.font.cosmic.CosmicRuntimeSupport;
+import neofontrender.core.font.cosmic.CosmicTextRenderer;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.skia.SkijaRuntimeSupport;
 import neofontrender.core.font.skia.SkijaTextRenderer;
@@ -35,6 +37,7 @@ public class FontManager implements AutoCloseable {
     private TextRenderBackend textRenderBackend;
     private boolean active = false;
     private boolean skiaActive = false;
+    private boolean cosmicActive = false;
 
     private FontManager() {
     }
@@ -56,6 +59,7 @@ public class FontManager implements AutoCloseable {
         if (NeofontrenderConfig.useVanillaEngine()) {
             this.active = false;
             this.skiaActive = false;
+            this.cosmicActive = false;
             resetVanillaFontTextureFiltering();
             return;
         }
@@ -82,6 +86,36 @@ public class FontManager implements AutoCloseable {
                             "Failed to initialize Skija renderer ({}); falling back to AWT font renderer",
                             compatibility.getMessage(),
                             t);
+                }
+            }
+        }
+
+        boolean preferCosmic = NeofontrenderConfig.useCosmicEngine();
+        if (preferCosmic) {
+            CosmicRuntimeSupport.Compatibility compatibility = CosmicRuntimeSupport.ensureLoaded();
+            if (!compatibility.isSupported()) {
+                neofontrender.NeoFontRender.LOGGER.warn("Cosmic renderer disabled: {}. Falling back to AWT font renderer",
+                        compatibility.getMessage());
+            } else {
+                try {
+                    this.textRenderBackend = new CosmicTextRenderer(textureManager, resourceManager);
+                    if (NeofontrenderConfig.performancePrewarmBasicLatin()) {
+                        this.textRenderBackend.prewarmBasicLatin();
+                    }
+                    this.cosmicActive = this.textRenderBackend.isReady();
+                    this.skiaActive = false;
+                    this.active = false;
+                    neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with Cosmic renderer ({})",
+                            compatibility.getMessage());
+                    return;
+                } catch (Throwable t) {
+                    // A native backend is optional. A bad font, locked extracted DLL, or ABI issue
+                    // must not prevent Minecraft from reaching its resource reload fallback path.
+                    this.textRenderBackend = null;
+                    this.cosmicActive = false;
+                    neofontrender.NeoFontRender.LOGGER.error(
+                            "Failed to initialize Cosmic renderer ({}); falling back to AWT font renderer",
+                            compatibility.getMessage(), t);
                 }
             }
         }
@@ -136,8 +170,9 @@ public class FontManager implements AutoCloseable {
         }
         this.active = true;
         this.skiaActive = false;
-        if (preferSkia) {
-            neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with {} AWT providers after Skija fallback", providers.size());
+        this.cosmicActive = false;
+        if (preferSkia || preferCosmic) {
+            neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with {} AWT providers after native backend fallback", providers.size());
         } else {
             neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with {} providers", providers.size());
         }
@@ -191,6 +226,14 @@ public class FontManager implements AutoCloseable {
         return skiaActive && textRenderBackend != null;
     }
 
+    public synchronized boolean isCosmicActive() {
+        return cosmicActive && textRenderBackend != null;
+    }
+
+    public synchronized boolean isTextBackendActive() {
+        return (skiaActive || cosmicActive) && textRenderBackend != null;
+    }
+
     public synchronized FontSet getDefaultFontSet() {
         return defaultFontSet;
     }
@@ -207,6 +250,10 @@ public class FontManager implements AutoCloseable {
         return textRenderBackend instanceof SkijaTextRenderer ? (SkijaTextRenderer) textRenderBackend : null;
     }
 
+    public synchronized CosmicTextRenderer getCosmicTextRenderer() {
+        return textRenderBackend instanceof CosmicTextRenderer ? (CosmicTextRenderer) textRenderBackend : null;
+    }
+
     @Override
     public synchronized void close() {
         if (defaultFontSet != null) {
@@ -219,5 +266,6 @@ public class FontManager implements AutoCloseable {
         }
         active = false;
         skiaActive = false;
+        cosmicActive = false;
     }
 }

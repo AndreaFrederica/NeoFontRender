@@ -9,6 +9,7 @@ import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.skia.SkiaTextSegmenter;
 import neofontrender.core.font.skia.SkijaTextRenderer;
+import neofontrender.core.font.cosmic.CosmicTextRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -46,6 +47,8 @@ public class MixinGuiOverlayDebug {
     private static String[] sfr$buildSnapshot() {
         String activeEngine = FontManager.INSTANCE.isSkiaActive()
                 ? "skia"
+                : FontManager.INSTANCE.isCosmicActive()
+                ? "cosmic"
                 : FontManager.INSTANCE.isSfrActive() ? "sfr" : "vanilla";
         String base = "NFR: " + activeEngine
                 + " cfg=" + NeofontrenderConfig.renderingEngine()
@@ -67,6 +70,21 @@ public class MixinGuiOverlayDebug {
                     + "/" + state.layoutCacheMisses()
                     + "/" + state.layoutCacheEvictions();
             return new String[] {base, glyph, layout};
+        }
+
+        if (FontManager.INSTANCE.isCosmicActive()) {
+            CosmicTextRenderer renderer = FontManager.INSTANCE.getCosmicTextRenderer();
+            if (renderer == null) {
+                return new String[] {base, "NFR Cosmic: renderer unavailable"};
+            }
+            CosmicTextRenderer.DebugState state = renderer.debugState();
+            String texture = "NFR Cosmic tex: " + state.renderCacheSize + "/" + state.renderCacheMax
+                    + " h/m/e=" + state.renderHits + "/" + state.renderMisses + "/" + state.renderEvictions
+                    + " native=" + state.nativeRasterCount;
+            String measure = "NFR Cosmic measure: " + state.measureCacheSize + "/" + state.measureCacheMax
+                    + " h/m/e=" + state.measureHits + "/" + state.measureMisses + "/" + state.measureEvictions
+                    + " font=" + state.primaryFamily;
+            return new String[] {base, texture, measure};
         }
 
         if (!FontManager.INSTANCE.isSkiaActive()) {

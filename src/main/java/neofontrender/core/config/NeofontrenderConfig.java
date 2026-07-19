@@ -140,6 +140,10 @@ public final class NeofontrenderConfig {
         return enabled() && "skia".equals(renderingEngine());
     }
 
+    public static boolean useCosmicEngine() {
+        return enabled() && "cosmic".equals(renderingEngine());
+    }
+
     public static boolean skiaAdvancedStringMode() {
         return config.getOrElse("rendering.skiaAdvancedStringMode", true);
     }
@@ -381,6 +385,25 @@ public final class NeofontrenderConfig {
 
     public static float skiaSegmentTextureCacheTtlSeconds() {
         return Math.max(0.0f, getFloat("performance.skiaSegmentTextureCacheTtlSeconds", 600.0f));
+    }
+
+    // These generic accessors intentionally retain the old TOML keys. Existing installations
+    // already tune them, and duplicating identical Skia/Cosmic limits would make engine switches
+    // unexpectedly discard the user's memory policy.
+    public static int textCacheMinEntries() {
+        return skiaTextCacheMinEntries();
+    }
+
+    public static int textCacheMaxEntries() {
+        return skiaTextCacheMaxEntries();
+    }
+
+    public static float textCacheTtlSeconds() {
+        return skiaTextCacheTtlSeconds();
+    }
+
+    public static int measureCacheMaxEntries() {
+        return skiaMeasureCacheMaxEntries();
     }
 
     // ===================== General =====================
@@ -784,7 +807,7 @@ public final class NeofontrenderConfig {
         config.setComment("shadow.length", "Shadow offset distance in pixels.");
         config.setComment("shadow.opacity", "Shadow opacity multiplier (0.0-1.0).");
         config.setComment("rendering", "OpenGL texture rendering options.");
-        config.setComment("rendering.engine", "Text renderer engine: vanilla, sfr, or skia.");
+        config.setComment("rendering.engine", "Text renderer engine: vanilla, sfr, skia, or cosmic.");
         config.setComment("rendering.skiaAdvancedStringMode", "In Skia mode, render full formatted strings as one paragraph so shaping, ligatures, kerning, emoji ZWJ, and BiDi can work across the whole text. Disable to use legacy per-format-run rendering.");
         config.setComment("rendering.skiaGpuOffscreen", "Experimental: render Skia text cache textures in an isolated hidden OpenGL context shared with Minecraft, instead of CPU rasterization. Requires rendering.premultipliedAlpha=true. Failures automatically fall back to CPU rasterization.");
         config.setComment("rendering.skiaGpuSubmitViaCpuTexture", "Default safe mode for skiaGpuOffscreen: rasterize in the isolated GPU context, read pixels back, then submit through Minecraft DynamicTexture like the CPU path. Disable only to test the experimental shared-GL texture path.");
@@ -833,10 +856,10 @@ public final class NeofontrenderConfig {
         config.setComment("performance.signOcclusionChecksPerFrame", "Maximum signs whose block occlusion is refreshed per frame; remaining signs use safe cached results or stay visible.");
         config.setComment("performance.signOcclusionCacheMillis", "How long a sign occlusion result remains fresh while the camera stays within half a block.");
         config.setComment("performance.signOcclusionMinDistance", "Never block-occlusion-cull signs closer than this many blocks to avoid near-camera popping.");
-        config.setComment("performance.skiaTextCacheMinEntries", "Minimum number of Skia rendered text textures kept when TTL cleanup runs.");
-        config.setComment("performance.skiaTextCacheMaxEntries", "Maximum number of Skia rendered text textures kept in the LRU cache.");
-        config.setComment("performance.skiaTextCacheTtlSeconds", "Seconds before an unused Skia rendered text texture can be evicted. 0 disables TTL cleanup.");
-        config.setComment("performance.skiaMeasureCacheMaxEntries", "Maximum number of Skia text measurement results kept in memory.");
+        config.setComment("performance.skiaTextCacheMinEntries", "Minimum number of Skia/Cosmic rendered text textures kept when TTL cleanup runs.");
+        config.setComment("performance.skiaTextCacheMaxEntries", "Maximum number of Skia/Cosmic rendered text textures kept in the LRU cache.");
+        config.setComment("performance.skiaTextCacheTtlSeconds", "Seconds before an unused Skia/Cosmic rendered text texture can be evicted. 0 disables TTL cleanup.");
+        config.setComment("performance.skiaMeasureCacheMaxEntries", "Maximum number of Skia/Cosmic text measurement results kept in memory.");
         config.setComment("performance.skiaSegmentTextureCacheMinEntries", "Minimum number of reusable Skia segment textures kept when TTL cleanup runs.");
         config.setComment("performance.skiaSegmentTextureCacheMaxEntries", "Maximum number of reusable Skia segment textures kept in the segment LRU cache.");
         config.setComment("performance.skiaSegmentTextureCacheTtlSeconds", "Seconds before an unused Skia segment texture can be evicted. 0 disables TTL cleanup.");
@@ -929,6 +952,9 @@ public final class NeofontrenderConfig {
             case "skija":
             case "skia":
                 return "skia";
+            case "cosmic_text":
+            case "cosmic":
+                return "cosmic";
             default:
                 return "sfr";
         }
