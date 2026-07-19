@@ -193,7 +193,6 @@ public final class CosmicTextRenderer implements TextRenderBackend {
 
     private List<byte[]> loadConfiguredFonts(IResourceManager resourceManager) throws IOException {
         List<byte[]> fonts = new ArrayList<>();
-        IOException lastError = null;
         for (String name : NeofontrenderConfig.fontFamily()) {
             if (name == null || name.trim().isEmpty()) {
                 continue;
@@ -211,11 +210,11 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                     }
                 }
             } catch (IOException error) {
-                lastError = error;
+                // Core intentionally omits bundled TTF resources. A configured resource from
+                // the full/resources package must not make Cosmic fail completely: the native
+                // engine can resolve the configured family and emoji through the OS font DB.
+                NeoFontRender.LOGGER.warn("Skipped unavailable Cosmic font resource '{}'", name);
             }
-        }
-        if (fonts.isEmpty() && lastError != null) {
-            throw lastError;
         }
         return fonts;
     }
