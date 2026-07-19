@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.0]
+
+- Allow the Core package to use system fonts and system emoji when optional resource fonts are not installed.
+- Add Mod and active rendering-core version information to the F3 diagnostics.
+- Publish modular Core, Resources, Skia, and Full distributions under the 0.3.0 release.
+
 All notable changes to Neo Font Render will be documented in this file.
 
 ## [0.2.5] - 2026-06-03

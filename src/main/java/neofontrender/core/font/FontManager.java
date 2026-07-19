@@ -38,6 +38,7 @@ public class FontManager implements AutoCloseable {
     private boolean active = false;
     private boolean skiaActive = false;
     private boolean cosmicActive = false;
+    private String backendVersion = "vanilla Minecraft font renderer";
 
     private FontManager() {
     }
@@ -60,6 +61,7 @@ public class FontManager implements AutoCloseable {
             this.active = false;
             this.skiaActive = false;
             this.cosmicActive = false;
+            this.backendVersion = "vanilla Minecraft font renderer";
             resetVanillaFontTextureFiltering();
             return;
         }
@@ -76,6 +78,7 @@ public class FontManager implements AutoCloseable {
                 this.active = false;
                 this.skiaActive = false;
                 this.cosmicActive = false;
+                this.backendVersion = "vanilla Minecraft font renderer";
                 resetVanillaFontTextureFiltering();
                 return;
             } else {
@@ -86,11 +89,13 @@ public class FontManager implements AutoCloseable {
                     }
                     this.skiaActive = this.textRenderBackend.isReady();
                     this.active = false;
+                    this.backendVersion = "Skija " + compatibility.getMessage();
                     neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with Skija renderer ({})", compatibility.getMessage());
                     return;
                 } catch (Throwable t) {
                     this.textRenderBackend = null;
                     this.skiaActive = false;
+                    this.backendVersion = "vanilla Minecraft font renderer";
                     neofontrender.NeoFontRender.LOGGER.error(
                             "Failed to initialize Skija renderer ({}); falling back to vanilla font renderer",
                             compatibility.getMessage(),
@@ -116,6 +121,7 @@ public class FontManager implements AutoCloseable {
                     this.cosmicActive = this.textRenderBackend.isReady();
                     this.skiaActive = false;
                     this.active = false;
+                    this.backendVersion = compatibility.getMessage();
                     neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with Cosmic renderer ({})",
                             compatibility.getMessage());
                     return;
@@ -168,6 +174,7 @@ public class FontManager implements AutoCloseable {
         if (!ttfLoaded) {
             neofontrender.NeoFontRender.LOGGER.warn("No TTF font loaded; keeping vanilla rendering");
             this.active = false;
+            this.backendVersion = "vanilla Minecraft font renderer";
             return;
         }
 
@@ -182,6 +189,7 @@ public class FontManager implements AutoCloseable {
         this.active = true;
         this.skiaActive = false;
         this.cosmicActive = false;
+        this.backendVersion = "AWT Java2D font renderer";
         if (preferSkia || preferCosmic) {
             neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with {} AWT providers after native backend fallback", providers.size());
         } else {
@@ -239,6 +247,11 @@ public class FontManager implements AutoCloseable {
 
     public synchronized boolean isCosmicActive() {
         return cosmicActive && textRenderBackend != null;
+    }
+
+    /** Human-readable renderer implementation and ABI shown in the F3 diagnostics. */
+    public synchronized String getBackendVersion() {
+        return backendVersion;
     }
 
     public synchronized boolean isTextBackendActive() {

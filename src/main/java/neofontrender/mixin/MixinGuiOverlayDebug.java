@@ -10,6 +10,7 @@ import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.skia.SkiaTextSegmenter;
 import neofontrender.core.font.skia.SkijaTextRenderer;
 import neofontrender.core.font.cosmic.CosmicTextRenderer;
+import neofontrender.Tags;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -51,6 +52,8 @@ public class MixinGuiOverlayDebug {
                 ? "cosmic"
                 : FontManager.INSTANCE.isSfrActive() ? "sfr" : "vanilla";
         String base = "NFR: " + activeEngine
+                + " mod=" + Tags.VERSION
+                + " core=" + FontManager.INSTANCE.getBackendVersion()
                 + " cfg=" + NeofontrenderConfig.renderingEngine()
                 + " adv=" + NeofontrenderConfig.skiaAdvancedStringMode()
                 + " scale=" + String.format(java.util.Locale.ROOT, "%.1f", NeofontrenderConfig.fontOversample());
