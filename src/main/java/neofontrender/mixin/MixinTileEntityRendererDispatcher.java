@@ -18,6 +18,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(TileEntityRendererDispatcher.class)
 public abstract class MixinTileEntityRendererDispatcher {
     @Shadow public World world;
+    @Shadow public double entityX;
+    @Shadow public double entityY;
+    @Shadow public double entityZ;
 
     @Inject(method = "preDrawBatch", at = @At("TAIL"), remap = false)
     private void nfr$beginSignBatch(CallbackInfo ci) {
@@ -32,7 +35,9 @@ public abstract class MixinTileEntityRendererDispatcher {
         // person and detached camera modes offset it). Ray tests must originate at the same camera
         // position used by the frustum and by vanilla block rendering, otherwise visible signs can
         // be classified behind a wall or genuinely hidden signs can miss the wall entirely.
-        Vec3d camera = ActiveRenderInfo.getCameraPosition();
+        Vec3d cameraOffset = ActiveRenderInfo.getCameraPosition();
+        Vec3d camera = new Vec3d(entityX + cameraOffset.x, entityY + cameraOffset.y,
+                entityZ + cameraOffset.z);
         if (tileEntity instanceof TileEntitySign && SignOcclusionCuller.shouldCull(
                 (TileEntitySign) tileEntity, world, camera.x, camera.y, camera.z)) {
             ci.cancel();

@@ -84,7 +84,11 @@ public class MixinGuiOverlayDebug {
             String measure = "NFR Cosmic measure: " + state.measureCacheSize + "/" + state.measureCacheMax
                     + " h/m/e=" + state.measureHits + "/" + state.measureMisses + "/" + state.measureEvictions
                     + " font=" + state.primaryFamily;
-            return new String[] {base, texture, measure};
+            // Keep sign counters visible in Cosmic mode too. The old early return hid them, making
+            // it impossible to distinguish an inactive occlusion mixin from a scene with no fully
+            // hidden signs.
+            String signOcclusion = SignOcclusionCuller.debugLine();
+            return new String[] {base, texture, measure, signOcclusion};
         }
 
         if (!FontManager.INSTANCE.isSkiaActive()) {
