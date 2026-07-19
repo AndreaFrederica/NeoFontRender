@@ -26,6 +26,14 @@ public final class FontRenderPipeline {
     }
 
     public static State begin(float rasterScale) {
+        return begin(rasterScale, NeofontrenderConfig.enablePremultipliedAlpha());
+    }
+
+    /**
+     * Begin a text draw using the alpha representation of the bound texture.
+     * Backends must pass the texture's actual representation rather than a global preference.
+     */
+    public static State begin(float rasterScale, boolean premultiplied) {
         if (!NeofontrenderConfig.isLoaded()) {
             return State.NOOP;
         }
@@ -39,7 +47,6 @@ public final class FontRenderPipeline {
 
         GlStateManager.enableTexture2D();
         GlStateManager.enableAlpha();
-        boolean premultiplied = NeofontrenderConfig.enablePremultipliedAlpha();
         GlStateManager.enableBlend();
         if (premultiplied) {
             GlStateManager.tryBlendFuncSeparate(
@@ -216,7 +223,9 @@ public final class FontRenderPipeline {
             if (shaderChanged) {
                 GL20.glUseProgram(previousProgram);
             }
-            GL14.glBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
+            // GlStateManager caches blend factors in 1.12. Restoring through raw GL would make its
+            // cache disagree with the driver and cause the next premultiplied draw to use SRC_ALPHA.
+            GlStateManager.tryBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
             if (!blendEnabled) {
                 GlStateManager.disableBlend();
             }

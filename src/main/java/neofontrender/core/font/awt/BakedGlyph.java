@@ -69,7 +69,10 @@ public class BakedGlyph {
         float slant1 = italic ? 1.0F - 0.25F * f3 : 0.0F;
         FontRenderTuning.applyBoundTextureFilter(rasterScale);
 
-        try (FontRenderPipeline.State ignored = FontRenderPipeline.begin(rasterScale)) {
+        // AWT glyph pages are normalized to white straight-alpha in AwtTtfGlyphProvider.
+        // Do not inherit the Skia/Cosmic premultiplied preference here: GL_ONE blending makes
+        // low-coverage white edge texels contribute at full strength and produces a bright halo.
+        try (FontRenderPipeline.State ignored = FontRenderPipeline.begin(rasterScale, false)) {
             Tessellator tessellator = Tessellator.getInstance();
             BufferBuilder buffer = tessellator.getBuffer();
             buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);

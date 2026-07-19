@@ -5,6 +5,7 @@
 	"target": "@env(DEFAULT)",
 	"minVersion": "0.8.5",
 	"compatibilityLevel": "JAVA_8",
+	"plugin": "neofontrender.mixin.NeoFontRenderMixinPlugin",
 	"mixins": [],
 	"server": [],
 	"client": [
@@ -13,6 +14,8 @@
 		"MixinGuiEditSign",
 		"MixinGuiScreen",
 		"MixinMinecraft",
+		"MixinTileEntityRendererDispatcher",
+		"MixinTileEntitySignRenderer",
 		"MixinTextureManager"
 	]
 }

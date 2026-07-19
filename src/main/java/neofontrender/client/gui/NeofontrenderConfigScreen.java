@@ -6,6 +6,7 @@ import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.api.value.IDoubleValue;
 import com.cleanroommc.modularui.api.value.IStringValue;
 import com.cleanroommc.modularui.api.widget.IWidget;
+import com.cleanroommc.modularui.drawable.Rectangle;
 import com.cleanroommc.modularui.factory.ClientGUI;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.ModularScreen;
@@ -17,6 +18,7 @@ import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.ListWidget;
+import com.cleanroommc.modularui.widget.ScrollWidget;
 import com.cleanroommc.modularui.widgets.SliderWidget;
 import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
@@ -56,11 +58,27 @@ public final class NeofontrenderConfigScreen {
     private static final int SOURCE_FOLDER = 1;
     private static final int SOURCE_BUILTIN = 2;
 
+    private static net.minecraft.client.gui.GuiScreen returnScreen;
+
     private NeofontrenderConfigScreen() {
     }
 
     public static void open() {
+        open(null);
+    }
+
+    public static void open(net.minecraft.client.gui.GuiScreen parent) {
+        returnScreen = parent;
         openMain(new Staged());
+    }
+
+    private static void closeToParent() {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+        if (returnScreen != null) {
+            mc.displayGuiScreen(returnScreen);
+        } else {
+            ClientGUI.close();
+        }
     }
 
     private static void openMain(Staged staged) {
@@ -101,6 +119,7 @@ public final class NeofontrenderConfigScreen {
 
     private static ButtonWidget<?> actionButton(String text, int width, int height, Runnable action) {
         return new TextButton(() -> text, true)
+                .size(width, height)
                 .onMousePressed(mouseButton -> {
                     action.run();
                     return true;
@@ -114,6 +133,7 @@ public final class NeofontrenderConfigScreen {
     private static ButtonWidget<?> toggleButtonKey(String labelKey, String tooltipKey, int width, int height,
                                                    Supplier<Boolean> getter, Consumer<Boolean> setter, Runnable preview) {
         return withTooltip(new TextButton(() -> tr(labelKey) + ": " + onOff(getter.get()), true)
+                .size(width, height)
                 .onMousePressed(mouseButton -> {
                     setter.accept(!getter.get());
                     preview.run();
@@ -167,6 +187,7 @@ public final class NeofontrenderConfigScreen {
 
     private static ButtonWidget<?> toggleButton(String text, int width, int height, Supplier<Boolean> getter, Consumer<Boolean> setter, Runnable preview) {
         return new TextButton(() -> text + ": " + (getter.get() ? "ON" : "OFF"), true)
+                .size(width, height)
                 .onMousePressed(mouseButton -> {
                     setter.accept(!getter.get());
                     preview.run();
@@ -176,6 +197,7 @@ public final class NeofontrenderConfigScreen {
 
     private static ButtonWidget<?> styleButton(Staged staged, int width, int height) {
         return withTooltip(new TextButton(() -> tr("neofontrender.gui.option.style") + ": " + styleName(staged.fontStyle), true)
+                .size(width, height)
                 .onMousePressed(mouseButton -> {
                     staged.fontStyle = (staged.fontStyle + 1) & 3;
                     preview(staged);
@@ -185,6 +207,7 @@ public final class NeofontrenderConfigScreen {
 
     private static ButtonWidget<?> aaModeButton(Staged staged, int width, int height) {
         return withTooltip(new TextButton(() -> tr("neofontrender.gui.option.antialias") + ": " + aaModeName(staged.antialiasMode), true)
+                .size(width, height)
                 .onMousePressed(mouseButton -> {
                     staged.antialiasMode = nextAaMode(staged.antialiasMode);
                     staged.antialias = !"off".equals(staged.antialiasMode);
@@ -195,6 +218,7 @@ public final class NeofontrenderConfigScreen {
 
     private static ButtonWidget<?> engineButton(Staged staged, int width, int height) {
         return withTooltip(new TextButton(() -> tr("neofontrender.gui.option.engine") + ": " + engineName(staged.engine), true)
+                .size(width, height)
                 .onMousePressed(mouseButton -> {
                     staged.engine = nextEngine(staged.engine);
                     staged.enabled = !"vanilla".equals(staged.engine);
@@ -209,6 +233,9 @@ public final class NeofontrenderConfigScreen {
             return "skia";
         }
         if ("skia".equals(normalized)) {
+            return "cosmic";
+        }
+        if ("cosmic".equals(normalized)) {
             return "vanilla";
         }
         return "sfr";
@@ -218,6 +245,9 @@ public final class NeofontrenderConfigScreen {
         String normalized = normalizeEngine(engine);
         if ("skia".equals(normalized)) {
             return tr("neofontrender.gui.engine.skia");
+        }
+        if ("cosmic".equals(normalized)) {
+            return tr("neofontrender.gui.engine.cosmic");
         }
         if ("vanilla".equals(normalized)) {
             return tr("neofontrender.gui.engine.vanilla");
@@ -232,6 +262,9 @@ public final class NeofontrenderConfigScreen {
         String normalized = engine.trim().toLowerCase(Locale.ROOT).replace('-', '_');
         if ("skija".equals(normalized) || "skia".equals(normalized)) {
             return "skia";
+        }
+        if ("cosmic_text".equals(normalized) || "cosmic".equals(normalized)) {
+            return "cosmic";
         }
         if ("vanilla".equals(normalized) || "original".equals(normalized) || "minecraft".equals(normalized)) {
             return "vanilla";
@@ -409,12 +442,12 @@ public final class NeofontrenderConfigScreen {
             this.advancedButton = actionButtonKey("neofontrender.gui.button.advanced", 90, 20, () -> openAdvanced(staged));
             this.applyButton = actionButtonKey("neofontrender.gui.button.apply", 74, 20, () -> {
                 apply(staged);
-                ClientGUI.close();
+                closeToParent();
             });
             this.cancelButton = actionButtonKey("neofontrender.gui.button.cancel", 74, 20, () -> {
                 staged.restoreOriginal();
                 reloadFontManager();
-                ClientGUI.close();
+                closeToParent();
             });
 
             child(title);
@@ -438,17 +471,10 @@ public final class NeofontrenderConfigScreen {
 
             place(title, PAD, PAD, Math.max(0, width - PAD * 2), titleHeight);
 
-            if (width < 760) {
-                int sidebarHeight = clamp(contentHeight * 42 / 100, 170, Math.max(170, contentHeight - 220));
-                int settingsTop = contentTop + sidebarHeight + GAP;
-                place(sidebar, PAD, contentTop, Math.max(0, width - PAD * 2), sidebarHeight);
-                place(settings, PAD, settingsTop, Math.max(0, width - PAD * 2), Math.max(80, contentBottom - settingsTop));
-            } else {
-                int sidebarWidth = clamp(width / 3, 300, 420);
-                int settingsX = PAD + sidebarWidth + GAP;
-                place(sidebar, PAD, contentTop, sidebarWidth, contentHeight);
-                place(settings, settingsX, contentTop, Math.max(0, width - settingsX - PAD), contentHeight);
-            }
+            int sidebarWidth = clamp(width / 3, 200, 420);
+            int settingsX = PAD + sidebarWidth + GAP;
+            place(sidebar, PAD, contentTop, sidebarWidth, contentHeight);
+            place(settings, settingsX, contentTop, Math.max(0, width - settingsX - PAD), contentHeight);
 
             int buttonWidth = Math.min(140, Math.max(90, (width - PAD * 2 - GAP * 3) / 4));
             int y = height - PAD - footerHeight;
@@ -466,7 +492,7 @@ public final class NeofontrenderConfigScreen {
 
         private final TextWidget title = header(tr("neofontrender.gui.title.advanced"));
         private final PipelineInfoWidget pipelineInfo;
-        private final AdvancedOptionsSection options;
+        private final OptionsGrid optionsGrid;
         private final BrightnessSection brightness;
         private final ButtonWidget<?> backButton;
         private final ButtonWidget<?> applyButton;
@@ -474,22 +500,22 @@ public final class NeofontrenderConfigScreen {
 
         private AdvancedConfigLayout(Staged staged) {
             this.pipelineInfo = new PipelineInfoWidget(staged);
-            this.options = new AdvancedOptionsSection(staged);
+            this.optionsGrid = buildAdvancedOptionsGrid(staged);
             this.brightness = new BrightnessSection(staged);
             this.backButton = actionButtonKey("neofontrender.gui.button.back", 80, 20, () -> openMain(staged));
             this.applyButton = actionButtonKey("neofontrender.gui.button.apply", 80, 20, () -> {
                 apply(staged);
-                ClientGUI.close();
+                closeToParent();
             });
             this.cancelButton = actionButtonKey("neofontrender.gui.button.cancel", 80, 20, () -> {
                 staged.restoreOriginal();
                 reloadFontManager();
-                ClientGUI.close();
+                closeToParent();
             });
 
             child(title);
             child(pipelineInfo);
-            child(options);
+            child(optionsGrid);
             child(brightness);
             child(backButton);
             child(applyButton);
@@ -507,21 +533,24 @@ public final class NeofontrenderConfigScreen {
             y += 28;
 
             int contentWidth = Math.max(0, width - PAD * 2);
-            int infoHeight = 136;
+            int infoHeight = pipelineInfo.preferredHeight();
             place(pipelineInfo, PAD, y, contentWidth, infoHeight);
             y += infoHeight + GAP;
 
-            int optionsHeight = width < 520 ? 172 : 112;
-            place(options, PAD, y, contentWidth, optionsHeight);
+            int optionsHeight = optionsGrid.preferredHeight(contentWidth);
+            place(optionsGrid, PAD, y, contentWidth, optionsHeight);
             y += optionsHeight + GAP;
 
-            place(brightness, PAD, y, contentWidth, 46);
+            place(brightness, PAD, y, contentWidth, brightness.preferredHeight());
 
-            int buttonWidth = Math.min(140, Math.max(90, (width - PAD * 2 - GAP * 3) / 4));
+            // Divide the footer's actual inner width between its three controls. The old four-slot
+            // formula forced a 90px minimum and made Back overlap Apply on narrow scaled GUIs.
+            int footerGap = Math.min(GAP, Math.max(0, (width - PAD * 2) / 12));
+            int buttonWidth = Math.max(0, Math.min(140, (width - PAD * 2 - footerGap * 2) / 3));
             int footerY = height - PAD - footerHeight;
             place(backButton, PAD, footerY, buttonWidth, footerHeight);
             place(cancelButton, width - PAD - buttonWidth, footerY, buttonWidth, footerHeight);
-            place(applyButton, width - PAD - buttonWidth * 2 - GAP, footerY, buttonWidth, footerHeight);
+            place(applyButton, width - PAD - buttonWidth * 2 - footerGap, footerY, buttonWidth, footerHeight);
             return true;
         }
     }
@@ -596,7 +625,7 @@ public final class NeofontrenderConfigScreen {
         private final FieldBlock fallbacks;
         private final MetricsSection metrics;
         private final OversampleSection oversample;
-        private final OptionsSection options;
+        private final OptionsGrid optionsGrid;
         private final PreviewWidget preview;
 
         private SettingsPane(Staged staged, TextFieldWidget[] fontNameField, TextFieldWidget[] fontPathField) {
@@ -614,7 +643,7 @@ public final class NeofontrenderConfigScreen {
                     .value(new StringValue(() -> staged.fontFallbacks, v -> staged.fontFallbacks = v)));
             this.metrics = new MetricsSection(staged);
             this.oversample = new OversampleSection(staged);
-            this.options = new OptionsSection(staged);
+            this.optionsGrid = buildOptionsGrid(staged);
             this.preview = new PreviewWidget(staged);
 
             child(fontName);
@@ -622,7 +651,7 @@ public final class NeofontrenderConfigScreen {
             child(fallbacks);
             child(metrics);
             child(oversample);
-            child(options);
+            child(optionsGrid);
             child(preview);
         }
 
@@ -640,14 +669,16 @@ public final class NeofontrenderConfigScreen {
             y += fieldHeight + gap;
             place(fallbacks, 0, y, width, fieldHeight);
             y += fieldHeight + gap;
-            int metricsHeight = width < 360 ? 84 : fieldHeight;
-            place(metrics, 0, y, width, metricsHeight);
-            y += metricsHeight + gap;
-            place(oversample, 0, y, width, 46);
-            y += 46 + gap;
-            int optionsHeight = width < 520 ? 142 : 82;
-            place(options, 0, y, width, optionsHeight);
+            place(metrics, 0, y, width, fieldHeight);
+            y += fieldHeight + gap;
+            int oversampleHeight = oversample.preferredHeight();
+            place(oversample, 0, y, width, oversampleHeight);
+            y += oversampleHeight + gap;
+
+            int optionsHeight = optionsGrid.preferredHeight(width);
+            place(optionsGrid, 0, y, width, optionsHeight);
             y += optionsHeight + gap;
+
             place(preview, 0, y, width, Math.max(0, height - y));
             return true;
         }
@@ -667,8 +698,10 @@ public final class NeofontrenderConfigScreen {
         @Override
         public boolean layoutWidgets() {
             int width = getArea().w();
-            place(label, 0, 0, width, 12);
-            place(field, 0, 16, width, Math.max(18, getArea().h() - 16));
+            Minecraft mc = Minecraft.getMinecraft();
+            int labelHeight = mc.fontRenderer.FONT_HEIGHT + 3;
+            place(label, 0, 0, width, labelHeight);
+            place(field, 0, labelHeight + 4, width, Math.max(18, getArea().h() - labelHeight - 4));
             return true;
         }
     }
@@ -691,12 +724,6 @@ public final class NeofontrenderConfigScreen {
         @Override
         public boolean layoutWidgets() {
             int width = getArea().w();
-            if (width < 360) {
-                int half = Math.max(18, (getArea().h() - 8) / 2);
-                place(size, 0, 0, width, half);
-                place(baseline, 0, half + 8, width, half);
-                return true;
-            }
             int gap = 10;
             int item = Math.max(0, (width - gap) / 2);
             place(size, 0, 0, item, getArea().h());
@@ -712,7 +739,7 @@ public final class NeofontrenderConfigScreen {
         private OversampleSection(Staged staged) {
             this.label = dynamicLabel(() -> tr("neofontrender.gui.label.oversample") + ": " + staged.oversample + "x"
                     + (staged.adaptiveRasterScale ? " (" + tr("neofontrender.gui.option.autoscale") + ")" : " (" + tr("neofontrender.gui.manual") + ")"));
-            this.slider = new SliderWidget()
+            this.slider = new TrackSliderWidget()
                     .value(new DoubleValue(
                             () -> (double) parseFloat(staged.oversample, 8.0F, 1.0F, 16.0F),
                             v -> {
@@ -720,157 +747,132 @@ public final class NeofontrenderConfigScreen {
                                 preview(staged);
                             }))
                     .bounds(1.0D, 16.0D)
-                    .stopper(1.0D, 2.0D, 3.0D, 4.0D, 6.0D, 8.0D, 12.0D, 16.0D);
+                    .stopper(1.0D, 2.0D, 3.0D, 4.0D, 6.0D, 8.0D, 12.0D, 16.0D)
+                    .sliderSize(8, 14)
+                    .stopperSize(2, 6);
             child(label);
             child(slider);
         }
 
-        @Override
-        public boolean layoutWidgets() {
-            place(label, 0, 0, getArea().w(), 12);
-            place(slider, 0, 18, getArea().w(), Math.max(20, getArea().h() - 18));
-            return true;
-        }
-    }
-
-    private static final class OptionsSection extends ParentWidget<OptionsSection> implements ILayoutWidget {
-        private final ButtonWidget<?> enabled;
-        private final ButtonWidget<?> engine;
-        private final ButtonWidget<?> skiaString;
-        private final ButtonWidget<?> autoBase;
-        private final ButtonWidget<?> aa;
-        private final ButtonWidget<?> fractional;
-        private final ButtonWidget<?> style;
-        private final ButtonWidget<?> builtins;
-        private final ButtonWidget<?> autoScale;
-
-        private OptionsSection(Staged staged) {
-            this.enabled = toggleButtonKey("neofontrender.gui.option.enabled", "neofontrender.tooltip.enabled", 80, 20, () -> staged.enabled, v -> staged.enabled = v, () -> preview(staged));
-            this.engine = engineButton(staged, 96, 20);
-            this.skiaString = toggleButtonKey("neofontrender.gui.option.string_mode", "neofontrender.tooltip.string_mode", 80, 20, () -> staged.skiaAdvancedStringMode, v -> staged.skiaAdvancedStringMode = v, () -> preview(staged));
-            this.autoBase = toggleButtonKey("neofontrender.gui.option.autobase", "neofontrender.tooltip.autobase", 80, 20, () -> staged.autoBaseline, v -> staged.autoBaseline = v, () -> preview(staged));
-            this.aa = aaModeButton(staged, 140, 20);
-            this.fractional = toggleButtonKey("neofontrender.gui.option.fractional", "neofontrender.tooltip.fractional", 80, 20, () -> staged.fractionalMetrics, v -> staged.fractionalMetrics = v, () -> preview(staged));
-            this.style = styleButton(staged, 80, 20);
-            this.builtins = toggleButtonKey("neofontrender.gui.option.builtins", "neofontrender.tooltip.builtins", 80, 20, () -> staged.builtinFallbacks, v -> staged.builtinFallbacks = v, () -> preview(staged));
-            this.autoScale = toggleButtonKey("neofontrender.gui.option.autoscale", "neofontrender.tooltip.autoscale", 80, 20, () -> staged.adaptiveRasterScale, v -> staged.adaptiveRasterScale = v, () -> preview(staged));
-            child(enabled);
-            child(engine);
-            child(skiaString);
-            child(autoBase);
-            child(aa);
-            child(fractional);
-            child(style);
-            child(builtins);
-            child(autoScale);
+        private int preferredHeight() {
+            return Minecraft.getMinecraft().fontRenderer.FONT_HEIGHT + 3 + 6 + 20;
         }
 
         @Override
         public boolean layoutWidgets() {
             int width = getArea().w();
-            int gap = 8;
-            if (width < 520) {
-                int buttonHeight = 22;
-                int buttonWidth = Math.max(0, (width - gap) / 2);
-                IWidget[] buttons = {engine, skiaString, enabled, autoBase, aa, fractional, style, builtins, autoScale};
-                for (int i = 0; i < buttons.length; i++) {
-                    int col = i & 1;
-                    int row = i / 2;
-                    int x = col == 0 ? 0 : buttonWidth + gap;
-                    place(buttons[i], x, row * (buttonHeight + gap), col == 0 ? buttonWidth : width - x, buttonHeight);
-                }
-                return true;
-            }
-            int buttonHeight = 22;
-            int third = Math.max(0, (width - gap * 2) / 3);
-            IWidget[] buttons = {engine, skiaString, enabled, autoBase, aa, fractional, style, builtins, autoScale};
-            for (int i = 0; i < buttons.length; i++) {
-                int col = i % 3;
-                int row = i / 3;
-                int x = col * (third + gap);
-                place(buttons[i], x, row * (buttonHeight + gap), col == 2 ? Math.max(0, width - x) : third, buttonHeight);
+            Minecraft mc = Minecraft.getMinecraft();
+            int labelHeight = mc.fontRenderer.FONT_HEIGHT + 3;
+            place(label, 0, 0, width, labelHeight);
+            int sliderTop = labelHeight + 6;
+            place(slider, 0, sliderTop, width, 20);
+            if (getArea().h() <= 0) {
+                getArea().setSize(GuiAxis.Y, preferredHeight());
             }
             return true;
         }
     }
 
-    private static final class AdvancedOptionsSection extends ParentWidget<AdvancedOptionsSection> implements ILayoutWidget {
-        private final ButtonWidget<?> autoScale;
-        private final ButtonWidget<?> interpolation;
-        private final ButtonWidget<?> mipmap;
-        private final ButtonWidget<?> pipeline;
-        private final ButtonWidget<?> shader;
-        private final ButtonWidget<?> edgeBleed;
-        private final ButtonWidget<?> gpuOffscreen;
-        private final ButtonWidget<?> gpuCpuSubmit;
-        private final ButtonWidget<?> integerScale;
-        private final ButtonWidget<?> highMag;
-        private final ButtonWidget<?> anisotropic;
-        private final ButtonWidget<?> debugStats;
+    private static OptionsGrid buildOptionsGrid(Staged staged) {
+        return new OptionsGrid(120, 20, 8)
+                .add(toggleButtonKey("neofontrender.gui.option.enabled", "neofontrender.tooltip.enabled", 120, 20, () -> staged.enabled, v -> staged.enabled = v, () -> preview(staged)))
+                .add(engineButton(staged, 120, 20))
+                .add(toggleButtonKey("neofontrender.gui.option.string_mode", "neofontrender.tooltip.string_mode", 120, 20, () -> staged.skiaAdvancedStringMode, v -> staged.skiaAdvancedStringMode = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.autobase", "neofontrender.tooltip.autobase", 120, 20, () -> staged.autoBaseline, v -> staged.autoBaseline = v, () -> preview(staged)))
+                .add(aaModeButton(staged, 120, 20))
+                .add(toggleButtonKey("neofontrender.gui.option.fractional", "neofontrender.tooltip.fractional", 120, 20, () -> staged.fractionalMetrics, v -> staged.fractionalMetrics = v, () -> preview(staged)))
+                .add(styleButton(staged, 120, 20))
+                .add(toggleButtonKey("neofontrender.gui.option.builtins", "neofontrender.tooltip.builtins", 120, 20, () -> staged.builtinFallbacks, v -> staged.builtinFallbacks = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.autoscale", "neofontrender.tooltip.autoscale", 120, 20, () -> staged.adaptiveRasterScale, v -> staged.adaptiveRasterScale = v, () -> preview(staged)));
+    }
 
-        private AdvancedOptionsSection(Staged staged) {
-            this.autoScale = toggleButtonKey("neofontrender.gui.option.autoscale", "neofontrender.tooltip.autoscale", 80, 20, () -> staged.adaptiveRasterScale, v -> staged.adaptiveRasterScale = v, () -> preview(staged));
-            this.interpolation = toggleButtonKey("neofontrender.gui.option.linear", "neofontrender.tooltip.linear", 80, 20, () -> staged.interpolation, v -> staged.interpolation = v, () -> preview(staged));
-            this.mipmap = toggleButtonKey("neofontrender.gui.option.mipmap", "neofontrender.tooltip.mipmap", 80, 20, () -> staged.mipmap, v -> staged.mipmap = v, () -> preview(staged));
-            this.pipeline = toggleButtonKey("neofontrender.gui.option.pipeline", "neofontrender.tooltip.pipeline", 80, 20, () -> staged.enhancedTextPipeline, v -> staged.enhancedTextPipeline = v, () -> preview(staged));
-            this.shader = toggleButtonKey("neofontrender.gui.option.shader", "neofontrender.tooltip.shader", 80, 20, () -> staged.shaderTextPipeline, v -> staged.shaderTextPipeline = v, () -> preview(staged));
-            this.edgeBleed = toggleButtonKey("neofontrender.gui.option.edge_bleed", "neofontrender.tooltip.edge_bleed", 80, 20, () -> staged.textureEdgeBleed, v -> staged.textureEdgeBleed = v, () -> preview(staged));
-            this.gpuOffscreen = toggleButtonKey("neofontrender.gui.option.gpu_offscreen", "neofontrender.tooltip.gpu_offscreen", 80, 20, () -> staged.skiaGpuOffscreen, v -> {
-                staged.skiaGpuOffscreen = v;
-                if (v) {
-                    staged.skiaGpuSubmitViaCpuTexture = true;
-                }
-            }, () -> preview(staged));
-            this.gpuCpuSubmit = toggleButtonKey("neofontrender.gui.option.gpu_cpu_submit", "neofontrender.tooltip.gpu_cpu_submit", 80, 20, () -> staged.skiaGpuSubmitViaCpuTexture, v -> {
-                staged.skiaGpuSubmitViaCpuTexture = v;
-                if (v) {
-                    staged.skiaGpuOffscreen = true;
-                }
-            }, () -> preview(staged));
-            this.integerScale = toggleButtonKey("neofontrender.gui.option.integer_scale", "neofontrender.tooltip.integer_scale", 80, 20, () -> staged.excludeIntegerScale, v -> staged.excludeIntegerScale = v, () -> preview(staged));
-            this.highMag = toggleButtonKey("neofontrender.gui.option.high_mag", "neofontrender.tooltip.high_mag", 80, 20, () -> staged.excludeHighMagnification, v -> staged.excludeHighMagnification = v, () -> preview(staged));
-            this.anisotropic = toggleButtonKey("neofontrender.gui.option.anisotropic", "neofontrender.tooltip.anisotropic", 80, 20, () -> staged.anisotropicFiltering, v -> staged.anisotropicFiltering = v, () -> preview(staged));
-            this.debugStats = toggleButtonKey("neofontrender.gui.option.debug_stats", "neofontrender.tooltip.debug_stats", 80, 20, () -> staged.debugRenderStats, v -> staged.debugRenderStats = v, () -> preview(staged));
-            child(autoScale);
-            child(interpolation);
-            child(mipmap);
-            child(pipeline);
-            child(shader);
-            child(edgeBleed);
-            child(gpuOffscreen);
-            child(gpuCpuSubmit);
-            child(integerScale);
-            child(highMag);
-            child(anisotropic);
-            child(debugStats);
+    /**
+     * ModularUI 3.1.6's Flow keeps absolute child positions from its preliminary resize pass.
+     * These screens are positioned manually, so those stale positions can put a grid's buttons on
+     * top of adjacent controls. Give the group a deterministic height and position every child
+     * from its final area instead of relying on Flow's cover-children resize pass.
+     */
+    private static final class OptionsGrid extends ParentWidget<OptionsGrid> implements ILayoutWidget {
+        private final int itemWidth;
+        private final int itemHeight;
+        private final int gap;
+        private final boolean expandItems;
+
+        private OptionsGrid(int itemWidth, int itemHeight, int gap) {
+            this(itemWidth, itemHeight, gap, false);
+        }
+
+        private OptionsGrid(int itemWidth, int itemHeight, int gap, boolean expandItems) {
+            this.itemWidth = itemWidth;
+            this.itemHeight = itemHeight;
+            this.gap = gap;
+            this.expandItems = expandItems;
+        }
+
+        private OptionsGrid add(IWidget widget) {
+            child(widget);
+            return this;
+        }
+
+        private int columns(int width) {
+            return Math.max(1, (Math.max(0, width) + gap) / (itemWidth + gap));
+        }
+
+        private int preferredHeight(int width) {
+            int count = getChildren().size();
+            int rows = (count + columns(width) - 1) / columns(width);
+            return rows == 0 ? 0 : rows * itemHeight + (rows - 1) * gap;
         }
 
         @Override
         public boolean layoutWidgets() {
             int width = getArea().w();
-            int gap = 8;
-            int buttonHeight = 22;
-            if (width < 520) {
-                int buttonWidth = Math.max(0, (width - gap) / 2);
-                IWidget[] buttons = {autoScale, interpolation, mipmap, pipeline, shader, edgeBleed, gpuOffscreen, gpuCpuSubmit, integerScale, highMag, anisotropic, debugStats};
-                for (int i = 0; i < buttons.length; i++) {
-                    int col = i & 1;
-                    int row = i / 2;
-                    int x = col == 0 ? 0 : buttonWidth + gap;
-                    place(buttons[i], x, row * (buttonHeight + gap), col == 0 ? buttonWidth : width - x, buttonHeight);
-                }
-                return true;
-            }
-            int third = Math.max(0, (width - gap * 2) / 3);
-            IWidget[] buttons = {autoScale, interpolation, mipmap, pipeline, shader, edgeBleed, gpuOffscreen, gpuCpuSubmit, integerScale, highMag, anisotropic, debugStats};
-            for (int i = 0; i < buttons.length; i++) {
-                int col = i % 3;
-                int row = i / 3;
-                int x = col * (third + gap);
-                place(buttons[i], x, row * (buttonHeight + gap), col == 2 ? Math.max(0, width - x) : third, buttonHeight);
+            int columns = columns(width);
+            int laidOutWidth = expandItems
+                    ? Math.max(0, (width - gap * (columns - 1)) / columns)
+                    : itemWidth;
+            int index = 0;
+            for (IWidget widget : getChildren()) {
+                int column = index % columns;
+                int row = index / columns;
+                int x = column * (laidOutWidth + gap);
+                int childWidth = Math.min(laidOutWidth, Math.max(0, width - x));
+                place(widget, x, row * (itemHeight + gap), childWidth, itemHeight);
+                index++;
             }
             return true;
         }
+    }
+
+    private static OptionsGrid buildAdvancedOptionsGrid(Staged staged) {
+        return new OptionsGrid(112, 20, 8, true)
+                .add(toggleButtonKey("neofontrender.gui.option.autoscale", "neofontrender.tooltip.autoscale", 112, 20, () -> staged.adaptiveRasterScale, v -> staged.adaptiveRasterScale = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.linear", "neofontrender.tooltip.linear", 112, 20, () -> staged.interpolation, v -> staged.interpolation = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.mipmap", "neofontrender.tooltip.mipmap", 112, 20, () -> staged.mipmap, v -> staged.mipmap = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.pipeline", "neofontrender.tooltip.pipeline", 112, 20, () -> staged.enhancedTextPipeline, v -> staged.enhancedTextPipeline = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.shader", "neofontrender.tooltip.shader", 112, 20, () -> staged.shaderTextPipeline, v -> staged.shaderTextPipeline = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.edge_bleed", "neofontrender.tooltip.edge_bleed", 112, 20, () -> staged.textureEdgeBleed, v -> staged.textureEdgeBleed = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.gpu_offscreen", "neofontrender.tooltip.gpu_offscreen", 112, 20, () -> staged.skiaGpuOffscreen, v -> {
+                    staged.skiaGpuOffscreen = v;
+                    if (v) {
+                        staged.skiaGpuSubmitViaCpuTexture = true;
+                    }
+                }, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.gpu_cpu_submit", "neofontrender.tooltip.gpu_cpu_submit", 112, 20, () -> staged.skiaGpuSubmitViaCpuTexture, v -> {
+                    staged.skiaGpuSubmitViaCpuTexture = v;
+                    if (v) {
+                        staged.skiaGpuOffscreen = true;
+                    }
+                }, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.monochrome_text", "neofontrender.tooltip.monochrome_text", 112, 20, () -> staged.skiaMonochromeText, v -> staged.skiaMonochromeText = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.premultiplied_alpha", "neofontrender.tooltip.premultiplied_alpha", 112, 20, () -> staged.premultipliedAlpha, v -> staged.premultipliedAlpha = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.integer_scale", "neofontrender.tooltip.integer_scale", 112, 20, () -> staged.excludeIntegerScale, v -> staged.excludeIntegerScale = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.high_mag", "neofontrender.tooltip.high_mag", 112, 20, () -> staged.excludeHighMagnification, v -> staged.excludeHighMagnification = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.anisotropic", "neofontrender.tooltip.anisotropic", 112, 20, () -> staged.anisotropicFiltering, v -> staged.anisotropicFiltering = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.sign_model_lod", "neofontrender.tooltip.sign_model_lod", 112, 20, () -> staged.signModelLod, v -> staged.signModelLod = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.sign_cross_batch", "neofontrender.tooltip.sign_cross_batch", 112, 20, () -> staged.signCrossTileBatching, v -> staged.signCrossTileBatching = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.sign_occlusion", "neofontrender.tooltip.sign_occlusion", 112, 20, () -> staged.signBlockOcclusionCulling, v -> staged.signBlockOcclusionCulling = v, () -> preview(staged)))
+                .add(toggleButtonKey("neofontrender.gui.option.debug_stats", "neofontrender.tooltip.debug_stats", 112, 20, () -> staged.debugRenderStats, v -> staged.debugRenderStats = v, () -> preview(staged)));
     }
 
     private static final class BrightnessSection extends ParentWidget<BrightnessSection> implements ILayoutWidget {
@@ -879,7 +881,7 @@ public final class NeofontrenderConfigScreen {
 
         private BrightnessSection(Staged staged) {
             this.label = dynamicLabel(() -> tr("neofontrender.gui.label.brightness") + ": " + staged.brightness);
-            this.slider = new SliderWidget()
+            this.slider = new TrackSliderWidget()
                     .value(new DoubleValue(
                             () -> (double) parseFloat(staged.brightness, 3.0F, 0.0F, 12.0F),
                             v -> {
@@ -887,24 +889,63 @@ public final class NeofontrenderConfigScreen {
                                 preview(staged);
                             }))
                     .bounds(0.0D, 12.0D)
-                    .stopper(0.0D, 1.0D, 2.0D, 3.0D, 4.0D, 6.0D, 8.0D, 12.0D);
+                    .stopper(0.0D, 1.0D, 2.0D, 3.0D, 4.0D, 6.0D, 8.0D, 12.0D)
+                    .sliderSize(8, 14)
+                    .stopperSize(2, 6);
             child(label);
             child(slider);
         }
 
+        private int preferredHeight() {
+            return Minecraft.getMinecraft().fontRenderer.FONT_HEIGHT + 3 + 6 + 20;
+        }
+
         @Override
         public boolean layoutWidgets() {
-            place(label, 0, 0, getArea().w(), 12);
-            place(slider, 0, 18, getArea().w(), Math.max(20, getArea().h() - 18));
+            int width = getArea().w();
+            Minecraft mc = Minecraft.getMinecraft();
+            int labelHeight = mc.fontRenderer.FONT_HEIGHT + 3;
+            place(label, 0, 0, width, labelHeight);
+            int sliderTop = labelHeight + 6;
+            place(slider, 0, sliderTop, width, 20);
+            if (getArea().h() <= 0) {
+                getArea().setSize(GuiAxis.Y, preferredHeight());
+            }
             return true;
         }
     }
 
-    private static final class PipelineInfoWidget extends Widget<PipelineInfoWidget> {
+    /** SliderWidget 3.1.6 omits its track; draw it inside the same widget before its stopper marks. */
+    private static final class TrackSliderWidget extends SliderWidget {
+        private final Rectangle track = new Rectangle().color(0xFF475569).cornerRadius(2);
+
+        @Override
+        public void drawBackground(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
+            int width = Math.max(0, getArea().w() - 8);
+            track.draw(context, 4, getArea().h() / 2 - 2, width, 4, widgetTheme.getTheme());
+            super.drawBackground(context, widgetTheme);
+        }
+    }
+
+    private static final class PipelineInfoWidget extends ParentWidget<PipelineInfoWidget> implements ILayoutWidget {
         private final Staged staged;
 
         private PipelineInfoWidget(Staged staged) {
             this.staged = staged;
+        }
+
+        private int preferredHeight() {
+            Minecraft mc = Minecraft.getMinecraft();
+            int line = Math.max(18, mc.fontRenderer.FONT_HEIGHT + 6);
+            return line * 7 + 16;
+        }
+
+        @Override
+        public boolean layoutWidgets() {
+            // AdvancedConfigLayout owns this widget's final bounds. Mutating our own height here
+            // makes ModularUI's later resize pass reapply the default position and shifts this
+            // panel over the option grid.
+            return true;
         }
 
         @Override
@@ -917,9 +958,11 @@ public final class NeofontrenderConfigScreen {
             String filtering = FontRenderTuning.useLinearFiltering(effective)
                     ? tr("neofontrender.gui.filter.linear")
                     : tr("neofontrender.gui.filter.nearest");
-            int x = getArea().x() + 8;
-            int y = getArea().y() + 8;
-            Gui.drawRect(getArea().x() + 4, getArea().y() + 4, getArea().ex() - 4, getArea().ey() - 4, 0x66000000);
+            // ModularUI has already translated the GL viewport to this widget's origin. Adding the
+            // absolute Area position again double-offsets the panel and makes it cover later rows.
+            int x = 8;
+            int y = 8;
+            Gui.drawRect(4, 4, Math.max(4, getArea().w() - 4), Math.max(4, getArea().h() - 4), 0x66000000);
             Minecraft mc = Minecraft.getMinecraft();
             int line = Math.max(18, mc.fontRenderer.FONT_HEIGHT + 6);
             mc.fontRenderer.drawString(tr("neofontrender.gui.option.engine") + ": " + engineName(staged.engine), x, y, 0xFFFFFF);
@@ -969,7 +1012,12 @@ public final class NeofontrenderConfigScreen {
         private final boolean originalShaderTextPipeline = NeofontrenderConfig.shaderTextPipeline();
         private final boolean originalSkiaGpuOffscreen = NeofontrenderConfig.skiaGpuOffscreen();
         private final boolean originalSkiaGpuSubmitViaCpuTexture = NeofontrenderConfig.skiaGpuSubmitViaCpuTexture();
+        private final boolean originalSkiaMonochromeText = NeofontrenderConfig.skiaMonochromeText();
+        private final boolean originalPremultipliedAlpha = NeofontrenderConfig.enablePremultipliedAlpha();
         private final boolean originalDebugRenderStats = NeofontrenderConfig.debugRenderStats();
+        private final boolean originalSignModelLod = NeofontrenderConfig.signModelLod();
+        private final boolean originalSignCrossTileBatching = NeofontrenderConfig.signCrossTileBatching();
+        private final boolean originalSignBlockOcclusionCulling = NeofontrenderConfig.signBlockOcclusionCulling();
         private final String originalBrightness = Float.toString(NeofontrenderConfig.renderingBrightness());
         private final boolean originalTextureEdgeBleed = NeofontrenderConfig.textureEdgeBleed();
 
@@ -986,7 +1034,12 @@ public final class NeofontrenderConfigScreen {
         private boolean shaderTextPipeline = originalShaderTextPipeline;
         private boolean skiaGpuOffscreen = originalSkiaGpuOffscreen;
         private boolean skiaGpuSubmitViaCpuTexture = originalSkiaGpuSubmitViaCpuTexture;
+        private boolean skiaMonochromeText = originalSkiaMonochromeText;
+        private boolean premultipliedAlpha = originalPremultipliedAlpha;
         private boolean debugRenderStats = originalDebugRenderStats;
+        private boolean signModelLod = originalSignModelLod;
+        private boolean signCrossTileBatching = originalSignCrossTileBatching;
+        private boolean signBlockOcclusionCulling = originalSignBlockOcclusionCulling;
         private String brightness = originalBrightness;
         private boolean textureEdgeBleed = originalTextureEdgeBleed;
         private String fontName = originalFontName;
@@ -1035,7 +1088,12 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setShaderTextPipeline(shaderTextPipeline);
             NeofontrenderConfig.setSkiaGpuOffscreen(skiaGpuOffscreen);
             NeofontrenderConfig.setSkiaGpuSubmitViaCpuTexture(skiaGpuSubmitViaCpuTexture);
+            NeofontrenderConfig.setSkiaMonochromeText(skiaMonochromeText);
+            NeofontrenderConfig.setEnablePremultipliedAlpha(premultipliedAlpha);
             NeofontrenderConfig.setDebugRenderStats(debugRenderStats);
+            NeofontrenderConfig.setSignModelLod(signModelLod);
+            NeofontrenderConfig.setSignCrossTileBatching(signCrossTileBatching);
+            NeofontrenderConfig.setSignBlockOcclusionCulling(signBlockOcclusionCulling);
             NeofontrenderConfig.setRenderingBrightness(parseFloat(brightness, 3.0F, 0.0F, 12.0F));
             NeofontrenderConfig.setTextureEdgeBleed(textureEdgeBleed);
                 NeofontrenderConfig.setFontName(selectedFont().isEmpty()
@@ -1070,7 +1128,12 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setShaderTextPipeline(originalShaderTextPipeline);
             NeofontrenderConfig.setSkiaGpuOffscreen(originalSkiaGpuOffscreen);
             NeofontrenderConfig.setSkiaGpuSubmitViaCpuTexture(originalSkiaGpuSubmitViaCpuTexture);
+            NeofontrenderConfig.setSkiaMonochromeText(originalSkiaMonochromeText);
+            NeofontrenderConfig.setEnablePremultipliedAlpha(originalPremultipliedAlpha);
             NeofontrenderConfig.setDebugRenderStats(originalDebugRenderStats);
+            NeofontrenderConfig.setSignModelLod(originalSignModelLod);
+            NeofontrenderConfig.setSignCrossTileBatching(originalSignCrossTileBatching);
+            NeofontrenderConfig.setSignBlockOcclusionCulling(originalSignBlockOcclusionCulling);
             NeofontrenderConfig.setRenderingBrightness(parseFloat(originalBrightness, 3.0F, 0.0F, 12.0F));
             NeofontrenderConfig.setTextureEdgeBleed(originalTextureEdgeBleed);
             NeofontrenderConfig.setFontName(originalFontName);
@@ -1335,9 +1398,11 @@ public final class NeofontrenderConfigScreen {
         @Override
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
             super.draw(context, widgetTheme);
-            int x = getArea().x() + 8;
-            int y = getArea().y() + 8;
-            Gui.drawRect(getArea().x() + 4, getArea().y() + 4, getArea().ex() - 4, getArea().ey() - 4, 0x66000000);
+            // Custom widget drawing uses local coordinates because ModularUI applies the widget
+            // translation before invoking draw(). Absolute Area coordinates would be applied twice.
+            int x = 8;
+            int y = 8;
+            Gui.drawRect(4, 4, Math.max(4, getArea().w() - 4), Math.max(4, getArea().h() - 4), 0x66000000);
             Minecraft mc = Minecraft.getMinecraft();
             mc.fontRenderer.drawString(tr("neofontrender.gui.preview.font", staged.selectedFont()), x, y, 0xFFFFFF);
             mc.fontRenderer.drawString(tr("neofontrender.gui.preview.sample"), x, y + 14, 0xD8D8D8);

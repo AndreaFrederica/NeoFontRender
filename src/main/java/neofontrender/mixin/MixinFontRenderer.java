@@ -55,7 +55,7 @@ public class MixinFontRenderer {
     private void sfr$onDrawString(String text, float x, float y, int color, boolean dropShadow,
                                   CallbackInfoReturnable<Integer> cir) {
         FontRenderTuning.updateFromCurrentGlState(dropShadow);
-        if (!sfr$shouldHook() || text == null || !FontManager.INSTANCE.isSkiaActive()
+        if (!sfr$shouldHook() || text == null || !FontManager.INSTANCE.isTextBackendActive()
                 || !NeofontrenderConfig.skiaAdvancedStringMode()) {
             return;
         }
@@ -82,7 +82,7 @@ public class MixinFontRenderer {
         if (!sfr$shouldHook() || text == null) {
             return;
         }
-        if (FontManager.INSTANCE.isSkiaActive()) {
+        if (FontManager.INSTANCE.isTextBackendActive()) {
             sfr$renderSkiaFormatted(text, shadow);
             ci.cancel();
             return;
@@ -166,7 +166,7 @@ public class MixinFontRenderer {
         if (!sfr$shouldHook()) {
             return;
         }
-        if (FontManager.INSTANCE.isSkiaActive()) {
+        if (FontManager.INSTANCE.isTextBackendActive()) {
             TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
             if (backend == null) {
                 return;
@@ -424,7 +424,7 @@ public class MixinFontRenderer {
             return;
         }
 
-        if (FontManager.INSTANCE.isSkiaActive()) {
+        if (FontManager.INSTANCE.isTextBackendActive()) {
             cir.setReturnValue((int) Math.ceil(sfr$getCharWidthFloat(character == 160 ? ' ' : character, this.boldStyle)));
             return;
         }
@@ -577,7 +577,7 @@ public class MixinFontRenderer {
     }
 
     private float sfr$getFormattedStringWidthFloat(String text) {
-        if (FontManager.INSTANCE.isSkiaActive() && NeofontrenderConfig.skiaAdvancedStringMode()) {
+        if (FontManager.INSTANCE.isTextBackendActive() && NeofontrenderConfig.skiaAdvancedStringMode()) {
             TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
             return backend == null ? 0.0F : backend.measureFormatted(text, 0xFFFFFFFF, false);
         }
@@ -610,7 +610,7 @@ public class MixinFontRenderer {
         if (run.isEmpty()) {
             return 0.0F;
         }
-        if (FontManager.INSTANCE.isSkiaActive()) {
+        if (FontManager.INSTANCE.isTextBackendActive()) {
             TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
             if (backend == null) {
                 return 0.0F;
@@ -639,7 +639,7 @@ public class MixinFontRenderer {
         if (Character.isHighSurrogate((char) codePoint) || Character.isLowSurrogate((char) codePoint)) {
             return 0.0F;
         }
-        if (FontManager.INSTANCE.isSkiaActive()) {
+        if (FontManager.INSTANCE.isTextBackendActive()) {
             TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
             return backend == null ? 0.0F
                     : backend.measure(new String(Character.toChars(codePoint == 160 ? ' ' : codePoint)), bold, false);
@@ -649,7 +649,7 @@ public class MixinFontRenderer {
     }
 
     private boolean sfr$isAnyActive() {
-        return sfr$shouldHook() && (FontManager.INSTANCE.isSfrActive() || FontManager.INSTANCE.isSkiaActive());
+        return sfr$shouldHook() && (FontManager.INSTANCE.isSfrActive() || FontManager.INSTANCE.isTextBackendActive());
     }
 
     private boolean sfr$shouldHook() {

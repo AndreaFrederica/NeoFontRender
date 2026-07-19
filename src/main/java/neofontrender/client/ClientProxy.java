@@ -34,6 +34,7 @@ public class ClientProxy extends CommonProxy {
 
         NeofontrenderKeyHandler.init();
         MinecraftForge.EVENT_BUS.register(new NeofontrenderMainMenuBranding());
+        MinecraftForge.EVENT_BUS.register(new NeofontrenderOptionsButtonHandler());
         ClientCommandHandler.instance.registerCommand(new NeofontrenderCommand());
     }
 

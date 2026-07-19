@@ -21,6 +21,7 @@ import io.github.humbleui.skija.paragraph.FontCollection;
 import io.github.humbleui.skija.paragraph.Paragraph;
 import io.github.humbleui.skija.paragraph.ParagraphBuilder;
 import io.github.humbleui.skija.paragraph.ParagraphStyle;
+import io.github.humbleui.skija.paragraph.Alignment;
 import io.github.humbleui.skija.paragraph.DecorationLineStyle;
 import io.github.humbleui.skija.paragraph.DecorationStyle;
 import io.github.humbleui.skija.paragraph.TextStyle;
@@ -131,6 +132,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     private int nextTextureId = 0;
     private float autoRefBaseline = Float.NaN;
     private IsolatedGpuContext isolatedGpuContext;
+    private ColorGlyphDetector colorGlyphDetector;
     private boolean gpuUnavailable;
     private boolean gpuFallbackLogged;
     private boolean gpuSkipLogged;
@@ -166,6 +168,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 .setAssetFontManager(fontProvider)
                 .setDefaultFontManager(FontMgr.getDefault())
                 .setEnableFallback(true);
+        this.colorGlyphDetector = ColorGlyphDetector.create(PLATFORM_EMOJI_FONTS);
     }
 
     public boolean isReady() {
@@ -216,7 +219,8 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return segmented;
         }
         float scale = currentRasterScale();
-        MeasureKey key = MeasureKey.formatted(text, shadow, scale);
+        MeasureKey key = MeasureKey.formatted(text, shadow, scale,
+                FontRenderTuning.currentDrawContext().perspective());
         Float cached = measureCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -238,12 +242,13 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         return measured;
     }
 
-    public RenderedText render(String text, int argb, boolean bold, boolean italic) {
+    public TextRenderResult render(String text, int argb, boolean bold, boolean italic) {
         if (text == null || text.isEmpty()) {
             return RenderedText.EMPTY;
         }
         float scale = currentRasterScale();
-        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale);
+        boolean monochrome = useMonochromeText(text);
+        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale, texturePathCacheBucket(), !monochrome);
         RenderedText cached = renderCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -251,16 +256,17 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 renderCacheHits++;
             }
             cached.touch();
-            return cached;
+            return monochrome ? new TintedRenderedText(cached, argb) : cached;
         }
         if (stats) {
             renderCacheMisses++;
         }
         try {
-            RenderedText rendered = rasterize(text, argb, bold, italic, scale, key.hashCode());
+            int rasterArgb = monochrome ? 0xFFFFFFFF : argb;
+            RenderedText rendered = rasterize(text, rasterArgb, bold, italic, scale, key.hashCode());
             renderCache.put(key, rendered);
             trimRenderCache();
-            return rendered;
+            return monochrome ? new TintedRenderedText(rendered, argb) : rendered;
         } catch (Throwable t) {
             NeoFontRender.LOGGER.error("Failed to render Skija text run '{}'", text, t);
             return RenderedText.EMPTY;
@@ -268,12 +274,13 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     }
 
     @Override
-    public RenderedText renderSegment(String text, int argb, boolean bold, boolean italic) {
+    public TextRenderResult renderSegment(String text, int argb, boolean bold, boolean italic) {
         if (text == null || text.isEmpty()) {
             return RenderedText.EMPTY;
         }
         float scale = currentRasterScale();
-        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale);
+        boolean monochrome = useMonochromeText(text);
+        RenderKey key = RenderKey.plain(text, argb, bold, italic, scale, texturePathCacheBucket(), !monochrome);
         RenderedText cached = segmentCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -281,16 +288,17 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 segmentCacheHits++;
             }
             cached.touch();
-            return cached;
+            return monochrome ? new TintedRenderedText(cached, argb) : cached;
         }
         if (stats) {
             segmentCacheMisses++;
         }
         try {
-            RenderedText rendered = rasterize(text, argb, bold, italic, scale, key.hashCode());
+            int rasterArgb = monochrome ? 0xFFFFFFFF : argb;
+            RenderedText rendered = rasterize(text, rasterArgb, bold, italic, scale, key.hashCode());
             segmentCache.put(key, rendered);
             trimSegmentCache();
-            return rendered;
+            return monochrome ? new TintedRenderedText(rendered, argb) : rendered;
         } catch (Throwable t) {
             NeoFontRender.LOGGER.error("Failed to render Skija segment '{}'", text, t);
             return RenderedText.EMPTY;
@@ -307,7 +315,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
         int normalizedArgb = normalizeBaseArgb(baseArgb);
         float scale = currentRasterScale();
-        RenderKey key = RenderKey.formatted(text, normalizedArgb, shadow, scale);
+        RenderKey key = RenderKey.formatted(text, normalizedArgb, shadow, scale, texturePathCacheBucket(), true);
         RenderedText cached = renderCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -331,6 +339,69 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
     }
 
+    /**
+     * Render all four vanilla sign lines into one centered paragraph texture. SignRenderer keeps
+     * one stable model/view transform while drawing its lines, so this removes three immediate GL
+     * submissions without changing the surrounding world transform.
+     */
+    public TextRenderResult renderSign(String[] lines) {
+        if (lines == null || lines.length == 0) {
+            return RenderedText.EMPTY;
+        }
+        StringBuilder joined = new StringBuilder();
+        for (int i = 0; i < 4; i++) {
+            if (i > 0) {
+                joined.append('\n');
+            }
+            if (i < lines.length && lines[i] != null) {
+                joined.append(lines[i]);
+            }
+        }
+        String text = joined.toString();
+        float scale = currentRasterScale();
+        float projectedScale = FontRenderTuning.currentDrawContext().pixelScale();
+        if (projectedScale >= NeofontrenderConfig.signTextNearThreshold()) {
+            // Only close signs receive the expensive high-resolution bucket. Applying this to all
+            // signs would multiply the cache/VRAM cost of the large sign walls this path targets.
+            float requested = projectedScale * NeofontrenderConfig.signTextNearSupersample();
+            float nearScale = Math.min(NeofontrenderConfig.signTextNearMaxRasterScale(), requested);
+            scale = Math.max(scale, Math.round(nearScale * 2.0F) * 0.5F);
+        }
+        RenderKey key = RenderKey.formatted("\u0001sign\n" + text, 0, false, scale,
+                texturePathCacheBucket(), true);
+        RenderedText cached = renderCache.get(key);
+        if (cached != null) {
+            if (debugRenderStats()) {
+                renderCacheHits++;
+            }
+            cached.touch();
+            return cached;
+        }
+        if (debugRenderStats()) {
+            renderCacheMisses++;
+        }
+        try (Paragraph paragraph = buildFormattedParagraph(text, 0, false, scale, Alignment.CENTER)) {
+            float measuredWidth = 90.0F;
+            int border = computeBorder(scale);
+            int width = Math.max(1, (int) Math.ceil((measuredWidth + border * 2.0F) * scale));
+            // Paragraph alignment must use only the 90px content area. The surface is wider to
+            // carry transparent glyph padding, and paintX already moves the paragraph past that
+            // padding. Including the border in layout width applied it twice and made centered
+            // sign text drift right whenever adaptive raster LOD changed the border size.
+            paragraph.layout(measuredWidth * scale);
+            RenderedText rendered = rasterizeParagraph(paragraph, key.hashCode(), measuredWidth, width, scale, border)
+                    // Keep the world-space quad width independent of raster-scale rounding. Without
+                    // this, adaptive LOD buckets change ceil(width * scale) and shift the sign text.
+                    .withFixedDrawWidth(measuredWidth + border * 2.0F);
+            renderCache.put(key, rendered);
+            trimRenderCache();
+            return rendered;
+        } catch (Throwable t) {
+            NeoFontRender.LOGGER.error("Failed to render batched sign text", t);
+            return RenderedText.EMPTY;
+        }
+    }
+
     public void prewarmBasicLatin() {
         prewarming = true;
         try {
@@ -340,7 +411,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 String text = new String(Character.toChars(cp));
                 measure(text, false, false);
                 if (cp != ' ') {
-                    RenderedText rt = render(text, 0xFFFFFFFF, false, false);
+                    TextRenderResult result = render(text, 0xFFFFFFFF, false, false);
+                    RenderedText rt = result instanceof TintedRenderedText
+                            ? ((TintedRenderedText) result).rendered
+                            : (RenderedText) result;
                     if (rt != null && rt.getCpuTexture() != null && (cp == '1' || cp == '/' || cp == 'I')) {
                         int[] pixels = rt.getCpuTexture().getTextureData();
                         FontBrightnessEstimator.feedSample(pixels, rt.width, rt.height, fontRes);
@@ -366,20 +440,28 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     }
 
     private RenderedText rasterize(String text, int argb, boolean bold, boolean italic, float oversample, int cacheHash) throws IOException {
-        float measuredWidth = Math.max(1.0F, measure(text, bold, italic));
-        int border = computeBorder(oversample);
-        int width = Math.max(1, (int) Math.ceil((measuredWidth + border * 2.0F) * oversample));
+        // Measure and rasterize with the same Paragraph. Calling measure() here used to build
+        // and shape a temporary Paragraph, then this method built a second one for painting.
         try (Paragraph paragraph = buildParagraph(text, argb, bold, italic, oversample)) {
+            paragraph.layout(100000.0F * oversample);
+            float measuredWidth = Math.max(1.0F,
+                    Math.max(paragraph.getMaxIntrinsicWidth(), paragraph.getLongestLine()) / oversample);
+            int border = computeBorder(oversample);
+            int width = Math.max(1, (int) Math.ceil((measuredWidth + border * 2.0F) * oversample));
             paragraph.layout(width);
             return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width, oversample, border);
         }
     }
 
     private RenderedText rasterizeFormatted(String text, int argb, boolean shadow, float oversample, int cacheHash) throws IOException {
-        float measuredWidth = Math.max(1.0F, measureFormatted(text, argb, shadow));
-        int border = computeBorder(oversample);
-        int width = Math.max(1, (int) Math.ceil((measuredWidth + border * 2.0F) * oversample));
+        // Formatted spans pay the same shaping cost, so keep their measurement and paint pass on
+        // one Paragraph as well. This removes duplicate fallback/style processing on cache misses.
         try (Paragraph paragraph = buildFormattedParagraph(text, argb, shadow, oversample)) {
+            paragraph.layout(100000.0F * oversample);
+            float measuredWidth = Math.max(1.0F,
+                    Math.max(paragraph.getMaxIntrinsicWidth(), paragraph.getLongestLine()) / oversample);
+            int border = computeBorder(oversample);
+            int width = Math.max(1, (int) Math.ceil((measuredWidth + border * 2.0F) * oversample));
             paragraph.layout(width);
             return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width, oversample, border);
         }
@@ -511,7 +593,9 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         int uploadHeight = height * scale;
         float actualRasterScale = oversample * scale;
 
-        if (NeofontrenderConfig.skiaGpuSubmitViaCpuTexture()) {
+        boolean perspective = FontRenderTuning.currentDrawContext().perspective();
+        boolean submitViaCpuTexture = NeofontrenderConfig.skiaGpuSubmitViaCpuTexture();
+        if (submitViaCpuTexture) {
             lastRasterPath = "gpu-isolated-cpu-submit";
             boolean statsEnabled = debugRenderStats();
             GpuReadback readback = getOrCreateIsolatedGpuContext()
@@ -549,8 +633,14 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
 
         boolean statsEnabled = debugRenderStats();
+        // Minecraft uses a nearest-sampled font atlas for both GUI and world text. Mip/linear
+        // sampling of Skia coverage masks creates a soft dark base around sign glyphs just as it
+        // creates a gray halo around GUI glyphs and shadows, so shared textures stay at level 0.
+        boolean generateMipmaps = false;
+        boolean crispSampling = true;
         GpuTextTexture texture = getOrCreateIsolatedGpuContext()
-                .render(paragraph, uploadWidth, uploadHeight, scale, paintX, paintY, statsEnabled);
+                .render(paragraph, uploadWidth, uploadHeight, scale, paintX, paintY,
+                        statsEnabled, generateMipmaps, crispSampling);
         if (statsEnabled) {
             String stats = "gpu " + texture.debugStats();
             if (gpuCompareSamples < 8) {
@@ -564,11 +654,50 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         ResourceLocation location = new ResourceLocation("neofontrender",
                 "skia_gpu_iso/" + Integer.toHexString(cacheHash) + "_" + nextTextureId++);
         textureManager.loadTexture(location, texture);
-        FontRenderTuning.applyFontTextureFilter(texture, actualRasterScale, texture.hasMipmaps());
+        if (crispSampling) {
+            // TextureManager registration may apply the global interpolation setting. Shared GUI
+            // text must retain vanilla-style nearest sampling; linear filtering merges the 1px MC
+            // shadow with the antialiased foreground into a blurred outline.
+            texture.setBlurMipmap(false, false);
+        } else {
+            FontRenderTuning.applyFontTextureFilter(texture, actualRasterScale, texture.hasMipmaps());
+        }
         return new RenderedText(location, texture, measuredWidth,
                 uploadWidth, uploadHeight,
                 uploadWidth / actualRasterScale, uploadHeight / actualRasterScale,
                 actualRasterScale, horizontalOffset, verticalOffset, true);
+    }
+
+    private int texturePathCacheBucket() {
+        if (!NeofontrenderConfig.skiaGpuOffscreen()
+                || NeofontrenderConfig.skiaGpuSubmitViaCpuTexture()
+                || !NeofontrenderConfig.enablePremultipliedAlpha()
+                || gpuUnavailable
+                || prewarming) {
+            return 0;
+        }
+        // GUI and perspective shared textures use different mip/filter policies and must never
+        // alias in the cache even when their text and raster scale happen to be identical.
+        return FontRenderTuning.currentDrawContext().perspective() ? 2 : 1;
+    }
+
+    /**
+     * Whether a plain (single-color) text run may use the monochrome fast path:
+     * a white glyph texture reused across all colors and tinted at draw time.
+     * Requires the config flag, premultiplied alpha (the tint math is only
+     * correct under premultiplied blending), and a run with no color glyphs.
+     */
+    private boolean useMonochromeText(String text) {
+        if (!NeofontrenderConfig.skiaMonochromeText()) {
+            return false;
+        }
+        if (!NeofontrenderConfig.enablePremultipliedAlpha()) {
+            return false;
+        }
+        if (colorGlyphDetector == null) {
+            return true;
+        }
+        return !colorGlyphDetector.isColorRun(text);
     }
 
     private boolean shouldUseGpuOffscreen() {
@@ -757,7 +886,16 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     }
 
     private Paragraph buildFormattedParagraph(String text, int baseArgb, boolean shadow, float scale) {
-        ParagraphBuilder builder = new ParagraphBuilder(new ParagraphStyle(), fontCollection);
+        return buildFormattedParagraph(text, baseArgb, shadow, scale, null);
+    }
+
+    private Paragraph buildFormattedParagraph(String text, int baseArgb, boolean shadow, float scale,
+                                               Alignment alignment) {
+        ParagraphStyle paragraphStyle = new ParagraphStyle();
+        if (alignment != null) {
+            paragraphStyle.setAlignment(alignment);
+        }
+        ParagraphBuilder builder = new ParagraphBuilder(paragraphStyle, fontCollection);
         for (FormattedRun run : splitFormattedRuns(text, baseArgb, shadow)) {
             appendStyledText(builder, run.text, run.argb, run.bold, run.italic, run.underline, run.strikethrough, scale);
         }
@@ -773,7 +911,8 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     }
 
     private Float tryMeasureFormattedSegments(String text, int baseArgb, boolean shadow) {
-        if (!NeofontrenderConfig.skiaSegmentCache()) {
+        if (!NeofontrenderConfig.skiaSegmentCache()
+                || FontRenderTuning.currentDrawContext().perspective()) {
             return null;
         }
         List<FormattedRun> runs = splitFormattedRuns(text, baseArgb, shadow);
@@ -797,7 +936,8 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     }
 
     private TextRenderResult tryRenderFormattedSegments(String text, int baseArgb, boolean shadow) {
-        if (!NeofontrenderConfig.skiaSegmentCache()) {
+        if (!NeofontrenderConfig.skiaSegmentCache()
+                || FontRenderTuning.currentDrawContext().perspective()) {
             return null;
         }
         List<FormattedRun> runs = splitFormattedRuns(text, baseArgb, shadow);
@@ -840,7 +980,8 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return RenderedText.EMPTY;
         }
         float scale = currentRasterScale();
-        RenderKey key = RenderKey.decoratedSegment(text, argb, bold, italic, underline, strikethrough, scale);
+        RenderKey key = RenderKey.decoratedSegment(text, argb, bold, italic, underline, strikethrough, scale,
+                texturePathCacheBucket(), true);
         RenderedText cached = segmentCache.get(key);
         boolean stats = debugRenderStats();
         if (cached != null) {
@@ -1226,6 +1367,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             isolatedGpuContext.close();
             isolatedGpuContext = null;
         }
+        if (colorGlyphDetector != null) {
+            colorGlyphDetector.close();
+            colorGlyphDetector = null;
+        }
         fontCollection.close();
         fontProvider.close();
     }
@@ -1288,7 +1433,8 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
 
         private GpuTextTexture render(Paragraph paragraph, int width, int height, int textureScale,
-                                      float paintX, float paintY, boolean collectStats) throws IOException {
+                                      float paintX, float paintY, boolean collectStats,
+                                      boolean generateMipmaps, boolean crispSampling) throws IOException {
             if (width <= 0 || height <= 0) {
                 throw new IOException("Invalid isolated GPU text texture size " + width + "x" + height);
             }
@@ -1367,7 +1513,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 }
 
                 boolean mipmapsGenerated = false;
-                if (NeofontrenderConfig.renderingMipmap()) {
+                if (generateMipmaps) {
                     GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
                     int maxLevel = Math.max(0, (int) Math.floor(Math.log(Math.max(width, height)) / Math.log(2.0D)));
                     GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
@@ -1378,7 +1524,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 }
 
                 keepTexture = true;
-                return new GpuTextTexture(textureId, mipmapsGenerated, stats);
+                return new GpuTextTexture(textureId, mipmapsGenerated, crispSampling, stats);
             } finally {
                 try {
                     GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
@@ -1581,11 +1727,14 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     private static final class GpuTextTexture extends AbstractTexture {
         private final int textureId;
         private final boolean mipmapsGenerated;
+        private final boolean crispSampling;
         private final RasterStats debugStats;
 
-        private GpuTextTexture(int textureId, boolean mipmapsGenerated, RasterStats debugStats) {
+        private GpuTextTexture(int textureId, boolean mipmapsGenerated, boolean crispSampling,
+                               RasterStats debugStats) {
             this.textureId = textureId;
             this.mipmapsGenerated = mipmapsGenerated;
+            this.crispSampling = crispSampling;
             this.debugStats = debugStats;
         }
 
@@ -1610,6 +1759,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
 
         private boolean hasMipmaps() {
             return mipmapsGenerated;
+        }
+
+        private boolean usesCrispSampling() {
+            return crispSampling;
         }
 
         private RasterStats debugStats() {
@@ -1943,6 +2096,11 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             this.lastAccessMillis = System.currentTimeMillis();
         }
 
+        private RenderedText withFixedDrawWidth(float fixedWidth) {
+            return new RenderedText(location, texture, advance, width, height, fixedWidth, drawHeight,
+                    rasterScale, horizontalOffset, verticalOffset, flipY);
+        }
+
         DynamicTexture getCpuTexture() {
             return texture instanceof DynamicTexture ? (DynamicTexture) texture : null;
         }
@@ -1952,6 +2110,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
 
         public void draw(float x, float y, float alpha) {
+            drawTinted(x, y, alpha, 0xFFFFFFFF);
+        }
+
+        private void drawTinted(float x, float y, float alpha, int tintArgb) {
             if (location == null || texture == null || width <= 0 || height <= 0) {
                 return;
             }
@@ -1959,16 +2121,41 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             net.minecraft.client.Minecraft.getMinecraft().getTextureManager().bindTexture(location);
             GlStateManager.enableTexture2D();
             GlStateManager.enableAlpha();
-            GlStateManager.color(1.0F, 1.0F, 1.0F, alpha);
+            float tintR = ((tintArgb >>> 16) & 0xFF) / 255.0F;
+            float tintG = ((tintArgb >>> 8) & 0xFF) / 255.0F;
+            float tintB = (tintArgb & 0xFF) / 255.0F;
+            GlStateManager.color(tintR, tintG, tintB, alpha);
 
             Float lastScale = LAST_FILTER_SCALE.get(location);
             if (lastScale == null || Math.abs(lastScale - rasterScale) > 0.01f) {
-                FontRenderTuning.applyBoundTextureFilter(rasterScale, !(texture instanceof GpuTextTexture)
-                        || ((GpuTextTexture) texture).hasMipmaps());
+                if (texture instanceof GpuTextTexture
+                        && ((GpuTextTexture) texture).usesCrispSampling()) {
+                    // Other renderers can mutate parameters on the currently bound texture. Reassert
+                    // the shared texture's level-0 nearest filter on first use in each scale bucket.
+                    GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+                    GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+                } else {
+                    FontRenderTuning.applyBoundTextureFilter(rasterScale, !(texture instanceof GpuTextTexture)
+                            || ((GpuTextTexture) texture).hasMipmaps());
+                }
                 LAST_FILTER_SCALE.put(location, rasterScale);
             }
             float left = FontRenderTuning.alignToPixel(x + horizontalOffset);
             float top = FontRenderTuning.alignToPixel(y + verticalOffset);
+
+            boolean premultiplied = flipY;
+            boolean wasBlend = GL11.glIsEnabled(GL11.GL_BLEND);
+            int origSrcRgb = 0, origDstRgb = 0, origSrcAlpha = 0, origDstAlpha = 0;
+            if (premultiplied) {
+                origSrcRgb = getInteger(GL14.GL_BLEND_SRC_RGB, GL11.GL_SRC_ALPHA);
+                origDstRgb = getInteger(GL14.GL_BLEND_DST_RGB, GL11.GL_ONE_MINUS_SRC_ALPHA);
+                origSrcAlpha = getInteger(GL14.GL_BLEND_SRC_ALPHA, GL11.GL_ONE);
+                origDstAlpha = getInteger(GL14.GL_BLEND_DST_ALPHA, GL11.GL_ZERO);
+                GlStateManager.enableBlend();
+                GlStateManager.tryBlendFuncSeparate(
+                        GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA,
+                        GL11.GL_ONE, GL11.GL_ZERO);
+            }
 
             try (FontRenderPipeline.State ignored = FontRenderPipeline.begin(rasterScale)) {
                 lastDrawState = drawState(texture);
@@ -1977,11 +2164,21 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 double topV = flipY ? 1.0D : 0.0D;
                 double bottomV = flipY ? 0.0D : 1.0D;
                 buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
-                buffer.pos(left, top, 0.0D).tex(0.0D, topV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-                buffer.pos(left, top + drawHeight, 0.0D).tex(0.0D, bottomV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-                buffer.pos(left + drawWidth, top + drawHeight, 0.0D).tex(1.0D, bottomV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
-                buffer.pos(left + drawWidth, top, 0.0D).tex(1.0D, topV).color(1.0F, 1.0F, 1.0F, alpha).endVertex();
+                buffer.pos(left, top, 0.0D).tex(0.0D, topV).color(tintR, tintG, tintB, alpha).endVertex();
+                buffer.pos(left, top + drawHeight, 0.0D).tex(0.0D, bottomV).color(tintR, tintG, tintB, alpha).endVertex();
+                buffer.pos(left + drawWidth, top + drawHeight, 0.0D).tex(1.0D, bottomV).color(tintR, tintG, tintB, alpha).endVertex();
+                buffer.pos(left + drawWidth, top, 0.0D).tex(1.0D, topV).color(tintR, tintG, tintB, alpha).endVertex();
                 tessellator.draw();
+            }
+
+            if (premultiplied) {
+                // Do not restore with raw GL14.glBlendFuncSeparate. Minecraft 1.12 caches these
+                // values in GlStateManager; bypassing it leaves the cache and driver out of sync,
+                // so later premultiplied glyphs are accidentally drawn with SRC_ALPHA twice.
+                GlStateManager.tryBlendFuncSeparate(origSrcRgb, origDstRgb, origSrcAlpha, origDstAlpha);
+                if (!wasBlend) {
+                    GlStateManager.disableBlend();
+                }
             }
         }
 
@@ -2028,6 +2225,33 @@ public final class SkijaTextRenderer implements TextRenderBackend {
 
         private boolean isExpired(long nowMillis, long ttlMillis) {
             return nowMillis - lastAccessMillis >= ttlMillis;
+        }
+    }
+
+    /**
+     * Per-draw color for a cached white glyph texture.
+     *
+     * <p>The monochrome cache key intentionally omits ARGB. Keeping tint on the cached
+     * {@link RenderedText} itself makes shadow/foreground passes and repeated formatted
+     * segments overwrite each other's color before a composite is drawn.</p>
+     */
+    private static final class TintedRenderedText implements TextRenderResult {
+        private final RenderedText rendered;
+        private final int argb;
+
+        private TintedRenderedText(RenderedText rendered, int argb) {
+            this.rendered = rendered;
+            this.argb = argb;
+        }
+
+        @Override
+        public float advance() {
+            return rendered.advance();
+        }
+
+        @Override
+        public void draw(float x, float y, float alpha) {
+            rendered.drawTinted(x, y, alpha, argb);
         }
     }
 
@@ -2088,26 +2312,37 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         private final boolean formatted;
         private final int styleFlags;
         private final int scaleBucket;
+        private final int texturePathBucket;
+        private final boolean colorBaked;
 
-        private RenderKey(String text, int argb, boolean formatted, int styleFlags, float scale) {
+        private RenderKey(String text, int argb, boolean formatted, int styleFlags, float scale,
+                          int texturePathBucket, boolean colorBaked) {
             this.text = text;
             this.argb = argb;
             this.formatted = formatted;
             this.styleFlags = styleFlags;
             this.scaleBucket = scaleBucket(scale);
+            this.texturePathBucket = texturePathBucket;
+            this.colorBaked = colorBaked;
         }
 
-        private static RenderKey plain(String text, int argb, boolean bold, boolean italic, float scale) {
-            return new RenderKey(text, argb, false, styleFlags(bold, italic, false, false, false), scale);
+        private static RenderKey plain(String text, int argb, boolean bold, boolean italic, float scale,
+                                       int texturePathBucket, boolean colorBaked) {
+            return new RenderKey(text, argb, false, styleFlags(bold, italic, false, false, false), scale,
+                    texturePathBucket, colorBaked);
         }
 
-        private static RenderKey formatted(String text, int argb, boolean shadow, float scale) {
-            return new RenderKey(text, argb, true, styleFlags(false, false, false, false, shadow), scale);
+        private static RenderKey formatted(String text, int argb, boolean shadow, float scale,
+                                           int texturePathBucket, boolean colorBaked) {
+            return new RenderKey(text, argb, true, styleFlags(false, false, false, false, shadow), scale,
+                    texturePathBucket, colorBaked);
         }
 
         private static RenderKey decoratedSegment(String text, int argb, boolean bold, boolean italic,
-                                                  boolean underline, boolean strikethrough, float scale) {
-            return new RenderKey(text, argb, true, styleFlags(bold, italic, underline, strikethrough, false), scale);
+                                                  boolean underline, boolean strikethrough, float scale,
+                                                  int texturePathBucket, boolean colorBaked) {
+            return new RenderKey(text, argb, true, styleFlags(bold, italic, underline, strikethrough, false), scale,
+                    texturePathBucket, colorBaked);
         }
 
         @Override
@@ -2119,20 +2354,26 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                 return false;
             }
             RenderKey other = (RenderKey) obj;
-            return argb == other.argb
-                    && formatted == other.formatted
+            return formatted == other.formatted
                     && styleFlags == other.styleFlags
                     && scaleBucket == other.scaleBucket
+                    && texturePathBucket == other.texturePathBucket
+                    && colorBaked == other.colorBaked
+                    && (!colorBaked || argb == other.argb)
                     && text.equals(other.text);
         }
 
         @Override
         public int hashCode() {
             int result = text.hashCode();
-            result = 31 * result + argb;
             result = 31 * result + (formatted ? 1 : 0);
             result = 31 * result + styleFlags;
             result = 31 * result + scaleBucket;
+            result = 31 * result + texturePathBucket;
+            result = 31 * result + (colorBaked ? 1 : 0);
+            if (colorBaked) {
+                result = 31 * result + argb;
+            }
             return result;
         }
 
@@ -2177,8 +2418,10 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return new MeasureKey(text, false, bold, italic, scale);
         }
 
-        private static MeasureKey formatted(String text, boolean shadow, float scale) {
-            return new MeasureKey(text, true, shadow, false, scale);
+        private static MeasureKey formatted(String text, boolean shadow, float scale, boolean perspective) {
+            // Perspective text is measured as one shaped run, while GUI text may be the sum of
+            // reusable segments. Keep both results separate because kerning can change the width.
+            return new MeasureKey(text, true, shadow, perspective, scale);
         }
 
         @Override

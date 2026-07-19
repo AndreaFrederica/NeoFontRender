@@ -3,10 +3,13 @@ package neofontrender.mixin;
 import net.minecraft.client.gui.GuiOverlayDebug;
 import net.minecraft.client.gui.ScaledResolution;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.client.render.sign.SignBatchRenderer;
+import neofontrender.client.render.sign.SignOcclusionCuller;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.skia.SkiaTextSegmenter;
 import neofontrender.core.font.skia.SkijaTextRenderer;
+import neofontrender.core.font.cosmic.CosmicTextRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -44,6 +47,8 @@ public class MixinGuiOverlayDebug {
     private static String[] sfr$buildSnapshot() {
         String activeEngine = FontManager.INSTANCE.isSkiaActive()
                 ? "skia"
+                : FontManager.INSTANCE.isCosmicActive()
+                ? "cosmic"
                 : FontManager.INSTANCE.isSfrActive() ? "sfr" : "vanilla";
         String base = "NFR: " + activeEngine
                 + " cfg=" + NeofontrenderConfig.renderingEngine()
@@ -65,6 +70,21 @@ public class MixinGuiOverlayDebug {
                     + "/" + state.layoutCacheMisses()
                     + "/" + state.layoutCacheEvictions();
             return new String[] {base, glyph, layout};
+        }
+
+        if (FontManager.INSTANCE.isCosmicActive()) {
+            CosmicTextRenderer renderer = FontManager.INSTANCE.getCosmicTextRenderer();
+            if (renderer == null) {
+                return new String[] {base, "NFR Cosmic: renderer unavailable"};
+            }
+            CosmicTextRenderer.DebugState state = renderer.debugState();
+            String texture = "NFR Cosmic tex: " + state.renderCacheSize + "/" + state.renderCacheMax
+                    + " h/m/e=" + state.renderHits + "/" + state.renderMisses + "/" + state.renderEvictions
+                    + " native=" + state.nativeRasterCount;
+            String measure = "NFR Cosmic measure: " + state.measureCacheSize + "/" + state.measureCacheMax
+                    + " h/m/e=" + state.measureHits + "/" + state.measureMisses + "/" + state.measureEvictions
+                    + " font=" + state.primaryFamily;
+            return new String[] {base, texture, measure};
         }
 
         if (!FontManager.INSTANCE.isSkiaActive()) {
@@ -123,23 +143,25 @@ public class MixinGuiOverlayDebug {
         }
         String draw = state.lastDrawState();
         String stats = debugStats ? state.lastRasterStats() : "";
+        String signBatch = debugStats ? SignBatchRenderer.debugLine() : "";
+        String signOcclusion = debugStats ? SignOcclusionCuller.debugLine() : "";
 
         String reason = state.lastGpuFallbackReason();
         if (reason != null && !reason.isEmpty() && state.gpuRequested() && state.gpuUnavailable()) {
             return debugStats
-                    ? new String[] {base, gpu, "NFR GPU: " + reason, cache, cacheStats, segments}
+                    ? new String[] {base, gpu, "NFR GPU: " + reason, cache, cacheStats, segments, signBatch, signOcclusion}
                     : new String[] {base, gpu, "NFR GPU: " + reason, cache};
         }
         if (draw != null && !draw.isEmpty()) {
             if (stats != null && !stats.isEmpty()) {
-                return new String[] {base, gpu, "NFR draw: " + draw, "NFR raster: " + stats, cache, cacheStats, segments};
+                return new String[] {base, gpu, "NFR draw: " + draw, "NFR raster: " + stats, cache, cacheStats, segments, signBatch, signOcclusion};
             }
             return debugStats
-                    ? new String[] {base, gpu, "NFR draw: " + draw, cache, cacheStats, segments}
+                    ? new String[] {base, gpu, "NFR draw: " + draw, cache, cacheStats, segments, signBatch, signOcclusion}
                     : new String[] {base, gpu, "NFR draw: " + draw, cache};
         }
         return debugStats
-                ? new String[] {base, gpu, cache, cacheStats, segments}
+                ? new String[] {base, gpu, cache, cacheStats, segments, signBatch, signOcclusion}
                 : new String[] {base, gpu, cache};
     }
 }

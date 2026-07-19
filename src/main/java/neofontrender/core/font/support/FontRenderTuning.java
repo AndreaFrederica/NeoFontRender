@@ -186,6 +186,42 @@ public final class FontRenderTuning {
         return context == null ? DrawContext.fallback(scaledResolutionScale()) : context;
     }
 
+    public static boolean isCurrentTextQuadVisible(float x, float y, float width, float height,
+                                                   float minPixelHeight) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.displayWidth <= 0 || mc.displayHeight <= 0) {
+            return true;
+        }
+
+        float[][] corners = {
+                projectVisiblePoint(x, y, 0.0F, mc.displayWidth, mc.displayHeight),
+                projectVisiblePoint(x + width, y, 0.0F, mc.displayWidth, mc.displayHeight),
+                projectVisiblePoint(x, y + height, 0.0F, mc.displayWidth, mc.displayHeight),
+                projectVisiblePoint(x + width, y + height, 0.0F, mc.displayWidth, mc.displayHeight)
+        };
+        float minX = Float.POSITIVE_INFINITY;
+        float minY = Float.POSITIVE_INFINITY;
+        float maxX = Float.NEGATIVE_INFINITY;
+        float maxY = Float.NEGATIVE_INFINITY;
+        for (float[] corner : corners) {
+            // A quad crossing the near plane is conservatively retained to avoid visible popping.
+            if (corner == null) {
+                return true;
+            }
+            minX = Math.min(minX, corner[0]);
+            minY = Math.min(minY, corner[1]);
+            maxX = Math.max(maxX, corner[0]);
+            maxY = Math.max(maxY, corner[1]);
+        }
+
+        float halfWidth = mc.displayWidth * 0.5F;
+        float halfHeight = mc.displayHeight * 0.5F;
+        if (maxX < -halfWidth || minX > halfWidth || maxY < -halfHeight || minY > halfHeight) {
+            return false;
+        }
+        return maxY - minY >= Math.max(0.0F, minPixelHeight);
+    }
+
     public static float alignToPixel(float value) {
         DrawContext context = currentDrawContext();
         if (NeofontrenderConfig.adaptiveRasterScale() && (!context.orthographic() || context.rotation())) {
@@ -234,6 +270,20 @@ public final class FontRenderTuning {
         return new float[] {
                 ndcX * displayWidth * 0.5F,
                 ndcY * displayHeight * 0.5F
+        };
+    }
+
+    private static float[] projectVisiblePoint(float x, float y, float z,
+                                               int displayWidth, int displayHeight) {
+        float[] eye = transform(MODELVIEW, x, y, z, 1.0F);
+        float[] clip = transform(PROJECTION, eye[0], eye[1], eye[2], eye[3]);
+        if (!Float.isFinite(clip[3]) || clip[3] <= 0.0F) {
+            return null;
+        }
+        float invW = 1.0F / clip[3];
+        return new float[] {
+                clip[0] * invW * displayWidth * 0.5F,
+                clip[1] * invW * displayHeight * 0.5F
         };
     }
 

@@ -46,6 +46,15 @@
     "markedColor": "#FF2563EB",
     "hintColor": "#FF64748B"
   },
+  "scrollbar": {
+    "background": {
+      "type": "rectangle",
+      "cornerRadius": 2,
+      "cornerSegments": 6,
+      "color": "#FF1E293B"
+    },
+    "color": "#FF94A3B8"
+  },
   "toggleButton": {
     "background": {
       "type": "rectangle",

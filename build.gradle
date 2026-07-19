@@ -161,7 +161,33 @@ if (propertyBool('use_access_transformer')) {
     }
 }
 
+def cosmicHostOs = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
+def cosmicHostArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
+def cosmicArch = (cosmicHostArch == 'amd64' || cosmicHostArch == 'x86_64') ? 'x86_64'
+        : (cosmicHostArch == 'aarch64' || cosmicHostArch == 'arm64') ? 'aarch64' : 'unsupported'
+def cosmicPlatform = cosmicHostOs.contains('win') ? "windows-${cosmicArch}"
+        : (cosmicHostOs.contains('mac') || cosmicHostOs.contains('darwin')) ? "macos-${cosmicArch}"
+        : cosmicHostOs.contains('linux') ? "linux-${cosmicArch}" : "unsupported-${cosmicArch}"
+def cosmicLibraryName = cosmicHostOs.contains('win') ? 'neofontrender_cosmic.dll'
+        : (cosmicHostOs.contains('mac') || cosmicHostOs.contains('darwin')) ? 'libneofontrender_cosmic.dylib'
+        : 'libneofontrender_cosmic.so'
+def cosmicHostLibrary = file("native/cosmic-text/target/release/${cosmicLibraryName}")
+def cosmicBundleDir = providers.gradleProperty('cosmicNativeBundleDir')
+
 processResources {
+
+    if (cosmicBundleDir.isPresent()) {
+        def bundle = file(cosmicBundleDir.get())
+        inputs.dir(bundle)
+        from(bundle) {
+            into 'assets/neofontrender/natives'
+        }
+    } else {
+        dependsOn 'buildCosmicNative'
+        from(cosmicHostLibrary) {
+            into "assets/neofontrender/natives/${cosmicPlatform}"
+        }
+    }
 
     inputs.property 'mod_id', propertyString('mod_id')
     inputs.property 'mod_name', propertyString('mod_name')
@@ -199,6 +225,22 @@ processResources {
         rename '(.+_at.cfg)', 'META-INF/$1'
     }
 
+}
+
+tasks.register('buildCosmicNative', Exec) {
+    group = 'build'
+    description = 'Builds the cosmic-text JNI backend for the current host platform.'
+    workingDir file('native/cosmic-text')
+    commandLine 'cargo', 'build', '--release', '--locked'
+    inputs.files(fileTree('native/cosmic-text/src'), file('native/cosmic-text/Cargo.toml'), file('native/cosmic-text/Cargo.lock'))
+    outputs.file(cosmicHostLibrary)
+    onlyIf {
+        if (cosmicPlatform.startsWith('unsupported-') || cosmicArch == 'unsupported') {
+            throw new GradleException("Cosmic native build is unsupported on ${cosmicHostOs}/${cosmicHostArch}. "
+                    + "Use -PcosmicNativeBundleDir=<directory> with prebuilt platform natives.")
+        }
+        return !cosmicBundleDir.isPresent()
+    }
 }
 
 jar {
@@ -345,6 +387,20 @@ tasks.register('skijaEmojiTest', JavaExec) {
     })
     mainClass.set('neofontrender.core.font.skia.SkijaEmojiTest')
     args file("${buildDir}/skija-debug").absolutePath
+}
+
+tasks.register('cosmicSmokeTest', JavaExec) {
+    group = 'verification'
+    description = 'Loads the bundled JNI library and validates cosmic-text shaping/rasterization.'
+    dependsOn 'classes'
+    classpath = sourceSets.main.runtimeClasspath
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    })
+    mainClass.set('neofontrender.core.font.cosmic.CosmicSmokeTest')
+    if (project.hasProperty('cosmicTestPrimaryFamily')) {
+        args project.property('cosmicTestPrimaryFamily').toString()
+    }
 }
 
 if (propertyBool('use_modern_java_syntax')) {

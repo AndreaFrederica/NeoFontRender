@@ -11,16 +11,13 @@ import com.cleanroommc.modularui.widget.Widget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiTextField;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import neofontrender.core.font.FontManager;
-import neofontrender.core.font.backend.TextRenderBackend;
-import neofontrender.core.font.backend.TextRenderResult;
 
 /**
  * Visual emoji rendering test screen.
- * Renders test strings using Skia and displays the results.
+ * Renders test strings through the currently active Minecraft FontRenderer path.
  * Includes a vanilla GuiTextField for user input testing.
  */
 @SideOnly(Side.CLIENT)
@@ -78,16 +75,18 @@ public final class NeofontrenderEmojiTestScreen {
 
             Gui.drawRect(areaX, areaY, areaX + areaW, areaY + areaH, 0xCC111111);
 
-            boolean skiaActive = FontManager.INSTANCE.isSkiaActive();
-            TextRenderBackend backend = skiaActive ? FontManager.INSTANCE.getTextRenderBackend() : null;
+            Minecraft minecraft = Minecraft.getMinecraft();
+            String activeEngine = FontManager.INSTANCE.isCosmicActive() ? "Cosmic"
+                    : FontManager.INSTANCE.isSkiaActive() ? "Skia"
+                    : FontManager.INSTANCE.isSfrActive() ? "SFR" : "Vanilla";
 
             int y = areaY + 8;
-            Minecraft.getMinecraft().fontRenderer.drawString(
-                    "Emoji Render Test (Skia: " + (skiaActive ? "ON" : "OFF") + ")",
+            minecraft.fontRenderer.drawString(
+                    "Emoji Render Test (Active: " + activeEngine + ")",
                     areaX + 8, y, 0xFFD700);
             y += 14;
 
-            Minecraft.getMinecraft().fontRenderer.drawString("Type emoji below:", areaX + 8, y, 0xA9B5C5);
+            minecraft.fontRenderer.drawString("Type emoji below:", areaX + 8, y, 0xA9B5C5);
             y += 12;
 
             if (inputField != null) {
@@ -106,7 +105,7 @@ public final class NeofontrenderEmojiTestScreen {
 
             // Codepoint display
             if (userText != null && !userText.isEmpty()) {
-                Minecraft.getMinecraft().fontRenderer.drawString("Codepoints:", areaX + 8, y, 0xA9B5C5);
+                minecraft.fontRenderer.drawString("Codepoints:", areaX + 8, y, 0xA9B5C5);
                 y += 10;
                 StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < userText.length(); i++) {
@@ -124,7 +123,7 @@ public final class NeofontrenderEmojiTestScreen {
                 int maxCharsPerLine = (areaW - 16) / 6;
                 for (int i = 0; i < codepoints.length(); i += maxCharsPerLine) {
                     if (y + 10 > areaY + areaH) break;
-                    Minecraft.getMinecraft().fontRenderer.drawString(
+                    minecraft.fontRenderer.drawString(
                             codepoints.substring(i, Math.min(i + maxCharsPerLine, codepoints.length())),
                             areaX + 8, y, 0x888888);
                     y += 10;
@@ -132,76 +131,36 @@ public final class NeofontrenderEmojiTestScreen {
                 y += 2;
 
                 // String length info
-                Minecraft.getMinecraft().fontRenderer.drawString(
+                minecraft.fontRenderer.drawString(
                         "length=" + userText.length() + " chars, bytes=" + userText.getBytes().length,
                         areaX + 8, y, 0x666666);
                 y += 12;
             }
 
-            if (skiaActive && backend != null && userText != null && !userText.isEmpty()) {
-                Minecraft.getMinecraft().fontRenderer.drawString("Skia result:", areaX + 8, y, 0x88AAFF);
+            if (userText != null && !userText.isEmpty()) {
+                minecraft.fontRenderer.drawString(activeEngine + " result:", areaX + 8, y, 0x88AAFF);
                 y += 12;
-                TextRenderResult rendered = backend.render(userText, 0xFFFFFFFF, false, false);
-                if (rendered.advance() > 0) {
-                    GlStateManager.enableTexture2D();
-                    GlStateManager.enableAlpha();
-                    GlStateManager.enableBlend();
-                    rendered.draw(areaX + 16, y, 1.0F);
-                    String info = "w=" + String.format("%.1f", rendered.advance());
-                    Minecraft.getMinecraft().fontRenderer.drawString(info, areaX + 16 + (int) rendered.advance() + 8, y + 2, 0x66FF66);
-                } else {
-                    Minecraft.getMinecraft().fontRenderer.drawString("FAILED", areaX + 16, y, 0xFF6666);
-                }
+                int width = minecraft.fontRenderer.getStringWidth(userText);
+                minecraft.fontRenderer.drawString(userText, areaX + 16, y, 0xFFFFFF);
+                minecraft.fontRenderer.drawString("w=" + width, areaX + 16 + width + 8, y + 2, 0x66FF66);
                 y += 18;
             }
 
             Gui.drawRect(areaX + 8, y, areaX + areaW - 8, y + 1, 0x44FFFFFF);
             y += 6;
-            Minecraft.getMinecraft().fontRenderer.drawString("Preset tests:", areaX + 8, y, 0xA9B5C5);
+            minecraft.fontRenderer.drawString("Preset tests (" + activeEngine + "):", areaX + 8, y, 0xA9B5C5);
             y += 12;
-
-                if (!skiaActive || backend == null) {
-                Minecraft.getMinecraft().fontRenderer.drawString(
-                        "Skia engine not active.", areaX + 8, y, 0xFF6666);
-                return;
-            }
 
             for (int i = 0; i < TEST_STRINGS.length; i++) {
                 String test = TEST_STRINGS[i];
                 if (y + 18 > areaY + areaH) break;
 
-                TextRenderResult rendered = backend.render(test, 0xFFFFFFFF, false, false);
-                float advance = rendered.advance();
-
-                Minecraft.getMinecraft().fontRenderer.drawString("[" + i + "]", areaX + 8, y + 2, 0x888888);
-
-                if (advance > 0) {
-                    GlStateManager.enableTexture2D();
-                    GlStateManager.enableAlpha();
-                    GlStateManager.enableBlend();
-                    rendered.draw(areaX + 40, y, 1.0F);
-                    Minecraft.getMinecraft().fontRenderer.drawString(
-                            "w=" + String.format("%.1f", advance),
-                            areaX + 40 + (int) advance + 8, y + 2, 0x66FF66);
-                } else {
-                    Minecraft.getMinecraft().fontRenderer.drawString("FAILED", areaX + 40, y, 0xFF6666);
-                }
+                int width = minecraft.fontRenderer.getStringWidth(test);
+                minecraft.fontRenderer.drawString("[" + i + "]", areaX + 8, y + 2, 0x888888);
+                minecraft.fontRenderer.drawString(test, areaX + 40, y, 0xFFFFFF);
+                minecraft.fontRenderer.drawString("w=" + width,
+                        areaX + 40 + width + 8, y + 2, 0x66FF66);
                 y += 16;
-            }
-
-            y += 6;
-            Gui.drawRect(areaX + 8, y, areaX + areaW - 8, y + 1, 0x44FFFFFF);
-            y += 6;
-            Minecraft.getMinecraft().fontRenderer.drawString("Vanilla (via fontRenderer):", areaX + 8, y, 0xA9B5C5);
-            y += 12;
-            if (userText != null && !userText.isEmpty()) {
-                Minecraft.getMinecraft().fontRenderer.drawString(userText, areaX + 16, y, 0xFFFFFF);
-                y += 14;
-            }
-            for (int i = 0; i < TEST_STRINGS.length; i++) {
-                if (y + 12 > areaY + areaH) break;
-                Minecraft.getMinecraft().fontRenderer.drawString(TEST_STRINGS[i], areaX + 16, y, 0xFFFFFF);
-                y += 12;
             }
         }
 

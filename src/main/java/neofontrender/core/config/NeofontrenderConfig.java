@@ -140,6 +140,10 @@ public final class NeofontrenderConfig {
         return enabled() && "skia".equals(renderingEngine());
     }
 
+    public static boolean useCosmicEngine() {
+        return enabled() && "cosmic".equals(renderingEngine());
+    }
+
     public static boolean skiaAdvancedStringMode() {
         return config.getOrElse("rendering.skiaAdvancedStringMode", true);
     }
@@ -150,6 +154,10 @@ public final class NeofontrenderConfig {
 
     public static boolean skiaGpuSubmitViaCpuTexture() {
         return config.getOrElse("rendering.skiaGpuSubmitViaCpuTexture", true);
+    }
+
+    public static boolean skiaMonochromeText() {
+        return config.getOrElse("rendering.skiaMonochromeText", true);
     }
 
     public static boolean skiaSegmentCache() {
@@ -291,6 +299,66 @@ public final class NeofontrenderConfig {
         return config.getOrElse("performance.prewarmBasicLatin", true);
     }
 
+    public static boolean signTextLodCulling() {
+        return config.getOrElse("performance.signTextLodCulling", true);
+    }
+
+    public static float signTextMinPixelHeight() {
+        return Math.max(0.0F, getFloat("performance.signTextMinPixelHeight", 4.0F));
+    }
+
+    public static boolean signTextBatching() {
+        return config.getOrElse("performance.signTextBatching", true);
+    }
+
+    public static boolean signTextFrustumCulling() {
+        return config.getOrElse("performance.signTextFrustumCulling", true);
+    }
+
+    public static boolean signModelLod() {
+        return config.getOrElse("performance.signModelLod", false);
+    }
+
+    public static float signModelLodDistance() {
+        return Math.max(4.0F, getFloat("performance.signModelLodDistance", 24.0F));
+    }
+
+    public static float signTextNearThreshold() {
+        return Math.max(1.0F, getFloat("performance.signTextNearThreshold", 6.0F));
+    }
+
+    public static float signTextNearSupersample() {
+        return Math.max(1.0F, getFloat("performance.signTextNearSupersample", 2.5F));
+    }
+
+    public static float signTextNearMaxRasterScale() {
+        return Math.max(8.0F, getFloat("performance.signTextNearMaxRasterScale", 32.0F));
+    }
+
+    public static boolean signCrossTileBatching() {
+        return config.getOrElse("performance.signCrossTileBatching", false);
+    }
+
+    public static int signBatchMaxEntries() {
+        return Math.max(64, getInt("performance.signBatchMaxEntries", 4096));
+    }
+
+    public static boolean signBlockOcclusionCulling() {
+        return config.getOrElse("performance.signBlockOcclusionCulling", true);
+    }
+
+    public static int signOcclusionChecksPerFrame() {
+        return Math.max(1, getInt("performance.signOcclusionChecksPerFrame", 48));
+    }
+
+    public static long signOcclusionCacheMillis() {
+        return Math.max(50L, getInt("performance.signOcclusionCacheMillis", 250));
+    }
+
+    public static float signOcclusionMinDistance() {
+        return Math.max(2.0F, getFloat("performance.signOcclusionMinDistance", 8.0F));
+    }
+
     public static int skiaTextCacheMinEntries() {
         return Math.max(0, getInt("performance.skiaTextCacheMinEntries", 256));
     }
@@ -317,6 +385,25 @@ public final class NeofontrenderConfig {
 
     public static float skiaSegmentTextureCacheTtlSeconds() {
         return Math.max(0.0f, getFloat("performance.skiaSegmentTextureCacheTtlSeconds", 600.0f));
+    }
+
+    // These generic accessors intentionally retain the old TOML keys. Existing installations
+    // already tune them, and duplicating identical Skia/Cosmic limits would make engine switches
+    // unexpectedly discard the user's memory policy.
+    public static int textCacheMinEntries() {
+        return skiaTextCacheMinEntries();
+    }
+
+    public static int textCacheMaxEntries() {
+        return skiaTextCacheMaxEntries();
+    }
+
+    public static float textCacheTtlSeconds() {
+        return skiaTextCacheTtlSeconds();
+    }
+
+    public static int measureCacheMaxEntries() {
+        return skiaMeasureCacheMaxEntries();
     }
 
     // ===================== General =====================
@@ -510,12 +597,28 @@ public final class NeofontrenderConfig {
         config.set("rendering.skiaGpuSubmitViaCpuTexture", value);
     }
 
+    public static void setSkiaMonochromeText(boolean value) {
+        config.set("rendering.skiaMonochromeText", value);
+    }
+
     public static void setPerformanceAsyncInit(boolean value) {
         config.set("performance.asyncInit", value);
     }
 
     public static void setPerformancePrewarmBasicLatin(boolean value) {
         config.set("performance.prewarmBasicLatin", value);
+    }
+
+    public static void setSignModelLod(boolean value) {
+        config.set("performance.signModelLod", value);
+    }
+
+    public static void setSignCrossTileBatching(boolean value) {
+        config.set("performance.signCrossTileBatching", value);
+    }
+
+    public static void setSignBlockOcclusionCulling(boolean value) {
+        config.set("performance.signBlockOcclusionCulling", value);
     }
 
     public static void setSkiaTextCacheMinEntries(int value) {
@@ -621,6 +724,7 @@ public final class NeofontrenderConfig {
             w.write("skiaAdvancedStringMode = true\n");
             w.write("skiaGpuOffscreen = false\n");
             w.write("skiaGpuSubmitViaCpuTexture = true\n");
+            w.write("skiaMonochromeText = true\n");
             w.write("skiaSegmentCache = true\n");
             w.write("skiaSegmentCacheMinRunLength = 8\n");
             w.write("skiaSegmentCacheMaxRunCodePoints = 24\n");
@@ -651,6 +755,21 @@ public final class NeofontrenderConfig {
             w.write("[performance]\n");
             w.write("asyncInit = true\n");
             w.write("prewarmBasicLatin = true\n");
+            w.write("signTextLodCulling = true\n");
+            w.write("signTextMinPixelHeight = 4.0\n");
+            w.write("signTextBatching = true\n");
+            w.write("signTextFrustumCulling = true\n");
+            w.write("signModelLod = false\n");
+            w.write("signModelLodDistance = 24.0\n");
+            w.write("signTextNearThreshold = 6.0\n");
+            w.write("signTextNearSupersample = 2.5\n");
+            w.write("signTextNearMaxRasterScale = 32.0\n");
+            w.write("signCrossTileBatching = false\n");
+            w.write("signBatchMaxEntries = 4096\n");
+            w.write("signBlockOcclusionCulling = true\n");
+            w.write("signOcclusionChecksPerFrame = 48\n");
+            w.write("signOcclusionCacheMillis = 250\n");
+            w.write("signOcclusionMinDistance = 8.0\n");
             w.write("skiaTextCacheMinEntries = 256\n");
             w.write("skiaTextCacheMaxEntries = 2048\n");
             w.write("skiaTextCacheTtlSeconds = 300.0\n");
@@ -688,10 +807,11 @@ public final class NeofontrenderConfig {
         config.setComment("shadow.length", "Shadow offset distance in pixels.");
         config.setComment("shadow.opacity", "Shadow opacity multiplier (0.0-1.0).");
         config.setComment("rendering", "OpenGL texture rendering options.");
-        config.setComment("rendering.engine", "Text renderer engine: vanilla, sfr, or skia.");
+        config.setComment("rendering.engine", "Text renderer engine: vanilla, sfr, skia, or cosmic.");
         config.setComment("rendering.skiaAdvancedStringMode", "In Skia mode, render full formatted strings as one paragraph so shaping, ligatures, kerning, emoji ZWJ, and BiDi can work across the whole text. Disable to use legacy per-format-run rendering.");
         config.setComment("rendering.skiaGpuOffscreen", "Experimental: render Skia text cache textures in an isolated hidden OpenGL context shared with Minecraft, instead of CPU rasterization. Requires rendering.premultipliedAlpha=true. Failures automatically fall back to CPU rasterization.");
         config.setComment("rendering.skiaGpuSubmitViaCpuTexture", "Default safe mode for skiaGpuOffscreen: rasterize in the isolated GPU context, read pixels back, then submit through Minecraft DynamicTexture like the CPU path. Disable only to test the experimental shared-GL texture path.");
+        config.setComment("rendering.skiaMonochromeText", "Rasterize monochrome (single-color) text runs as white glyphs and tint them with vertex color at draw time, so one glyph texture is reused across all colors instead of being re-rasterized per color. Greatly improves Skia cache hit rate. Only applies to premultiplied-alpha rendering (bypassed automatically when premultipliedAlpha=false). Disable to fall back to baking color into textures.");
         config.setComment("rendering.skiaSegmentCache", "When skiaAdvancedStringMode=false, split safe Skia text runs into reusable cache tokens: Latin words, individual digits, CJK/Hiragana/Katakana/Hangul characters, and simple punctuation. Complex shaping text stays on the full-run path.");
         config.setComment("rendering.skiaSegmentCacheMinRunLength", "Minimum formatted run length before Skia token cache segmentation is attempted.");
         config.setComment("rendering.skiaSegmentCacheMaxRunCodePoints", "Maximum code points kept in one reusable Skia segment before forcing another token boundary.");
@@ -721,10 +841,25 @@ public final class NeofontrenderConfig {
         config.setComment("performance", "Performance tuning options.");
         config.setComment("performance.asyncInit", "Initialize font rasterization on a background thread.");
         config.setComment("performance.prewarmBasicLatin", "Pre-bake common Basic Latin and Latin-1 glyphs before enabling replacement rendering.");
-        config.setComment("performance.skiaTextCacheMinEntries", "Minimum number of Skia rendered text textures kept when TTL cleanup runs.");
-        config.setComment("performance.skiaTextCacheMaxEntries", "Maximum number of Skia rendered text textures kept in the LRU cache.");
-        config.setComment("performance.skiaTextCacheTtlSeconds", "Seconds before an unused Skia rendered text texture can be evicted. 0 disables TTL cleanup.");
-        config.setComment("performance.skiaMeasureCacheMaxEntries", "Maximum number of Skia text measurement results kept in memory.");
+        config.setComment("performance.signTextLodCulling", "Use projected-size LOD and screen culling for sign text. The sign model is still rendered.");
+        config.setComment("performance.signTextMinPixelHeight", "Do not submit a sign text line when its projected height is below this many physical framebuffer pixels.");
+        config.setComment("performance.signTextBatching", "Combine the four text lines of each sign into one centered Skia texture and one draw call. Disable for vanilla-compatible per-line sign rendering.");
+        config.setComment("performance.signTextFrustumCulling", "Skip the complete sign renderer when its model bounds are outside the camera frustum.");
+        config.setComment("performance.signModelLod", "Replace distant sign board/stick boxes with flat textured geometry using the currently bound sign texture.");
+        config.setComment("performance.signModelLodDistance", "Distance in blocks where the low-poly sign model starts.");
+        config.setComment("performance.signTextNearThreshold", "Projected pixels per text unit where the close-up high-resolution sign text path starts.");
+        config.setComment("performance.signTextNearSupersample", "Close-up sign text raster pixels per projected framebuffer pixel.");
+        config.setComment("performance.signTextNearMaxRasterScale", "Maximum close-up sign text raster scale; higher values are sharper but use more texture memory.");
+        config.setComment("performance.signCrossTileBatching", "Collect distant vanilla signs during Forge's TESR pass, submit their models once, then draw their text. Requires a restart when enabled from a fully disabled state.");
+        config.setComment("performance.signBatchMaxEntries", "Maximum distant signs collected in one TESR pass before later signs fall back to immediate rendering.");
+        config.setComment("performance.signBlockOcclusionCulling", "Skip the complete sign TESR when cached multi-point rays are all blocked by opaque full cubes.");
+        config.setComment("performance.signOcclusionChecksPerFrame", "Maximum signs whose block occlusion is refreshed per frame; remaining signs use safe cached results or stay visible.");
+        config.setComment("performance.signOcclusionCacheMillis", "How long a sign occlusion result remains fresh while the camera stays within half a block.");
+        config.setComment("performance.signOcclusionMinDistance", "Never block-occlusion-cull signs closer than this many blocks to avoid near-camera popping.");
+        config.setComment("performance.skiaTextCacheMinEntries", "Minimum number of Skia/Cosmic rendered text textures kept when TTL cleanup runs.");
+        config.setComment("performance.skiaTextCacheMaxEntries", "Maximum number of Skia/Cosmic rendered text textures kept in the LRU cache.");
+        config.setComment("performance.skiaTextCacheTtlSeconds", "Seconds before an unused Skia/Cosmic rendered text texture can be evicted. 0 disables TTL cleanup.");
+        config.setComment("performance.skiaMeasureCacheMaxEntries", "Maximum number of Skia/Cosmic text measurement results kept in memory.");
         config.setComment("performance.skiaSegmentTextureCacheMinEntries", "Minimum number of reusable Skia segment textures kept when TTL cleanup runs.");
         config.setComment("performance.skiaSegmentTextureCacheMaxEntries", "Maximum number of reusable Skia segment textures kept in the segment LRU cache.");
         config.setComment("performance.skiaSegmentTextureCacheTtlSeconds", "Seconds before an unused Skia segment texture can be evicted. 0 disables TTL cleanup.");
@@ -817,6 +952,9 @@ public final class NeofontrenderConfig {
             case "skija":
             case "skia":
                 return "skia";
+            case "cosmic_text":
+            case "cosmic":
+                return "cosmic";
             default:
                 return "sfr";
         }
