@@ -51,12 +51,17 @@ public abstract class MixinTileEntitySignRenderer {
         if (!NeofontrenderConfig.signTextFrustumCulling()) {
             return;
         }
-        // Dispatcher coordinates are camera-relative and the clipping helper already contains
-        // the current camera matrices. Keep a conservative box to avoid edge popping.
+        // Dispatcher coordinates are the camera-relative block origin, while vanilla translates
+        // the model to the block center (x/z + 0.5) before rotating it. The old box was centered on
+        // the origin and therefore sat half a block too far toward negative X/Z, culling a visible
+        // edge for signs near the right/top frustum planes. A standing sign's rotated 1-block-wide
+        // board reaches about 0.71 blocks from center; 0.85 also covers its depth and wall offset.
         Frustum frustum = new Frustum();
         frustum.setPosition(0.0D, 0.0D, 0.0D);
-        AxisAlignedBB bounds = new AxisAlignedBB(x - 0.75D, y - 0.75D, z - 0.75D,
-                x + 0.75D, y + 1.75D, z + 0.75D);
+        double centerX = x + 0.5D;
+        double centerZ = z + 0.5D;
+        AxisAlignedBB bounds = new AxisAlignedBB(centerX - 0.85D, y - 0.15D, centerZ - 0.85D,
+                centerX + 0.85D, y + 1.20D, centerZ + 0.85D);
         if (!frustum.isBoundingBoxInFrustum(bounds)) {
             ci.cancel();
         }
