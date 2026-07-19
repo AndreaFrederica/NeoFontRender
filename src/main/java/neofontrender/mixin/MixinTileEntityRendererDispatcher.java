@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Forge's TESR batch boundary gives sign collection a frame-local begin/flush pair. */
+/** Forge/Celeritas both call preDrawBatch immediately before the block-entity render list. */
 @Mixin(TileEntityRendererDispatcher.class)
 public abstract class MixinTileEntityRendererDispatcher {
     @Shadow public World world;
@@ -24,6 +24,10 @@ public abstract class MixinTileEntityRendererDispatcher {
 
     @Inject(method = "preDrawBatch", at = @At("TAIL"), remap = false)
     private void nfr$beginSignBatch(CallbackInfo ci) {
+        // CeleritasWorldRenderer.renderBlockEntities() invokes this same vanilla dispatcher
+        // boundary before iterating TileEntityRendererDispatcher.render(...). Keeping the
+        // visibility reset here means the counters belong to the frame that actually rendered
+        // the signs; prepare() may be called at a different point and can erase those counters.
         SignOcclusionCuller.beginFrame(world);
         SignBatchRenderer.begin();
     }
