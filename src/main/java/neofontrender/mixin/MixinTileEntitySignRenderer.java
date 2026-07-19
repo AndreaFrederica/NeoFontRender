@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.tileentity.TileEntitySignRenderer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.tileentity.TileEntitySign;
 import net.minecraft.util.math.AxisAlignedBB;
+import neofontrender.client.render.sign.SignBatchRenderer;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.backend.TextRenderResult;
@@ -43,6 +44,10 @@ public abstract class MixinTileEntitySignRenderer {
                                    CallbackInfo ci) {
         nfr$distanceSq = x * x + y * y + z * z;
         nfr$destroyStage = destroyStage;
+        if (SignBatchRenderer.collect(sign, x, y, z, destroyStage)) {
+            ci.cancel();
+            return;
+        }
         if (!NeofontrenderConfig.signTextFrustumCulling()) {
             return;
         }

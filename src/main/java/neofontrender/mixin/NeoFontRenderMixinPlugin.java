@@ -17,10 +17,13 @@ import java.util.Set;
  */
 public final class NeoFontRenderMixinPlugin implements IMixinConfigPlugin {
     private boolean signMixinEnabled = true;
+    private boolean signDispatcherMixinEnabled = true;
 
     @Override
     public void onLoad(String mixinPackage) {
-        signMixinEnabled = readSignOptions();
+        SignOptions options = readSignOptions();
+        signMixinEnabled = options.anySignOptimization;
+        signDispatcherMixinEnabled = options.dispatcherOptimization;
     }
 
     @Override
@@ -32,6 +35,9 @@ public final class NeoFontRenderMixinPlugin implements IMixinConfigPlugin {
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName.endsWith("MixinTileEntitySignRenderer")) {
             return signMixinEnabled;
+        }
+        if (mixinClassName.endsWith("MixinTileEntityRendererDispatcher")) {
+            return signDispatcherMixinEnabled;
         }
         return true;
     }
@@ -53,17 +59,19 @@ public final class NeoFontRenderMixinPlugin implements IMixinConfigPlugin {
     public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
     }
 
-    private static boolean readSignOptions() {
+    private static SignOptions readSignOptions() {
         File config = new File(gameDirectory(), "config/neofontrender.toml");
         if (!config.isFile()) {
             // The generated defaults enable both optimizations.
-            return true;
+            return new SignOptions(true, true);
         }
         boolean inPerformance = false;
         boolean lod = true;
         boolean batching = true;
         boolean frustum = true;
-        boolean modelLod = true;
+        boolean modelLod = false;
+        boolean crossTileBatching = false;
+        boolean blockOcclusionCulling = true;
         try {
             List<String> lines = Files.readAllLines(config.toPath(), StandardCharsets.UTF_8);
             for (String raw : lines) {
@@ -75,21 +83,32 @@ public final class NeoFontRenderMixinPlugin implements IMixinConfigPlugin {
                 if (!inPerformance) {
                     continue;
                 }
-                if (line.startsWith("signTextLodCulling")) {
+                String key = key(line);
+                if ("signTextLodCulling".equals(key)) {
                     lod = parseBoolean(line, lod);
-                } else if (line.startsWith("signTextBatching")) {
+                } else if ("signTextBatching".equals(key)) {
                     batching = parseBoolean(line, batching);
-                } else if (line.startsWith("signTextFrustumCulling")) {
+                } else if ("signTextFrustumCulling".equals(key)) {
                     frustum = parseBoolean(line, frustum);
-                } else if (line.startsWith("signModelLod")) {
+                } else if ("signModelLod".equals(key)) {
                     modelLod = parseBoolean(line, modelLod);
+                } else if ("signCrossTileBatching".equals(key)) {
+                    crossTileBatching = parseBoolean(line, crossTileBatching);
+                } else if ("signBlockOcclusionCulling".equals(key)) {
+                    blockOcclusionCulling = parseBoolean(line, blockOcclusionCulling);
                 }
             }
         } catch (Throwable ignored) {
             // Keep the default-on behavior if the file cannot be read during early Mixin loading.
-            return true;
+            return new SignOptions(true, true);
         }
-        return lod || batching || frustum || modelLod;
+        return new SignOptions(lod || batching || frustum || modelLod || crossTileBatching
+                || blockOcclusionCulling, crossTileBatching || blockOcclusionCulling);
+    }
+
+    private static String key(String line) {
+        int equals = line.indexOf('=');
+        return equals < 0 ? "" : line.substring(0, equals).trim();
     }
 
     private static boolean parseBoolean(String line, boolean fallback) {
@@ -117,5 +136,15 @@ public final class NeoFontRenderMixinPlugin implements IMixinConfigPlugin {
         } catch (Throwable ignored) {
         }
         return new File(System.getProperty("user.dir", "."));
+    }
+
+    private static final class SignOptions {
+        private final boolean anySignOptimization;
+        private final boolean dispatcherOptimization;
+
+        private SignOptions(boolean anySignOptimization, boolean dispatcherOptimization) {
+            this.anySignOptimization = anySignOptimization;
+            this.dispatcherOptimization = dispatcherOptimization;
+        }
     }
 }

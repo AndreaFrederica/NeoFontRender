@@ -312,7 +312,7 @@ public final class NeofontrenderConfig {
     }
 
     public static boolean signModelLod() {
-        return config.getOrElse("performance.signModelLod", true);
+        return config.getOrElse("performance.signModelLod", false);
     }
 
     public static float signModelLodDistance() {
@@ -329,6 +329,30 @@ public final class NeofontrenderConfig {
 
     public static float signTextNearMaxRasterScale() {
         return Math.max(8.0F, getFloat("performance.signTextNearMaxRasterScale", 32.0F));
+    }
+
+    public static boolean signCrossTileBatching() {
+        return config.getOrElse("performance.signCrossTileBatching", false);
+    }
+
+    public static int signBatchMaxEntries() {
+        return Math.max(64, getInt("performance.signBatchMaxEntries", 4096));
+    }
+
+    public static boolean signBlockOcclusionCulling() {
+        return config.getOrElse("performance.signBlockOcclusionCulling", true);
+    }
+
+    public static int signOcclusionChecksPerFrame() {
+        return Math.max(1, getInt("performance.signOcclusionChecksPerFrame", 48));
+    }
+
+    public static long signOcclusionCacheMillis() {
+        return Math.max(50L, getInt("performance.signOcclusionCacheMillis", 250));
+    }
+
+    public static float signOcclusionMinDistance() {
+        return Math.max(2.0F, getFloat("performance.signOcclusionMinDistance", 8.0F));
     }
 
     public static int skiaTextCacheMinEntries() {
@@ -566,6 +590,14 @@ public final class NeofontrenderConfig {
         config.set("performance.signModelLod", value);
     }
 
+    public static void setSignCrossTileBatching(boolean value) {
+        config.set("performance.signCrossTileBatching", value);
+    }
+
+    public static void setSignBlockOcclusionCulling(boolean value) {
+        config.set("performance.signBlockOcclusionCulling", value);
+    }
+
     public static void setSkiaTextCacheMinEntries(int value) {
         config.set("performance.skiaTextCacheMinEntries", value);
     }
@@ -704,11 +736,17 @@ public final class NeofontrenderConfig {
             w.write("signTextMinPixelHeight = 4.0\n");
             w.write("signTextBatching = true\n");
             w.write("signTextFrustumCulling = true\n");
-            w.write("signModelLod = true\n");
+            w.write("signModelLod = false\n");
             w.write("signModelLodDistance = 24.0\n");
             w.write("signTextNearThreshold = 6.0\n");
             w.write("signTextNearSupersample = 2.5\n");
             w.write("signTextNearMaxRasterScale = 32.0\n");
+            w.write("signCrossTileBatching = false\n");
+            w.write("signBatchMaxEntries = 4096\n");
+            w.write("signBlockOcclusionCulling = true\n");
+            w.write("signOcclusionChecksPerFrame = 48\n");
+            w.write("signOcclusionCacheMillis = 250\n");
+            w.write("signOcclusionMinDistance = 8.0\n");
             w.write("skiaTextCacheMinEntries = 256\n");
             w.write("skiaTextCacheMaxEntries = 2048\n");
             w.write("skiaTextCacheTtlSeconds = 300.0\n");
@@ -789,6 +827,12 @@ public final class NeofontrenderConfig {
         config.setComment("performance.signTextNearThreshold", "Projected pixels per text unit where the close-up high-resolution sign text path starts.");
         config.setComment("performance.signTextNearSupersample", "Close-up sign text raster pixels per projected framebuffer pixel.");
         config.setComment("performance.signTextNearMaxRasterScale", "Maximum close-up sign text raster scale; higher values are sharper but use more texture memory.");
+        config.setComment("performance.signCrossTileBatching", "Collect distant vanilla signs during Forge's TESR pass, submit their models once, then draw their text. Requires a restart when enabled from a fully disabled state.");
+        config.setComment("performance.signBatchMaxEntries", "Maximum distant signs collected in one TESR pass before later signs fall back to immediate rendering.");
+        config.setComment("performance.signBlockOcclusionCulling", "Skip the complete sign TESR when cached multi-point rays are all blocked by opaque full cubes.");
+        config.setComment("performance.signOcclusionChecksPerFrame", "Maximum signs whose block occlusion is refreshed per frame; remaining signs use safe cached results or stay visible.");
+        config.setComment("performance.signOcclusionCacheMillis", "How long a sign occlusion result remains fresh while the camera stays within half a block.");
+        config.setComment("performance.signOcclusionMinDistance", "Never block-occlusion-cull signs closer than this many blocks to avoid near-camera popping.");
         config.setComment("performance.skiaTextCacheMinEntries", "Minimum number of Skia rendered text textures kept when TTL cleanup runs.");
         config.setComment("performance.skiaTextCacheMaxEntries", "Maximum number of Skia rendered text textures kept in the LRU cache.");
         config.setComment("performance.skiaTextCacheTtlSeconds", "Seconds before an unused Skia rendered text texture can be evicted. 0 disables TTL cleanup.");

@@ -3,6 +3,8 @@ package neofontrender.mixin;
 import net.minecraft.client.gui.GuiOverlayDebug;
 import net.minecraft.client.gui.ScaledResolution;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.client.render.sign.SignBatchRenderer;
+import neofontrender.client.render.sign.SignOcclusionCuller;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.skia.SkiaTextSegmenter;
@@ -123,23 +125,25 @@ public class MixinGuiOverlayDebug {
         }
         String draw = state.lastDrawState();
         String stats = debugStats ? state.lastRasterStats() : "";
+        String signBatch = debugStats ? SignBatchRenderer.debugLine() : "";
+        String signOcclusion = debugStats ? SignOcclusionCuller.debugLine() : "";
 
         String reason = state.lastGpuFallbackReason();
         if (reason != null && !reason.isEmpty() && state.gpuRequested() && state.gpuUnavailable()) {
             return debugStats
-                    ? new String[] {base, gpu, "NFR GPU: " + reason, cache, cacheStats, segments}
+                    ? new String[] {base, gpu, "NFR GPU: " + reason, cache, cacheStats, segments, signBatch, signOcclusion}
                     : new String[] {base, gpu, "NFR GPU: " + reason, cache};
         }
         if (draw != null && !draw.isEmpty()) {
             if (stats != null && !stats.isEmpty()) {
-                return new String[] {base, gpu, "NFR draw: " + draw, "NFR raster: " + stats, cache, cacheStats, segments};
+                return new String[] {base, gpu, "NFR draw: " + draw, "NFR raster: " + stats, cache, cacheStats, segments, signBatch, signOcclusion};
             }
             return debugStats
-                    ? new String[] {base, gpu, "NFR draw: " + draw, cache, cacheStats, segments}
+                    ? new String[] {base, gpu, "NFR draw: " + draw, cache, cacheStats, segments, signBatch, signOcclusion}
                     : new String[] {base, gpu, "NFR draw: " + draw, cache};
         }
         return debugStats
-                ? new String[] {base, gpu, cache, cacheStats, segments}
+                ? new String[] {base, gpu, cache, cacheStats, segments, signBatch, signOcclusion}
                 : new String[] {base, gpu, cache};
     }
 }
