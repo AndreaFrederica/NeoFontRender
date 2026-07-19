@@ -8,13 +8,19 @@ on:
         required: false
         type: boolean
         default: false
+      github_release_only:
+        description: Publish distributions only to GitHub Releases
+        required: false
+        type: boolean
+        default: false
   pull_request:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
 
 permissions:
-  contents: read
+  # workflow_dispatch can optionally create a release and upload its distributions.
+  contents: write
 
 jobs:
   cosmic-native:
@@ -195,6 +201,7 @@ jobs:
       - name: Publish to Maven
         if: >-
           (github.event_name == 'push' || inputs.publish == true) &&
+          inputs.github_release_only != true &&
           steps.properties.outputs.publish_to_maven == 'true' &&
           steps.properties.outputs.publish_to_local_maven == 'true'
         run: >-
@@ -206,6 +213,7 @@ jobs:
       - name: Publish full package to CurseForge
         if: >-
           (github.event_name == 'push' || inputs.publish == true) &&
+          inputs.github_release_only != true &&
           steps.properties.outputs.publish_to_curseforge == 'true'
         env:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
@@ -214,7 +222,33 @@ jobs:
       - name: Publish full package to Modrinth
         if: >-
           (github.event_name == 'push' || inputs.publish == true) &&
+          inputs.github_release_only != true &&
           steps.properties.outputs.publish_to_modrinth == 'true'
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: ./gradlew modrinth -PcosmicNativeBundleDir="${{ github.workspace }}/cosmic-natives"
+
+      - name: Publish distributions to GitHub Release only
+        if: github.event_name == 'workflow_dispatch' && inputs.github_release_only == true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.properties.outputs.mod_version }}
+        run: |
+          set -euo pipefail
+          tag="${VERSION}"
+          archives=(
+            "build/libs/neofontrender-${VERSION}-full.jar"
+            "build/libs/neofontrender-${VERSION}-core.jar"
+            "build/libs/neofontrender-resources-${VERSION}.jar"
+            "build/libs/neofontrender-skia-${VERSION}.jar"
+          )
+
+          # Manual rebuilds of the same version update the existing release instead of failing.
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --target "${GITHUB_SHA}" \
+              --title "NeoFontRender ${VERSION}" \
+              --generate-notes
+          fi
+          gh release upload "$tag" "${archives[@]}" --clobber
