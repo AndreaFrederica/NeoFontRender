@@ -64,13 +64,13 @@ public class MixinFontRenderer {
             return;
         }
         if (NeofontrenderConfig.laboratoryHexChat() && sfr$hasHexColorMarker(text)) {
-            if (dropShadow && backend.shouldRenderShadow(text)) {
+            if (dropShadow) {
                 sfr$drawHexChat(backend, text, x + NeofontrenderConfig.shadowLength(), y + NeofontrenderConfig.shadowLength(), color, true);
             }
             float advance = sfr$drawHexChat(backend, text, x, y, color, false);
             this.posX = x + advance;
             this.posY = y;
-            cir.setReturnValue((int) this.posX);
+            cir.setReturnValue(sfr$drawStringReturnX(x, advance, dropShadow));
             return;
         }
         if (dropShadow) {
@@ -80,7 +80,7 @@ public class MixinFontRenderer {
         rendered.draw(x, y, alphaFromColor(color));
         this.posX = x + rendered.advance();
         this.posY = y;
-        cir.setReturnValue((int) this.posX);
+        cir.setReturnValue(sfr$drawStringReturnX(x, rendered.advance(), dropShadow));
     }
 
     @Inject(method = "renderStringAtPos", at = @At("HEAD"), cancellable = true)
@@ -706,6 +706,19 @@ public class MixinFontRenderer {
         return alphaFromColor(color) * NeofontrenderConfig.shadowOpacity();
     }
 
+    /**
+     * Vanilla five-arg drawString returns the max of the shadow-pass and main-pass pen
+     * positions, so a drawn shadow adds its positive offset to the returned X. posX itself
+     * still keeps the main-pass position.
+     */
+    private static int sfr$drawStringReturnX(float x, float advance, boolean dropShadow) {
+        int main = (int) (x + advance);
+        if (!dropShadow) {
+            return main;
+        }
+        return Math.max(main, (int) (x + advance + NeofontrenderConfig.shadowLength()));
+    }
+
     private void sfr$drawSelectiveShadow(TextRenderBackend backend, String text, float x, float y, int color) {
         float offset = NeofontrenderConfig.shadowLength();
         if (backend.shouldRenderShadow(text)) {
@@ -713,18 +726,46 @@ public class MixinFontRenderer {
             shadow.draw(x + offset, y + offset, shadowAlpha(color));
             return;
         }
+        // Group consecutive code points by shadow eligibility instead of splitting per code
+        // point: keeps § format codes intact and preserves shaping (ligatures, kerning, ZWJ
+        // emoji, Arabic) inside each shadowed run.
         float cursor = x;
+        StringBuilder unit = new StringBuilder();
+        boolean unitShadow = false;
         for (int index = 0; index < text.length();) {
-            int next = index + Character.charCount(text.codePointAt(index));
-            String unit = text.substring(index, next);
-            TextRenderResult rendered = backend.renderFormatted(unit, color, false);
-            if (backend.shouldRenderShadow(unit)) {
-                TextRenderResult shadow = backend.renderFormatted(unit, color, true);
-                shadow.draw(cursor + offset, y + offset, shadowAlpha(color));
+            char ch = text.charAt(index);
+            if (ch == 167 && index + 1 < text.length()) {
+                // § format codes are control sequences, not glyphs; glue them to the unit.
+                unit.append(text, index, index + 2);
+                index += 2;
+                continue;
             }
-            cursor += rendered.advance();
+            int codePoint = text.codePointAt(index);
+            int next = index + Character.charCount(codePoint);
+            boolean shadow = backend.shouldRenderShadow(text.substring(index, next));
+            if (unit.length() > 0 && shadow != unitShadow) {
+                cursor = sfr$drawShadowUnit(backend, unit, cursor, y, color, offset, unitShadow);
+            }
+            unitShadow = shadow;
+            unit.appendCodePoint(codePoint);
             index = next;
         }
+        sfr$drawShadowUnit(backend, unit, cursor, y, color, offset, unitShadow);
+    }
+
+    private float sfr$drawShadowUnit(TextRenderBackend backend, StringBuilder unit, float cursor, float y,
+                                     int color, float offset, boolean shadow) {
+        if (unit.length() == 0) {
+            return cursor;
+        }
+        String text = unit.toString();
+        unit.setLength(0);
+        TextRenderResult rendered = backend.renderFormatted(text, color, false);
+        if (shadow) {
+            TextRenderResult shadowText = backend.renderFormatted(text, color, true);
+            shadowText.draw(cursor + offset, y + offset, shadowAlpha(color));
+        }
+        return cursor + rendered.advance();
     }
 
     private float sfr$drawHexChat(TextRenderBackend backend, String text, float x, float y, int baseColor, boolean shadow) {
@@ -752,10 +793,16 @@ public class MixinFontRenderer {
 
     private float sfr$drawHexRun(TextRenderBackend backend, StringBuilder run, float x, float y, int color, boolean shadow) {
         if (run.length() == 0) return x;
-        int argb = shadow ? (color & 0xFF000000) | ((color & 0xFCFCFC) >> 2) : color;
-        TextRenderResult rendered = backend.render(run.toString(), argb, false, false);
-        rendered.draw(x, y, shadow ? shadowAlpha(color) : alphaFromColor(color));
+        String text = run.toString();
         run.setLength(0);
+        if (shadow && !backend.shouldRenderShadow(text)) {
+            // Masked glyphs (color emoji, bitmap glyphs) get no shadow, matching the
+            // selective-shadow behaviour of the non-hex paths. Still advance the pen.
+            return x + backend.measure(text, false, false);
+        }
+        int argb = shadow ? (color & 0xFF000000) | ((color & 0xFCFCFC) >> 2) : color;
+        TextRenderResult rendered = backend.render(text, argb, false, false);
+        rendered.draw(x, y, shadow ? shadowAlpha(color) : alphaFromColor(color));
         return x + rendered.advance();
     }
 
