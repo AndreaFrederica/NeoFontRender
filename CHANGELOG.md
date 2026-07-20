@@ -4,6 +4,7 @@
 
 - Fix Cosmic face overrides so resolved regular, bold, italic, and bold italic faces are used during actual layout.
 - Allow the font picker to fill every font selector field in the GUI, including fallback and Cosmic override fields.
+- Add configurable variable font weight support across Cosmic, Skia, and AWT renderers.
 
 ## [0.3.1]
 

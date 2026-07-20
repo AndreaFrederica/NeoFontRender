@@ -33,6 +33,7 @@ public final class CosmicSmokeTest {
                 new String[0],
                 "", "", "", "",
                 false,
+                0,
                 9.0F, Locale.getDefault().toLanguageTag());
         try {
             String resolvedFamily = CosmicNative.primaryFamily(engine);
@@ -89,6 +90,7 @@ public final class CosmicSmokeTest {
                         new String[0],
                         "", "", "", "",
                         false,
+                        0,
                         9.0F, Locale.getDefault().toLanguageTag());
                 try {
                     primaryChromatic = hasChromaticPixels(CosmicNative.render(

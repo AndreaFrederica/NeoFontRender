@@ -1037,16 +1037,21 @@ public final class NeofontrenderConfigScreen {
 
     private static final class MetricsSection extends ParentWidget<MetricsSection> implements ILayoutWidget {
         private final FieldBlock size;
+        private final FieldBlock weight;
         private final FieldBlock baseline;
 
         private MetricsSection(Staged staged) {
             this.size = new FieldBlock(tr("neofontrender.gui.label.size"), new TextFieldWidget()
                     .setMaxLength(8)
                     .value(new StringValue(() -> staged.fontSize, v -> staged.fontSize = v)));
+            this.weight = new FieldBlock(tr("neofontrender.gui.label.weight"), new TextFieldWidget()
+                    .setMaxLength(4)
+                    .value(new StringValue(() -> staged.variableWeight, v -> staged.variableWeight = v)));
             this.baseline = new FieldBlock(tr("neofontrender.gui.label.baseline"), new TextFieldWidget()
                     .setMaxLength(8)
                     .value(new StringValue(() -> staged.baselineShift, v -> staged.baselineShift = v)));
             child(size);
+            child(weight);
             child(baseline);
         }
 
@@ -1054,9 +1059,10 @@ public final class NeofontrenderConfigScreen {
         public boolean layoutWidgets() {
             int width = getArea().w();
             int gap = 10;
-            int item = Math.max(0, (width - gap) / 2);
+            int item = Math.max(0, (width - gap * 2) / 3);
             place(size, 0, 0, item, getArea().h());
-            place(baseline, item + gap, 0, Math.max(0, width - item - gap), getArea().h());
+            place(weight, item + gap, 0, item, getArea().h());
+            place(baseline, (item + gap) * 2, 0, Math.max(0, width - (item + gap) * 2), getArea().h());
             return true;
         }
     }
@@ -1428,6 +1434,7 @@ public final class NeofontrenderConfigScreen {
         private final boolean originalCosmicVariantOverridesOnlySwitchFont =
                 NeofontrenderConfig.cosmicVariantOverridesOnlySwitchFont();
         private final int originalFontStyle = NeofontrenderConfig.fontStyle();
+        private final String originalVariableWeight = Integer.toString(NeofontrenderConfig.fontVariableWeight());
         private final String originalFontSize = Float.toString(NeofontrenderConfig.fontSize());
         private final String originalOversample = Float.toString(NeofontrenderConfig.fontOversample());
         private final boolean originalAutoBaseline = NeofontrenderConfig.fontAutoBaseline();
@@ -1495,6 +1502,7 @@ public final class NeofontrenderConfigScreen {
         private boolean cosmicVariantOverridesOnlySwitchFont = originalCosmicVariantOverridesOnlySwitchFont;
         private String fontFallbacks = originalFontFallbacks;
         private int fontStyle = originalFontStyle;
+        private String variableWeight = originalVariableWeight;
         private String fontSize = originalFontSize;
         private String oversample = originalOversample;
         private boolean autoBaseline = originalAutoBaseline;
@@ -1614,6 +1622,7 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setCosmicBoldItalicFont(cosmicBoldItalic);
             NeofontrenderConfig.setCosmicVariantOverridesOnlySwitchFont(cosmicVariantOverridesOnlySwitchFont);
             NeofontrenderConfig.setFontStyle(fontStyle);
+            NeofontrenderConfig.setFontVariableWeight(parseInt(variableWeight, 0, 0, 1000));
             NeofontrenderConfig.setFontSize(parseFloat(fontSize, 10.0F, 4.0F, 64.0F));
             NeofontrenderConfig.setFontOversample(parseFloat(oversample, 8.0F, 1.0F, 16.0F));
             NeofontrenderConfig.setFontAutoBaseline(autoBaseline);
@@ -1665,6 +1674,7 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setCosmicVariantOverridesOnlySwitchFont(
                     originalCosmicVariantOverridesOnlySwitchFont);
             NeofontrenderConfig.setFontStyle(originalFontStyle);
+            NeofontrenderConfig.setFontVariableWeight(parseInt(originalVariableWeight, 0, 0, 1000));
             NeofontrenderConfig.setFontSize(parseFloat(originalFontSize, 8.0F, 4.0F, 64.0F));
             NeofontrenderConfig.setFontOversample(parseFloat(originalOversample, 8.0F, 1.0F, 16.0F));
             NeofontrenderConfig.setFontAutoBaseline(originalAutoBaseline);

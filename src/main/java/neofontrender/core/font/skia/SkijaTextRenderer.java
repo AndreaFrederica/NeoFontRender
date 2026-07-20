@@ -8,7 +8,9 @@ import io.github.humbleui.skija.ColorType;
 import io.github.humbleui.skija.Data;
 import io.github.humbleui.skija.DirectContext;
 import io.github.humbleui.skija.FontMgr;
+import io.github.humbleui.skija.FontSlant;
 import io.github.humbleui.skija.FontStyle;
+import io.github.humbleui.skija.FontVariation;
 import io.github.humbleui.skija.FramebufferFormat;
 import io.github.humbleui.skija.ImageInfo;
 import io.github.humbleui.skija.Paint;
@@ -1090,16 +1092,20 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         int configuredStyle = NeofontrenderConfig.fontStyle();
         boolean effectiveBold = bold || (configuredStyle & 1) != 0;
         boolean effectiveItalic = italic || (configuredStyle & 2) != 0;
-        FontStyle style = effectiveBold && effectiveItalic ? FontStyle.BOLD_ITALIC
-                : effectiveBold ? FontStyle.BOLD
-                : effectiveItalic ? FontStyle.ITALIC
-                : FontStyle.NORMAL;
+        FontStyle style = skiaFontStyle(effectiveBold, effectiveItalic);
         return new TextStyle()
                 .setColor(opaqueRgb(argb))
                 .setFontSize(NeofontrenderConfig.fontSize() * scale)
                 .setFontStyle(style)
                 .setFontFamilies(fontFamilies)
                 .setHeight(1.0F);
+    }
+
+    private static FontStyle skiaFontStyle(boolean bold, boolean italic) {
+        int configuredWeight = NeofontrenderConfig.fontVariableWeight();
+        int weight = bold ? Math.max(700, configuredWeight) : configuredWeight > 0 ? configuredWeight : 400;
+        FontSlant slant = italic ? FontSlant.ITALIC : FontSlant.UPRIGHT;
+        return new FontStyle(Math.max(1, Math.min(1000, weight)), FontStyle.NORMAL.getWidth(), slant);
     }
 
     private static Paint makeForegroundPaint(int argb) {
@@ -1304,6 +1310,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         File file = new File(name);
         if (file.isFile()) {
             Typeface typeface = FontMgr.getDefault().makeFromFile(file.getAbsolutePath());
+            typeface = variableWeightTypeface(typeface);
             ownedTypefaces.add(typeface);
             fontProvider.registerTypeface(typeface, name);
             addTypefaceFamilyAlias(typeface, aliases);
@@ -1315,6 +1322,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             try (InputStream input = resource.getInputStream()) {
                 byte[] bytes = readAllBytes(input);
                 Typeface typeface = FontMgr.getDefault().makeFromData(Data.makeFromBytes(bytes));
+                typeface = variableWeightTypeface(typeface);
                 ownedTypefaces.add(typeface);
                 fontProvider.registerTypeface(typeface, name);
                 addTypefaceFamilyAlias(typeface, aliases);
@@ -1328,6 +1336,24 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return aliases;
         }
         return aliases;
+    }
+
+    private Typeface variableWeightTypeface(Typeface typeface) {
+        int weight = NeofontrenderConfig.fontVariableWeight();
+        if (weight <= 0) {
+            return typeface;
+        }
+        try {
+            Typeface clone = typeface.makeClone(new FontVariation("wght", Math.max(1, Math.min(1000, weight))));
+            if (clone != null) {
+                ownedTypefaces.add(typeface);
+                return clone;
+            }
+        } catch (Throwable error) {
+            NeoFontRender.LOGGER.debug("Configured Skia variable weight {} is not available for '{}'",
+                    weight, typeface.getFamilyName());
+        }
+        return typeface;
     }
 
     private void addTypefaceFamilyAlias(Typeface typeface, List<String> aliases) {

@@ -34,6 +34,7 @@ neofontrender.gui.label.cosmic_italic=Cosmic italic override
 neofontrender.gui.label.cosmic_bold_italic=Cosmic bold italic override
 neofontrender.gui.option.cosmic_variant_font_only=Variant overrides only switch font
 neofontrender.gui.label.size=Size
+neofontrender.gui.label.weight=Weight
 neofontrender.gui.label.baseline=Baseline
 neofontrender.gui.label.oversample=Oversample
 neofontrender.gui.label.brightness=Brightness

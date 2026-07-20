@@ -13,7 +13,7 @@ use std::ptr;
 use std::sync::Mutex;
 use unicode_script::Script;
 
-const ABI_VERSION: jint = 6;
+const ABI_VERSION: jint = 7;
 const RASTER_MAGIC: i32 = 0x434F534D; // "COSM"
 const HEADER_SIZE: usize = 32;
 const MAX_TEXTURE_DIMENSION: i32 = 8192;
@@ -85,6 +85,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
     italic_override: JString,
     bold_italic_override: JString,
     variant_overrides_only_switch_font: jboolean,
+    variable_weight: jint,
     font_size: jfloat,
     locale: JString,
 ) -> jlong {
@@ -161,12 +162,13 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
             let catalog = build_face_catalog(&db);
             let mut warnings = Vec::new();
             let requested_key = normalize_font_name(&requested_family);
+            let regular_weight = configured_weight(variable_weight, Weight::NORMAL);
             let primary_match = resolve_selector(
                 &db,
                 &catalog,
                 &source_aliases,
                 &requested_family,
-                Weight::NORMAL,
+                regular_weight,
                 Style::Normal,
                 &mut warnings,
             );
@@ -183,8 +185,9 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
                 .map(|face| face.0)
                 .or(byte_primary_id)
                 .or(system_sans_id);
-            let fallback_primary =
-                primary_id.and_then(|id| selection_from_face(&db, &catalog, id, None));
+            let fallback_primary = primary_id.and_then(|id| {
+                selection_from_face(&db, &catalog, id, Some((regular_weight.0, Style::Normal)))
+            });
             let base_face = primary_match.map(|face| face.1).or(fallback_primary).ok_or_else(|| {
             format!("configured font family '{requested_family}' was not found and no font data was supplied")
         })?;
@@ -337,6 +340,14 @@ fn normalize_font_name(value: &str) -> String {
         .filter(|ch| ch.is_alphanumeric())
         .flat_map(char::to_lowercase)
         .collect()
+}
+
+fn configured_weight(value: jint, fallback: Weight) -> Weight {
+    if value <= 0 {
+        fallback
+    } else {
+        Weight((value as u16).clamp(1, 1000))
+    }
 }
 
 fn build_face_catalog(db: &cosmic_text::fontdb::Database) -> Vec<FaceRecord> {
@@ -1185,6 +1196,26 @@ mod tests {
         .expect("variable named instance should resolve")
         .1;
         assert_eq!(medium.weight, Weight::MEDIUM);
+    }
+
+    #[test]
+    fn configured_weight_selects_variable_wght_when_installed() {
+        let Some((db, catalog)) = load_test_font(r"C:\Windows\Fonts\NotoSansSC-VF.ttf") else {
+            return;
+        };
+        let mut warnings = Vec::new();
+        let resolved = resolve_selector(
+            &db,
+            &catalog,
+            &HashMap::new(),
+            "Noto Sans SC",
+            configured_weight(350, Weight::NORMAL),
+            Style::Normal,
+            &mut warnings,
+        )
+        .expect("variable family should resolve")
+        .1;
+        assert_eq!(resolved.weight, Weight(350));
     }
 
     #[test]

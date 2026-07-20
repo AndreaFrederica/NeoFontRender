@@ -76,6 +76,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                 NeofontrenderConfig.cosmicRegularFont(), NeofontrenderConfig.cosmicBoldFont(),
                 NeofontrenderConfig.cosmicItalicFont(), NeofontrenderConfig.cosmicBoldItalicFont(),
                 NeofontrenderConfig.cosmicVariantOverridesOnlySwitchFont(),
+                NeofontrenderConfig.fontVariableWeight(),
                 NeofontrenderConfig.fontSize(), Locale.getDefault().toLanguageTag());
         if (engine == 0L) {
             throw new IOException("cosmic-text returned a null engine");

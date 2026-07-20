@@ -34,6 +34,7 @@ neofontrender.gui.label.cosmic_italic=Cosmic 斜体覆盖
 neofontrender.gui.label.cosmic_bold_italic=Cosmic 粗斜体覆盖
 neofontrender.gui.option.cosmic_variant_font_only=变体覆盖仅换字体
 neofontrender.gui.label.size=字号
+neofontrender.gui.label.weight=字重
 neofontrender.gui.label.baseline=基线
 neofontrender.gui.label.oversample=超采样
 neofontrender.gui.label.brightness=亮度补偿
