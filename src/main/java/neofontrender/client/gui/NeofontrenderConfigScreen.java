@@ -63,6 +63,13 @@ public final class NeofontrenderConfigScreen {
     private static final int SOURCE_SYSTEM = 0;
     private static final int SOURCE_FOLDER = 1;
     private static final int SOURCE_BUILTIN = 2;
+    private static final int TARGET_PRIMARY = 0;
+    private static final int TARGET_FALLBACK = 1;
+    private static final int TARGET_COSMIC_REGULAR = 2;
+    private static final int TARGET_COSMIC_BOLD = 3;
+    private static final int TARGET_COSMIC_ITALIC = 4;
+    private static final int TARGET_COSMIC_BOLD_ITALIC = 5;
+    private static final int TARGET_COUNT = 6;
     private static final int PAGE_FONT = 0;
     private static final int PAGE_GENERAL = 1;
     private static final int PAGE_RENDERING = 2;
@@ -234,6 +241,24 @@ public final class NeofontrenderConfigScreen {
             case SOURCE_SYSTEM:
             default:
                 return tr("neofontrender.gui.source_title.system");
+        }
+    }
+
+    private static String fontTargetName(int target) {
+        switch (target) {
+            case TARGET_FALLBACK:
+                return tr("neofontrender.gui.target.fallback");
+            case TARGET_COSMIC_REGULAR:
+                return tr("neofontrender.gui.target.cosmic_regular");
+            case TARGET_COSMIC_BOLD:
+                return tr("neofontrender.gui.target.cosmic_bold");
+            case TARGET_COSMIC_ITALIC:
+                return tr("neofontrender.gui.target.cosmic_italic");
+            case TARGET_COSMIC_BOLD_ITALIC:
+                return tr("neofontrender.gui.target.cosmic_bold_italic");
+            case TARGET_PRIMARY:
+            default:
+                return tr("neofontrender.gui.target.primary");
         }
     }
 
@@ -566,12 +591,11 @@ public final class NeofontrenderConfigScreen {
         private final ButtonWidget<?> cancelButton;
 
         private FontConfigLayout(Staged staged) {
-            TextFieldWidget[] fontNameField = new TextFieldWidget[1];
-            TextFieldWidget[] fontPathField = new TextFieldWidget[1];
+            FontFieldRefs fieldRefs = new FontFieldRefs();
             FilteredFontList[] listRef = new FilteredFontList[1];
 
-            this.sidebar = new FontSidebar(staged, fontNameField, fontPathField, listRef);
-            this.settings = new SettingsPane(staged, fontNameField, fontPathField);
+            this.sidebar = new FontSidebar(staged, fieldRefs, listRef);
+            this.settings = new SettingsPane(staged, fieldRefs);
             this.settingsScroll = new ScrollWidget<>(new VerticalScrollData());
             this.settingsScroll.child(settings);
             // A live font reload can schedule another ModularUI resize after the manual layout
@@ -771,13 +795,14 @@ public final class NeofontrenderConfigScreen {
     private static final class FontSidebar extends ParentWidget<FontSidebar> implements ILayoutWidget {
         private final TextWidget searchLabel = label(tr("neofontrender.gui.label.search_fonts"));
         private final TextFieldWidget searchField;
+        private final ButtonWidget<?> targetButton;
         private final ButtonWidget<?> sourceButton;
         private final ButtonWidget<?> refreshButton;
         private final ButtonWidget<?> openFolderButton;
         private final TextWidget sourceTitle;
         private final FilteredFontList fontList;
 
-        private FontSidebar(Staged staged, TextFieldWidget[] nameField, TextFieldWidget[] pathField, FilteredFontList[] listRef) {
+        private FontSidebar(Staged staged, FontFieldRefs fieldRefs, FilteredFontList[] listRef) {
             this.searchField = new TextFieldWidget()
                     .setMaxLength(128)
                     .value(new StringValue(() -> staged.search, v -> {
@@ -786,6 +811,14 @@ public final class NeofontrenderConfigScreen {
                             listRef[0].refresh();
                         }
                     }));
+            this.targetButton = new TextButton(() -> tr("neofontrender.gui.button.target", fontTargetName(staged.fontTarget)), true)
+                    .onMousePressed(mouseButton -> {
+                        staged.fontTarget = (staged.fontTarget + 1) % TARGET_COUNT;
+                        if (listRef[0] != null) {
+                            listRef[0].refresh();
+                        }
+                        return true;
+                    });
             this.sourceButton = sourceButton(staged, listRef);
             this.refreshButton = actionButtonKey("neofontrender.gui.button.refresh", 72, 18, () -> {
                 if (listRef[0] != null) {
@@ -794,11 +827,12 @@ public final class NeofontrenderConfigScreen {
             });
             this.openFolderButton = actionButtonKey("neofontrender.gui.button.open_folder", 100, 18, NeofontrenderConfigScreen::openFontFolder);
             this.sourceTitle = dynamicLabel(() -> sourceTitle(staged.fontSource));
-            this.fontList = new FilteredFontList(staged, nameField, pathField);
+            this.fontList = new FilteredFontList(staged, fieldRefs);
             listRef[0] = this.fontList;
 
             child(searchLabel);
             child(searchField);
+            child(targetButton);
             child(sourceButton);
             child(refreshButton);
             child(openFolderButton);
@@ -814,6 +848,9 @@ public final class NeofontrenderConfigScreen {
             place(searchLabel, 0, y, width, 12);
             y += 16;
             place(searchField, 0, y, width, 22);
+            y += 28;
+
+            place(targetButton, 0, y, width, 22);
             y += 28;
 
             int gap = 6;
@@ -849,28 +886,29 @@ public final class NeofontrenderConfigScreen {
         private final OversampleSection oversample;
         private final PreviewWidget preview;
 
-        private SettingsPane(Staged staged, TextFieldWidget[] fontNameField, TextFieldWidget[] fontPathField) {
+        private SettingsPane(Staged staged, FontFieldRefs fieldRefs) {
             this.staged = staged;
-            fontNameField[0] = new TextFieldWidget()
+            fieldRefs.fontName = new TextFieldWidget()
                     .setMaxLength(256)
                     .value(new StringValue(() -> staged.fontName, v -> staged.fontName = v));
-            fontPathField[0] = new TextFieldWidget()
+            fieldRefs.fontPath = new TextFieldWidget()
                     .setMaxLength(512)
                     .value(new StringValue(() -> staged.fontPath, v -> staged.fontPath = v));
 
-            this.fontName = new FieldBlock(tr("neofontrender.gui.label.font_name"), fontNameField[0]);
-            this.fontPath = new FieldBlock(tr("neofontrender.gui.label.local_path"), fontPathField[0]);
-            this.fallbacks = new FieldBlock(tr("neofontrender.gui.label.fallbacks"), new TextFieldWidget()
+            this.fontName = new FieldBlock(tr("neofontrender.gui.label.font_name"), fieldRefs.fontName);
+            this.fontPath = new FieldBlock(tr("neofontrender.gui.label.local_path"), fieldRefs.fontPath);
+            fieldRefs.fallbacks = new TextFieldWidget()
                     .setMaxLength(512)
-                    .value(new StringValue(() -> staged.fontFallbacks, v -> staged.fontFallbacks = v)));
-            this.cosmicRegular = cosmicFaceField(
-                    "neofontrender.gui.label.cosmic_regular", () -> staged.cosmicRegular, v -> staged.cosmicRegular = v);
-            this.cosmicBold = cosmicFaceField(
-                    "neofontrender.gui.label.cosmic_bold", () -> staged.cosmicBold, v -> staged.cosmicBold = v);
-            this.cosmicItalic = cosmicFaceField(
-                    "neofontrender.gui.label.cosmic_italic", () -> staged.cosmicItalic, v -> staged.cosmicItalic = v);
-            this.cosmicBoldItalic = cosmicFaceField(
-                    "neofontrender.gui.label.cosmic_bold_italic", () -> staged.cosmicBoldItalic, v -> staged.cosmicBoldItalic = v);
+                    .value(new StringValue(() -> staged.fontFallbacks, v -> staged.fontFallbacks = v));
+            this.fallbacks = new FieldBlock(tr("neofontrender.gui.label.fallbacks"), fieldRefs.fallbacks);
+            fieldRefs.cosmicRegular = cosmicFaceField(() -> staged.cosmicRegular, v -> staged.cosmicRegular = v);
+            this.cosmicRegular = new FieldBlock(tr("neofontrender.gui.label.cosmic_regular"), fieldRefs.cosmicRegular);
+            fieldRefs.cosmicBold = cosmicFaceField(() -> staged.cosmicBold, v -> staged.cosmicBold = v);
+            this.cosmicBold = new FieldBlock(tr("neofontrender.gui.label.cosmic_bold"), fieldRefs.cosmicBold);
+            fieldRefs.cosmicItalic = cosmicFaceField(() -> staged.cosmicItalic, v -> staged.cosmicItalic = v);
+            this.cosmicItalic = new FieldBlock(tr("neofontrender.gui.label.cosmic_italic"), fieldRefs.cosmicItalic);
+            fieldRefs.cosmicBoldItalic = cosmicFaceField(() -> staged.cosmicBoldItalic, v -> staged.cosmicBoldItalic = v);
+            this.cosmicBoldItalic = new FieldBlock(tr("neofontrender.gui.label.cosmic_bold_italic"), fieldRefs.cosmicBoldItalic);
             this.cosmicVariantFontOnly = toggleButtonKey(
                     "neofontrender.gui.option.cosmic_variant_font_only",
                     "neofontrender.tooltip.cosmic_variant_font_only",
@@ -943,11 +981,37 @@ public final class NeofontrenderConfigScreen {
             return true;
         }
 
-        private static FieldBlock cosmicFaceField(String label, Supplier<String> getter,
-                                                  Consumer<String> setter) {
-            return new FieldBlock(tr(label), new TextFieldWidget()
+        private static TextFieldWidget cosmicFaceField(Supplier<String> getter,
+                                                       Consumer<String> setter) {
+            return new TextFieldWidget()
                     .setMaxLength(512)
-                    .value(new StringValue(getter, setter)));
+                    .value(new StringValue(getter, setter));
+        }
+    }
+
+    private static final class FontFieldRefs {
+        private TextFieldWidget fontName;
+        private TextFieldWidget fontPath;
+        private TextFieldWidget fallbacks;
+        private TextFieldWidget cosmicRegular;
+        private TextFieldWidget cosmicBold;
+        private TextFieldWidget cosmicItalic;
+        private TextFieldWidget cosmicBoldItalic;
+
+        private void refreshFrom(Staged staged) {
+            setText(fontName, staged.fontName);
+            setText(fontPath, staged.fontPath);
+            setText(fallbacks, staged.fontFallbacks);
+            setText(cosmicRegular, staged.cosmicRegular);
+            setText(cosmicBold, staged.cosmicBold);
+            setText(cosmicItalic, staged.cosmicItalic);
+            setText(cosmicBoldItalic, staged.cosmicBoldItalic);
+        }
+
+        private static void setText(TextFieldWidget field, String value) {
+            if (field != null) {
+                field.setText(value == null ? "" : value);
+            }
         }
     }
 
@@ -975,16 +1039,21 @@ public final class NeofontrenderConfigScreen {
 
     private static final class MetricsSection extends ParentWidget<MetricsSection> implements ILayoutWidget {
         private final FieldBlock size;
+        private final FieldBlock weight;
         private final FieldBlock baseline;
 
         private MetricsSection(Staged staged) {
             this.size = new FieldBlock(tr("neofontrender.gui.label.size"), new TextFieldWidget()
                     .setMaxLength(8)
                     .value(new StringValue(() -> staged.fontSize, v -> staged.fontSize = v)));
+            this.weight = new FieldBlock(tr("neofontrender.gui.label.weight"), new TextFieldWidget()
+                    .setMaxLength(4)
+                    .value(new StringValue(() -> staged.variableWeight, v -> staged.variableWeight = v)));
             this.baseline = new FieldBlock(tr("neofontrender.gui.label.baseline"), new TextFieldWidget()
                     .setMaxLength(8)
                     .value(new StringValue(() -> staged.baselineShift, v -> staged.baselineShift = v)));
             child(size);
+            child(weight);
             child(baseline);
         }
 
@@ -992,9 +1061,10 @@ public final class NeofontrenderConfigScreen {
         public boolean layoutWidgets() {
             int width = getArea().w();
             int gap = 10;
-            int item = Math.max(0, (width - gap) / 2);
+            int item = Math.max(0, (width - gap * 2) / 3);
             place(size, 0, 0, item, getArea().h());
-            place(baseline, item + gap, 0, Math.max(0, width - item - gap), getArea().h());
+            place(weight, item + gap, 0, item, getArea().h());
+            place(baseline, (item + gap) * 2, 0, Math.max(0, width - (item + gap) * 2), getArea().h());
             return true;
         }
     }
@@ -1366,6 +1436,7 @@ public final class NeofontrenderConfigScreen {
         private final boolean originalCosmicVariantOverridesOnlySwitchFont =
                 NeofontrenderConfig.cosmicVariantOverridesOnlySwitchFont();
         private final int originalFontStyle = NeofontrenderConfig.fontStyle();
+        private final String originalVariableWeight = Integer.toString(NeofontrenderConfig.fontVariableWeight());
         private final String originalFontSize = Float.toString(NeofontrenderConfig.fontSize());
         private final String originalOversample = Float.toString(NeofontrenderConfig.fontOversample());
         private final boolean originalAutoBaseline = NeofontrenderConfig.fontAutoBaseline();
@@ -1433,6 +1504,7 @@ public final class NeofontrenderConfigScreen {
         private boolean cosmicVariantOverridesOnlySwitchFont = originalCosmicVariantOverridesOnlySwitchFont;
         private String fontFallbacks = originalFontFallbacks;
         private int fontStyle = originalFontStyle;
+        private String variableWeight = originalVariableWeight;
         private String fontSize = originalFontSize;
         private String oversample = originalOversample;
         private boolean autoBaseline = originalAutoBaseline;
@@ -1442,6 +1514,7 @@ public final class NeofontrenderConfigScreen {
         private boolean fractionalMetrics = originalFractionalMetrics;
         private String search = "";
         private int fontSource = SOURCE_SYSTEM;
+        private int fontTarget = TARGET_PRIMARY;
         private boolean builtinFallbacks = originalBuiltinFallbacks;
         private String textCacheMin = originalTextCacheMin;
         private String textCacheMax = originalTextCacheMax;
@@ -1462,10 +1535,61 @@ public final class NeofontrenderConfigScreen {
         }
 
         private boolean isSelected(FontEntry font) {
-            String path = font.path == null ? "" : font.path;
-            return path.isEmpty()
-                    ? fontPath.isEmpty() && fontName.equals(font.displayName)
-                    : selectedFont().equals(path);
+            String value = fontValue(font);
+            switch (fontTarget) {
+                case TARGET_FALLBACK:
+                    return parseFonts(fontFallbacks).contains(value);
+                case TARGET_COSMIC_REGULAR:
+                    return value.equals(cosmicRegular);
+                case TARGET_COSMIC_BOLD:
+                    return value.equals(cosmicBold);
+                case TARGET_COSMIC_ITALIC:
+                    return value.equals(cosmicItalic);
+                case TARGET_COSMIC_BOLD_ITALIC:
+                    return value.equals(cosmicBoldItalic);
+                case TARGET_PRIMARY:
+                default:
+                    String path = font.path == null ? "" : font.path;
+                    return path.isEmpty()
+                            ? fontPath.isEmpty() && fontName.equals(font.displayName)
+                            : selectedFont().equals(path);
+            }
+        }
+
+        private void selectFont(FontEntry font) {
+            String value = fontValue(font);
+            switch (fontTarget) {
+                case TARGET_FALLBACK:
+                    List<String> fonts = parseFonts(fontFallbacks);
+                    if (fonts.contains(value)) {
+                        fonts.remove(value);
+                    } else {
+                        fonts.add(value);
+                    }
+                    fontFallbacks = joinFonts(fonts);
+                    return;
+                case TARGET_COSMIC_REGULAR:
+                    cosmicRegular = toggleSingleFont(cosmicRegular, value);
+                    return;
+                case TARGET_COSMIC_BOLD:
+                    cosmicBold = toggleSingleFont(cosmicBold, value);
+                    return;
+                case TARGET_COSMIC_ITALIC:
+                    cosmicItalic = toggleSingleFont(cosmicItalic, value);
+                    return;
+                case TARGET_COSMIC_BOLD_ITALIC:
+                    cosmicBoldItalic = toggleSingleFont(cosmicBoldItalic, value);
+                    return;
+                case TARGET_PRIMARY:
+                default:
+                    fontName = font.displayName;
+                    fontPath = font.path;
+            }
+        }
+
+        private String toggleSingleFont(String current, String value) {
+            String existing = current == null ? "" : current.trim();
+            return existing.equals(value) ? "" : value;
         }
 
         private void writeToConfig(boolean save) {
@@ -1500,6 +1624,7 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setCosmicBoldItalicFont(cosmicBoldItalic);
             NeofontrenderConfig.setCosmicVariantOverridesOnlySwitchFont(cosmicVariantOverridesOnlySwitchFont);
             NeofontrenderConfig.setFontStyle(fontStyle);
+            NeofontrenderConfig.setFontVariableWeight(parseInt(variableWeight, 0, 0, 1000));
             NeofontrenderConfig.setFontSize(parseFloat(fontSize, 10.0F, 4.0F, 64.0F));
             NeofontrenderConfig.setFontOversample(parseFloat(oversample, 8.0F, 1.0F, 16.0F));
             NeofontrenderConfig.setFontAutoBaseline(autoBaseline);
@@ -1551,6 +1676,7 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setCosmicVariantOverridesOnlySwitchFont(
                     originalCosmicVariantOverridesOnlySwitchFont);
             NeofontrenderConfig.setFontStyle(originalFontStyle);
+            NeofontrenderConfig.setFontVariableWeight(parseInt(originalVariableWeight, 0, 0, 1000));
             NeofontrenderConfig.setFontSize(parseFloat(originalFontSize, 8.0F, 4.0F, 64.0F));
             NeofontrenderConfig.setFontOversample(parseFloat(originalOversample, 8.0F, 1.0F, 16.0F));
             NeofontrenderConfig.setFontAutoBaseline(originalAutoBaseline);
@@ -1764,23 +1890,18 @@ public final class NeofontrenderConfigScreen {
 
     private static final class FilteredFontList extends ListWidget<IWidget, FilteredFontList> {
         private final Staged staged;
-        private final TextFieldWidget[] nameField;
-        private final TextFieldWidget[] pathField;
+        private final FontFieldRefs fieldRefs;
         private List<FontEntry> fonts;
 
-        private FilteredFontList(Staged staged, TextFieldWidget[] nameField, TextFieldWidget[] pathField) {
+        private FilteredFontList(Staged staged, FontFieldRefs fieldRefs) {
             this.staged = staged;
-            this.nameField = nameField;
-            this.pathField = pathField;
+            this.fieldRefs = fieldRefs;
             scrollDirection(GuiAxis.Y);
             collapseDisabledChild();
             reloadFonts();
         }
 
         private void reloadFonts() {
-            while (!getChildren().isEmpty()) {
-                remove(0);
-            }
             if (staged.fontSource == SOURCE_SYSTEM) {
                 List<FontEntry> entries = new ArrayList<>();
                 for (String font : localFonts()) {
@@ -1792,17 +1913,16 @@ public final class NeofontrenderConfigScreen {
             } else {
                 this.fonts = builtinFonts();
             }
-            for (FontEntry font : fonts) {
-                child(fontButton(font));
-            }
             refresh();
         }
 
         private void refresh() {
-            for (int i = 0; i < getChildren().size() && i < fonts.size(); i++) {
-                Object child = getChildren().get(i);
-                if (child instanceof IWidget) {
-                    ((IWidget) child).setEnabled(staged.matchesSearch(fonts.get(i).displayName));
+            while (!getChildren().isEmpty()) {
+                remove(0);
+            }
+            for (FontEntry font : fonts) {
+                if (staged.matchesSearch(font.displayName)) {
+                    child(fontButton(font));
                 }
             }
             if (isValid()) {
@@ -1814,20 +1934,14 @@ public final class NeofontrenderConfigScreen {
         private ButtonWidget<?> fontButton(FontEntry font) {
             ButtonWidget<?> button = new ButtonWidget<>();
             TextWidget label = new TextWidget(IKey.dynamic(() -> staged.isSelected(font)
-                ? "> " + font.displayName : font.displayName));
+                ? selectedFontPrefix() + font.displayName : font.displayName));
             label.alignment(Alignment.CenterLeft);
             label.color(0xFFFFFF);
             label.paddingLeft(6);
             button.child(label);
             button.onMousePressed(mouseButton -> {
-                staged.fontName = font.displayName;
-                staged.fontPath = font.path;
-                if (nameField[0] != null) {
-                    nameField[0].setText(font.displayName);
-                }
-                if (pathField[0] != null) {
-                    pathField[0].setText(font.path);
-                }
+                staged.selectFont(font);
+                fieldRefs.refreshFrom(staged);
                 preview(staged);
                 return true;
             });
@@ -1844,9 +1958,6 @@ public final class NeofontrenderConfigScreen {
                     continue;
                 }
                 IWidget child = (IWidget) childObject;
-                if (!child.isEnabled()) {
-                    continue;
-                }
                 place(child, getArea().getPadding().getLeft(), y, width, 16);
                 if (!child.getChildren().isEmpty()) {
                     place(child.getChildren().get(0), 0, 0, width, 16);
@@ -1856,6 +1967,15 @@ public final class NeofontrenderConfigScreen {
             getScrollData().setScrollSize(y + getArea().getPadding().getBottom());
             return true;
         }
+    }
+
+    private static String fontValue(FontEntry font) {
+        String path = font.path == null ? "" : font.path.trim();
+        return path.isEmpty() ? font.displayName : path;
+    }
+
+    private static String selectedFontPrefix() {
+        return "> ";
     }
 
     private static final class StringValue implements IStringValue<String> {

@@ -24,6 +24,7 @@ public final class NeofontrenderConfig {
     private static final String DEFAULT_FONT = "neofontrender:fonts/sarasa_ui_sc_regular.ttf";
     private static Path configPath;
     private static CommentedFileConfig config;
+    private static volatile Snapshot cached = Snapshot.defaults();
     private static volatile boolean cachedDebugRenderStats;
     private static final List<BuiltinFont> BUILTIN_FONTS = Collections.unmodifiableList(Arrays.asList(
             new BuiltinFont("Sarasa UI SC", DEFAULT_FONT),
@@ -70,7 +71,11 @@ public final class NeofontrenderConfig {
     }
 
     public static int fontStyle() {
-        return config.getOrElse("font.style", 0);
+        return cached.fontStyle;
+    }
+
+    public static int fontVariableWeight() {
+        return cached.fontVariableWeight;
     }
 
     public static String cosmicRegularFont() {
@@ -90,7 +95,7 @@ public final class NeofontrenderConfig {
     }
 
     public static boolean cosmicVariantOverridesOnlySwitchFont() {
-        return config.getOrElse("font.cosmic.variantOverridesOnlySwitchFont", false);
+        return cached.cosmicVariantOverridesOnlySwitchFont;
     }
 
     public static List<String> cosmicFaceOverrides() {
@@ -99,44 +104,43 @@ public final class NeofontrenderConfig {
     }
 
     public static float fontSize() {
-        return getFloat("font.size", 10.0f);
+        return cached.fontSize;
     }
 
     public static float fontOversample() {
-        return getFloat("font.oversample", 12.0f);
+        return cached.fontOversample;
     }
 
     public static boolean fontAutoBaseline() {
-        return config.getOrElse("font.autoBaseline", true);
+        return cached.fontAutoBaseline;
     }
 
     public static float fontBaselineShift() {
-        return getFloat("font.baselineShift", 0.0f);
+        return cached.fontBaselineShift;
     }
 
     public static float fontReferenceBaseline() {
-        return getFloat("font.referenceBaseline", 7.0f);
+        return cached.fontReferenceBaseline;
     }
 
     public static boolean fontAntialias() {
-        return config.getOrElse("font.antialias", true);
+        return cached.fontAntialias;
     }
 
     public static String fontAntialiasMode() {
-        String mode = config.getOrElse("font.antialiasMode", fontAntialias() ? "on" : "off");
-        return normalizeAntialiasMode(mode);
+        return cached.fontAntialiasMode;
     }
 
     public static boolean fontFractionalMetrics() {
-        return config.getOrElse("font.fractionalMetrics", true);
+        return cached.fontFractionalMetrics;
     }
 
     public static boolean fontLcdSubpixel() {
-        return config.getOrElse("font.lcdSubpixel", false);
+        return cached.fontLcdSubpixel;
     }
 
     public static boolean builtinFallbacksEnabled() {
-        return config.getOrElse("font.builtinFallbacks", true);
+        return cached.builtinFallbacks;
     }
 
     public static List<BuiltinFont> builtinFonts() {
@@ -145,16 +149,16 @@ public final class NeofontrenderConfig {
 
     // ===================== Shadow =====================
     public static float shadowLength() {
-        return getFloat("shadow.length", 1.0f);
+        return cached.shadowLength;
     }
 
     public static float shadowOpacity() {
-        return getFloat("shadow.opacity", 0.25f);
+        return cached.shadowOpacity;
     }
 
     // ===================== Rendering =====================
     public static String renderingEngine() {
-        return normalizeRenderingEngine(config.getOrElse("rendering.engine", "cosmic"));
+        return cached.renderingEngine;
     }
 
     public static boolean useSfrEngine() {
@@ -170,35 +174,35 @@ public final class NeofontrenderConfig {
     }
 
     public static boolean skiaAdvancedStringMode() {
-        return config.getOrElse("rendering.skiaAdvancedStringMode", true);
+        return cached.skiaAdvancedStringMode;
     }
 
     public static boolean skiaGpuOffscreen() {
-        return config.getOrElse("rendering.skiaGpuOffscreen", false);
+        return cached.skiaGpuOffscreen;
     }
 
     public static boolean skiaGpuSubmitViaCpuTexture() {
-        return config.getOrElse("rendering.skiaGpuSubmitViaCpuTexture", true);
+        return cached.skiaGpuSubmitViaCpuTexture;
     }
 
     public static boolean skiaMonochromeText() {
-        return config.getOrElse("rendering.skiaMonochromeText", true);
+        return cached.skiaMonochromeText;
     }
 
     public static boolean skiaSegmentCache() {
-        return config.getOrElse("rendering.skiaSegmentCache", true);
+        return cached.skiaSegmentCache;
     }
 
     public static int skiaSegmentCacheMinRunLength() {
-        return Math.max(1, getInt("rendering.skiaSegmentCacheMinRunLength", 8));
+        return cached.skiaSegmentCacheMinRunLength;
     }
 
     public static int skiaSegmentCacheMaxRunCodePoints() {
-        return Math.max(1, getInt("rendering.skiaSegmentCacheMaxRunCodePoints", 24));
+        return cached.skiaSegmentCacheMaxRunCodePoints;
     }
 
     public static int skiaSegmentCacheMaxSegments() {
-        return Math.max(2, getInt("rendering.skiaSegmentCacheMaxSegments", 96));
+        return cached.skiaSegmentCacheMaxSegments;
     }
 
     public static boolean useVanillaEngine() {
@@ -206,87 +210,87 @@ public final class NeofontrenderConfig {
     }
 
     public static boolean renderingInterpolation() {
-        return config.getOrElse("rendering.interpolation", false);
+        return cached.renderingInterpolation;
     }
 
     public static boolean renderingMipmap() {
-        return config.getOrElse("rendering.mipmap", true);
+        return cached.renderingMipmap;
     }
 
     public static boolean adaptiveRasterScale() {
-        return config.getOrElse("rendering.adaptiveRasterScale", true);
+        return cached.adaptiveRasterScale;
     }
 
     public static float adaptiveRasterMin() {
-        return getFloat("rendering.adaptiveRasterMin", 1.5f);
+        return cached.adaptiveRasterMin;
     }
 
     public static float adaptiveRasterMax() {
-        return getFloat("rendering.adaptiveRasterMax", 14.0f);
+        return cached.adaptiveRasterMax;
     }
 
     public static float adaptiveRasterStep() {
-        return getFloat("rendering.adaptiveRasterStep", 0.5f);
+        return cached.adaptiveRasterStep;
     }
 
     public static boolean excludeIntegerScale() {
-        return config.getOrElse("rendering.excludeIntegerScale", true);
+        return cached.excludeIntegerScale;
     }
 
     public static boolean excludeHighMagnification() {
-        return config.getOrElse("rendering.excludeHighMagnification", true);
+        return cached.excludeHighMagnification;
     }
 
     public static float limitMagnification() {
-        return getFloat("rendering.limitMagnification", 3.0f);
+        return cached.limitMagnification;
     }
 
     public static float scaleRoundingToleranceRate() {
-        return getFloat("rendering.scaleRoundingTolerance", 0.5f) * 0.01f;
+        return cached.scaleRoundingToleranceRate;
     }
 
     public static float mipmapLodBias() {
-        return getFloat("rendering.mipmapLodBias", -0.3f);
+        return cached.mipmapLodBias;
     }
 
     public static float overlayMipmapLodBias() {
-        return getFloat("rendering.overlayMipmapLodBias", -0.5f);
+        return cached.overlayMipmapLodBias;
     }
 
     public static boolean anisotropicFiltering() {
-        return config.getOrElse("rendering.anisotropicFiltering", true);
+        return cached.anisotropicFiltering;
     }
 
     public static float blurReductionThreshold() {
-        return getFloat("rendering.blurReduction", 10.0f);
+        return cached.blurReductionThreshold;
     }
 
     public static float smoothShadowThreshold() {
-        return getFloat("rendering.smoothShadowThreshold", 24.0f);
+        return cached.smoothShadowThreshold;
     }
 
     public static boolean enhancedTextPipeline() {
-        return config.getOrElse("rendering.enhancedTextPipeline", false);
+        return cached.enhancedTextPipeline;
     }
 
     public static boolean shaderTextPipeline() {
-        return config.getOrElse("rendering.shaderTextPipeline", false);
+        return cached.shaderTextPipeline;
     }
 
     public static float renderingBrightness() {
-        return getFloat("rendering.brightness", 0.0f);
+        return cached.renderingBrightness;
     }
 
     public static boolean textureEdgeBleed() {
-        return config.getOrElse("rendering.textureEdgeBleed", false);
+        return cached.textureEdgeBleed;
     }
 
     public static boolean renderingBrightnessAuto() {
-        return config.getOrElse("rendering.brightnessAuto", true);
+        return cached.renderingBrightnessAuto;
     }
 
     public static boolean enablePremultipliedAlpha() {
-        return config.getOrElse("rendering.premultipliedAlpha", false);
+        return cached.enablePremultipliedAlpha;
     }
 
     /**
@@ -312,104 +316,104 @@ public final class NeofontrenderConfig {
      * situation.</p>
      */
     public static boolean forceBlendForText() {
-        return config.getOrElse("rendering.forceBlendForText", true);
+        return cached.forceBlendForText;
     }
 
     // ===================== Performance =====================
     public static boolean performanceAsyncInit() {
-        return config.getOrElse("performance.asyncInit", true);
+        return cached.performanceAsyncInit;
     }
 
     public static boolean performancePrewarmBasicLatin() {
-        return config.getOrElse("performance.prewarmBasicLatin", true);
+        return cached.performancePrewarmBasicLatin;
     }
 
     public static boolean signTextLodCulling() {
-        return config.getOrElse("performance.signTextLodCulling", true);
+        return cached.signTextLodCulling;
     }
 
     public static float signTextMinPixelHeight() {
-        return Math.max(0.0F, getFloat("performance.signTextMinPixelHeight", 4.0F));
+        return cached.signTextMinPixelHeight;
     }
 
     public static boolean signTextBatching() {
-        return config.getOrElse("performance.signTextBatching", true);
+        return cached.signTextBatching;
     }
 
     public static boolean signTextFrustumCulling() {
-        return config.getOrElse("performance.signTextFrustumCulling", true);
+        return cached.signTextFrustumCulling;
     }
 
     public static boolean signModelLod() {
-        return config.getOrElse("performance.signModelLod", false);
+        return cached.signModelLod;
     }
 
     public static float signModelLodDistance() {
-        return Math.max(4.0F, getFloat("performance.signModelLodDistance", 24.0F));
+        return cached.signModelLodDistance;
     }
 
     public static float signTextNearThreshold() {
-        return Math.max(1.0F, getFloat("performance.signTextNearThreshold", 6.0F));
+        return cached.signTextNearThreshold;
     }
 
     public static float signTextNearSupersample() {
-        return Math.max(1.0F, getFloat("performance.signTextNearSupersample", 2.5F));
+        return cached.signTextNearSupersample;
     }
 
     public static float signTextNearMaxRasterScale() {
-        return Math.max(8.0F, getFloat("performance.signTextNearMaxRasterScale", 32.0F));
+        return cached.signTextNearMaxRasterScale;
     }
 
     public static boolean signCrossTileBatching() {
-        return config.getOrElse("performance.signCrossTileBatching", false);
+        return cached.signCrossTileBatching;
     }
 
     public static int signBatchMaxEntries() {
-        return Math.max(64, getInt("performance.signBatchMaxEntries", 4096));
+        return cached.signBatchMaxEntries;
     }
 
     public static boolean signBlockOcclusionCulling() {
-        return config.getOrElse("performance.signBlockOcclusionCulling", true);
+        return cached.signBlockOcclusionCulling;
     }
 
     public static int signOcclusionChecksPerFrame() {
-        return Math.max(1, getInt("performance.signOcclusionChecksPerFrame", 48));
+        return cached.signOcclusionChecksPerFrame;
     }
 
     public static long signOcclusionCacheMillis() {
-        return Math.max(50L, getInt("performance.signOcclusionCacheMillis", 250));
+        return cached.signOcclusionCacheMillis;
     }
 
     public static float signOcclusionMinDistance() {
-        return Math.max(2.0F, getFloat("performance.signOcclusionMinDistance", 8.0F));
+        return cached.signOcclusionMinDistance;
     }
 
     public static int skiaTextCacheMinEntries() {
-        return Math.max(0, getInt("performance.skiaTextCacheMinEntries", 256));
+        return cached.skiaTextCacheMinEntries;
     }
 
     public static int skiaTextCacheMaxEntries() {
-        return Math.max(1, getInt("performance.skiaTextCacheMaxEntries", 2048));
+        return cached.skiaTextCacheMaxEntries;
     }
 
     public static float skiaTextCacheTtlSeconds() {
-        return Math.max(0.0f, getFloat("performance.skiaTextCacheTtlSeconds", 300.0f));
+        return cached.skiaTextCacheTtlSeconds;
     }
 
     public static int skiaMeasureCacheMaxEntries() {
-        return Math.max(1, getInt("performance.skiaMeasureCacheMaxEntries", 4096));
+        return cached.skiaMeasureCacheMaxEntries;
     }
 
     public static int skiaSegmentTextureCacheMinEntries() {
-        return Math.max(0, getInt("performance.skiaSegmentTextureCacheMinEntries", 512));
+        return cached.skiaSegmentTextureCacheMinEntries;
     }
 
     public static int skiaSegmentTextureCacheMaxEntries() {
-        return Math.max(1, getInt("performance.skiaSegmentTextureCacheMaxEntries", 4096));
+        return cached.skiaSegmentTextureCacheMaxEntries;
     }
 
     public static float skiaSegmentTextureCacheTtlSeconds() {
-        return Math.max(0.0f, getFloat("performance.skiaSegmentTextureCacheTtlSeconds", 600.0f));
+        return cached.skiaSegmentTextureCacheTtlSeconds;
     }
 
     // These generic accessors intentionally retain the old TOML keys. Existing installations
@@ -433,15 +437,15 @@ public final class NeofontrenderConfig {
 
     // ===================== General =====================
     public static boolean enabled() {
-        return config.getOrElse("enabled", true);
+        return cached.enabled;
     }
 
     public static boolean fixImeInput() {
-        return config.getOrElse("fixImeInput", true);
+        return cached.fixImeInput;
     }
 
     public static boolean debugImeInput() {
-        return config.getOrElse("debug.imeInput", false);
+        return cached.debugImeInput;
     }
 
     public static boolean debugRenderStats() {
@@ -449,254 +453,258 @@ public final class NeofontrenderConfig {
     }
 
     public static boolean allowSignPaste() {
-        return config.getOrElse("input.allowSignPaste", true);
+        return cached.allowSignPaste;
     }
 
     public static void setEnabled(boolean value) {
-        config.set("enabled", value);
+        setValue("enabled", value);
     }
 
     public static void setFontName(String value) {
-        config.set("font.name", value);
+        setValue("font.name", value);
     }
 
     public static void setFontFallbacks(List<String> value) {
-        config.set("font.fallbacks", value == null ? Collections.emptyList() : new ArrayList<>(value));
+        setValue("font.fallbacks", value == null ? Collections.emptyList() : new ArrayList<>(value));
     }
 
     public static void setFontStyle(int value) {
-        config.set("font.style", value);
+        setValue("font.style", value);
+    }
+
+    public static void setFontVariableWeight(int value) {
+        setValue("font.variableWeight", Math.max(0, Math.min(1000, value)));
     }
 
     public static void setCosmicRegularFont(String value) {
-        config.set("font.cosmic.regular", value == null ? "" : value.trim());
+        setValue("font.cosmic.regular", value == null ? "" : value.trim());
     }
 
     public static void setCosmicBoldFont(String value) {
-        config.set("font.cosmic.bold", value == null ? "" : value.trim());
+        setValue("font.cosmic.bold", value == null ? "" : value.trim());
     }
 
     public static void setCosmicItalicFont(String value) {
-        config.set("font.cosmic.italic", value == null ? "" : value.trim());
+        setValue("font.cosmic.italic", value == null ? "" : value.trim());
     }
 
     public static void setCosmicBoldItalicFont(String value) {
-        config.set("font.cosmic.boldItalic", value == null ? "" : value.trim());
+        setValue("font.cosmic.boldItalic", value == null ? "" : value.trim());
     }
 
     public static void setCosmicVariantOverridesOnlySwitchFont(boolean value) {
-        config.set("font.cosmic.variantOverridesOnlySwitchFont", value);
+        setValue("font.cosmic.variantOverridesOnlySwitchFont", value);
     }
 
     public static void setFontSize(float value) {
-        config.set("font.size", value);
+        setValue("font.size", value);
     }
 
     public static void setFontOversample(float value) {
-        config.set("font.oversample", value);
+        setValue("font.oversample", value);
     }
 
     public static void setFontAutoBaseline(boolean value) {
-        config.set("font.autoBaseline", value);
+        setValue("font.autoBaseline", value);
     }
 
     public static void setFontBaselineShift(float value) {
-        config.set("font.baselineShift", value);
+        setValue("font.baselineShift", value);
     }
 
     public static void setFontReferenceBaseline(float value) {
-        config.set("font.referenceBaseline", value);
+        setValue("font.referenceBaseline", value);
     }
 
     public static void setFontAntialias(boolean value) {
-        config.set("font.antialias", value);
+        setValue("font.antialias", value);
     }
 
     public static void setFontAntialiasMode(String value) {
         String mode = normalizeAntialiasMode(value);
-        config.set("font.antialiasMode", mode);
-        config.set("font.antialias", !"off".equals(mode));
+        setValue("font.antialiasMode", mode);
+        setValue("font.antialias", !"off".equals(mode));
     }
 
     public static void setFontFractionalMetrics(boolean value) {
-        config.set("font.fractionalMetrics", value);
+        setValue("font.fractionalMetrics", value);
     }
 
     public static void setFontLcdSubpixel(boolean value) {
-        config.set("font.lcdSubpixel", value);
+        setValue("font.lcdSubpixel", value);
     }
 
     public static void setBuiltinFallbacksEnabled(boolean value) {
-        config.set("font.builtinFallbacks", value);
+        setValue("font.builtinFallbacks", value);
     }
 
     public static void setShadowLength(float value) {
-        config.set("shadow.length", value);
+        setValue("shadow.length", value);
     }
 
     public static void setShadowOpacity(float value) {
-        config.set("shadow.opacity", value);
+        setValue("shadow.opacity", value);
     }
 
     public static void setRenderingInterpolation(boolean value) {
-        config.set("rendering.interpolation", value);
+        setValue("rendering.interpolation", value);
     }
 
     public static void setRenderingMipmap(boolean value) {
-        config.set("rendering.mipmap", value);
+        setValue("rendering.mipmap", value);
     }
 
     public static void setAdaptiveRasterScale(boolean value) {
-        config.set("rendering.adaptiveRasterScale", value);
+        setValue("rendering.adaptiveRasterScale", value);
     }
 
     public static void setAdaptiveRasterMin(float value) {
-        config.set("rendering.adaptiveRasterMin", value);
+        setValue("rendering.adaptiveRasterMin", value);
     }
 
     public static void setAdaptiveRasterMax(float value) {
-        config.set("rendering.adaptiveRasterMax", value);
+        setValue("rendering.adaptiveRasterMax", value);
     }
 
     public static void setAdaptiveRasterStep(float value) {
-        config.set("rendering.adaptiveRasterStep", value);
+        setValue("rendering.adaptiveRasterStep", value);
     }
 
     public static void setExcludeIntegerScale(boolean value) {
-        config.set("rendering.excludeIntegerScale", value);
+        setValue("rendering.excludeIntegerScale", value);
     }
 
     public static void setExcludeHighMagnification(boolean value) {
-        config.set("rendering.excludeHighMagnification", value);
+        setValue("rendering.excludeHighMagnification", value);
     }
 
     public static void setLimitMagnification(float value) {
-        config.set("rendering.limitMagnification", value);
+        setValue("rendering.limitMagnification", value);
     }
 
     public static void setScaleRoundingTolerance(float value) {
-        config.set("rendering.scaleRoundingTolerance", value);
+        setValue("rendering.scaleRoundingTolerance", value);
     }
 
     public static void setMipmapLodBias(float value) {
-        config.set("rendering.mipmapLodBias", value);
+        setValue("rendering.mipmapLodBias", value);
     }
 
     public static void setOverlayMipmapLodBias(float value) {
-        config.set("rendering.overlayMipmapLodBias", value);
+        setValue("rendering.overlayMipmapLodBias", value);
     }
 
     public static void setAnisotropicFiltering(boolean value) {
-        config.set("rendering.anisotropicFiltering", value);
+        setValue("rendering.anisotropicFiltering", value);
     }
 
     public static void setBlurReductionThreshold(float value) {
-        config.set("rendering.blurReduction", value);
+        setValue("rendering.blurReduction", value);
     }
 
     public static void setSmoothShadowThreshold(float value) {
-        config.set("rendering.smoothShadowThreshold", value);
+        setValue("rendering.smoothShadowThreshold", value);
     }
 
     public static void setEnhancedTextPipeline(boolean value) {
-        config.set("rendering.enhancedTextPipeline", value);
+        setValue("rendering.enhancedTextPipeline", value);
     }
 
     public static void setShaderTextPipeline(boolean value) {
-        config.set("rendering.shaderTextPipeline", value);
+        setValue("rendering.shaderTextPipeline", value);
     }
 
     public static void setRenderingBrightness(float value) {
-        config.set("rendering.brightness", value);
+        setValue("rendering.brightness", value);
     }
 
     public static void setTextureEdgeBleed(boolean value) {
-        config.set("rendering.textureEdgeBleed", value);
+        setValue("rendering.textureEdgeBleed", value);
     }
 
     public static void setRenderingBrightnessAuto(boolean value) {
-        config.set("rendering.brightnessAuto", value);
+        setValue("rendering.brightnessAuto", value);
     }
 
     public static void setEnablePremultipliedAlpha(boolean value) {
-        config.set("rendering.premultipliedAlpha", value);
+        setValue("rendering.premultipliedAlpha", value);
     }
 
     public static void setForceBlendForText(boolean value) {
-        config.set("rendering.forceBlendForText", value);
+        setValue("rendering.forceBlendForText", value);
     }
 
     public static void setRenderingEngine(String value) {
-        config.set("rendering.engine", normalizeRenderingEngine(value));
+        setValue("rendering.engine", normalizeRenderingEngine(value));
     }
 
     public static void setSkiaAdvancedStringMode(boolean value) {
-        config.set("rendering.skiaAdvancedStringMode", value);
+        setValue("rendering.skiaAdvancedStringMode", value);
     }
 
     public static void setSkiaGpuOffscreen(boolean value) {
-        config.set("rendering.skiaGpuOffscreen", value);
+        setValue("rendering.skiaGpuOffscreen", value);
     }
 
     public static void setSkiaGpuSubmitViaCpuTexture(boolean value) {
-        config.set("rendering.skiaGpuSubmitViaCpuTexture", value);
+        setValue("rendering.skiaGpuSubmitViaCpuTexture", value);
     }
 
     public static void setSkiaMonochromeText(boolean value) {
-        config.set("rendering.skiaMonochromeText", value);
+        setValue("rendering.skiaMonochromeText", value);
     }
 
     public static void setPerformanceAsyncInit(boolean value) {
-        config.set("performance.asyncInit", value);
+        setValue("performance.asyncInit", value);
     }
 
     public static void setPerformancePrewarmBasicLatin(boolean value) {
-        config.set("performance.prewarmBasicLatin", value);
+        setValue("performance.prewarmBasicLatin", value);
     }
 
     public static void setSignModelLod(boolean value) {
-        config.set("performance.signModelLod", value);
+        setValue("performance.signModelLod", value);
     }
 
     public static void setSignCrossTileBatching(boolean value) {
-        config.set("performance.signCrossTileBatching", value);
+        setValue("performance.signCrossTileBatching", value);
     }
 
     public static void setSignBlockOcclusionCulling(boolean value) {
-        config.set("performance.signBlockOcclusionCulling", value);
+        setValue("performance.signBlockOcclusionCulling", value);
     }
 
     public static void setSkiaTextCacheMinEntries(int value) {
-        config.set("performance.skiaTextCacheMinEntries", value);
+        setValue("performance.skiaTextCacheMinEntries", value);
     }
 
     public static void setSkiaTextCacheMaxEntries(int value) {
-        config.set("performance.skiaTextCacheMaxEntries", value);
+        setValue("performance.skiaTextCacheMaxEntries", value);
     }
 
     public static void setSkiaTextCacheTtlSeconds(float value) {
-        config.set("performance.skiaTextCacheTtlSeconds", value);
+        setValue("performance.skiaTextCacheTtlSeconds", value);
     }
 
     public static void setSkiaMeasureCacheMaxEntries(int value) {
-        config.set("performance.skiaMeasureCacheMaxEntries", value);
+        setValue("performance.skiaMeasureCacheMaxEntries", value);
     }
 
     public static void setSkiaSegmentTextureCacheMinEntries(int value) {
-        config.set("performance.skiaSegmentTextureCacheMinEntries", value);
+        setValue("performance.skiaSegmentTextureCacheMinEntries", value);
     }
 
     public static void setSkiaSegmentTextureCacheMaxEntries(int value) {
-        config.set("performance.skiaSegmentTextureCacheMaxEntries", value);
+        setValue("performance.skiaSegmentTextureCacheMaxEntries", value);
     }
 
     public static void setSkiaSegmentTextureCacheTtlSeconds(float value) {
-        config.set("performance.skiaSegmentTextureCacheTtlSeconds", value);
+        setValue("performance.skiaSegmentTextureCacheTtlSeconds", value);
     }
 
     public static void setDebugRenderStats(boolean value) {
         cachedDebugRenderStats = value;
-        config.set("debug.renderStats", value);
+        setValue("debug.renderStats", value);
     }
 
     public static void save() {
@@ -736,7 +744,13 @@ public final class NeofontrenderConfig {
     }
 
     private static void refreshCachedOptions() {
-        cachedDebugRenderStats = config.getOrElse("debug.renderStats", false);
+        cached = Snapshot.from(config);
+        cachedDebugRenderStats = cached.debugRenderStats;
+    }
+
+    private static void setValue(String key, Object value) {
+        config.set(key, value);
+        refreshCachedOptions();
     }
 
     public static File fontDirectory() {
@@ -761,6 +775,7 @@ public final class NeofontrenderConfig {
             w.write("name = \"" + DEFAULT_FONT + "\"\n");
             w.write("fallbacks = [\"Serif\", \"Monospaced\"]\n");
             w.write("style = 0\n");
+            w.write("variableWeight = 0\n");
             w.write("size = 10.0\n");
             w.write("oversample = 12.0\n");
             w.write("autoBaseline = true\n");
@@ -857,6 +872,7 @@ public final class NeofontrenderConfig {
         config.setComment("font.name", "Primary font name or TTF file path. Comma/semicolon-separated font family lists are also supported.");
         config.setComment("font.fallbacks", "Fallback font names or TTF file paths queried after font.name when a glyph is missing.");
         config.setComment("font.style", "Font style: 0=Plain, 1=Bold, 2=Italic, 3=Bold+Italic.");
+        config.setComment("font.variableWeight", "Variable font wght axis for regular text. 0=auto, otherwise 1-1000.");
         config.setComment("font.size", "Font size in pixels. 10.0 is a comfortable default.");
         config.setComment("font.oversample", "Rasterization oversampling factor. Raster resolution is size * oversample; 8.0 at size 8.0 is a 64px glyph raster.");
         config.setComment("font.autoBaseline", "Align each font's measured AWT baseline to the Minecraft reference baseline before manual shift.");
@@ -941,7 +957,14 @@ public final class NeofontrenderConfig {
     }
 
     private static float getFloat(String key, float defaultValue) {
-        Object val = config.get(key);
+        return getFloat(config, key, defaultValue);
+    }
+
+    private static float getFloat(CommentedFileConfig source, String key, float defaultValue) {
+        if (source == null) {
+            return defaultValue;
+        }
+        Object val = source.get(key);
         if (val instanceof Number) {
             return ((Number) val).floatValue();
         }
@@ -949,11 +972,260 @@ public final class NeofontrenderConfig {
     }
 
     private static int getInt(String key, int defaultValue) {
-        Object val = config.get(key);
+        return getInt(config, key, defaultValue);
+    }
+
+    private static int getInt(CommentedFileConfig source, String key, int defaultValue) {
+        if (source == null) {
+            return defaultValue;
+        }
+        Object val = source.get(key);
         if (val instanceof Number) {
             return ((Number) val).intValue();
         }
         return defaultValue;
+    }
+
+    private static final class Snapshot {
+        private final boolean enabled;
+        private final boolean fixImeInput;
+        private final boolean debugImeInput;
+        private final boolean debugRenderStats;
+        private final boolean allowSignPaste;
+        private final int fontStyle;
+        private final int fontVariableWeight;
+        private final boolean cosmicVariantOverridesOnlySwitchFont;
+        private final float fontSize;
+        private final float fontOversample;
+        private final boolean fontAutoBaseline;
+        private final float fontBaselineShift;
+        private final float fontReferenceBaseline;
+        private final boolean fontAntialias;
+        private final String fontAntialiasMode;
+        private final boolean fontFractionalMetrics;
+        private final boolean fontLcdSubpixel;
+        private final boolean builtinFallbacks;
+        private final float shadowLength;
+        private final float shadowOpacity;
+        private final String renderingEngine;
+        private final boolean skiaAdvancedStringMode;
+        private final boolean skiaGpuOffscreen;
+        private final boolean skiaGpuSubmitViaCpuTexture;
+        private final boolean skiaMonochromeText;
+        private final boolean skiaSegmentCache;
+        private final int skiaSegmentCacheMinRunLength;
+        private final int skiaSegmentCacheMaxRunCodePoints;
+        private final int skiaSegmentCacheMaxSegments;
+        private final boolean renderingInterpolation;
+        private final boolean renderingMipmap;
+        private final boolean adaptiveRasterScale;
+        private final float adaptiveRasterMin;
+        private final float adaptiveRasterMax;
+        private final float adaptiveRasterStep;
+        private final boolean excludeIntegerScale;
+        private final boolean excludeHighMagnification;
+        private final float limitMagnification;
+        private final float scaleRoundingToleranceRate;
+        private final float mipmapLodBias;
+        private final float overlayMipmapLodBias;
+        private final boolean anisotropicFiltering;
+        private final float blurReductionThreshold;
+        private final float smoothShadowThreshold;
+        private final boolean enhancedTextPipeline;
+        private final boolean shaderTextPipeline;
+        private final float renderingBrightness;
+        private final boolean textureEdgeBleed;
+        private final boolean renderingBrightnessAuto;
+        private final boolean enablePremultipliedAlpha;
+        private final boolean forceBlendForText;
+        private final boolean performanceAsyncInit;
+        private final boolean performancePrewarmBasicLatin;
+        private final boolean signTextLodCulling;
+        private final float signTextMinPixelHeight;
+        private final boolean signTextBatching;
+        private final boolean signTextFrustumCulling;
+        private final boolean signModelLod;
+        private final float signModelLodDistance;
+        private final float signTextNearThreshold;
+        private final float signTextNearSupersample;
+        private final float signTextNearMaxRasterScale;
+        private final boolean signCrossTileBatching;
+        private final int signBatchMaxEntries;
+        private final boolean signBlockOcclusionCulling;
+        private final int signOcclusionChecksPerFrame;
+        private final long signOcclusionCacheMillis;
+        private final float signOcclusionMinDistance;
+        private final int skiaTextCacheMinEntries;
+        private final int skiaTextCacheMaxEntries;
+        private final float skiaTextCacheTtlSeconds;
+        private final int skiaMeasureCacheMaxEntries;
+        private final int skiaSegmentTextureCacheMinEntries;
+        private final int skiaSegmentTextureCacheMaxEntries;
+        private final float skiaSegmentTextureCacheTtlSeconds;
+
+        private Snapshot() {
+            enabled = true;
+            fixImeInput = true;
+            debugImeInput = false;
+            debugRenderStats = false;
+            allowSignPaste = true;
+            fontStyle = 0;
+            fontVariableWeight = 0;
+            cosmicVariantOverridesOnlySwitchFont = false;
+            fontSize = 10.0F;
+            fontOversample = 12.0F;
+            fontAutoBaseline = true;
+            fontBaselineShift = 0.0F;
+            fontReferenceBaseline = 7.0F;
+            fontAntialias = true;
+            fontAntialiasMode = "on";
+            fontFractionalMetrics = true;
+            fontLcdSubpixel = false;
+            builtinFallbacks = true;
+            shadowLength = 1.0F;
+            shadowOpacity = 0.25F;
+            renderingEngine = "cosmic";
+            skiaAdvancedStringMode = true;
+            skiaGpuOffscreen = false;
+            skiaGpuSubmitViaCpuTexture = true;
+            skiaMonochromeText = true;
+            skiaSegmentCache = true;
+            skiaSegmentCacheMinRunLength = 8;
+            skiaSegmentCacheMaxRunCodePoints = 24;
+            skiaSegmentCacheMaxSegments = 96;
+            renderingInterpolation = false;
+            renderingMipmap = true;
+            adaptiveRasterScale = true;
+            adaptiveRasterMin = 1.5F;
+            adaptiveRasterMax = 14.0F;
+            adaptiveRasterStep = 0.5F;
+            excludeIntegerScale = true;
+            excludeHighMagnification = true;
+            limitMagnification = 3.0F;
+            scaleRoundingToleranceRate = 0.005F;
+            mipmapLodBias = -0.3F;
+            overlayMipmapLodBias = -0.5F;
+            anisotropicFiltering = true;
+            blurReductionThreshold = 10.0F;
+            smoothShadowThreshold = 24.0F;
+            enhancedTextPipeline = false;
+            shaderTextPipeline = false;
+            renderingBrightness = 0.0F;
+            textureEdgeBleed = false;
+            renderingBrightnessAuto = true;
+            enablePremultipliedAlpha = false;
+            forceBlendForText = true;
+            performanceAsyncInit = true;
+            performancePrewarmBasicLatin = true;
+            signTextLodCulling = true;
+            signTextMinPixelHeight = 4.0F;
+            signTextBatching = true;
+            signTextFrustumCulling = true;
+            signModelLod = false;
+            signModelLodDistance = 24.0F;
+            signTextNearThreshold = 6.0F;
+            signTextNearSupersample = 2.5F;
+            signTextNearMaxRasterScale = 32.0F;
+            signCrossTileBatching = false;
+            signBatchMaxEntries = 4096;
+            signBlockOcclusionCulling = true;
+            signOcclusionChecksPerFrame = 48;
+            signOcclusionCacheMillis = 250L;
+            signOcclusionMinDistance = 8.0F;
+            skiaTextCacheMinEntries = 256;
+            skiaTextCacheMaxEntries = 2048;
+            skiaTextCacheTtlSeconds = 300.0F;
+            skiaMeasureCacheMaxEntries = 4096;
+            skiaSegmentTextureCacheMinEntries = 512;
+            skiaSegmentTextureCacheMaxEntries = 4096;
+            skiaSegmentTextureCacheTtlSeconds = 600.0F;
+        }
+
+        private Snapshot(CommentedFileConfig config) {
+            enabled = config.getOrElse("enabled", true);
+            fixImeInput = config.getOrElse("fixImeInput", true);
+            debugImeInput = config.getOrElse("debug.imeInput", false);
+            debugRenderStats = config.getOrElse("debug.renderStats", false);
+            allowSignPaste = config.getOrElse("input.allowSignPaste", true);
+            fontStyle = config.getOrElse("font.style", 0);
+            fontVariableWeight = Math.max(0, Math.min(1000, getInt(config, "font.variableWeight", 0)));
+            cosmicVariantOverridesOnlySwitchFont = config.getOrElse("font.cosmic.variantOverridesOnlySwitchFont", false);
+            fontSize = getFloat(config, "font.size", 10.0F);
+            fontOversample = getFloat(config, "font.oversample", 12.0F);
+            fontAutoBaseline = config.getOrElse("font.autoBaseline", true);
+            fontBaselineShift = getFloat(config, "font.baselineShift", 0.0F);
+            fontReferenceBaseline = getFloat(config, "font.referenceBaseline", 7.0F);
+            fontAntialias = config.getOrElse("font.antialias", true);
+            fontAntialiasMode = normalizeAntialiasMode(config.getOrElse("font.antialiasMode", fontAntialias ? "on" : "off"));
+            fontFractionalMetrics = config.getOrElse("font.fractionalMetrics", true);
+            fontLcdSubpixel = config.getOrElse("font.lcdSubpixel", false);
+            builtinFallbacks = config.getOrElse("font.builtinFallbacks", true);
+            shadowLength = getFloat(config, "shadow.length", 1.0F);
+            shadowOpacity = getFloat(config, "shadow.opacity", 0.25F);
+            renderingEngine = normalizeRenderingEngine(config.getOrElse("rendering.engine", "cosmic"));
+            skiaAdvancedStringMode = config.getOrElse("rendering.skiaAdvancedStringMode", true);
+            skiaGpuOffscreen = config.getOrElse("rendering.skiaGpuOffscreen", false);
+            skiaGpuSubmitViaCpuTexture = config.getOrElse("rendering.skiaGpuSubmitViaCpuTexture", true);
+            skiaMonochromeText = config.getOrElse("rendering.skiaMonochromeText", true);
+            skiaSegmentCache = config.getOrElse("rendering.skiaSegmentCache", true);
+            skiaSegmentCacheMinRunLength = Math.max(1, getInt(config, "rendering.skiaSegmentCacheMinRunLength", 8));
+            skiaSegmentCacheMaxRunCodePoints = Math.max(1, getInt(config, "rendering.skiaSegmentCacheMaxRunCodePoints", 24));
+            skiaSegmentCacheMaxSegments = Math.max(2, getInt(config, "rendering.skiaSegmentCacheMaxSegments", 96));
+            renderingInterpolation = config.getOrElse("rendering.interpolation", false);
+            renderingMipmap = config.getOrElse("rendering.mipmap", true);
+            adaptiveRasterScale = config.getOrElse("rendering.adaptiveRasterScale", true);
+            adaptiveRasterMin = getFloat(config, "rendering.adaptiveRasterMin", 1.5F);
+            adaptiveRasterMax = getFloat(config, "rendering.adaptiveRasterMax", 14.0F);
+            adaptiveRasterStep = getFloat(config, "rendering.adaptiveRasterStep", 0.5F);
+            excludeIntegerScale = config.getOrElse("rendering.excludeIntegerScale", true);
+            excludeHighMagnification = config.getOrElse("rendering.excludeHighMagnification", true);
+            limitMagnification = getFloat(config, "rendering.limitMagnification", 3.0F);
+            scaleRoundingToleranceRate = getFloat(config, "rendering.scaleRoundingTolerance", 0.5F) * 0.01F;
+            mipmapLodBias = getFloat(config, "rendering.mipmapLodBias", -0.3F);
+            overlayMipmapLodBias = getFloat(config, "rendering.overlayMipmapLodBias", -0.5F);
+            anisotropicFiltering = config.getOrElse("rendering.anisotropicFiltering", true);
+            blurReductionThreshold = getFloat(config, "rendering.blurReduction", 10.0F);
+            smoothShadowThreshold = getFloat(config, "rendering.smoothShadowThreshold", 24.0F);
+            enhancedTextPipeline = config.getOrElse("rendering.enhancedTextPipeline", false);
+            shaderTextPipeline = config.getOrElse("rendering.shaderTextPipeline", false);
+            renderingBrightness = getFloat(config, "rendering.brightness", 0.0F);
+            textureEdgeBleed = config.getOrElse("rendering.textureEdgeBleed", false);
+            renderingBrightnessAuto = config.getOrElse("rendering.brightnessAuto", true);
+            enablePremultipliedAlpha = config.getOrElse("rendering.premultipliedAlpha", false);
+            forceBlendForText = config.getOrElse("rendering.forceBlendForText", true);
+            performanceAsyncInit = config.getOrElse("performance.asyncInit", true);
+            performancePrewarmBasicLatin = config.getOrElse("performance.prewarmBasicLatin", true);
+            signTextLodCulling = config.getOrElse("performance.signTextLodCulling", true);
+            signTextMinPixelHeight = Math.max(0.0F, getFloat(config, "performance.signTextMinPixelHeight", 4.0F));
+            signTextBatching = config.getOrElse("performance.signTextBatching", true);
+            signTextFrustumCulling = config.getOrElse("performance.signTextFrustumCulling", true);
+            signModelLod = config.getOrElse("performance.signModelLod", false);
+            signModelLodDistance = Math.max(4.0F, getFloat(config, "performance.signModelLodDistance", 24.0F));
+            signTextNearThreshold = Math.max(1.0F, getFloat(config, "performance.signTextNearThreshold", 6.0F));
+            signTextNearSupersample = Math.max(1.0F, getFloat(config, "performance.signTextNearSupersample", 2.5F));
+            signTextNearMaxRasterScale = Math.max(8.0F, getFloat(config, "performance.signTextNearMaxRasterScale", 32.0F));
+            signCrossTileBatching = config.getOrElse("performance.signCrossTileBatching", false);
+            signBatchMaxEntries = Math.max(64, getInt(config, "performance.signBatchMaxEntries", 4096));
+            signBlockOcclusionCulling = config.getOrElse("performance.signBlockOcclusionCulling", true);
+            signOcclusionChecksPerFrame = Math.max(1, getInt(config, "performance.signOcclusionChecksPerFrame", 48));
+            signOcclusionCacheMillis = Math.max(50L, getInt(config, "performance.signOcclusionCacheMillis", 250));
+            signOcclusionMinDistance = Math.max(2.0F, getFloat(config, "performance.signOcclusionMinDistance", 8.0F));
+            skiaTextCacheMinEntries = Math.max(0, getInt(config, "performance.skiaTextCacheMinEntries", 256));
+            skiaTextCacheMaxEntries = Math.max(1, getInt(config, "performance.skiaTextCacheMaxEntries", 2048));
+            skiaTextCacheTtlSeconds = Math.max(0.0F, getFloat(config, "performance.skiaTextCacheTtlSeconds", 300.0F));
+            skiaMeasureCacheMaxEntries = Math.max(1, getInt(config, "performance.skiaMeasureCacheMaxEntries", 4096));
+            skiaSegmentTextureCacheMinEntries = Math.max(0, getInt(config, "performance.skiaSegmentTextureCacheMinEntries", 512));
+            skiaSegmentTextureCacheMaxEntries = Math.max(1, getInt(config, "performance.skiaSegmentTextureCacheMaxEntries", 4096));
+            skiaSegmentTextureCacheTtlSeconds = Math.max(0.0F, getFloat(config, "performance.skiaSegmentTextureCacheTtlSeconds", 600.0F));
+        }
+
+        private static Snapshot defaults() {
+            return new Snapshot();
+        }
+
+        private static Snapshot from(CommentedFileConfig config) {
+            return new Snapshot(config);
+        }
     }
 
     private static void addFontNames(Set<String> fonts, String value) {
@@ -1033,6 +1305,7 @@ public final class NeofontrenderConfig {
     public static void reload() {
         if (config != null) {
             config.load();
+            refreshCachedOptions();
         }
     }
 

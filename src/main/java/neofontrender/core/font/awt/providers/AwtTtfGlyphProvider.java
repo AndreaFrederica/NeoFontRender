@@ -97,7 +97,7 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
                                            boolean fractionalMetrics,
                                            int style) throws IOException {
         return load(manager, fontName, size, oversample, shiftX, shiftY, baselineShift, autoBaseline,
-                referenceBaseline, antialias, antialias ? "on" : "off", fractionalMetrics, style, true);
+                referenceBaseline, antialias, antialias ? "on" : "off", fractionalMetrics, style, 0, true);
     }
 
     @Nullable
@@ -112,6 +112,7 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
                                            String antialiasMode,
                                            boolean fractionalMetrics,
                                            int style,
+                                           int variableWeight,
                                            boolean allowDefaultFallback) throws IOException {
         Font baseFont;
         if (fontName != null && !fontName.isEmpty()) {
@@ -159,6 +160,9 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
         float derivedSize = size * oversample;
         Map<TextAttribute, Object> attributes = new HashMap<>();
         attributes.put(TextAttribute.KERNING, TextAttribute.KERNING_ON);
+        if (variableWeight > 0) {
+            attributes.put(TextAttribute.WEIGHT, Math.max(0.1F, Math.min(2.5F, variableWeight / 400.0F)));
+        }
         Font derived = baseFont.deriveFont(derivedSize).deriveFont(attributes);
         return new AwtTtfGlyphProvider(derived, size, oversample, shiftX, shiftY, baselineShift,
                 autoBaseline, referenceBaseline, antialias, antialiasMode, fractionalMetrics);

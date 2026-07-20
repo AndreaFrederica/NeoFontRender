@@ -65,10 +65,16 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         // Keep the configured family name separate from byte-backed fallback fonts. Skia can
         // resolve a system family such as "JetBrains Mono" directly, while the old Cosmic bridge
         // silently skipped it and promoted the first bundled fallback (usually Sarasa) to primary.
+        List<String> fallbackFamilies = NeofontrenderConfig.fontFamily();
+        if (!fallbackFamilies.isEmpty() && fallbackFamilies.get(0).equals(NeofontrenderConfig.fontName())) {
+            fallbackFamilies = fallbackFamilies.subList(1, fallbackFamilies.size());
+        }
         engine = CosmicNative.createEngine(fonts, aliases, NeofontrenderConfig.fontName(),
+                fallbackFamilies.toArray(new String[0]),
                 NeofontrenderConfig.cosmicRegularFont(), NeofontrenderConfig.cosmicBoldFont(),
                 NeofontrenderConfig.cosmicItalicFont(), NeofontrenderConfig.cosmicBoldItalicFont(),
                 NeofontrenderConfig.cosmicVariantOverridesOnlySwitchFont(),
+                NeofontrenderConfig.fontVariableWeight(),
                 NeofontrenderConfig.fontSize(), Locale.getDefault().toLanguageTag());
         if (engine == 0L) {
             throw new IOException("cosmic-text returned a null engine");

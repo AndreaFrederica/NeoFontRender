@@ -213,6 +213,7 @@ public class FontManager implements AutoCloseable {
                 NeofontrenderConfig.fontAntialiasMode(),
                 NeofontrenderConfig.fontFractionalMetrics(),
                 NeofontrenderConfig.fontStyle(),
+                NeofontrenderConfig.fontVariableWeight(),
                 allowDefaultFallback
         );
     }

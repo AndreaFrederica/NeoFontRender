@@ -1,6 +1,7 @@
 use cosmic_text::fontdb::{Family as DbFamily, Query, ID};
 use cosmic_text::{
-    Attrs, Buffer, Color, Family, FontSystem, Metrics, Shaping, Style, SwashCache, Weight,
+    Attrs, Buffer, Color, Fallback, Family, FontSystem, Metrics, PlatformFallback, Shaping,
+    Style, SwashCache, Weight,
 };
 use jni::objects::{JByteArray, JClass, JObjectArray, JString};
 use jni::sys::{jboolean, jbyteArray, jfloat, jint, jlong, jstring};
@@ -10,8 +11,9 @@ use skrifa::string::StringId;
 use std::collections::HashMap;
 use std::ptr;
 use std::sync::Mutex;
+use unicode_script::Script;
 
-const ABI_VERSION: jint = 5;
+const ABI_VERSION: jint = 7;
 const RASTER_MAGIC: i32 = 0x434F534D; // "COSM"
 const HEADER_SIZE: usize = 32;
 const MAX_TEXTURE_DIMENSION: i32 = 8192;
@@ -28,7 +30,10 @@ struct Engine {
 
 #[derive(Clone, Debug)]
 struct ResolvedFace {
+    #[cfg_attr(not(test), allow(dead_code))]
+    id: ID,
     family: String,
+    render_family: String,
     weight: Weight,
     style: Style,
     post_script_name: String,
@@ -74,11 +79,13 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
     fonts: JObjectArray,
     font_aliases: JObjectArray,
     primary_family: JString,
+    fallback_families: JObjectArray,
     regular_override: JString,
     bold_override: JString,
     italic_override: JString,
     bold_italic_override: JString,
     variant_overrides_only_switch_font: jboolean,
+    variable_weight: jint,
     font_size: jfloat,
     locale: JString,
 ) -> jlong {
@@ -116,6 +123,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
                 .get_string(&primary_family)
                 .map_err(|e| e.to_string())?
                 .into();
+            let requested_fallbacks = read_string_array(&mut env, &fallback_families)?;
             let overrides: [String; 4] = [
                 env.get_string(&regular_override)
                     .map_err(|e| e.to_string())?
@@ -154,12 +162,13 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
             let catalog = build_face_catalog(&db);
             let mut warnings = Vec::new();
             let requested_key = normalize_font_name(&requested_family);
+            let regular_weight = configured_weight(variable_weight, Weight::NORMAL);
             let primary_match = resolve_selector(
                 &db,
                 &catalog,
                 &source_aliases,
                 &requested_family,
-                Weight::NORMAL,
+                regular_weight,
                 Style::Normal,
                 &mut warnings,
             );
@@ -176,8 +185,9 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
                 .map(|face| face.0)
                 .or(byte_primary_id)
                 .or(system_sans_id);
-            let fallback_primary =
-                primary_id.and_then(|id| selection_from_face(&db, &catalog, id, None));
+            let fallback_primary = primary_id.and_then(|id| {
+                selection_from_face(&db, &catalog, id, Some((regular_weight.0, Style::Normal)))
+            });
             let base_face = primary_match.map(|face| face.1).or(fallback_primary).ok_or_else(|| {
             format!("configured font family '{requested_family}' was not found and no font data was supplied")
         })?;
@@ -191,6 +201,13 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
             }
             let primary_family = base_face.family.clone();
             db.set_sans_serif_family(primary_family.clone());
+            let configured_fallback = ConfiguredFallback::new(resolve_fallback_names(
+                &db,
+                &catalog,
+                &source_aliases,
+                &requested_fallbacks,
+                &mut warnings,
+            ));
             let automatic = build_automatic_faces(&db, &catalog, &base_face);
             let mut faces = automatic.clone();
             for (index, selector) in overrides.iter().enumerate() {
@@ -221,7 +238,8 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
                 }
             }
             let locale: String = env.get_string(&locale).map_err(|e| e.to_string())?.into();
-            let font_system = FontSystem::new_with_locale_and_db(locale, db);
+            let font_system =
+                FontSystem::new_with_locale_and_db_and_fallback(locale, db, configured_fallback);
 
             let engine = Box::new(Engine {
                 font_system: Mutex::new(font_system),
@@ -248,6 +266,62 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
     }
 }
 
+fn read_string_array(env: &mut JNIEnv, values: &JObjectArray) -> Result<Vec<String>, String> {
+    let count = env.get_array_length(values).map_err(|e| e.to_string())?;
+    let mut strings = Vec::with_capacity(count as usize);
+    for index in 0..count {
+        let object = env
+            .get_object_array_element(values, index)
+            .map_err(|e| e.to_string())?;
+        let value: String = env
+            .get_string(&JString::from(object))
+            .map_err(|e| e.to_string())?
+            .into();
+        let value = value.trim();
+        if !value.is_empty() {
+            strings.push(value.to_string());
+        }
+    }
+    Ok(strings)
+}
+
+struct ConfiguredFallback {
+    configured: Vec<&'static str>,
+    common: Vec<&'static str>,
+    platform: PlatformFallback,
+}
+
+impl ConfiguredFallback {
+    fn new(configured: Vec<String>) -> Self {
+        let configured: Vec<&'static str> = configured
+            .into_iter()
+            .map(|name| Box::leak(name.into_boxed_str()) as &'static str)
+            .collect();
+        let platform = PlatformFallback;
+        let mut common = configured.clone();
+        common.extend(platform.common_fallback());
+        Self {
+            configured,
+            common,
+            platform,
+        }
+    }
+}
+
+impl Fallback for ConfiguredFallback {
+    fn common_fallback(&self) -> &[&'static str] {
+        &self.common
+    }
+
+    fn forbidden_fallback(&self) -> &[&'static str] {
+        self.platform.forbidden_fallback()
+    }
+
+    fn script_fallback(&self, _script: Script, _locale: &str) -> &[&'static str] {
+        &self.configured
+    }
+}
+
 fn override_request(
     automatic: &[ResolvedFace; 4],
     index: usize,
@@ -266,6 +340,14 @@ fn normalize_font_name(value: &str) -> String {
         .filter(|ch| ch.is_alphanumeric())
         .flat_map(char::to_lowercase)
         .collect()
+}
+
+fn configured_weight(value: jint, fallback: Weight) -> Weight {
+    if value <= 0 {
+        fallback
+    } else {
+        Weight((value as u16).clamp(1, 1000))
+    }
 }
 
 fn build_face_catalog(db: &cosmic_text::fontdb::Database) -> Vec<FaceRecord> {
@@ -484,6 +566,38 @@ fn resolve_selector(
         })
 }
 
+fn resolve_fallback_names(
+    db: &cosmic_text::fontdb::Database,
+    catalog: &[FaceRecord],
+    source_aliases: &HashMap<String, Vec<ID>>,
+    selectors: &[String],
+    warnings: &mut Vec<String>,
+) -> Vec<String> {
+    let mut names = Vec::new();
+    for selector in selectors {
+        if selector.trim().is_empty() {
+            continue;
+        }
+        match resolve_selector(
+            db,
+            catalog,
+            source_aliases,
+            selector,
+            Weight::NORMAL,
+            Style::Normal,
+            warnings,
+        ) {
+            Some((_, face)) => {
+                if !names.iter().any(|name| name == &face.family) {
+                    names.push(face.family);
+                }
+            }
+            None => warnings.push(format!("fallback selector '{selector}' was not found")),
+        }
+    }
+    names
+}
+
 fn best_id(
     db: &cosmic_text::fontdb::Database,
     catalog: &[FaceRecord],
@@ -519,12 +633,38 @@ fn selection_from_face(
         .weight_range
         .map(|(min, max)| weight.clamp(min, max))
         .unwrap_or(weight);
+    let family = face.families.first()?.0.clone();
+    let post_script_name = face.post_script_name.clone();
+    let render_family = render_family_for_face(db, id, &family, &post_script_name, Weight(weight), style);
     Some(ResolvedFace {
-        family: face.families.first()?.0.clone(),
+        id,
+        family,
+        render_family,
         weight: Weight(weight),
         style,
-        post_script_name: face.post_script_name.clone(),
+        post_script_name,
     })
+}
+
+fn render_family_for_face(
+    db: &cosmic_text::fontdb::Database,
+    id: ID,
+    family: &str,
+    post_script_name: &str,
+    weight: Weight,
+    style: Style,
+) -> String {
+    let postscript_match = db.query(&Query {
+        families: &[DbFamily::Name(post_script_name)],
+        weight,
+        style,
+        ..Query::default()
+    });
+    if postscript_match == Some(id) {
+        post_script_name.to_string()
+    } else {
+        family.to_string()
+    }
 }
 
 fn selection_for_family(
@@ -744,7 +884,7 @@ where
         // `wght` coordinate.
         let face = &engine.faces[(style_flags & 3) as usize];
         let attrs = Attrs::new()
-            .family(Family::Name(&face.family))
+            .family(Family::Name(&face.render_family))
             .weight(face.weight)
             .style(face.style);
         buffer.set_text(&value, &attrs, Shaping::Advanced, None);
@@ -962,7 +1102,9 @@ mod tests {
     #[test]
     fn variant_override_can_only_switch_font() {
         let face = |weight, style| ResolvedFace {
+            id: ID::dummy(),
             family: "Example".to_string(),
+            render_family: "Example".to_string(),
             weight,
             style,
             post_script_name: "Example".to_string(),
@@ -1054,5 +1196,115 @@ mod tests {
         .expect("variable named instance should resolve")
         .1;
         assert_eq!(medium.weight, Weight::MEDIUM);
+    }
+
+    #[test]
+    fn configured_weight_selects_variable_wght_when_installed() {
+        let Some((db, catalog)) = load_test_font(r"C:\Windows\Fonts\NotoSansSC-VF.ttf") else {
+            return;
+        };
+        let mut warnings = Vec::new();
+        let resolved = resolve_selector(
+            &db,
+            &catalog,
+            &HashMap::new(),
+            "Noto Sans SC",
+            configured_weight(350, Weight::NORMAL),
+            Style::Normal,
+            &mut warnings,
+        )
+        .expect("variable family should resolve")
+        .1;
+        assert_eq!(resolved.weight, Weight(350));
+    }
+
+    #[test]
+    fn render_family_prefers_queryable_postscript_name_when_installed() {
+        let Some((db, catalog)) = load_test_font(r"C:\Windows\Fonts\MiSans-Demibold.ttf") else {
+            return;
+        };
+        let mut warnings = Vec::new();
+        let resolved = resolve_selector(
+            &db,
+            &catalog,
+            &HashMap::new(),
+            "MiSans DemiBold",
+            Weight::NORMAL,
+            Style::Normal,
+            &mut warnings,
+        )
+        .expect("MiSans Demibold face should resolve")
+        .1;
+        assert_eq!(resolved.render_family, resolved.post_script_name);
+    }
+
+    #[test]
+    fn buffer_layout_uses_resolved_render_family_when_installed() {
+        let Some((db, catalog)) = load_test_font(r"C:\Windows\Fonts\MiSans-Demibold.ttf") else {
+            return;
+        };
+        let mut warnings = Vec::new();
+        let resolved = resolve_selector(
+            &db,
+            &catalog,
+            &HashMap::new(),
+            "MiSans DemiBold",
+            Weight::NORMAL,
+            Style::Normal,
+            &mut warnings,
+        )
+        .expect("MiSans Demibold face should resolve")
+        .1;
+        let mut font_system = FontSystem::new_with_locale_and_db("zh-CN".to_string(), db);
+        let metrics = Metrics::new(16.0, 22.0);
+        let mut buffer = Buffer::new(&mut font_system, metrics);
+        let attrs = Attrs::new()
+            .family(Family::Name(&resolved.render_family))
+            .weight(resolved.weight)
+            .style(resolved.style);
+        buffer.set_text("abc", &attrs, Shaping::Advanced, None);
+        buffer.shape_until_scroll(&mut font_system, false);
+
+        let used_id = buffer
+            .layout_runs()
+            .flat_map(|run| run.glyphs.iter())
+            .map(|glyph| glyph.font_id)
+            .next();
+        assert_eq!(used_id, Some(resolved.id));
+    }
+
+    #[test]
+    fn times_new_roman_layout_uses_resolved_render_family_when_installed() {
+        let mut db = cosmic_text::fontdb::Database::new();
+        db.load_system_fonts();
+        let catalog = build_face_catalog(&db);
+        let mut warnings = Vec::new();
+        let Some((_, resolved)) = resolve_selector(
+            &db,
+            &catalog,
+            &HashMap::new(),
+            "Times New Roman",
+            Weight::NORMAL,
+            Style::Normal,
+            &mut warnings,
+        ) else {
+            return;
+        };
+        let mut font_system = FontSystem::new_with_locale_and_db("en-US".to_string(), db);
+        let metrics = Metrics::new(16.0, 22.0);
+        let mut buffer = Buffer::new(&mut font_system, metrics);
+        let attrs = Attrs::new()
+            .family(Family::Name(&resolved.render_family))
+            .weight(resolved.weight)
+            .style(resolved.style);
+        buffer.set_text("Times", &attrs, Shaping::Advanced, None);
+        buffer.shape_until_scroll(&mut font_system, false);
+
+        let used_id = buffer
+            .layout_runs()
+            .flat_map(|run| run.glyphs.iter())
+            .map(|glyph| glyph.font_id)
+            .next();
+        assert_eq!(used_id, Some(resolved.id));
     }
 }
