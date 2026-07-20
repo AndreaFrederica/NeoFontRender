@@ -12,6 +12,7 @@ import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.ShadowMaskRules;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL14;
@@ -94,6 +95,13 @@ public final class CosmicTextRenderer implements TextRenderBackend {
     @Override
     public boolean isReady() {
         return engine != 0L;
+    }
+
+    @Override
+    public boolean shouldRenderShadow(String text) {
+        String mode = NeofontrenderConfig.shadowMode();
+        return "all".equals(mode) || (!"none".equals(mode) && !containsEmoji(text)
+                && (!"mask".equals(mode) || !ShadowMaskRules.matches(text)));
     }
 
     @Override
@@ -336,6 +344,22 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         int configuredStyle = NeofontrenderConfig.fontStyle();
         return (bold || (configuredStyle & 1) != 0 ? 1 : 0)
                 | (italic || (configuredStyle & 2) != 0 ? 2 : 0);
+    }
+
+    private static boolean containsEmoji(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        for (int index = 0; index < text.length(); ) {
+            int codePoint = text.codePointAt(index);
+            if ((codePoint >= 0x1F000 && codePoint <= 0x1FAFF)
+                    || (codePoint >= 0x2600 && codePoint <= 0x27BF)
+                    || codePoint == 0xFE0F) {
+                return true;
+            }
+            index += Character.charCount(codePoint);
+        }
+        return false;
     }
 
     private void trimRenderCache() {

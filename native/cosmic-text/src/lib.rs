@@ -521,7 +521,8 @@ fn resolve_selector(
             desired_weight,
             desired_style,
         )?;
-        return selection_from_face(db, catalog, id, None).map(|face| (id, face));
+        return selection_from_face(db, catalog, id, Some((desired_weight.0, desired_style)))
+            .map(|face| (id, face));
     }
     for record in catalog {
         if let Some(instance) = record
@@ -562,7 +563,13 @@ fn resolve_selector(
         .iter()
         .find(|record| record.face_keys.contains(&key))
         .and_then(|record| {
-            selection_from_face(db, catalog, record.id, None).map(|face| (record.id, face))
+            selection_from_face(
+                db,
+                catalog,
+                record.id,
+                Some((desired_weight.0, desired_style)),
+            )
+            .map(|face| (record.id, face))
         })
 }
 

@@ -49,10 +49,10 @@ public class MixinFontRenderer {
     //  Render hook
     // ================================================================== //
 
-    @Inject(method = "drawString(Ljava/lang/String;III)I", at = @At("HEAD"), cancellable = true)
-    private void sfr$onDrawString(String text, int x, int y, int color,
+    @Inject(method = "drawString(Ljava/lang/String;IIIZ)I", at = @At("HEAD"), cancellable = true)
+    private void sfr$onDrawString(String text, int x, int y, int color, boolean dropShadow,
                                   CallbackInfoReturnable<Integer> cir) {
-        FontRenderTuning.updateFromCurrentGlState(false);
+        FontRenderTuning.updateFromCurrentGlState(dropShadow);
         if (!sfr$shouldHook() || text == null || !FontManager.INSTANCE.isTextBackendActive()
                 || !NeofontrenderConfig.skiaAdvancedStringMode()) {
             return;
@@ -62,6 +62,19 @@ public class MixinFontRenderer {
         TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
         if (backend == null) {
             return;
+        }
+        if (NeofontrenderConfig.laboratoryHexChat() && sfr$hasHexColorMarker(text)) {
+            if (dropShadow && backend.shouldRenderShadow(text)) {
+                sfr$drawHexChat(backend, text, x + NeofontrenderConfig.shadowLength(), y + NeofontrenderConfig.shadowLength(), color, true);
+            }
+            float advance = sfr$drawHexChat(backend, text, x, y, color, false);
+            this.posX = x + advance;
+            this.posY = y;
+            cir.setReturnValue((int) this.posX);
+            return;
+        }
+        if (dropShadow) {
+            sfr$drawSelectiveShadow(backend, text, x, y, color);
         }
         TextRenderResult rendered = backend.renderFormatted(text, color, false);
         rendered.draw(x, y, alphaFromColor(color));
@@ -77,6 +90,20 @@ public class MixinFontRenderer {
             return;
         }
         if (FontManager.INSTANCE.isTextBackendActive()) {
+            TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
+            if (backend != null && NeofontrenderConfig.laboratoryHexChat() && sfr$hasHexColorMarker(text)) {
+                float advance = sfr$drawHexChat(backend, text, this.posX, this.posY, sfr$currentArgb(), shadow);
+                this.posX += advance;
+                ci.cancel();
+                return;
+            }
+            if (shadow && backend != null && !backend.shouldRenderShadow(text)) {
+                // Vanilla advances the pen during its shadow pass as well. Preserve that state
+                // while omitting the duplicate color-glyph rasterization.
+                this.posX += backend.measureFormatted(text, sfr$currentArgb(), false);
+                ci.cancel();
+                return;
+            }
             sfr$renderSkiaFormatted(text, shadow);
             ci.cancel();
             return;
@@ -673,6 +700,78 @@ public class MixinFontRenderer {
             return 1.0F;
         }
         return (float) (color >>> 24) / 255.0F;
+    }
+
+    private static float shadowAlpha(int color) {
+        return alphaFromColor(color) * NeofontrenderConfig.shadowOpacity();
+    }
+
+    private void sfr$drawSelectiveShadow(TextRenderBackend backend, String text, float x, float y, int color) {
+        float offset = NeofontrenderConfig.shadowLength();
+        if (backend.shouldRenderShadow(text)) {
+            TextRenderResult shadow = backend.renderFormatted(text, color, true);
+            shadow.draw(x + offset, y + offset, shadowAlpha(color));
+            return;
+        }
+        float cursor = x;
+        for (int index = 0; index < text.length();) {
+            int next = index + Character.charCount(text.codePointAt(index));
+            String unit = text.substring(index, next);
+            TextRenderResult rendered = backend.renderFormatted(unit, color, false);
+            if (backend.shouldRenderShadow(unit)) {
+                TextRenderResult shadow = backend.renderFormatted(unit, color, true);
+                shadow.draw(cursor + offset, y + offset, shadowAlpha(color));
+            }
+            cursor += rendered.advance();
+            index = next;
+        }
+    }
+
+    private float sfr$drawHexChat(TextRenderBackend backend, String text, float x, float y, int baseColor, boolean shadow) {
+        int color = baseColor | 0xFF000000;
+        float cursor = x;
+        StringBuilder run = new StringBuilder();
+        for (int index = 0; index < text.length();) {
+            if (text.charAt(index) == 167 && index + 1 < text.length()) {
+                // Chat siblings carry vanilla style controls; they are not visible glyphs here.
+                index += 2;
+                continue;
+            }
+            if (isHexMarker(text, index)) {
+                cursor = sfr$drawHexRun(backend, run, cursor, y, color, shadow);
+                color = (baseColor & 0xFF000000) | Integer.parseInt(text.substring(index + 1, index + 7), 16);
+                index += 7;
+                continue;
+            }
+            int codePoint = text.codePointAt(index);
+            run.appendCodePoint(codePoint);
+            index += Character.charCount(codePoint);
+        }
+        return sfr$drawHexRun(backend, run, cursor, y, color, shadow) - x;
+    }
+
+    private float sfr$drawHexRun(TextRenderBackend backend, StringBuilder run, float x, float y, int color, boolean shadow) {
+        if (run.length() == 0) return x;
+        int argb = shadow ? (color & 0xFF000000) | ((color & 0xFCFCFC) >> 2) : color;
+        TextRenderResult rendered = backend.render(run.toString(), argb, false, false);
+        rendered.draw(x, y, shadow ? shadowAlpha(color) : alphaFromColor(color));
+        run.setLength(0);
+        return x + rendered.advance();
+    }
+
+    private static boolean sfr$hasHexColorMarker(String text) {
+        for (int index = 0; index + 6 < text.length(); index++) {
+            if (isHexMarker(text, index)) return true;
+        }
+        return false;
+    }
+
+    private static boolean isHexMarker(String text, int index) {
+        if (text.charAt(index) != '#' || index + 6 >= text.length()) return false;
+        for (int digit = index + 1; digit <= index + 6; digit++) {
+            if (Character.digit(text.charAt(digit), 16) < 0) return false;
+        }
+        return true;
     }
 
     private boolean[] sfr$boldStateByIndex(String text) {

@@ -23,6 +23,7 @@ import com.cleanroommc.modularui.widget.ScrollWidget;
 import com.cleanroommc.modularui.widget.scroll.VerticalScrollData;
 import com.cleanroommc.modularui.widgets.SliderWidget;
 import com.cleanroommc.modularui.widgets.TextWidget;
+import com.cleanroommc.modularui.widgets.menu.ContextMenuButton;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.relauncher.Side;
@@ -30,6 +31,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.resources.I18n;
 import neofontrender.NeoFontRender;
 import neofontrender.core.config.NeofontrenderConfig;
@@ -49,6 +51,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -69,15 +72,52 @@ public final class NeofontrenderConfigScreen {
     private static final int TARGET_COSMIC_BOLD = 3;
     private static final int TARGET_COSMIC_ITALIC = 4;
     private static final int TARGET_COSMIC_BOLD_ITALIC = 5;
-    private static final int TARGET_COUNT = 6;
-    private static final int PAGE_FONT = 0;
-    private static final int PAGE_GENERAL = 1;
-    private static final int PAGE_RENDERING = 2;
-    private static final int PAGE_PERFORMANCE = 3;
-    private static final int PAGE_ADVANCED = 4;
-    private static final int PAGE_CACHE = 5;
-    private static final int PAGE_ABOUT = 6;
-    private static final int PAGE_LICENSES = 7;
+    private static final int TARGET_SHADOW_MASK = 6;
+    private static final int TARGET_COUNT = 7;
+    /**
+     * Single source of truth for the settings navigation. Page layouts can still use the stable
+     * numeric id while controls only need to know their page metadata.
+     */
+    private enum SettingsPage {
+        FONT(0, "neofontrender.gui.category.font"),
+        GENERAL(1, "neofontrender.gui.category.general"),
+        RENDERING(2, "neofontrender.gui.category.rendering"),
+        PERFORMANCE(3, "neofontrender.gui.category.performance"),
+        ADVANCED(4, "neofontrender.gui.category.advanced"),
+        CACHE(5, "neofontrender.gui.category.cache"),
+        SHADOW(8, "neofontrender.gui.category.shadow"),
+        FIXES(9, "neofontrender.gui.category.fixes"),
+        LABORATORY(10, "neofontrender.gui.category.laboratory"),
+        ABOUT(6, "neofontrender.gui.category.about"),
+        LICENSES(7, "neofontrender.gui.category.licenses");
+
+        private final int id;
+        private final String titleKey;
+
+        SettingsPage(int id, String titleKey) {
+            this.id = id;
+            this.titleKey = titleKey;
+        }
+
+        private static SettingsPage byId(int id) {
+            for (SettingsPage page : values()) {
+                if (page.id == id) return page;
+            }
+            return FONT;
+        }
+    }
+
+    private static final int PAGE_FONT = SettingsPage.FONT.id;
+    private static final int PAGE_GENERAL = SettingsPage.GENERAL.id;
+    private static final int PAGE_RENDERING = SettingsPage.RENDERING.id;
+    private static final int PAGE_PERFORMANCE = SettingsPage.PERFORMANCE.id;
+    private static final int PAGE_ADVANCED = SettingsPage.ADVANCED.id;
+    private static final int PAGE_CACHE = SettingsPage.CACHE.id;
+    private static final int PAGE_ABOUT = SettingsPage.ABOUT.id;
+    private static final int PAGE_LICENSES = SettingsPage.LICENSES.id;
+    private static final int PAGE_SHADOW = SettingsPage.SHADOW.id;
+    private static final int PAGE_FIXES = SettingsPage.FIXES.id;
+    private static final int PAGE_LABORATORY = SettingsPage.LABORATORY.id;
 
     private static GuiScreen returnScreen;
 
@@ -129,9 +169,28 @@ public final class NeofontrenderConfigScreen {
             if (mc.theWorld == null && returnScreen != null) {
                 // Vanilla settings screens render only their background stage. Repainting the
                 // whole parent screen here leaves its buttons ghosted behind this UI.
+                syncParentBackgroundSize(mc);
                 returnScreen.drawDefaultBackground();
             }
             super.drawScreen();
+        }
+
+        @Override
+        public void onResize(int width, int height) {
+            super.onResize(width, height);
+            syncParentBackgroundSize(Minecraft.getMinecraft());
+        }
+
+        private static void syncParentBackgroundSize(Minecraft mc) {
+            if (returnScreen == null || mc.theWorld != null) return;
+            ScaledResolution resolution = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
+            int width = resolution.getScaledWidth();
+            int height = resolution.getScaledHeight();
+            if (returnScreen.width != width || returnScreen.height != height) {
+                // GuiScreen owns the dimensions used by drawDefaultBackground. It is no longer
+                // the active screen, so Forge does not resize it when the window/GUI scale changes.
+                returnScreen.setWorldAndResolution(mc, width, height);
+            }
         }
     }
 
@@ -191,7 +250,7 @@ public final class NeofontrenderConfigScreen {
 
     private static ButtonWidget<?> toggleButtonKey(String labelKey, String tooltipKey, int width, int height,
                                                    Supplier<Boolean> getter, Consumer<Boolean> setter, Runnable preview) {
-        return withTooltip(new SwitchRow(() -> tr(labelKey), getter)
+        return withTooltip(new ContentButton(() -> tr(labelKey), false, new ToggleIndicator(getter))
                 .size(width, height)
                 .onMousePressed(mouseButton -> {
                     setter.accept(!getter.get());
@@ -200,7 +259,7 @@ public final class NeofontrenderConfigScreen {
                 }), tooltipKey);
     }
 
-    private static <T extends ButtonWidget<?>> T withTooltip(T button, String tooltipKey) {
+    private static <T extends Widget<?>> T withTooltip(T button, String tooltipKey) {
         if (tooltipKey != null && !tooltipKey.isEmpty()) {
             button.tooltip(new RichTooltip()
                     .showUpTimer(8)
@@ -209,15 +268,120 @@ public final class NeofontrenderConfigScreen {
         return button;
     }
 
-    private static ButtonWidget<?> sourceButton(Staged staged, FilteredFontList[] listRef) {
-        return new TextButton(() -> sourceButtonName(staged.fontSource), true)
-                .onMousePressed(mouseButton -> {
-                    staged.fontSource = (staged.fontSource + 1) % 3;
+    /**
+     * A labeled dropdown for finite settings. The selected display retains the option-row format,
+     * while menu items show only their value.
+     */
+    private static OptionDropdown selectionDropdown(String name, Supplier<String> label,
+                                                    Supplier<String> getter, Consumer<String> setter,
+                                                    Iterable<String> values,
+                                                    Function<String, String> display) {
+        return selectionDropdown(name, label, getter, setter, values, display, false);
+    }
+
+    private static OptionDropdown compactDropdown(String name, Supplier<String> getter, Consumer<String> setter,
+                                                  Iterable<String> values,
+                                                  Function<String, String> display) {
+        return selectionDropdown(name, () -> "", getter, setter, values, display, true);
+    }
+
+    private static OptionDropdown selectionDropdown(String name, Supplier<String> label,
+                                                    Supplier<String> getter, Consumer<String> setter,
+                                                    Iterable<String> values,
+                                                    Function<String, String> display,
+                                                    boolean compact) {
+        return new OptionDropdown(name, label, getter, setter, values, display, compact);
+    }
+
+    /**
+     * Keeps ModularUI's menu behavior, but renders the selected state ourselves so a dropdown
+     * remains a stable one-line option row at every GUI scale.
+     */
+    private static final class OptionDropdown extends ContextMenuButton<OptionDropdown> {
+        private final Supplier<String> label;
+        private final Supplier<String> getter;
+        private final Consumer<String> setter;
+        private final Function<String, String> display;
+        private final boolean compact;
+
+        private OptionDropdown(String name, Supplier<String> label, Supplier<String> getter, Consumer<String> setter,
+                               Iterable<String> values, Function<String, String> display,
+                               boolean compact) {
+            super(name);
+            this.label = label;
+            this.getter = getter;
+            this.setter = setter;
+            this.display = display;
+            this.compact = compact;
+            requiresClick();
+            menuList(list -> {
+                list.maxSize(144);
+                for (String value : values) {
+                    TextButton option = new TextButton(() -> display.apply(value), false)
+                            .height(20)
+                            .onMousePressed(mouseButton -> {
+                                setter.accept(value);
+                                closeMenu(false);
+                                return true;
+                            });
+                    // ListWidget does not infer a TextButton's width from its menu parent.
+                    // Pin every option to the menu width so CJK labels stay on one line.
+                    option.relativeToParent().fullWidth();
+                    list.child(option);
+                }
+            });
+        }
+
+        @Override
+        public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
+            super.draw(context, widgetTheme);
+            Platform.setupDrawFont();
+            Minecraft mc = Minecraft.getMinecraft();
+            int width = getArea().w();
+            int height = getArea().h();
+            String value = display.apply(getter.get());
+            int textY = Math.max(0, (height - mc.fontRenderer.FONT_HEIGHT) / 2);
+
+            if (compact) {
+                String visible = mc.fontRenderer.trimStringToWidth(value, Math.max(1, width - 22));
+                int textWidth = mc.fontRenderer.getStringWidth(visible);
+                mc.fontRenderer.drawString(visible, Math.max(4, (width - 14 - textWidth) / 2), textY, 0xFFFFFF);
+            } else {
+                // Match TextButton's label inset so dropdown and switch rows share one text column.
+                int inset = 4;
+                String left = mc.fontRenderer.trimStringToWidth(label.get(), Math.max(1, width / 2 - inset - 8));
+                String right = mc.fontRenderer.trimStringToWidth(value, Math.max(1, width / 2 - 18));
+                mc.fontRenderer.drawString(left, inset, textY, 0xFFFFFF);
+                mc.fontRenderer.drawString(right, Math.max(inset, width - mc.fontRenderer.getStringWidth(right) - 18), textY, 0xE0E0E0);
+            }
+
+            int arrowX = Math.max(4, width - 10);
+            int arrowY = Math.max(3, height / 2 - 2);
+            Gui.drawRect(arrowX, arrowY, arrowX + 5, arrowY + 1, 0xFFB8C2D0);
+            Gui.drawRect(arrowX + 1, arrowY + 1, arrowX + 4, arrowY + 2, 0xFFB8C2D0);
+            Gui.drawRect(arrowX + 2, arrowY + 2, arrowX + 3, arrowY + 3, 0xFFB8C2D0);
+        }
+    }
+
+    /** Retained for settings where cycling is more efficient than opening a value list. */
+    private static final class CycleButton extends TextButton {
+        private CycleButton(Supplier<String> label, Runnable cycle) {
+            super(label, true);
+            onMousePressed(mouseButton -> {
+                cycle.run();
+                return true;
+            });
+        }
+    }
+
+    private static IWidget sourceDropdown(Staged staged, FilteredFontList[] listRef) {
+        return compactDropdown("font_source",
+                () -> Integer.toString(staged.fontSource), value -> {
+                    staged.fontSource = Integer.parseInt(value);
                     if (listRef[0] != null) {
                         listRef[0].reloadFonts();
                     }
-                    return true;
-                });
+                }, Arrays.asList("0", "1", "2"), value -> sourceButtonName(Integer.parseInt(value)));
     }
 
     private static String sourceButtonName(int source) {
@@ -256,6 +420,8 @@ public final class NeofontrenderConfigScreen {
                 return tr("neofontrender.gui.target.cosmic_italic");
             case TARGET_COSMIC_BOLD_ITALIC:
                 return tr("neofontrender.gui.target.cosmic_bold_italic");
+            case TARGET_SHADOW_MASK:
+                return tr("neofontrender.gui.target.shadow_mask");
             case TARGET_PRIMARY:
             default:
                 return tr("neofontrender.gui.target.primary");
@@ -263,25 +429,7 @@ public final class NeofontrenderConfigScreen {
     }
 
     private static String categoryName(int page) {
-        switch (page) {
-            case PAGE_GENERAL:
-                return tr("neofontrender.gui.category.general");
-            case PAGE_RENDERING:
-                return tr("neofontrender.gui.category.rendering");
-            case PAGE_PERFORMANCE:
-                return tr("neofontrender.gui.category.performance");
-            case PAGE_ADVANCED:
-                return tr("neofontrender.gui.category.advanced");
-            case PAGE_CACHE:
-                return tr("neofontrender.gui.category.cache");
-            case PAGE_ABOUT:
-                return tr("neofontrender.gui.category.about");
-            case PAGE_LICENSES:
-                return tr("neofontrender.gui.category.licenses");
-            case PAGE_FONT:
-            default:
-                return tr("neofontrender.gui.category.font");
-        }
+        return tr(SettingsPage.byId(page).titleKey);
     }
 
     private static ButtonWidget<?> toggleButton(String text, int width, int height, Supplier<Boolean> getter, Consumer<Boolean> setter, Runnable preview) {
@@ -294,36 +442,58 @@ public final class NeofontrenderConfigScreen {
                 });
     }
 
-    private static ButtonWidget<?> styleButton(Staged staged, int width, int height) {
-        return withTooltip(new ValueRow(() -> tr("neofontrender.gui.option.style"), () -> styleName(staged.fontStyle))
-                .size(width, height)
-                .onMousePressed(mouseButton -> {
-                    staged.fontStyle = (staged.fontStyle + 1) & 3;
+    private static IWidget styleButton(Staged staged, int width, int height) {
+        return withTooltip(selectionDropdown("font_style", () -> tr("neofontrender.gui.option.style"),
+                () -> Integer.toString(staged.fontStyle), value -> {
+                    staged.fontStyle = Integer.parseInt(value);
                     preview(staged);
-                    return true;
-                }), "neofontrender.tooltip.style");
+                }, Arrays.asList("0", "1", "2", "3"), value -> styleName(Integer.parseInt(value)))
+                .size(width, height), "neofontrender.tooltip.style");
     }
 
-    private static ButtonWidget<?> aaModeButton(Staged staged, int width, int height) {
-        return withTooltip(new ValueRow(() -> tr("neofontrender.gui.option.antialias"), () -> aaModeName(staged.antialiasMode))
-                .size(width, height)
-                .onMousePressed(mouseButton -> {
-                    staged.antialiasMode = nextAaMode(staged.antialiasMode);
-                    staged.antialias = !"off".equals(staged.antialiasMode);
+    private static IWidget shadowModeButton(Staged staged, int width, int height) {
+        return withTooltip(selectionDropdown("shadow_mode", () -> tr("neofontrender.gui.option.shadow_mode"),
+                () -> staged.shadowMode, value -> {
+                    staged.shadowMode = value;
                     preview(staged);
-                    return true;
-                }), "neofontrender.tooltip.antialias");
+                }, Arrays.asList("mask", "emoji", "all", "none"), value -> tr("neofontrender.gui.shadow_mode." + value))
+                .size(width, height), "neofontrender.tooltip.shadow_mode");
     }
 
-    private static ButtonWidget<?> engineButton(Staged staged, int page, int width, int height) {
-        return withTooltip(new ValueRow(() -> tr("neofontrender.gui.option.engine"), () -> engineName(staged.engine))
-                .size(width, height)
-                .onMousePressed(mouseButton -> {
-                    staged.engine = nextEngine(staged.engine);
-                    staged.enabled = !"vanilla".equals(staged.engine);
+    private static IWidget shadowValueButton(Staged staged, boolean opacity, int width, int height) {
+        List<String> values = opacity
+                ? Arrays.asList("0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0")
+                : Arrays.asList("0.0", "0.5", "1.0", "1.5", "2.0", "2.5", "3.0", "3.5", "4.0");
+        return selectionDropdown("shadow_" + (opacity ? "opacity" : "length"),
+                () -> tr(opacity ? "neofontrender.gui.option.shadow_opacity" : "neofontrender.gui.option.shadow_length"),
+                () -> String.format(Locale.ROOT, "%.1f", opacity ? staged.shadowOpacity : staged.shadowLength), value -> {
+                    if (opacity) staged.shadowOpacity = Float.parseFloat(value);
+                    else staged.shadowLength = Float.parseFloat(value);
+                    preview(staged);
+                }, values, value -> value).size(width, height);
+    }
+
+    private static IWidget aaModeButton(Staged staged, int width, int height) {
+        return withTooltip(selectionDropdown("antialias", () -> tr("neofontrender.gui.option.antialias"),
+                () -> staged.antialiasMode, value -> {
+                    staged.antialiasMode = value;
+                    staged.antialias = !"off".equals(value);
+                    preview(staged);
+                }, Arrays.asList(AA_MODES), NeofontrenderConfigScreen::aaModeName)
+                .size(width, height), "neofontrender.tooltip.antialias");
+    }
+
+    private static IWidget engineButton(Staged staged, int page, int width, int height) {
+        List<String> engines = skiaAvailable()
+                ? Arrays.asList("sfr", "skia", "cosmic", "vanilla")
+                : Arrays.asList("sfr", "cosmic", "vanilla");
+        return withTooltip(selectionDropdown("engine", () -> tr("neofontrender.gui.option.engine"),
+                () -> normalizeEngine(staged.engine), value -> {
+                    staged.engine = value;
+                    staged.enabled = !"vanilla".equals(value);
                     reloadAndReopen(staged, page);
-                    return true;
-                }), "neofontrender.tooltip.engine");
+                }, engines, NeofontrenderConfigScreen::engineName)
+                .size(width, height), "neofontrender.tooltip.engine");
     }
 
     private static void reloadAndReopen(Staged staged, int page) {
@@ -577,33 +747,67 @@ public final class NeofontrenderConfigScreen {
         return Math.max(min, Math.min(max, value));
     }
 
+    /**
+     * Owns the repeated ScrollWidget/content pairing used by settings pages. In particular, the
+     * restored position is applied once, rather than during every ModularUI resize pass.
+     */
+    private static final class ScrollablePane {
+        private final ScrollWidget<?> viewport = new ScrollWidget<>(new VerticalScrollData());
+        private final IWidget content;
+        private boolean restored;
+
+        private ScrollablePane(IWidget content) {
+            this.content = content;
+            viewport.child(content);
+        }
+
+        private ScrollWidget<?> widget() {
+            return viewport;
+        }
+
+        private void layout(int x, int y, int width, int height, int contentWidth, int contentHeight) {
+            place(viewport, x, y, width, height);
+            place(content, 0, 0, contentWidth, contentHeight);
+            viewport.getScrollArea().getScrollY().setScrollSize(contentHeight);
+        }
+
+        private void restoreScrollOnce(int scrollY) {
+            if (!restored) {
+                viewport.getScrollArea().getScrollY().scrollTo(viewport.getScrollArea(), scrollY);
+                restored = true;
+            }
+        }
+
+        private int scrollY() {
+            return viewport.getScrollArea().getScrollY().getScroll();
+        }
+    }
+
     private static final class FontConfigLayout extends ParentWidget<FontConfigLayout> implements ILayoutWidget {
         private static final int PAD = 12;
         private static final int GAP = 12;
 
         private final TextWidget title = header(tr("neofontrender.gui.title"));
+        private final Staged staged;
         private final CategoryRail categoryRail;
+        private final ScrollablePane categoryPane;
         private final FontSidebar sidebar;
         private final SettingsPane settings;
-        private final ScrollWidget<?> settingsScroll;
+        private final ScrollablePane settingsPane;
         private final ButtonWidget<?> previewButton;
         private final ButtonWidget<?> applyButton;
         private final ButtonWidget<?> cancelButton;
 
         private FontConfigLayout(Staged staged) {
+            this.staged = staged;
             FontFieldRefs fieldRefs = new FontFieldRefs();
             FilteredFontList[] listRef = new FilteredFontList[1];
 
             this.sidebar = new FontSidebar(staged, fieldRefs, listRef);
             this.settings = new SettingsPane(staged, fieldRefs);
-            this.settingsScroll = new ScrollWidget<>(new VerticalScrollData());
-            this.settingsScroll.child(settings);
-            // A live font reload can schedule another ModularUI resize after the manual layout
-            // pass. Without persistent X-axis constraints, the scroll child then falls back to
-            // covering its text children and can collapse to a very narrow column for fonts with
-            // unusual metrics. Keep its width tied to the viewport across every resize pass.
-            this.settings.relativeToParent().left(0).top(0).widthRelOffset(1.0F, -6);
+            this.settingsPane = new ScrollablePane(settings);
             this.categoryRail = new CategoryRail(staged, PAGE_FONT);
+            this.categoryPane = new ScrollablePane(categoryRail);
             this.previewButton = actionButtonKey("neofontrender.gui.button.preview", 90, 20, () -> preview(staged));
             this.applyButton = actionButtonKey("neofontrender.gui.button.apply", 74, 20, () -> {
                 apply(staged);
@@ -616,9 +820,9 @@ public final class NeofontrenderConfigScreen {
             });
 
             child(title);
-            child(categoryRail);
+            child(categoryPane.widget());
             child(sidebar);
-            child(settingsScroll);
+            child(settingsPane.widget());
             child(previewButton);
             child(applyButton);
             child(cancelButton);
@@ -628,13 +832,12 @@ public final class NeofontrenderConfigScreen {
         public boolean layoutWidgets() {
             int width = getArea().w();
             int height = getArea().h();
-            int titleHeight = 16;
             int footerHeight = 24;
-            int contentTop = PAD + titleHeight + 10;
-            int contentBottom = height - PAD - footerHeight - 8;
-            int contentHeight = Math.max(80, contentBottom - contentTop);
+            int contentTop = PAD + 28;
+            int contentBottom = height - PAD - footerHeight - GAP;
+            int contentHeight = Math.max(0, contentBottom - contentTop);
 
-            place(title, PAD, PAD, Math.max(0, width - PAD * 2), titleHeight);
+            place(title, PAD, PAD, Math.max(0, width - PAD * 2), 16);
 
             // Keep the navigation rail close to the compact options-screen proportion instead of
             // letting it consume one third of a wide monitor.
@@ -642,13 +845,14 @@ public final class NeofontrenderConfigScreen {
             int sidebarWidth = clamp(width / 5, 180, 240);
             int sidebarX = PAD + railWidth + GAP;
             int settingsX = sidebarX + sidebarWidth + GAP;
-            place(categoryRail, PAD, contentTop, railWidth, contentHeight);
+            int categoryHeight = categoryRail.preferredHeight();
+            categoryPane.layout(PAD, contentTop, railWidth, contentHeight, railWidth, categoryHeight);
+            categoryPane.restoreScrollOnce(staged.categoryScroll);
             place(sidebar, sidebarX, contentTop, sidebarWidth, contentHeight);
             int settingsWidth = Math.max(0, width - settingsX - PAD);
-            place(settingsScroll, settingsX, contentTop, settingsWidth, contentHeight);
             int settingsContentHeight = Math.max(contentHeight, settings.preferredHeight());
-            place(settings, 0, 0, Math.max(0, settingsWidth - 6), settingsContentHeight);
-            settingsScroll.getScrollArea().getScrollY().setScrollSize(settingsContentHeight);
+            settingsPane.layout(settingsX, contentTop, settingsWidth, contentHeight,
+                    Math.max(0, settingsWidth - 6), settingsContentHeight);
 
             int buttonWidth = Math.min(160, Math.max(90, (width - PAD * 2 - GAP * 2) / 3));
             int y = height - PAD - footerHeight;
@@ -664,7 +868,9 @@ public final class NeofontrenderConfigScreen {
         private static final int GAP = 12;
 
         private final TextWidget title;
+        private final Staged staged;
         private final CategoryRail categoryRail;
+        private final ScrollablePane categoryPane;
         private final PipelineInfoWidget pipelineInfo;
         private final OptionsGrid optionsGrid;
         private final BrightnessSection brightness;
@@ -674,19 +880,20 @@ public final class NeofontrenderConfigScreen {
         private final ButtonWidget<?> applyButton;
         private final ButtonWidget<?> cancelButton;
         private final int page;
-        private final ScrollWidget<?> contentScroll;
+        private final ScrollablePane contentPane;
         private final ParentWidget<?> contentRoot;
 
         private AdvancedConfigLayout(Staged staged, int page) {
+            this.staged = staged;
             this.page = page;
             this.title = header(tr("neofontrender.gui.title") + " / " + categoryName(page));
             this.categoryRail = new CategoryRail(staged, page);
+            this.categoryPane = new ScrollablePane(categoryRail);
             this.pipelineInfo = new PipelineInfoWidget(staged);
             this.optionsGrid = buildAdvancedOptionsGrid(staged, page);
             this.brightness = new BrightnessSection(staged);
             this.cacheSettings = new CacheSettingsPane(staged);
             this.infoPage = new InfoPage(page, staged);
-            this.contentScroll = new ScrollWidget<>(new VerticalScrollData());
             this.contentRoot = new ParentWidget<>();
             // Keep only the active category in the tree. Disabled widgets still retain layout
             // state in ModularUI, so merely disabling the other pages can leave them visible.
@@ -701,10 +908,7 @@ public final class NeofontrenderConfigScreen {
                 this.contentRoot.child(optionsGrid);
                 this.contentRoot.child(brightness);
             }
-            this.contentScroll.child(contentRoot);
-            // Apply the same persistent viewport-width constraint used by the font settings page.
-            // Advanced pages also remain open while preview reloads the active font backend.
-            this.contentRoot.relativeToParent().left(0).top(0).fullWidth();
+            this.contentPane = new ScrollablePane(contentRoot);
             this.backButton = actionButtonKey("neofontrender.gui.button.back", 80, 20, () -> openMain(staged));
             this.applyButton = actionButtonKey("neofontrender.gui.button.apply", 80, 20, () -> {
                 apply(staged);
@@ -717,8 +921,8 @@ public final class NeofontrenderConfigScreen {
             });
 
             child(title);
-            child(categoryRail);
-            child(contentScroll);
+            child(categoryPane.widget());
+            child(contentPane.widget());
             child(backButton);
             child(applyButton);
             child(cancelButton);
@@ -738,8 +942,9 @@ public final class NeofontrenderConfigScreen {
             int contentX = PAD + railWidth + GAP;
             int contentWidth = Math.max(0, width - contentX - PAD);
             int contentHeight = Math.max(0, height - y - PAD - footerHeight - GAP);
-            place(categoryRail, PAD, y, railWidth, contentHeight);
-            place(contentScroll, contentX, y, contentWidth, contentHeight);
+            int categoryHeight = categoryRail.preferredHeight();
+            categoryPane.layout(PAD, y, railWidth, contentHeight, railWidth, categoryHeight);
+            categoryPane.restoreScrollOnce(staged.categoryScroll);
             int rootY = 0;
 
             if (page == PAGE_ADVANCED) {
@@ -777,8 +982,7 @@ public final class NeofontrenderConfigScreen {
                 brightness.setEnabled(false);
             }
             int rootHeight = Math.max(contentHeight, rootY);
-            place(contentRoot, 0, 0, contentWidth, rootHeight);
-            contentScroll.getScrollArea().getScrollY().setScrollSize(rootHeight);
+            contentPane.layout(contentX, y, contentWidth, contentHeight, contentWidth, rootHeight);
 
             // Divide the footer's actual inner width between its three controls. The old four-slot
             // formula forced a 90px minimum and made Back overlap Apply on narrow scaled GUIs.
@@ -795,8 +999,8 @@ public final class NeofontrenderConfigScreen {
     private static final class FontSidebar extends ParentWidget<FontSidebar> implements ILayoutWidget {
         private final TextWidget searchLabel = label(tr("neofontrender.gui.label.search_fonts"));
         private final TextFieldWidget searchField;
-        private final ButtonWidget<?> targetButton;
-        private final ButtonWidget<?> sourceButton;
+        private final IWidget targetButton;
+        private final IWidget sourceButton;
         private final ButtonWidget<?> refreshButton;
         private final ButtonWidget<?> openFolderButton;
         private final TextWidget sourceTitle;
@@ -811,15 +1015,18 @@ public final class NeofontrenderConfigScreen {
                             listRef[0].refresh();
                         }
                     }));
-            this.targetButton = new TextButton(() -> tr("neofontrender.gui.button.target", fontTargetName(staged.fontTarget)), true)
-                    .onMousePressed(mouseButton -> {
-                        staged.fontTarget = (staged.fontTarget + 1) % TARGET_COUNT;
+            List<String> targets = new ArrayList<>();
+            for (int target = 0; target < TARGET_COUNT; target++) {
+                targets.add(Integer.toString(target));
+            }
+            this.targetButton = selectionDropdown("font_target", () -> tr("neofontrender.gui.label.target"),
+                    () -> Integer.toString(staged.fontTarget), value -> {
+                        staged.fontTarget = Integer.parseInt(value);
                         if (listRef[0] != null) {
                             listRef[0].refresh();
                         }
-                        return true;
-                    });
-            this.sourceButton = sourceButton(staged, listRef);
+                    }, targets, value -> fontTargetName(Integer.parseInt(value)));
+            this.sourceButton = sourceDropdown(staged, listRef);
             this.refreshButton = actionButtonKey("neofontrender.gui.button.refresh", 72, 18, () -> {
                 if (listRef[0] != null) {
                     listRef[0].reloadFonts();
@@ -874,13 +1081,14 @@ public final class NeofontrenderConfigScreen {
 
     private static final class SettingsPane extends ParentWidget<SettingsPane> implements ILayoutWidget {
         private final Staged staged;
-        private final FieldBlock fontName;
-        private final FieldBlock fontPath;
-        private final FieldBlock fallbacks;
-        private final FieldBlock cosmicRegular;
-        private final FieldBlock cosmicBold;
-        private final FieldBlock cosmicItalic;
-        private final FieldBlock cosmicBoldItalic;
+        private final LabeledTextField fontName;
+        private final LabeledTextField fontPath;
+        private final LabeledTextField fallbacks;
+        private final LabeledTextField shadowMasks;
+        private final LabeledTextField cosmicRegular;
+        private final LabeledTextField cosmicBold;
+        private final LabeledTextField cosmicItalic;
+        private final LabeledTextField cosmicBoldItalic;
         private final ButtonWidget<?> cosmicVariantFontOnly;
         private final MetricsSection metrics;
         private final OversampleSection oversample;
@@ -895,20 +1103,23 @@ public final class NeofontrenderConfigScreen {
                     .setMaxLength(512)
                     .value(new StringValue(() -> staged.fontPath, v -> staged.fontPath = v));
 
-            this.fontName = new FieldBlock(tr("neofontrender.gui.label.font_name"), fieldRefs.fontName);
-            this.fontPath = new FieldBlock(tr("neofontrender.gui.label.local_path"), fieldRefs.fontPath);
+            this.fontName = new LabeledTextField(tr("neofontrender.gui.label.font_name"), fieldRefs.fontName);
+            this.fontPath = new LabeledTextField(tr("neofontrender.gui.label.local_path"), fieldRefs.fontPath);
             fieldRefs.fallbacks = new TextFieldWidget()
                     .setMaxLength(512)
                     .value(new StringValue(() -> staged.fontFallbacks, v -> staged.fontFallbacks = v));
-            this.fallbacks = new FieldBlock(tr("neofontrender.gui.label.fallbacks"), fieldRefs.fallbacks);
+            this.fallbacks = new LabeledTextField(tr("neofontrender.gui.label.fallbacks"), fieldRefs.fallbacks);
+            fieldRefs.shadowMasks = new TextFieldWidget().setMaxLength(512)
+                    .value(new StringValue(() -> staged.shadowMaskFonts, v -> staged.shadowMaskFonts = v));
+            this.shadowMasks = new LabeledTextField(tr("neofontrender.gui.label.shadow_masks"), fieldRefs.shadowMasks);
             fieldRefs.cosmicRegular = cosmicFaceField(() -> staged.cosmicRegular, v -> staged.cosmicRegular = v);
-            this.cosmicRegular = new FieldBlock(tr("neofontrender.gui.label.cosmic_regular"), fieldRefs.cosmicRegular);
+            this.cosmicRegular = new LabeledTextField(tr("neofontrender.gui.label.cosmic_regular"), fieldRefs.cosmicRegular);
             fieldRefs.cosmicBold = cosmicFaceField(() -> staged.cosmicBold, v -> staged.cosmicBold = v);
-            this.cosmicBold = new FieldBlock(tr("neofontrender.gui.label.cosmic_bold"), fieldRefs.cosmicBold);
+            this.cosmicBold = new LabeledTextField(tr("neofontrender.gui.label.cosmic_bold"), fieldRefs.cosmicBold);
             fieldRefs.cosmicItalic = cosmicFaceField(() -> staged.cosmicItalic, v -> staged.cosmicItalic = v);
-            this.cosmicItalic = new FieldBlock(tr("neofontrender.gui.label.cosmic_italic"), fieldRefs.cosmicItalic);
+            this.cosmicItalic = new LabeledTextField(tr("neofontrender.gui.label.cosmic_italic"), fieldRefs.cosmicItalic);
             fieldRefs.cosmicBoldItalic = cosmicFaceField(() -> staged.cosmicBoldItalic, v -> staged.cosmicBoldItalic = v);
-            this.cosmicBoldItalic = new FieldBlock(tr("neofontrender.gui.label.cosmic_bold_italic"), fieldRefs.cosmicBoldItalic);
+            this.cosmicBoldItalic = new LabeledTextField(tr("neofontrender.gui.label.cosmic_bold_italic"), fieldRefs.cosmicBoldItalic);
             this.cosmicVariantFontOnly = toggleButtonKey(
                     "neofontrender.gui.option.cosmic_variant_font_only",
                     "neofontrender.tooltip.cosmic_variant_font_only",
@@ -929,6 +1140,7 @@ public final class NeofontrenderConfigScreen {
             child(fontName);
             child(fontPath);
             child(fallbacks);
+            child(shadowMasks);
             child(cosmicRegular);
             child(cosmicBold);
             child(cosmicItalic);
@@ -942,7 +1154,7 @@ public final class NeofontrenderConfigScreen {
         private int preferredHeight() {
             int cosmicFields = "cosmic".equals(normalizeEngine(staged.engine)) ? 4 : 0;
             int cosmicOption = cosmicFields == 0 ? 0 : 32;
-            return (4 + cosmicFields) * 46 + cosmicOption + 8 + oversample.preferredHeight() + 8 + 150;
+            return (5 + cosmicFields) * 46 + cosmicOption + 8 + oversample.preferredHeight() + 8 + 150;
         }
 
         @Override
@@ -958,6 +1170,8 @@ public final class NeofontrenderConfigScreen {
             place(fontPath, 0, y, width, fieldHeight);
             y += fieldHeight + gap;
             place(fallbacks, 0, y, width, fieldHeight);
+            y += fieldHeight + gap;
+            place(shadowMasks, 0, y, width, fieldHeight);
             y += fieldHeight + gap;
             if ("cosmic".equals(normalizeEngine(staged.engine))) {
                 place(cosmicRegular, 0, y, width, fieldHeight);
@@ -993,6 +1207,7 @@ public final class NeofontrenderConfigScreen {
         private TextFieldWidget fontName;
         private TextFieldWidget fontPath;
         private TextFieldWidget fallbacks;
+        private TextFieldWidget shadowMasks;
         private TextFieldWidget cosmicRegular;
         private TextFieldWidget cosmicBold;
         private TextFieldWidget cosmicItalic;
@@ -1002,6 +1217,7 @@ public final class NeofontrenderConfigScreen {
             setText(fontName, staged.fontName);
             setText(fontPath, staged.fontPath);
             setText(fallbacks, staged.fontFallbacks);
+            setText(shadowMasks, staged.shadowMaskFonts);
             setText(cosmicRegular, staged.cosmicRegular);
             setText(cosmicBold, staged.cosmicBold);
             setText(cosmicItalic, staged.cosmicItalic);
@@ -1015,11 +1231,11 @@ public final class NeofontrenderConfigScreen {
         }
     }
 
-    private static final class FieldBlock extends ParentWidget<FieldBlock> implements ILayoutWidget {
+    private static final class LabeledTextField extends ParentWidget<LabeledTextField> implements ILayoutWidget {
         private final TextWidget label;
         private final TextFieldWidget field;
 
-        private FieldBlock(String label, TextFieldWidget field) {
+        private LabeledTextField(String label, TextFieldWidget field) {
             this.label = label(label);
             this.field = field;
             child(this.label);
@@ -1038,18 +1254,18 @@ public final class NeofontrenderConfigScreen {
     }
 
     private static final class MetricsSection extends ParentWidget<MetricsSection> implements ILayoutWidget {
-        private final FieldBlock size;
-        private final FieldBlock weight;
-        private final FieldBlock baseline;
+        private final LabeledTextField size;
+        private final LabeledTextField weight;
+        private final LabeledTextField baseline;
 
         private MetricsSection(Staged staged) {
-            this.size = new FieldBlock(tr("neofontrender.gui.label.size"), new TextFieldWidget()
+            this.size = new LabeledTextField(tr("neofontrender.gui.label.size"), new TextFieldWidget()
                     .setMaxLength(8)
                     .value(new StringValue(() -> staged.fontSize, v -> staged.fontSize = v)));
-            this.weight = new FieldBlock(tr("neofontrender.gui.label.weight"), new TextFieldWidget()
+            this.weight = new LabeledTextField(tr("neofontrender.gui.label.weight"), new TextFieldWidget()
                     .setMaxLength(4)
                     .value(new StringValue(() -> staged.variableWeight, v -> staged.variableWeight = v)));
-            this.baseline = new FieldBlock(tr("neofontrender.gui.label.baseline"), new TextFieldWidget()
+            this.baseline = new LabeledTextField(tr("neofontrender.gui.label.baseline"), new TextFieldWidget()
                     .setMaxLength(8)
                     .value(new StringValue(() -> staged.baselineShift, v -> staged.baselineShift = v)));
             child(size);
@@ -1211,6 +1427,20 @@ public final class NeofontrenderConfigScreen {
                     .add(toggleButtonKey("neofontrender.gui.option.sign_cross_batch", "neofontrender.tooltip.sign_cross_batch", 260, 24, () -> staged.signCrossTileBatching, v -> staged.signCrossTileBatching = v, () -> preview(staged)))
                     .add(toggleButtonKey("neofontrender.gui.option.sign_occlusion", "neofontrender.tooltip.sign_occlusion", 260, 24, () -> staged.signBlockOcclusionCulling, v -> staged.signBlockOcclusionCulling = v, () -> preview(staged)));
         }
+        if (page == PAGE_SHADOW) {
+            return grid.add(shadowModeButton(staged, 260, 24))
+                    .add(shadowValueButton(staged, false, 260, 24))
+                    .add(shadowValueButton(staged, true, 260, 24));
+        }
+        if (page == PAGE_FIXES) {
+            return grid
+                    .add(toggleButtonKey("neofontrender.gui.option.fix_ime", "neofontrender.tooltip.fix_ime", 260, 24, () -> staged.fixImeInput, v -> staged.fixImeInput = v, () -> preview(staged)))
+                    .add(toggleButtonKey("neofontrender.gui.option.fix_unicode_delete", "neofontrender.tooltip.fix_unicode_delete", 260, 24, () -> staged.fixUnicodeTextDeletion, v -> staged.fixUnicodeTextDeletion = v, () -> preview(staged)))
+                    .add(toggleButtonKey("neofontrender.gui.option.sign_paste", "neofontrender.tooltip.sign_paste", 260, 24, () -> staged.allowSignPaste, v -> staged.allowSignPaste = v, () -> preview(staged)));
+        }
+        if (page == PAGE_LABORATORY) {
+            return grid.add(toggleButtonKey("neofontrender.gui.option.hex_chat", "neofontrender.tooltip.hex_chat", 260, 24, () -> staged.laboratoryHexChat, v -> staged.laboratoryHexChat = v, () -> preview(staged)));
+        }
         return grid
                 .add(toggleButtonKey("neofontrender.gui.option.pipeline", "neofontrender.tooltip.pipeline", 260, 24, () -> staged.enhancedTextPipeline, v -> staged.enhancedTextPipeline = v, () -> preview(staged)))
                 .add(toggleButtonKey("neofontrender.gui.option.shader", "neofontrender.tooltip.shader", 260, 24, () -> staged.shaderTextPipeline, v -> staged.shaderTextPipeline = v, () -> preview(staged)))
@@ -1259,7 +1489,7 @@ public final class NeofontrenderConfigScreen {
     }
 
     private static final class CacheSettingsPane extends ParentWidget<CacheSettingsPane> implements ILayoutWidget {
-        private final List<FieldBlock> fields = new ArrayList<>();
+        private final List<LabeledTextField> fields = new ArrayList<>();
 
         private CacheSettingsPane(Staged staged) {
             addField("neofontrender.gui.cache.text_min", () -> staged.textCacheMin, v -> staged.textCacheMin = v);
@@ -1272,7 +1502,7 @@ public final class NeofontrenderConfigScreen {
         }
 
         private void addField(String key, Supplier<String> getter, Consumer<String> setter) {
-            FieldBlock field = new FieldBlock(tr(key), new TextFieldWidget()
+            LabeledTextField field = new LabeledTextField(tr(key), new TextFieldWidget()
                     .setMaxLength(10)
                     .value(new StringValue(getter, setter)));
             fields.add(field);
@@ -1466,6 +1696,15 @@ public final class NeofontrenderConfigScreen {
         private final boolean originalSignBlockOcclusionCulling = NeofontrenderConfig.signBlockOcclusionCulling();
         private final String originalBrightness = Float.toString(NeofontrenderConfig.renderingBrightness());
         private final boolean originalTextureEdgeBleed = NeofontrenderConfig.textureEdgeBleed();
+        private final String originalShadowMode = NeofontrenderConfig.shadowMode();
+        private final String originalShadowMaskFonts = NeofontrenderConfig.shadowMaskFonts();
+        private final String originalShadowMaskCodepoints = NeofontrenderConfig.shadowMaskCodepoints();
+        private final float originalShadowLength = NeofontrenderConfig.shadowLength();
+        private final float originalShadowOpacity = NeofontrenderConfig.shadowOpacity();
+        private final boolean originalFixImeInput = NeofontrenderConfig.fixImeInput();
+        private final boolean originalFixUnicodeTextDeletion = NeofontrenderConfig.fixUnicodeTextDeletion();
+        private final boolean originalAllowSignPaste = NeofontrenderConfig.allowSignPaste();
+        private final boolean originalLaboratoryHexChat = NeofontrenderConfig.laboratoryHexChat();
         private final String originalTextCacheMin = Integer.toString(NeofontrenderConfig.skiaTextCacheMinEntries());
         private final String originalTextCacheMax = Integer.toString(NeofontrenderConfig.skiaTextCacheMaxEntries());
         private final String originalTextCacheTtl = Float.toString(NeofontrenderConfig.skiaTextCacheTtlSeconds());
@@ -1495,6 +1734,16 @@ public final class NeofontrenderConfigScreen {
         private boolean signBlockOcclusionCulling = originalSignBlockOcclusionCulling;
         private String brightness = originalBrightness;
         private boolean textureEdgeBleed = originalTextureEdgeBleed;
+        private String shadowMode = originalShadowMode;
+        private String shadowMaskFonts = originalShadowMaskFonts;
+        private String shadowMaskCodepoints = originalShadowMaskCodepoints;
+        private float shadowLength = originalShadowLength;
+        private float shadowOpacity = originalShadowOpacity;
+        private boolean fixImeInput = originalFixImeInput;
+        private boolean fixUnicodeTextDeletion = originalFixUnicodeTextDeletion;
+        private boolean allowSignPaste = originalAllowSignPaste;
+        private boolean laboratoryHexChat = originalLaboratoryHexChat;
+        private int categoryScroll;
         private String fontName = originalFontName;
         private String fontPath = isFontFile(originalFontName) ? originalFontName : "";
         private String cosmicRegular = originalCosmicRegular;
@@ -1547,6 +1796,8 @@ public final class NeofontrenderConfigScreen {
                     return value.equals(cosmicItalic);
                 case TARGET_COSMIC_BOLD_ITALIC:
                     return value.equals(cosmicBoldItalic);
+                case TARGET_SHADOW_MASK:
+                    return parseFonts(shadowMaskFonts).contains(value);
                 case TARGET_PRIMARY:
                 default:
                     String path = font.path == null ? "" : font.path;
@@ -1579,6 +1830,11 @@ public final class NeofontrenderConfigScreen {
                     return;
                 case TARGET_COSMIC_BOLD_ITALIC:
                     cosmicBoldItalic = toggleSingleFont(cosmicBoldItalic, value);
+                    return;
+                case TARGET_SHADOW_MASK:
+                    List<String> masks = parseFonts(shadowMaskFonts);
+                    if (masks.contains(value)) masks.remove(value); else masks.add(value);
+                    shadowMaskFonts = joinFonts(masks);
                     return;
                 case TARGET_PRIMARY:
                 default:
@@ -1614,6 +1870,15 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setSignBlockOcclusionCulling(signBlockOcclusionCulling);
             NeofontrenderConfig.setRenderingBrightness(parseFloat(brightness, 3.0F, 0.0F, 12.0F));
             NeofontrenderConfig.setTextureEdgeBleed(textureEdgeBleed);
+            NeofontrenderConfig.setShadowMode(shadowMode);
+            NeofontrenderConfig.setShadowMaskFonts(shadowMaskFonts);
+            NeofontrenderConfig.setShadowMaskCodepoints(shadowMaskCodepoints);
+            NeofontrenderConfig.setShadowLength(shadowLength);
+            NeofontrenderConfig.setShadowOpacity(shadowOpacity);
+            NeofontrenderConfig.setFixImeInput(fixImeInput);
+            NeofontrenderConfig.setFixUnicodeTextDeletion(fixUnicodeTextDeletion);
+            NeofontrenderConfig.setAllowSignPaste(allowSignPaste);
+            NeofontrenderConfig.setLaboratoryHexChat(laboratoryHexChat);
                 NeofontrenderConfig.setFontName(selectedFont().isEmpty()
                     ? "neofontrender:fonts/sarasa_ui_sc_regular.ttf"
                     : selectedFont());
@@ -1667,6 +1932,15 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setSignBlockOcclusionCulling(originalSignBlockOcclusionCulling);
             NeofontrenderConfig.setRenderingBrightness(parseFloat(originalBrightness, 3.0F, 0.0F, 12.0F));
             NeofontrenderConfig.setTextureEdgeBleed(originalTextureEdgeBleed);
+            NeofontrenderConfig.setShadowMode(originalShadowMode);
+            NeofontrenderConfig.setShadowMaskFonts(originalShadowMaskFonts);
+            NeofontrenderConfig.setShadowMaskCodepoints(originalShadowMaskCodepoints);
+            NeofontrenderConfig.setShadowLength(originalShadowLength);
+            NeofontrenderConfig.setShadowOpacity(originalShadowOpacity);
+            NeofontrenderConfig.setFixImeInput(originalFixImeInput);
+            NeofontrenderConfig.setFixUnicodeTextDeletion(originalFixUnicodeTextDeletion);
+            NeofontrenderConfig.setAllowSignPaste(originalAllowSignPaste);
+            NeofontrenderConfig.setLaboratoryHexChat(originalLaboratoryHexChat);
             NeofontrenderConfig.setFontName(originalFontName);
             NeofontrenderConfig.setFontFallbacks(parseFonts(originalFontFallbacks));
             NeofontrenderConfig.setCosmicRegularFont(originalCosmicRegular);
@@ -1780,21 +2054,41 @@ public final class NeofontrenderConfigScreen {
         }
     }
 
-    /** Compact options-screen switch: label on the left, fixed square state indicator on the right. */
-    private static final class SwitchRow extends TextButton {
-        private final Supplier<Boolean> selected;
+    /** Draws the variable right-hand content of a reusable settings button. */
+    private interface ButtonContent {
+        void draw(TextButton button);
+    }
 
-        private SwitchRow(Supplier<String> label, Supplier<Boolean> selected) {
-            super(label, false);
-            this.selected = selected;
+    private static final class ContentButton extends TextButton {
+        private final ButtonContent content;
+
+        private ContentButton(Supplier<String> label, boolean centered, ButtonContent content) {
+            super(label, centered);
+            this.content = content;
         }
 
         @Override
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
             super.draw(context, widgetTheme);
-            int size = Math.min(12, Math.max(8, getArea().h() - 8));
-            int x = getArea().w() - size - 6;
-            int y = (getArea().h() - size) / 2;
+            content.draw(this);
+        }
+    }
+
+    /** Compact options-screen switch: a fixed square state indicator on the right. */
+    private static final class ToggleIndicator implements ButtonContent {
+        private final Supplier<Boolean> selected;
+
+        private ToggleIndicator(Supplier<Boolean> selected) {
+            this.selected = selected;
+        }
+
+        @Override
+        public void draw(TextButton button) {
+            int width = button.getArea().w();
+            int height = button.getArea().h();
+            int size = Math.min(12, Math.max(8, height - 8));
+            int x = width - size - 6;
+            int y = (height - size) / 2;
             int border = selected.get() ? 0xFF00DCE8 : 0xFFE0E0E0;
             Gui.drawRect(x, y, x + size, y + size, border);
             Gui.drawRect(x + 2, y + 2, x + size - 2, y + size - 2, 0xFF090909);
@@ -1804,22 +2098,20 @@ public final class NeofontrenderConfigScreen {
         }
     }
 
-    /** Enumerated option row matching the switch rows, with the current value right-aligned. */
-    private static final class ValueRow extends TextButton {
+    /** A right-aligned dynamic value, for enum-like and numeric settings. */
+    private static final class ValueIndicator implements ButtonContent {
         private final Supplier<String> value;
 
-        private ValueRow(Supplier<String> label, Supplier<String> value) {
-            super(label, false);
+        private ValueIndicator(Supplier<String> value) {
             this.value = value;
         }
 
         @Override
-        public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
-            super.draw(context, widgetTheme);
+        public void draw(TextButton button) {
             Minecraft mc = Minecraft.getMinecraft();
-            String visible = mc.fontRenderer.trimStringToWidth(value.get(), Math.max(1, getArea().w() / 2));
-            int x = Math.max(4, getArea().w() - mc.fontRenderer.getStringWidth(visible) - 6);
-            int y = Math.max(0, (getArea().h() - mc.fontRenderer.FONT_HEIGHT) / 2);
+            String visible = mc.fontRenderer.trimStringToWidth(value.get(), Math.max(1, button.getArea().w() / 2));
+            int x = Math.max(4, button.getArea().w() - mc.fontRenderer.getStringWidth(visible) - 6);
+            int y = Math.max(0, (button.getArea().h() - mc.fontRenderer.FONT_HEIGHT) / 2);
             mc.fontRenderer.drawString(visible, x, y, 0xE0E0E0);
         }
     }
@@ -1832,28 +2124,31 @@ public final class NeofontrenderConfigScreen {
         private CategoryRail(Staged staged, int selectedPage) {
             this.staged = staged;
             this.selectedPage = selectedPage;
-            addPage(PAGE_FONT, tr("neofontrender.gui.category.font"));
-            addPage(PAGE_GENERAL, tr("neofontrender.gui.category.general"));
-            addPage(PAGE_RENDERING, tr("neofontrender.gui.category.rendering"));
-            addPage(PAGE_PERFORMANCE, tr("neofontrender.gui.category.performance"));
-            addPage(PAGE_ADVANCED, tr("neofontrender.gui.category.advanced"));
-            addPage(PAGE_CACHE, tr("neofontrender.gui.category.cache"));
-            addPage(PAGE_ABOUT, tr("neofontrender.gui.category.about"));
-            addPage(PAGE_LICENSES, tr("neofontrender.gui.category.licenses"));
+            for (SettingsPage page : SettingsPage.values()) {
+                addPage(page);
+            }
         }
 
-        private void addPage(int page, String label) {
-            ButtonWidget<?> button = new CategoryButton(() -> label, page == selectedPage)
+        private void addPage(SettingsPage page) {
+            ButtonWidget<?> button = new CategoryButton(() -> tr(page.titleKey), page.id == selectedPage)
                     .onMousePressed(mouseButton -> {
-                        if (page == PAGE_FONT) {
+                        if (getParent() instanceof ScrollWidget) {
+                            ScrollWidget<?> scroll = (ScrollWidget<?>) getParent();
+                            staged.categoryScroll = scroll.getScrollArea().getScrollY().getScroll();
+                        }
+                        if (page == SettingsPage.FONT) {
                             openMain(staged);
                         } else {
-                            openAdvanced(staged, page);
+                            openAdvanced(staged, page.id);
                         }
                         return true;
                     });
             buttons.add(button);
             child(button);
+        }
+
+        private int preferredHeight() {
+            return buttons.size() * 28;
         }
 
         @Override

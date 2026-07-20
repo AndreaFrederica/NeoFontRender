@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -155,6 +156,14 @@ public final class NeofontrenderConfig {
     public static float shadowOpacity() {
         return cached.shadowOpacity;
     }
+
+    /** all, mask, emoji, or none. */
+    public static String shadowMode() {
+        return cached.shadowMode;
+    }
+
+    public static String shadowMaskFonts() { return cached.shadowMaskFonts; }
+    public static String shadowMaskCodepoints() { return cached.shadowMaskCodepoints; }
 
     // ===================== Rendering =====================
     public static String renderingEngine() {
@@ -456,6 +465,14 @@ public final class NeofontrenderConfig {
         return cached.allowSignPaste;
     }
 
+    public static boolean fixUnicodeTextDeletion() {
+        return cached.fixUnicodeTextDeletion;
+    }
+
+    public static boolean laboratoryHexChat() {
+        return cached.laboratoryHexChat;
+    }
+
     public static void setEnabled(boolean value) {
         setValue("enabled", value);
     }
@@ -544,6 +561,28 @@ public final class NeofontrenderConfig {
 
     public static void setShadowOpacity(float value) {
         setValue("shadow.opacity", value);
+    }
+
+    public static void setShadowMode(String value) {
+        setValue("shadow.mode", normalizeShadowMode(value));
+    }
+    public static void setShadowMaskFonts(String value) { setValue("shadow.maskFonts", value == null ? "" : value.trim()); }
+    public static void setShadowMaskCodepoints(String value) { setValue("shadow.maskCodepoints", value == null ? "" : value.trim()); }
+
+    public static void setFixImeInput(boolean value) {
+        setValue("fixImeInput", value);
+    }
+
+    public static void setAllowSignPaste(boolean value) {
+        setValue("input.allowSignPaste", value);
+    }
+
+    public static void setFixUnicodeTextDeletion(boolean value) {
+        setValue("input.fixUnicodeTextDeletion", value);
+    }
+
+    public static void setLaboratoryHexChat(boolean value) {
+        setValue("laboratory.hexChat", value);
     }
 
     public static void setRenderingInterpolation(boolean value) {
@@ -797,6 +836,9 @@ public final class NeofontrenderConfig {
             w.write("[shadow]\n");
             w.write("length = 1.0\n");
             w.write("opacity = 0.25\n");
+            w.write("mode = \"mask\"\n");
+            w.write("maskFonts = \"\"\n");
+            w.write("maskCodepoints = \"\"\n");
             w.write("\n");
             w.write("[rendering]\n");
             w.write("engine = \"cosmic\"\n");
@@ -859,6 +901,10 @@ public final class NeofontrenderConfig {
             w.write("\n");
             w.write("[input]\n");
             w.write("allowSignPaste = true\n");
+            w.write("fixUnicodeTextDeletion = true\n");
+            w.write("\n");
+            w.write("[laboratory]\n");
+            w.write("hexChat = false\n");
             w.write("\n");
             w.write("[debug]\n");
             w.write("imeInput = false\n");
@@ -892,6 +938,11 @@ public final class NeofontrenderConfig {
         config.setComment("shadow", "Text shadow rendering options.");
         config.setComment("shadow.length", "Shadow offset distance in pixels.");
         config.setComment("shadow.opacity", "Shadow opacity multiplier (0.0-1.0).");
+        config.setComment("shadow.mode", "Shadow mode: all, mask (skip color glyphs), emoji (skip Unicode emoji), or none.");
+        config.setComment("shadow.maskFonts", "Comma-separated font families whose displayable code points skip shadows in mask mode.");
+        config.setComment("shadow.maskCodepoints", "Comma-separated Unicode code points/ranges whose shadows are skipped, e.g. 1F300-1FAFF,2600-27BF.");
+        config.setComment("input.fixUnicodeTextDeletion", "Delete a whole Unicode code point in text fields instead of half of an emoji surrogate pair.");
+        config.setComment("laboratory.hexChat", "Experimental #RRGGBB chat rendering for Skia/Cosmic text backends.");
         config.setComment("rendering", "OpenGL texture rendering options.");
         config.setComment("rendering.engine", "Text renderer engine: vanilla, sfr, skia, or cosmic.");
         config.setComment("rendering.skiaAdvancedStringMode", "In Skia mode, render full formatted strings as one paragraph so shaping, ligatures, kerning, emoji ZWJ, and BiDi can work across the whole text. Disable to use legacy per-format-run rendering.");
@@ -992,6 +1043,8 @@ public final class NeofontrenderConfig {
         private final boolean debugImeInput;
         private final boolean debugRenderStats;
         private final boolean allowSignPaste;
+        private final boolean fixUnicodeTextDeletion;
+        private final boolean laboratoryHexChat;
         private final int fontStyle;
         private final int fontVariableWeight;
         private final boolean cosmicVariantOverridesOnlySwitchFont;
@@ -1007,6 +1060,9 @@ public final class NeofontrenderConfig {
         private final boolean builtinFallbacks;
         private final float shadowLength;
         private final float shadowOpacity;
+        private final String shadowMode;
+        private final String shadowMaskFonts;
+        private final String shadowMaskCodepoints;
         private final String renderingEngine;
         private final boolean skiaAdvancedStringMode;
         private final boolean skiaGpuOffscreen;
@@ -1069,6 +1125,8 @@ public final class NeofontrenderConfig {
             debugImeInput = false;
             debugRenderStats = false;
             allowSignPaste = true;
+            fixUnicodeTextDeletion = true;
+            laboratoryHexChat = false;
             fontStyle = 0;
             fontVariableWeight = 0;
             cosmicVariantOverridesOnlySwitchFont = false;
@@ -1084,6 +1142,9 @@ public final class NeofontrenderConfig {
             builtinFallbacks = true;
             shadowLength = 1.0F;
             shadowOpacity = 0.25F;
+            shadowMode = "mask";
+            shadowMaskFonts = "";
+            shadowMaskCodepoints = "";
             renderingEngine = "cosmic";
             skiaAdvancedStringMode = true;
             skiaGpuOffscreen = false;
@@ -1147,6 +1208,8 @@ public final class NeofontrenderConfig {
             debugImeInput = config.getOrElse("debug.imeInput", false);
             debugRenderStats = config.getOrElse("debug.renderStats", false);
             allowSignPaste = config.getOrElse("input.allowSignPaste", true);
+            fixUnicodeTextDeletion = config.getOrElse("input.fixUnicodeTextDeletion", true);
+            laboratoryHexChat = config.getOrElse("laboratory.hexChat", false);
             fontStyle = config.getOrElse("font.style", 0);
             fontVariableWeight = Math.max(0, Math.min(1000, getInt(config, "font.variableWeight", 0)));
             cosmicVariantOverridesOnlySwitchFont = config.getOrElse("font.cosmic.variantOverridesOnlySwitchFont", false);
@@ -1162,6 +1225,9 @@ public final class NeofontrenderConfig {
             builtinFallbacks = config.getOrElse("font.builtinFallbacks", true);
             shadowLength = getFloat(config, "shadow.length", 1.0F);
             shadowOpacity = getFloat(config, "shadow.opacity", 0.25F);
+            shadowMode = normalizeShadowMode(config.getOrElse("shadow.mode", "mask"));
+            shadowMaskFonts = config.getOrElse("shadow.maskFonts", "");
+            shadowMaskCodepoints = config.getOrElse("shadow.maskCodepoints", "");
             renderingEngine = normalizeRenderingEngine(config.getOrElse("rendering.engine", "cosmic"));
             skiaAdvancedStringMode = config.getOrElse("rendering.skiaAdvancedStringMode", true);
             skiaGpuOffscreen = config.getOrElse("rendering.skiaGpuOffscreen", false);
@@ -1300,6 +1366,15 @@ public final class NeofontrenderConfig {
             default:
                 return "sfr";
         }
+    }
+
+    private static String normalizeShadowMode(String value) {
+        if (value == null) {
+            return "mask";
+        }
+        String mode = value.trim().toLowerCase(Locale.ROOT);
+        return "all".equals(mode) || "mask".equals(mode) || "emoji".equals(mode) || "none".equals(mode)
+                ? mode : "mask";
     }
 
     public static void reload() {

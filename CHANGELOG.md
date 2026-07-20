@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.3]
+
+- Add configurable shadow masking, focused compatibility fixes, and experimental hex-color chat rendering.
+- Expand the font settings UI with reusable setting controls, stable dropdown menus, and scrollable category navigation.
+- Improve system-font handling and fallback selection for Cosmic and Skia renderers.
+
 ## [0.3.2]
 
 - Fix Cosmic face overrides so resolved regular, bold, italic, and bold italic faces are used during actual layout.

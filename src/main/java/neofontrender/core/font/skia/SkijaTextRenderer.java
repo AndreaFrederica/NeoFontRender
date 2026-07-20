@@ -45,6 +45,7 @@ import neofontrender.core.font.support.FontBrightnessEstimator;
 import neofontrender.core.font.support.FontPixelUtils;
 import neofontrender.core.font.support.FontRenderPipeline;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.ShadowMaskRules;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
@@ -174,6 +175,32 @@ public final class SkijaTextRenderer implements TextRenderBackend {
 
     public boolean isReady() {
         return fontCollection != null;
+    }
+
+    @Override
+    public boolean shouldRenderShadow(String text) {
+        String mode = NeofontrenderConfig.shadowMode();
+        if ("none".equals(mode)) {
+            return false;
+        }
+        if ("all".equals(mode)) {
+            return true;
+        }
+        if ("emoji".equals(mode)) {
+            return !containsEmoji(text);
+        }
+        return !colorGlyphDetector.isColorRun(text) && !ShadowMaskRules.matches(text);
+    }
+
+    private static boolean containsEmoji(String text) {
+        if (text == null) return false;
+        for (int index = 0; index < text.length(); ) {
+            int codePoint = text.codePointAt(index);
+            if ((codePoint >= 0x1F000 && codePoint <= 0x1FAFF)
+                    || (codePoint >= 0x2600 && codePoint <= 0x27BF) || codePoint == 0xFE0F) return true;
+            index += Character.charCount(codePoint);
+        }
+        return false;
     }
 
     public String[] getFontFamilies() {
@@ -1290,8 +1317,11 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             }
         }
         for (String emoji : PLATFORM_EMOJI_FONTS) {
-            if (!families.contains(emoji)) {
-                families.add(emoji);
+            List<String> registered = registerFont(emoji);
+            for (String family : registered) {
+                if (family != null && !family.isEmpty() && !families.contains(family)) {
+                    families.add(family);
+                }
             }
         }
         if (families.isEmpty()) {
@@ -1334,7 +1364,44 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             }
             return aliases;
         }
+        // Paragraph uses the asset provider before its default manager. Register configured
+        // system faces here as well, otherwise a named primary/fallback family is invisible to
+        // the custom provider and only the platform default can be selected.
+        Typeface typeface = FontMgr.getDefault().matchFamilyStyle(name, FontStyle.NORMAL);
+        if (typeface == null) {
+            aliases.clear();
+            return aliases;
+        }
+        String resolvedFamily = typeface.getFamilyName();
+        if (!sameFontFamily(name, resolvedFamily)) {
+            // Skia returns its generic default for a missing family. Do not register that default
+            // under the missing name, or it would mask every subsequent configured fallback.
+            typeface.close();
+            aliases.clear();
+            return aliases;
+        }
+        ownedTypefaces.add(typeface);
+        fontProvider.registerTypeface(typeface, name);
+        addTypefaceFamilyAlias(typeface, aliases);
         return aliases;
+    }
+
+    private static boolean sameFontFamily(String requested, String resolved) {
+        return normalizeFontFamily(requested).equals(normalizeFontFamily(resolved));
+    }
+
+    private static String normalizeFontFamily(String value) {
+        if (value == null) {
+            return "";
+        }
+        StringBuilder normalized = new StringBuilder(value.length());
+        for (int index = 0; index < value.length(); index++) {
+            char ch = value.charAt(index);
+            if (Character.isLetterOrDigit(ch)) {
+                normalized.append(Character.toLowerCase(ch));
+            }
+        }
+        return normalized.toString();
     }
 
     private Typeface variableWeightTypeface(Typeface typeface) {

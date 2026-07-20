@@ -22,6 +22,14 @@ public interface TextRenderBackend extends AutoCloseable {
 
     TextRenderResult renderFormatted(String text, int baseArgb, boolean shadow);
 
+    /**
+     * Color glyphs already carry their own paint and look like duplicate emoji when Minecraft
+     * renders the usual offset shadow pass. Backends that can identify them opt out per run.
+     */
+    default boolean shouldRenderShadow(String text) {
+        return true;
+    }
+
     default String[] getFontFamilies() {
         return new String[0];
     }

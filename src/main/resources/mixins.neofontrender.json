@@ -11,6 +11,7 @@
 	"client": [
 		"MixinFontRenderer",
 		"MixinGuiEditSign",
+		"MixinGuiTextField",
 		"MixinMinecraft",
 		"MixinTileEntityRendererDispatcher",
 		"MixinTileEntitySignRenderer",
