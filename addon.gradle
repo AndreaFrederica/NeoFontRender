@@ -1,9 +1,33 @@
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.util.zip.ZipFile
 
 // Neo Font Render additions on top of the GTNH convention build:
 //  - unpacks `embed` dependencies (night-config, Skija) into the mod jar
 //  - builds the cosmic-text JNI native with cargo and injects it into resources
 //  - standalone verification tasks for the Skija and cosmic backends
+
+def tagsFile = file('src/main/java/neofontrender/Tags.java')
+if (!tagsFile.isFile()) {
+    throw new GradleException("Missing release version source: ${tagsFile}")
+}
+def tagsSource = new String(Files.readAllBytes(tagsFile.toPath()), StandardCharsets.UTF_8)
+if (tagsSource.startsWith('\uFEFF')) {
+    throw new GradleException("Release version source must be UTF-8 without BOM: ${tagsFile}")
+}
+def versionDeclarations = tagsSource.findAll(
+        /(?m)^\s*public\s+static\s+final\s+String\s+VERSION\s*=\s*"([^"\r\n]*)"\s*;\s*$/) { match, value -> value }
+if (versionDeclarations.size() != 1) {
+    throw new GradleException(
+            "${tagsFile} must contain exactly one public static final String VERSION declaration; "
+                    + "found ${versionDeclarations.size()}")
+}
+def distributionVersion = versionDeclarations[0]
+if (!(distributionVersion ==~ /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/)) {
+    throw new GradleException(
+            "Invalid release version '${distributionVersion}' in ${tagsFile}; expected X.Y.Z without leading zeros")
+}
+project.version = distributionVersion
 
 // Add all embedded dependencies into the jar
 jar {
@@ -108,7 +132,6 @@ tasks.register('skijaEmojiTest', JavaExec) {
 // Distribution variants consumed by the release workflows
 // ---------------------------------------------------------------------------
 def packagedJar = tasks.named('reobfJar')
-def distributionVersion = project.version.toString()
 def distributionTokens = providers.provider {
     [
             modId          : providers.gradleProperty('modId').get(),
@@ -213,8 +236,22 @@ tasks.register('skiaJar', Zip) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+def distributionVersionFile = layout.buildDirectory.file('distribution-version.txt')
+tasks.register('writeDistributionVersion') {
+    group = 'build'
+    description = 'Writes the release version consumed by distribution workflows.'
+    mustRunAfter 'clean'
+    inputs.property('distributionVersion', distributionVersion)
+    outputs.file(distributionVersionFile)
+    doLast {
+        def outputFile = distributionVersionFile.get().asFile
+        Files.createDirectories(outputFile.parentFile.toPath())
+        Files.write(outputFile.toPath(), "${distributionVersion}\n".getBytes(StandardCharsets.UTF_8))
+    }
+}
+
 tasks.register('packageVariants') {
     group = 'build'
     description = 'Builds the full, core, resources, and Skia distribution jars.'
-    dependsOn 'fullJar', 'coreJar', 'resourcesJar', 'skiaJar'
+    dependsOn 'fullJar', 'coreJar', 'resourcesJar', 'skiaJar', 'writeDistributionVersion'
 }

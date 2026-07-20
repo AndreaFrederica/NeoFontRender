@@ -10,8 +10,8 @@ import org.apache.logging.log4j.Logger;
 import neofontrender.common.CommonProxy;
 
 @Mod(
-        modid = NeoFontRender.MOD_ID,
-        name = NeoFontRender.MOD_NAME,
+        modid = Tags.MOD_ID,
+        name = Tags.MOD_NAME,
         version = Tags.VERSION,
         dependencies = "required-after:modularui2",
         acceptedMinecraftVersions = "[1.7.10]",
@@ -19,12 +19,9 @@ import neofontrender.common.CommonProxy;
 )
 public class NeoFontRender {
 
-    public static final String MOD_ID = "neofontrender";
-    public static final String MOD_NAME = "Neo Font Render";
+    public static final Logger LOGGER = LogManager.getLogger(Tags.MOD_NAME);
 
-    public static final Logger LOGGER = LogManager.getLogger(MOD_NAME);
-
-    @Mod.Instance(MOD_ID)
+    @Mod.Instance(Tags.MOD_ID)
     public static NeoFontRender instance;
 
     @SidedProxy(

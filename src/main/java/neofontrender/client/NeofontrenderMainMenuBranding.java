@@ -5,12 +5,11 @@ import net.minecraft.client.gui.GuiMainMenu;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
-import neofontrender.NeoFontRender;
 import neofontrender.Tags;
 
 public final class NeofontrenderMainMenuBranding {
 
-    private static final String BRANDING = NeoFontRender.MOD_NAME + " " + Tags.VERSION;
+    private static final String BRANDING = Tags.MOD_NAME + " " + Tags.VERSION;
 
     @SubscribeEvent
     public void onDrawMainMenu(GuiScreenEvent.DrawScreenEvent.Post event) {

@@ -213,14 +213,42 @@ jobs:
           ./gradlew packageVariants
           -PcosmicNativeBundleDir="${{ github.workspace }}/cosmic-natives"
 
+      - name: Read distribution version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_file="build/distribution-version.txt"
+          test -f "$version_file" || {
+            echo "Missing distribution version: $version_file" >&2
+            exit 1
+          }
+          raw_version=''
+          IFS= read -r -d '' raw_version < "$version_file" || true
+          version="$raw_version"
+          if [[ "$version" == *$'\r\n' ]]; then
+            version="${version%$'\r\n'}"
+          elif [[ "$version" == *$'\n' ]]; then
+            version="${version%$'\n'}"
+          fi
+          if [[ "$version" == *$'\n'* || "$version" == *$'\r'* ]]; then
+            echo "Distribution version contains a newline" >&2
+            exit 1
+          fi
+          if [[ -z "$version" || ! "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Invalid distribution version: $version" >&2
+            exit 1
+          fi
+          printf 'mod_version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
       - name: Verify distribution contents
         shell: bash
         run: |
           set -euo pipefail
-          full="build/libs/neofontrender-${{ steps.properties.outputs.mod_version }}-full.jar"
-          core="build/libs/neofontrender-${{ steps.properties.outputs.mod_version }}-core.jar"
-          resources="build/libs/neofontrender-resources-${{ steps.properties.outputs.mod_version }}.jar"
-          skia="build/libs/neofontrender-skia-${{ steps.properties.outputs.mod_version }}.jar"
+          full="build/libs/neofontrender-${{ steps.version.outputs.mod_version }}-full.jar"
+          core="build/libs/neofontrender-${{ steps.version.outputs.mod_version }}-core.jar"
+          resources="build/libs/neofontrender-resources-${{ steps.version.outputs.mod_version }}.jar"
+          skia="build/libs/neofontrender-skia-${{ steps.version.outputs.mod_version }}.jar"
           for archive in "$full" "$core" "$resources" "$skia"; do
             test -s "$archive" || { echo "Missing distribution: $archive" >&2; exit 1; }
           done
@@ -255,12 +283,12 @@ jobs:
       - name: Upload distributions
         uses: actions/upload-artifact@v4
         with:
-          name: neofontrender-${{ steps.properties.outputs.mod_version }}
+          name: neofontrender-${{ steps.version.outputs.mod_version }}
           path: |
-            build/libs/neofontrender-${{ steps.properties.outputs.mod_version }}-full.jar
-            build/libs/neofontrender-${{ steps.properties.outputs.mod_version }}-core.jar
-            build/libs/neofontrender-resources-${{ steps.properties.outputs.mod_version }}.jar
-            build/libs/neofontrender-skia-${{ steps.properties.outputs.mod_version }}.jar
+            build/libs/neofontrender-${{ steps.version.outputs.mod_version }}-full.jar
+            build/libs/neofontrender-${{ steps.version.outputs.mod_version }}-core.jar
+            build/libs/neofontrender-resources-${{ steps.version.outputs.mod_version }}.jar
+            build/libs/neofontrender-skia-${{ steps.version.outputs.mod_version }}.jar
           if-no-files-found: error
 
       - name: Publish to Maven
@@ -298,7 +326,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.properties.outputs.mod_version }}
+          VERSION: ${{ steps.version.outputs.mod_version }}
         run: |
           set -euo pipefail
           tag="${VERSION}"
