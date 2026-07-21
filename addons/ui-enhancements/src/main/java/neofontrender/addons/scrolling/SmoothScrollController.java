@@ -34,6 +34,10 @@ public final class SmoothScrollController {
         return current;
     }
 
+    public float getTarget() {
+        return target;
+    }
+
     private static float clamp(float value, float max) {
         return Math.max(0.0F, Math.min(Math.max(0.0F, max), value));
     }

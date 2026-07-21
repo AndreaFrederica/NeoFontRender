@@ -24,13 +24,17 @@ public abstract class MixinForgeGuiScrollingListSmoothScroll {
 
     @Inject(method = "drawScreen", at = @At("HEAD"))
     private void nfrUi$update(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+        if (!SmoothScrollConfigAccess.forgeListsEnabled()) {
+            nfrUi$scroller.sync(scrollDistance);
+            return;
+        }
         scrollDistance = nfrUi$scroller.update(scrollDistance, nfrUi$getMaxScroll());
     }
 
     @Redirect(method = "handleMouseInput", at = @At(value = "INVOKE", target = "Lorg/lwjgl/input/Mouse;getEventDWheel()I"))
     private int nfrUi$smoothWheel() {
         int wheel = Mouse.getEventDWheel();
-        if (SmoothScrollConfigAccess.enabled() && wheel != 0) {
+        if (SmoothScrollConfigAccess.forgeListsEnabled() && wheel != 0) {
             nfrUi$scroller.scrollBy(wheel > 0 ? -SmoothScrollConfigAccess.wheelStep() : SmoothScrollConfigAccess.wheelStep(),
                     nfrUi$getMaxScroll(), scrollDistance);
             return 0;

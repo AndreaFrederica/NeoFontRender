@@ -21,6 +21,10 @@ final class SmoothScrollingSettingsPage implements NfrSettingsPage {
 
     private static final class Session implements NfrSettingsPageSession {
         private final boolean originalEnabled = SmoothScrollConfig.enabled;
+        private final boolean originalVanillaLists = SmoothScrollConfig.vanillaLists;
+        private final boolean originalForgeLists = SmoothScrollConfig.forgeLists;
+        private final boolean originalCreativeInventory = SmoothScrollConfig.creativeInventory;
+        private final boolean originalChat = SmoothScrollConfig.chat;
         private final int originalDuration = SmoothScrollConfig.durationMillis;
         private final int originalStep = SmoothScrollConfig.wheelStep;
 
@@ -29,6 +33,14 @@ final class SmoothScrollingSettingsPage implements NfrSettingsPage {
             NfrOptionsGrid grid = c.grid()
                     .add(c.toggleText(() -> tr("gui.scrolling.enabled"), () -> tr("tooltip.scrolling.enabled"),
                             () -> SmoothScrollConfig.enabled, value -> SmoothScrollConfig.enabled = value))
+                    .add(c.toggleText(() -> tr("gui.scrolling.vanilla_lists"), () -> tr("tooltip.scrolling.vanilla_lists"),
+                            () -> SmoothScrollConfig.vanillaLists, value -> SmoothScrollConfig.vanillaLists = value))
+                    .add(c.toggleText(() -> tr("gui.scrolling.forge_lists"), () -> tr("tooltip.scrolling.forge_lists"),
+                            () -> SmoothScrollConfig.forgeLists, value -> SmoothScrollConfig.forgeLists = value))
+                    .add(c.toggleText(() -> tr("gui.scrolling.creative_inventory"), () -> tr("tooltip.scrolling.creative_inventory"),
+                            () -> SmoothScrollConfig.creativeInventory, value -> SmoothScrollConfig.creativeInventory = value))
+                    .add(c.toggleText(() -> tr("gui.scrolling.chat"), () -> tr("tooltip.scrolling.chat"),
+                            () -> SmoothScrollConfig.chat, value -> SmoothScrollConfig.chat = value))
                     .add(c.dropdownText("scroll_duration", () -> tr("gui.scrolling.duration"),
                             () -> Integer.toString(SmoothScrollConfig.durationMillis),
                             value -> SmoothScrollConfig.durationMillis = Integer.parseInt(value),
@@ -45,6 +57,10 @@ final class SmoothScrollingSettingsPage implements NfrSettingsPage {
         @Override public void apply() { SmoothScrollConfig.save(); }
         @Override public void cancel() {
             SmoothScrollConfig.enabled = originalEnabled;
+            SmoothScrollConfig.vanillaLists = originalVanillaLists;
+            SmoothScrollConfig.forgeLists = originalForgeLists;
+            SmoothScrollConfig.creativeInventory = originalCreativeInventory;
+            SmoothScrollConfig.chat = originalChat;
             SmoothScrollConfig.durationMillis = originalDuration;
             SmoothScrollConfig.wheelStep = originalStep;
         }

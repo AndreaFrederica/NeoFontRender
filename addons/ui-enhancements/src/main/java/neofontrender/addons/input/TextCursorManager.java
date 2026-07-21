@@ -7,11 +7,22 @@ import org.lwjgl.input.Mouse;
 
 public final class TextCursorManager {
     private static long textCursor;
+    private static long appliedCursor = Long.MIN_VALUE;
+    private static boolean textCursorRequested;
 
     private TextCursorManager() {}
 
     public static void beginFrame() {
-        setCursor(0L);
+        textCursorRequested = false;
+    }
+
+    public static void endFrame() {
+        if (!TextInputConfig.iBeamCursor || !textCursorRequested) {
+            setCursor(0L);
+            return;
+        }
+        if (textCursor == 0L) textCursor = GLFW.glfwCreateStandardCursor(GLFW.GLFW_IBEAM_CURSOR);
+        if (textCursor != 0L) setCursor(textCursor);
     }
 
     public static void textFieldDrawn(int x, int y, int width, int height, boolean visible, boolean enabled) {
@@ -22,8 +33,7 @@ public final class TextCursorManager {
         int mouseX = Mouse.getX() * resolution.getScaledWidth() / mc.displayWidth;
         int mouseY = resolution.getScaledHeight() - Mouse.getY() * resolution.getScaledHeight() / mc.displayHeight - 1;
         if (mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height) {
-            if (textCursor == 0L) textCursor = GLFW.glfwCreateStandardCursor(GLFW.GLFW_IBEAM_CURSOR);
-            if (textCursor != 0L) setCursor(textCursor);
+            textCursorRequested = true;
         }
     }
 
@@ -33,14 +43,15 @@ public final class TextCursorManager {
 
     public static void modularTextFieldDrawn(boolean hovering) {
         if (!TextInputConfig.iBeamCursor || !hovering) return;
-        if (textCursor == 0L) textCursor = GLFW.glfwCreateStandardCursor(GLFW.GLFW_IBEAM_CURSOR);
-        if (textCursor != 0L) setCursor(textCursor);
+        textCursorRequested = true;
     }
 
     private static void setCursor(long cursor) {
         if (!TextInputConfig.iBeamCursor && cursor != 0L) return;
         long window = GLFW.glfwGetCurrentContext();
         if (window == 0L) return;
+        if (appliedCursor == cursor) return;
         GLFW.glfwSetCursor(window, cursor);
+        appliedCursor = cursor;
     }
 }

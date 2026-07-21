@@ -7,6 +7,7 @@ import neofontrender.addons.tooltips.TooltipModule;
 import neofontrender.addons.scrolling.SmoothScrollingModule;
 import neofontrender.addons.input.TextInputModule;
 import neofontrender.addons.effects.ScreenEffectsModule;
+import neofontrender.addons.chat.EnhancedChatModule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -30,6 +31,7 @@ public final class NfrUiEnhancements {
             new SmoothScrollingModule(),
             new TextInputModule(),
             new ScreenEffectsModule(),
+            new EnhancedChatModule(),
             new TooltipModule()
     );
 

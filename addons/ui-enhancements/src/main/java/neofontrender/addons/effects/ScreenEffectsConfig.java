@@ -7,7 +7,8 @@ import java.util.Arrays;
 import java.util.List;
 
 final class ScreenEffectsConfig {
-    private static final int[] DEFAULT_COLORS = {0x80101828, 0x80101018, 0xA0101018, 0xA0181028};
+    private static final int[] LEGACY_PURPLE_COLORS = {0x80101828, 0x80101018, 0xA0101018, 0xA0181028};
+    private static final int[] DEFAULT_COLORS = {0x70000000, 0x70000000, 0x90000000, 0x90000000};
     static boolean enabled = true;
     static boolean fade = true;
     static int fadeDurationMillis = 220;
@@ -34,6 +35,11 @@ final class ScreenEffectsConfig {
         blurRadius = (float) file.getDouble("effects.blurRadius", 5.0D, 1.0D, 16.0D);
         gradient = file.getBoolean("effects.gradient", true);
         colors = parseColors(file.getStringList("effects.gradientColors", colorStrings(DEFAULT_COLORS)));
+        // Migrate only the original generated palette. Explicitly customized colors are preserved.
+        if (Arrays.equals(colors, LEGACY_PURPLE_COLORS)) {
+            colors = DEFAULT_COLORS.clone();
+            file.set("effects.gradientColors", colorStrings(colors));
+        }
         file.save();
     }
 

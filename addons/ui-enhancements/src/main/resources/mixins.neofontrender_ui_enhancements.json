@@ -9,6 +9,9 @@
   "server": [],
   "client": [
     "AccessorShaderGroup",
+    "MixinGuiContainerCreativeSmoothScroll",
+    "MixinGuiNewChatSmoothScroll",
+    "MixinGuiNewChatHistory",
     "MixinForgeGuiScrollingListSmoothScroll",
     "MixinGuiScreenBackground",
     "MixinGuiSlotSmoothScroll",
