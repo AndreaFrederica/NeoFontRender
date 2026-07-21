@@ -104,7 +104,7 @@ fallbacks = ["Serif", "Monospaced"]
 # Font style: 0=Plain, 1=Bold, 2=Italic, 3=Bold+Italic.
 style = 0
 # Font size in pixels. 8.0 is close to vanilla 1.12 UI text height.
-size = 10.0
+size = 8.5
 # Rasterization oversampling factor. Raster resolution is size * oversample.
 oversample = 12.0
 # Align each font's measured AWT baseline to the Minecraft reference baseline before manual shift.
@@ -143,7 +143,7 @@ engine = "skia"
 # In Skia mode, render full formatted strings as one paragraph so shaping, ligatures, kerning, emoji ZWJ, and BiDi can work across the whole text.
 skiaAdvancedStringMode = true
 # Use GL_LINEAR texture filtering instead of GL_NEAREST.
-interpolation = false
+interpolation = true
 # Enable mipmapping for font textures.
 mipmap = true
 # Cap SFR/Skia rasterization scale to the current GUI pixel scale and avoid over-downsample blur.

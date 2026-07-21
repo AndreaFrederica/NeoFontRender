@@ -838,7 +838,7 @@ public final class NeofontrenderConfigScreen {
 
             // Keep the navigation rail close to the compact options-screen proportion instead of
             // letting it consume one third of a wide monitor.
-            int railWidth = clamp(width / 9, 104, 150);
+            int railWidth = clamp(width / 8, 104, 150);
             int sidebarWidth = clamp(width / 5, 180, 240);
             int sidebarX = PAD + railWidth + GAP;
             int settingsX = sidebarX + sidebarWidth + GAP;
@@ -855,7 +855,7 @@ public final class NeofontrenderConfigScreen {
             int y = height - PAD - footerHeight;
             place(previewButton, PAD, y, buttonWidth, footerHeight);
             place(cancelButton, width - PAD - buttonWidth, y, buttonWidth, footerHeight);
-            place(applyButton, Math.max(PAD, (width - buttonWidth) / 2), y, buttonWidth, footerHeight);
+            place(applyButton, Math.max(PAD, width - PAD - buttonWidth * 2 - GAP), y, buttonWidth, footerHeight);
             return true;
         }
     }
@@ -981,14 +981,12 @@ public final class NeofontrenderConfigScreen {
             int rootHeight = Math.max(contentHeight, rootY);
             contentPane.layout(contentX, y, contentWidth, contentHeight, contentWidth, rootHeight);
 
-            // Divide the footer's actual inner width between its three controls. The old four-slot
-            // formula forced a 90px minimum and made Back overlap Apply on narrow scaled GUIs.
-            int footerGap = Math.min(GAP, Math.max(0, (width - PAD * 2) / 12));
-            int buttonWidth = Math.max(0, Math.min(140, (width - PAD * 2 - footerGap * 2) / 3));
+            // Match the font page: one auxiliary action on the left, with Apply and Cancel grouped right.
+            int buttonWidth = Math.min(160, Math.max(90, (width - PAD * 2 - GAP * 2) / 3));
             int footerY = height - PAD - footerHeight;
             place(backButton, PAD, footerY, buttonWidth, footerHeight);
             place(cancelButton, width - PAD - buttonWidth, footerY, buttonWidth, footerHeight);
-            place(applyButton, width - PAD - buttonWidth * 2 - footerGap, footerY, buttonWidth, footerHeight);
+            place(applyButton, Math.max(PAD, width - PAD - buttonWidth * 2 - GAP), footerY, buttonWidth, footerHeight);
             return true;
         }
     }
@@ -1538,7 +1536,7 @@ public final class NeofontrenderConfigScreen {
 
         private int preferredHeight() {
             int line = Math.max(18, Minecraft.getMinecraft().fontRenderer.FONT_HEIGHT + 7);
-            return page == PAGE_ABOUT ? line * 6 : line * 9;
+            return page == PAGE_ABOUT ? line * 10 : line * 9;
         }
 
         @Override
@@ -1561,6 +1559,11 @@ public final class NeofontrenderConfigScreen {
                 y = drawInfoLine(mc, tr("neofontrender.gui.about.version") + ": " + version, y, 0xD8D8D8, line);
                 y = drawInfoLine(mc, tr("neofontrender.gui.option.engine") + ": " + engineName(staged.engine), y, 0xD8D8D8, line);
                 y = drawInfoLine(mc, tr("neofontrender.gui.about.description"), y + line / 2, 0xBFC7D1, line);
+                y = drawInfoLine(mc, tr("neofontrender.gui.about.license") + ": MIT License", y, 0xD8D8D8, line);
+                y = drawInfoLine(mc, tr("neofontrender.gui.about.contributors") + ":", y, 0xBFC7D1, line);
+                y = drawInfoLine(mc, "AndreaFrederica", y, 0xD8D8D8, line);
+                y = drawInfoLine(mc, "baka-gourd", y, 0xD8D8D8, line);
+                y = drawInfoLine(mc, "DHJComical", y, 0xD8D8D8, line);
                 drawInfoLine(mc, "github.com/AndreaFrederica/NeoFontRender", y, 0x00DCE8, line);
                 return;
             }
@@ -1887,7 +1890,7 @@ public final class NeofontrenderConfigScreen {
             NeofontrenderConfig.setCosmicVariantOverridesOnlySwitchFont(cosmicVariantOverridesOnlySwitchFont);
             NeofontrenderConfig.setFontStyle(fontStyle);
             NeofontrenderConfig.setFontVariableWeight(parseInt(variableWeight, 0, 0, 1000));
-            NeofontrenderConfig.setFontSize(parseFloat(fontSize, 10.0F, 4.0F, 64.0F));
+            NeofontrenderConfig.setFontSize(parseFloat(fontSize, 8.5F, 4.0F, 64.0F));
             NeofontrenderConfig.setFontOversample(parseFloat(oversample, 8.0F, 1.0F, 16.0F));
             NeofontrenderConfig.setFontAutoBaseline(autoBaseline);
             NeofontrenderConfig.setFontBaselineShift(parseFloat(baselineShift, 0.0F, -16.0F, 16.0F));
@@ -2040,14 +2043,19 @@ public final class NeofontrenderConfigScreen {
             Platform.setupDrawFont();
             Minecraft mc = Minecraft.getMinecraft();
             String text = label.get();
-            int maxWidth = Math.max(1, getArea().w() - 8);
+            int inset = textInset();
+            int maxWidth = Math.max(1, getArea().w() - inset - 4);
             String visible = mc.fontRenderer.trimStringToWidth(text, maxWidth);
-            int x = 4;
+            int x = inset;
             if (centered) {
-                x = Math.max(4, (getArea().w() - mc.fontRenderer.getStringWidth(visible)) / 2);
+                x = Math.max(inset, (getArea().w() - mc.fontRenderer.getStringWidth(visible)) / 2);
             }
             int y = Math.max(0, (getArea().h() - mc.fontRenderer.FONT_HEIGHT) / 2);
             mc.fontRenderer.drawString(visible, x, y, 0xFFFFFF);
+        }
+
+        protected int textInset() {
+            return 4;
         }
     }
 
@@ -2165,6 +2173,11 @@ public final class NeofontrenderConfigScreen {
         private CategoryButton(Supplier<String> label, boolean selected) {
             super(label, false);
             this.selected = selected;
+        }
+
+        @Override
+        protected int textInset() {
+            return 12;
         }
 
         @Override

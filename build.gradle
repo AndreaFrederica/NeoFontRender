@@ -1,580 +1,145 @@
-/**
- * It is advised that you do not edit anything in the build.gradle; unless you are sure of what you are doing
- */
-import com.gtnewhorizons.retrofuturagradle.mcp.InjectTagsTask
-import org.jetbrains.changelog.Changelog
-import org.jetbrains.gradle.ext.Gradle
-
 plugins {
     id 'java'
     id 'java-library'
     id 'maven-publish'
-    id 'org.jetbrains.gradle.plugin.idea-ext' version '1.3'
-    id 'com.gtnewhorizons.retrofuturagradle' version '2.0.2'
-    id 'com.matthewprenger.cursegradle' version '1.4.0' apply false
-    id 'com.modrinth.minotaur' version '2.+' apply false
-    id 'org.jetbrains.changelog' version '2.5.0'
+    id 'com.gradleup.shadow' version '9.5.1'
+    id 'org.jetbrains.gradle.plugin.idea-ext' version '1.4.1'
+    id 'xyz.wagyourtail.unimined' version '1.4.26-kappa'
+    id 'net.kyori.blossom' version '2.2.0'
 }
 
-apply from: 'gradle/scripts/helpers.gradle'
+import org.jetbrains.gradle.ext.Gradle
 
-// Early Assertions
-assertProperty 'mod_version'
-assertProperty 'root_package'
-assertProperty 'mod_id'
-assertProperty 'mod_name'
+ext.access_transformer_locations = "${mod_id}_at.cfg"
 
-assertSubProperties 'use_tags', 'tag_class_name'
-assertSubProperties 'use_access_transformer', 'access_transformer_locations'
-assertSubProperties 'use_mixins', 'mixin_booter_version', 'mixin_refmap'
-assertSubProperties 'is_coremod', 'coremod_includes_mod', 'coremod_plugin_class_name'
-assertSubProperties 'use_asset_mover', 'asset_mover_version'
+version = mod_version
+group = root_package
 
-setDefaultProperty 'use_modern_java_syntax', false, false
-setDefaultProperty 'generate_sources_jar', true, false
-setDefaultProperty 'generate_javadocs_jar', true, false
-setDefaultProperty 'mapping_channel', true, 'stable'
-setDefaultProperty 'mapping_version', true, '39'
-setDefaultProperty 'use_dependency_at_files', true, true
-setDefaultProperty 'minecraft_username', true, 'Developer'
-setDefaultProperty 'extra_jvm_args', false, ''
-setDefaultProperty 'extra_tweak_classes', false, ''
-setDefaultProperty 'change_minecraft_sources', false, false
-
-version = propertyString('mod_version')
-group = propertyString('root_package')
-
-base {
-    archivesName.set(propertyString('mod_id'))
-}
-
-tasks.decompressDecompiledSources.enabled !propertyBool('change_minecraft_sources')
+base { archivesName = mod_id }
 
 java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(propertyBool('use_modern_java_syntax') ? 16 : 8))
-        // Azul covers the most platforms for Java 8 toolchains, crucially including MacOS arm64
-        vendor.set(JvmVendorSpec.AZUL)
-    }
-    if (propertyBool('generate_sources_jar')) {
-        withSourcesJar()
-    }
-    if (propertyBool('generate_javadocs_jar')) {
-        withJavadocJar()
-    }
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+    if (generate_sources_jar.toBoolean()) withSourcesJar()
+    if (generate_javadocs_jar.toBoolean()) withJavadocJar()
 }
 
 configurations {
-    embed
-    implementation.extendsFrom(embed)
+    contain
+    implementation.extendsFrom(contain)
+    modCompileOnly
+    compileOnly.extendsFrom(modCompileOnly)
+    modRuntimeOnly
+    runtimeOnly.extendsFrom(modRuntimeOnly)
 }
 
-minecraft {
-    mcVersion.set('1.12.2')
+// Applied scripts have a separate Groovy script scope, so this must be a
+// project extension property rather than a local `def` variable.
+ext.remapTaskName = enable_shadow.toBoolean() ? 'remapShadowJar' : 'remapJar'
 
-    mcpMappingChannel.set(propertyString('mapping_channel'))
-    mcpMappingVersion.set(propertyString('mapping_version'))
-
-    useDependencyAccessTransformers.set(propertyBool('use_dependency_at_files'))
-
-    username.set(propertyString('minecraft_username'))
-    
-    // Add any additional tweaker classes here
-    extraTweakClasses.addAll(propertyStringList('extra_tweak_classes'))
-
-    // Add various JVM arguments here for runtime
-    def args = ['-ea:' + group]
-    if (propertyBool('use_mixins')) {
-        args << '-Dmixin.hotSwap=true'
-        args << '-Dmixin.checks.interfaces=true'
-        args << '-Dmixin.debug.export=true'
-    }
-    extraRunJvmArguments.addAll(args)
-    extraRunJvmArguments.addAll(propertyStringList('extra_jvm_args'))
-
-    if (propertyBool('use_tags')) {
-        if (file('tags.properties').exists()) {
-            Properties props = new Properties().tap {  it.load(file('tags.properties').newInputStream()); it }
-            if (!props.isEmpty()) {
-                injectedTags.set(props.collectEntries { k, v -> [(k): interpolate(v)] })
+unimined.minecraft {
+    version '1.12.2'
+    mappings { mcp('stable', '39-1.12') }
+    cleanroom {
+        if (use_access_transformer.toBoolean()) {
+            accessTransformer "${rootProject.projectDir}/src/main/resources/$access_transformer_locations"
+        }
+        loader '0.5.17-alpha'
+        runs.all {
+            args += ['--username', minecraft_username]
+            // ModularUI's early Minecraft mixin is required for its key-binding accessors,
+            // but Cleanroom 0.5.17's development splash thread is not compatible with it.
+            // This applies only to Gradle development runs, never to the packaged mod.
+            systemProperty('fml.noSplash', 'true')
+            if (extra_jvm_args?.trim()) jvmArgs += extra_jvm_args.split('\\s+').toList()
+            if (enable_foundation_debug.toBoolean()) {
+                systemProperty('foundation.dump', 'true')
+                systemProperty('foundation.verbose', 'true')
             }
+            if (is_coremod.toBoolean()) systemProperty('fml.coreMods.load', coremod_plugin_class_name)
         }
     }
-}
-
-repositories {
-    maven {
-        name 'CleanroomMC Maven'
-        url 'https://maven.cleanroommc.com'
+    defaultRemapJar = false
+    def jarTaskName = enable_shadow.toBoolean() ? 'shadowJar' : 'jar'
+    remap(tasks.named(jarTaskName).get())
+    mods {
+        remap(configurations.modCompileOnly)
+        remap(configurations.modRuntimeOnly)
     }
 }
 
 dependencies {
-    if (propertyBool('use_modern_java_syntax')) {
-        annotationProcessor 'com.github.bsideup.jabel:jabel-javac-plugin:1.0.0'
-        // Workaround for https://github.com/bsideup/jabel/issues/174
-        annotationProcessor 'net.java.dev.jna:jna-platform:5.13.0'
-        compileOnly ('com.github.bsideup.jabel:jabel-javac-plugin:1.0.0') {
-            transitive = false
-        }
-        // Allow jdk.unsupported classes like sun.misc.Unsafe, workaround for JDK-8206937 and fixes crashes in tests
-        patchedMinecraft 'me.eigenraven.java8unsupported:java-8-unsupported-shim:1.0.0'
-        // Include for tests
-        testAnnotationProcessor 'com.github.bsideup.jabel:jabel-javac-plugin:1.0.0'
-        testCompileOnly('com.github.bsideup.jabel:jabel-javac-plugin:1.0.0') {
-            transitive = false // We only care about the 1 annotation class
-        }
-    }
-    if (propertyBool('use_asset_mover')) {
-        implementation "com.cleanroommc:assetmover:${propertyString('asset_mover_version')}"
-    }
-    if (propertyBool('use_mixins')) {
-        String mixin = modUtils.enableMixins("zone.rong:mixinbooter:${propertyString('mixin_booter_version')}", propertyString('mixin_refmap'))
-        api (mixin) {
-            transitive = false
-        }
-        annotationProcessor 'org.ow2.asm:asm-debug-all:5.2'
-        annotationProcessor 'com.google.guava:guava:32.1.2-jre'
-        annotationProcessor 'com.google.code.gson:gson:2.8.9'
-        annotationProcessor (mixin) {
-            transitive = false
-        }
-    }
-    if (propertyBool('enable_junit_testing')) {
-        testImplementation 'org.junit.jupiter:junit-jupiter:5.7.1'
+    if (use_asset_mover.toBoolean()) implementation "com.cleanroommc:assetmover:${asset_mover_version}"
+    if (enable_junit_testing.toBoolean()) {
+        testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 }
 
 apply from: 'gradle/scripts/dependencies.gradle'
 
-// Adds Access Transformer files to tasks
-if (propertyBool('use_access_transformer')) {
-    for (def location : propertyStringList('access_transformer_locations')) {
-        def fileLocation = file("${projectDir}/src/main/resources/${location}")
-        if (fileLocation.exists()) {
-            tasks.deobfuscateMergedJarToSrg.accessTransformerFiles.from(fileLocation)
-            tasks.srgifyBinpatchedJar.accessTransformerFiles.from(fileLocation)
-        } else {
-            throw new GradleException("Access Transformer file [$fileLocation] does not exist!")
-        }
-    }
-}
-
-def cosmicHostOs = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
-def cosmicHostArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
-def cosmicArch = (cosmicHostArch == 'amd64' || cosmicHostArch == 'x86_64') ? 'x86_64'
-        : (cosmicHostArch == 'aarch64' || cosmicHostArch == 'arm64') ? 'aarch64'
-        : (cosmicHostArch == 'loongarch64' || cosmicHostArch == 'loong64') ? 'loongarch64'
-        : 'unsupported'
-def cosmicLinuxLibc = providers.gradleProperty('cosmicLinuxLibc').getOrElse('gnu').toLowerCase(Locale.ROOT)
-if (!(cosmicLinuxLibc in ['gnu', 'musl'])) {
-    throw new GradleException("cosmicLinuxLibc must be 'gnu' or 'musl', got '${cosmicLinuxLibc}'")
-}
-def cosmicPlatform = cosmicHostOs.contains('win') ? "windows-${cosmicArch}"
-        : (cosmicHostOs.contains('mac') || cosmicHostOs.contains('darwin')) ? "macos-${cosmicArch}"
-        : cosmicHostOs.contains('linux') ? "linux-${cosmicArch}-${cosmicLinuxLibc}" : "unsupported-${cosmicArch}"
-def cosmicLibraryName = cosmicHostOs.contains('win') ? 'neofontrender_cosmic.dll'
-        : (cosmicHostOs.contains('mac') || cosmicHostOs.contains('darwin')) ? 'libneofontrender_cosmic.dylib'
-        : 'libneofontrender_cosmic.so'
-def cosmicHostLibrary = file("native/cosmic-text/target/release/${cosmicLibraryName}")
-def cosmicBundleDir = providers.gradleProperty('cosmicNativeBundleDir')
-
 processResources {
-
-    if (cosmicBundleDir.isPresent()) {
-        def bundle = file(cosmicBundleDir.get())
-        inputs.dir(bundle)
-        from(bundle) {
-            into 'assets/neofontrender/natives'
-        }
-    } else {
-        dependsOn 'buildCosmicNative'
-        from(cosmicHostLibrary) {
-            into "assets/neofontrender/natives/${cosmicPlatform}"
-        }
-    }
-
-    inputs.property 'mod_id', propertyString('mod_id')
-    inputs.property 'mod_name', propertyString('mod_name')
-    inputs.property 'mod_version', propertyString('mod_version')
-    inputs.property 'mod_description', propertyString('mod_description')
-    inputs.property 'mod_authors', "${propertyStringList('mod_authors', ',').join(', ')}"
-    inputs.property 'mod_credits', propertyString('mod_credits')
-    inputs.property 'mod_url', propertyString('mod_url')
-    inputs.property 'mod_update_json', propertyString('mod_update_json')
-    inputs.property 'mod_logo_path', propertyString('mod_logo_path')
-    inputs.property 'mixin_refmap', propertyString('mixin_refmap')
-    inputs.property 'mixin_package', propertyString('mixin_package')
-    inputs.property 'mixin_configs', propertyStringList('mixin_configs').join(' ')
-
-    def filterList = ['mcmod.info', 'pack.mcmeta']
-    filterList.addAll(propertyStringList('mixin_configs').collect(config -> "mixins.${config}.json" as String))
-
-    filesMatching(filterList) { fcd ->
-        fcd.expand(
-                'mod_id': propertyString('mod_id'),
-                'mod_name': propertyString('mod_name'),
-                'mod_version': propertyString('mod_version'),
-                'mod_description': propertyString('mod_description'),
-                'mod_authors': "${propertyStringList('mod_authors', ',').join(', ')}",
-                'mod_credits': propertyString('mod_credits'),
-                'mod_url': propertyString('mod_url'),
-                'mod_update_json': propertyString('mod_update_json'),
-                'mod_logo_path': propertyString('mod_logo_path'),
-                'mixin_refmap': propertyString('mixin_refmap'),
-                'mixin_package': propertyString('mixin_package')
-        )
-    }
-    
-    if (propertyBool('use_access_transformer')) {
-        rename '(.+_at.cfg)', 'META-INF/$1'
-    }
-
-}
-
-tasks.register('buildCosmicNative', Exec) {
-    group = 'build'
-    description = 'Builds the cosmic-text JNI backend for the current host platform.'
-    workingDir file('native/cosmic-text')
-    commandLine 'cargo', 'build', '--release', '--locked'
-    inputs.files(fileTree('native/cosmic-text/src'), file('native/cosmic-text/Cargo.toml'), file('native/cosmic-text/Cargo.lock'))
-    outputs.file(cosmicHostLibrary)
-    onlyIf {
-        if (cosmicPlatform.startsWith('unsupported-') || cosmicArch == 'unsupported') {
-            throw new GradleException("Cosmic native build is unsupported on ${cosmicHostOs}/${cosmicHostArch}. "
-                    + "Use -PcosmicNativeBundleDir=<directory> with prebuilt platform natives.")
-        }
-        return !cosmicBundleDir.isPresent()
-    }
-}
-
-jar {
-    manifest {
-        def attribute_map = [:]
-        if (propertyBool('is_coremod')) {
-            attribute_map['FMLCorePlugin'] = propertyString('coremod_plugin_class_name')
-            if (propertyBool('coremod_includes_mod')) {
-                attribute_map['FMLCorePluginContainsFMLMod'] = true
-                def currentTasks = gradle.startParameter.taskNames
-                if (currentTasks[0] == 'build' || currentTasks[0] == 'prepareObfModsFolder' || currentTasks[0] == 'runObfClient') {
-                    attribute_map['ForceLoadAsMod'] = true
-                }
-            }
-        }
-        if (propertyBool('use_access_transformer')) {
-            attribute_map['FMLAT'] = propertyString('access_transformer_locations')
-        }
-        attributes(attribute_map)
-    }
-    // Add all embedded dependencies into the jar
-    exclude 'module-info.class'
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(provider{ configurations.embed.collect {it.isDirectory() ? it : zipTree(it)} })
+    rename '(.+_at.cfg)', 'META-INF/$1'
+    def metadata = [
+            mod_id: mod_id,
+            mod_name: mod_name,
+            mod_version: mod_version,
+            mod_description: mod_description,
+            mod_authors: mod_authors,
+            mod_credits: mod_credits,
+            mod_url: mod_url,
+            mod_update_json: mod_update_json,
+            mod_logo_path: mod_logo_path
+    ]
+    inputs.properties(metadata)
+    filesMatching(['mcmod.info', 'pack.mcmeta']) { expand(metadata) }
 }
 
 idea {
-    module {
-        inheritOutputDirs = true
-    }
-    project {
-        settings {
-            runConfigurations {
-                "1. Run Client"(Gradle) {
-                    taskNames = ["runClient"]
-                }
-                "2. Run Server"(Gradle) {
-                    taskNames = ["runServer"]
-                }
-                "3. Run Obfuscated Client"(Gradle) {
-                    taskNames = ["runObfClient"]
-                }
-                "4. Run Obfuscated Server"(Gradle) {
-                    taskNames = ["runObfServer"]
-                }
-            }
-            compiler.javac {
-                afterEvaluate {
-                    javacAdditionalOptions = "-encoding utf8"
-                    moduleJavacAdditionalOptions = [
-                            (project.name + ".main"): tasks.compileJava.options.compilerArgs.collect { '"' + it + '"' }.join(' ')
-                    ]
-                }
-            }
+    module { inheritOutputDirs = true }
+    project.settings {
+        runConfigurations {
+            '1. Build'(Gradle) { taskNames = ['build'] }
+            '2. Run Client'(Gradle) { taskNames = ['runClient'] }
+            '3. Run Server'(Gradle) { taskNames = ['runServer'] }
         }
+        taskTriggers { afterSync tasks.named('genSources') }
     }
 }
 
-compileTestJava {
-    sourceCompatibility = targetCompatibility = 8
+if (!enable_shadow.toBoolean()) shadowJar.enabled = false
+
+compileJava { sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25 }
+
+jar {
+    archiveClassifier = 'dev'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    if (configurations.contain.size() > 0) from(configurations.contain) { into '/' }
+    doFirst {
+        def attributes = ['ModType': 'CRL']
+        if (configurations.contain.size() > 0) {
+            attributes['ContainedDeps'] = configurations.contain.collect { it.name }.join(' ')
+            attributes['NonModDeps'] = true
+        }
+        if (is_coremod.toBoolean()) {
+            attributes['FMLCorePlugin'] = coremod_plugin_class_name
+            if (coremod_includes_mod.toBoolean()) attributes['FMLCorePluginContainsFMLMod'] = true
+        }
+        if (use_access_transformer.toBoolean()) attributes['FMLAT'] = access_transformer_locations
+        manifest { attributes(attributes) }
+    }
+    finalizedBy tasks.named(remapTaskName)
 }
 
+shadowJar { configurations = [project.configurations.shadow]; archiveClassifier = 'shadow' }
+tasks.named(remapTaskName).configure { doFirst { logging.captureStandardOutput LogLevel.INFO }; doLast { logging.captureStandardOutput LogLevel.QUIET } }
+
+compileTestJava { sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25 }
 test {
     useJUnitPlatform()
-    javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(8)
-    })
-    if (propertyBool('show_testing_output')) {
-        testLogging {
-            showStandardStreams = true
-        }
-    }
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    if (show_testing_output.toBoolean()) testLogging { showStandardStreams = true }
 }
-
-String parserChangelog() {
-    if (!file('CHANGELOG.md').exists()) {
-        throw new GradleException('publish_with_changelog is true, but CHANGELOG.md does not exist in the workspace!')
-    }
-    String parsedChangelog = changelog.renderItem(
-            changelog.get(propertyString('mod_version')).withHeader(false).withEmptySections(false),
-            Changelog.OutputType.MARKDOWN)
-    if (parsedChangelog.isEmpty()) {
-        throw new GradleException('publish_with_changelog is true, but the changelog for the latest version is empty!')
-    }
-    return parsedChangelog
-}
-
-tasks.register('generateMixinJson') {
-    group 'cleanroom helpers'
-    def missingConfig = propertyStringList('mixin_configs').findAll(config -> !file("src/main/resources/mixins.${config}.json").exists())
-    onlyIf {
-        if (propertyBool('use_mixins') && propertyBool('generate_mixins_json')) {
-            return !missingConfig.empty
-        }
-        return false
-    }
-    doLast {
-        for (String mixinConfig : missingConfig) {
-            def file = file("src/main/resources/mixins.${mixinConfig}.json")
-            file << """{\n\t"package": "",\n\t"required": true,\n\t"refmap": "${propertyString('mixin_refmap')}",\n\t"target": "@env(DEFAULT)",\n\t"minVersion": "0.8.5",\n\t"compatibilityLevel": "JAVA_8",\n\t"mixins": [],\n\t"server": [],\n\t"client": []\n}"""
-        }
-    }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-    if (propertyBool('use_modern_java_syntax')) {
-        if (it.name in ['compileMcLauncherJava', 'compilePatchedMcJava']) {
-            return
-        }
-        sourceCompatibility = 17
-        options.release.set(8)
-        javaCompiler.set(javaToolchains.compilerFor {
-            languageVersion.set(JavaLanguageVersion.of(16))
-            vendor.set(JvmVendorSpec.AZUL)
-        })
-    }
-}
-
-tasks.register('cleanroomAfterSync') {
-    group 'cleanroom helpers'
-    dependsOn 'injectTags', 'generateMixinJson'
-}
-
-tasks.register('skijaDebugPng', JavaExec) {
-    group = 'verification'
-    description = 'Renders a standalone Skija paragraph smoke-test PNG.'
-    classpath = sourceSets.main.runtimeClasspath
-    javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(21)
-        vendor = JvmVendorSpec.AZUL
-    })
-    mainClass.set('neofontrender.core.font.skia.SkijaDebugTextRenderer')
-    args file("${buildDir}/skija-debug/debug-font.png").absolutePath
-}
-
-tasks.register('skijaEmojiTest', JavaExec) {
-    group = 'verification'
-    description = 'Tests emoji rendering with different font family orderings.'
-    classpath = sourceSets.main.runtimeClasspath
-    javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(21)
-        vendor = JvmVendorSpec.AZUL
-    })
-    mainClass.set('neofontrender.core.font.skia.SkijaEmojiTest')
-    args file("${buildDir}/skija-debug").absolutePath
-}
-
-def packagedJar = tasks.named('reobfJar')
-
-tasks.register('fullJar', Zip) {
-    group = 'build'
-    description = 'Packages the complete mod with bundled fonts and all Skija platforms.'
-    dependsOn packagedJar
-    archiveBaseName.set(propertyString('mod_id'))
-    archiveVersion.set(propertyString('mod_version'))
-    archiveClassifier.set('full')
-    archiveExtension.set('jar')
-    destinationDirectory.set(layout.buildDirectory.dir('libs'))
-    from({ zipTree(packagedJar.get().archiveFile.get().asFile) })
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-tasks.register('coreJar', Zip) {
-    group = 'build'
-    description = 'Packages Cosmic/AWT/vanilla rendering without bundled fonts or Skija binaries.'
-    dependsOn packagedJar
-    archiveBaseName.set(propertyString('mod_id'))
-    archiveVersion.set(propertyString('mod_version'))
-    archiveClassifier.set('core')
-    archiveExtension.set('jar')
-    destinationDirectory.set(layout.buildDirectory.dir('libs'))
-    from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
-        exclude 'mcmod.info'
-    }
-
-    // Keep the small NFR Skia adapter classes compiled into core. Several long-lived mixins have
-    // optional method references to them, and removing those classes can make old JVM verifiers
-    // fail before the configured Cosmic backend is selected. The actual Skija API, ICU data, and
-    // native libraries are removed, so the adapter remains dormant and contributes negligible size.
-    exclude 'io/github/humbleui/**'
-    exclude 'META-INF/versions/**/io/github/humbleui/**'
-    exclude 'META-INF/maven/io.github.humbleui/**'
-    exclude 'assets/neofontrender/fonts/*.ttf'
-    exclude 'neofontrender/resources/NeoFontRenderResources.class'
-    exclude 'neofontrender/skia/NeoFontRenderSkia.class'
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-    from('src/corePack/resources') {
-        expand(
-                'mod_id': propertyString('mod_id'),
-                'mod_name': propertyString('mod_name'),
-                'mod_version': propertyString('mod_version'),
-                'mod_description': propertyString('mod_description'),
-                'mod_authors': propertyStringList('mod_authors', ',').join(', '),
-                'mod_credits': propertyString('mod_credits'),
-                'mod_url': propertyString('mod_url'),
-                'mod_update_json': propertyString('mod_update_json'),
-                'mod_logo_path': propertyString('mod_logo_path')
-        )
-    }
-
-    doLast {
-        def archive = archiveFile.get().asFile
-        def forbidden = zipTree(archive).matching {
-            include 'io/github/humbleui/**'
-            include 'META-INF/versions/**/io/github/humbleui/**'
-            include 'assets/neofontrender/fonts/*.ttf'
-        }.files
-        if (!forbidden.empty) {
-            throw new GradleException("Core package still contains excluded Skija/font entries: ${forbidden}")
-        }
-    }
-}
-
-tasks.register('resourcesJar', Zip) {
-    group = 'build'
-    description = 'Packages the bundled fonts as a standalone Forge resource mod.'
-    dependsOn packagedJar
-    archiveBaseName.set(propertyString('mod_id') + '-resources')
-    archiveVersion.set(propertyString('mod_version'))
-    archiveExtension.set('jar')
-    destinationDirectory.set(layout.buildDirectory.dir('libs'))
-
-    from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
-        include 'assets/neofontrender/fonts/**'
-        include 'neofontrender/resources/NeoFontRenderResources.class'
-    }
-    from('src/resourcePack/resources') {
-        expand(
-                'mod_version': propertyString('mod_version'),
-                'mod_authors': propertyStringList('mod_authors', ',').join(', '),
-                'mod_url': propertyString('mod_url')
-        )
-    }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-tasks.register('skiaJar', Zip) {
-    group = 'build'
-    description = 'Packages Skija APIs and native libraries as a standalone optional Forge mod.'
-    dependsOn packagedJar
-    archiveBaseName.set(propertyString('mod_id') + '-skia')
-    archiveVersion.set(propertyString('mod_version'))
-    archiveExtension.set('jar')
-    destinationDirectory.set(layout.buildDirectory.dir('libs'))
-
-    from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
-        include 'io/github/humbleui/**'
-        include 'META-INF/versions/**/io/github/humbleui/**'
-        include 'META-INF/maven/io.github.humbleui/**'
-        include 'neofontrender/skia/NeoFontRenderSkia.class'
-    }
-    from('src/skiaPack/resources') {
-        expand(
-                'mod_version': propertyString('mod_version'),
-                'mod_authors': propertyStringList('mod_authors', ',').join(', '),
-                'mod_url': propertyString('mod_url')
-        )
-    }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-tasks.register('packageVariants') {
-    group = 'build'
-    description = 'Builds the full, core, resources, and Skia distribution jars.'
-    dependsOn 'fullJar', 'coreJar', 'resourcesJar', 'skiaJar'
-}
-
-tasks.register('coreCosmicSmokeTest', JavaExec) {
-    group = 'verification'
-    description = 'Validates that the core jar can shape text and find the OS emoji font without bundled TTFs.'
-    dependsOn 'coreJar'
-    classpath = files(tasks.named('coreJar').flatMap { it.archiveFile })
-    javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion.set(JavaLanguageVersion.of(8))
-    })
-    mainClass.set('neofontrender.core.font.cosmic.CosmicSmokeTest')
-    args '--system-only'
-}
-
-tasks.register('cosmicSmokeTest', JavaExec) {
-    group = 'verification'
-    description = 'Loads the bundled JNI library and validates cosmic-text shaping/rasterization.'
-    dependsOn 'classes'
-    classpath = sourceSets.main.runtimeClasspath
-    javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion.set(JavaLanguageVersion.of(8))
-    })
-    mainClass.set('neofontrender.core.font.cosmic.CosmicSmokeTest')
-    if (project.hasProperty('cosmicTestPrimaryFamily')) {
-        args project.property('cosmicTestPrimaryFamily').toString()
-    }
-}
-
-if (propertyBool('use_modern_java_syntax')) {
-    tasks.withType(Javadoc).configureEach {
-        sourceCompatibility = 17
-    }
-}
-
-tasks.named('injectTags', InjectTagsTask).configure {
-    onlyIf {
-        return propertyBool('use_tags') && !it.getTags().get().isEmpty()
-    }
-    it.outputClassName.set(propertyString('tag_class_name'))
-}
-
-tasks.named('prepareObfModsFolder').configure {
-    finalizedBy 'prioritizeCoremods'
-}
-
-tasks.register('prioritizeCoremods') {
-    dependsOn 'prepareObfModsFolder'
-    doLast {
-        fileTree('run/obfuscated').forEach {
-            if (it.isFile() && it.name =~ '(mixinbooter|configanytime)(-)([0-9])+\\.+([0-9])+(.jar)') {
-                it.renameTo(new File(it.parentFile, "!${it.name}"))
-            }
-        }
-    }
-}
-
-idea.project.settings {
-    taskTriggers {
-        afterSync 'cleanroomAfterSync'
-    }
-}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 
 apply from: 'gradle/scripts/publishing.gradle'
 apply from: 'gradle/scripts/extra.gradle'

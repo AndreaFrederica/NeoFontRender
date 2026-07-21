@@ -158,5 +158,7 @@ neofontrender.gui.cache.segment_ttl=Segment texture TTL (seconds)
 neofontrender.gui.about.name=Neo Font Render
 neofontrender.gui.about.version=Version
 neofontrender.gui.about.description=Modern text shaping, rasterization, and cached rendering for Minecraft 1.12.2.
+neofontrender.gui.about.license=License
+neofontrender.gui.about.contributors=Contributors
 neofontrender.gui.licenses.title=Primary open source projects
 neofontrender.gui.licenses.notice=Full license texts are distributed with their dependencies and font resources.

@@ -108,7 +108,7 @@ fallbacks = ["Serif", "Monospaced"]
 # 字体样式：0=普通，1=粗体，2=斜体，3=粗斜体。
 style = 0
 # 字号，单位是像素。8.0 接近原版 1.12 UI 文本高度。
-size = 10.0
+size = 8.5
 # 栅格化超采样倍率，最终栅格分辨率约等于 size * oversample。
 oversample = 12.0
 # 先自动把字体基线对齐到 Minecraft 参考基线，再做手动偏移。
@@ -147,7 +147,7 @@ engine = "skia"
 # Skia 模式下把整段格式化字符串作为一个 paragraph 渲染，让 shaping、ligature、kerning、emoji ZWJ 和 BiDi 能跨整串生效。
 skiaAdvancedStringMode = true
 # 使用 GL_LINEAR，而不是 GL_NEAREST。
-interpolation = false
+interpolation = true
 # 是否启用字体纹理 mipmap。
 mipmap = true
 # 把 SFR/Skia 栅格倍率限制到当前 GUI 像素倍率，减少过度下采样模糊。

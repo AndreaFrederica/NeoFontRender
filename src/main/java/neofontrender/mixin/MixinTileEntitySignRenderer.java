@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.tileentity.TileEntitySign;
 import net.minecraft.util.math.AxisAlignedBB;
 import neofontrender.client.render.sign.SignBatchRenderer;
+import neofontrender.client.render.sign.SignTextCapture;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.backend.TextRenderResult;
@@ -32,7 +33,7 @@ import org.lwjgl.opengl.GL11;
 public abstract class MixinTileEntitySignRenderer {
     // The redirect runs once per vanilla line; retain those calls until the renderer's
     // depth state is ready, then replace four immediate submissions with one sign quad.
-    private static final ThreadLocal<Capture> CAPTURE = new ThreadLocal<>();
+    private static final ThreadLocal<SignTextCapture> CAPTURE = new ThreadLocal<>();
     @Unique private static int nfr$wallSignLodList;
     @Unique private static int nfr$standingSignLodList;
     @Unique private double nfr$distanceSq;
@@ -149,16 +150,13 @@ public abstract class MixinTileEntitySignRenderer {
             return renderer.drawString(text, x, y, color);
         }
 
-        Capture capture = CAPTURE.get();
+        SignTextCapture capture = CAPTURE.get();
         if (capture == null) {
-            capture = new Capture(renderer);
+            capture = new SignTextCapture(renderer);
             CAPTURE.set(capture);
         }
         int line = Math.max(0, Math.min(3, Math.round((y + 20.0F) / 10.0F)));
-        capture.lines[line] = text == null ? "" : text;
-        capture.x[line] = x;
-        capture.y[line] = y;
-        capture.color[line] = color;
+        capture.capture(line, text, x, y, color);
         return x + width;
     }
 
@@ -175,7 +173,7 @@ public abstract class MixinTileEntitySignRenderer {
     private void nfr$flushBatchedSignText(TileEntitySign sign, double x, double y, double z,
                                           float partialTicks, int destroyStage, float alpha,
                                           CallbackInfo ci) {
-        Capture capture = CAPTURE.get();
+        SignTextCapture capture = CAPTURE.get();
         if (capture == null) {
             return;
         }
@@ -185,7 +183,7 @@ public abstract class MixinTileEntitySignRenderer {
             capture.replay();
             return;
         }
-        TextRenderResult result = renderer.renderSign(capture.lines);
+        TextRenderResult result = renderer.renderSign(capture.lines());
         if (result == null || result == TextRenderResult.EMPTY || result.advance() <= 0.0F) {
             capture.replay();
             return;
@@ -202,23 +200,4 @@ public abstract class MixinTileEntitySignRenderer {
         result.draw(-45.0F, -20.0F, 1.0F);
     }
 
-    private static final class Capture {
-        private final FontRenderer renderer;
-        private final String[] lines = new String[4];
-        private final int[] x = new int[4];
-        private final int[] y = new int[4];
-        private final int[] color = new int[4];
-
-        private Capture(FontRenderer renderer) {
-            this.renderer = renderer;
-        }
-
-        private void replay() {
-            for (int i = 0; i < lines.length; i++) {
-                if (lines[i] != null) {
-                    renderer.drawString(lines[i], x[i], y[i], color[i]);
-                }
-            }
-        }
-    }
 }

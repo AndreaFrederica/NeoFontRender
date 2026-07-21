@@ -1,5 +1,86 @@
-// You may write any gradle buildscript component in this file
-// This file is automatically applied after build.gradle + dependencies.gradle is ran
+def cosmicHostOs = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
+def cosmicHostArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
+def cosmicArch = (cosmicHostArch == 'amd64' || cosmicHostArch == 'x86_64') ? 'x86_64' : (cosmicHostArch == 'aarch64' || cosmicHostArch == 'arm64') ? 'aarch64' : 'unsupported'
+def cosmicPlatform = cosmicHostOs.contains('win') ? "windows-${cosmicArch}" : (cosmicHostOs.contains('mac') ? "macos-${cosmicArch}" : "linux-${cosmicArch}-gnu")
+def cosmicLibraryName = cosmicHostOs.contains('win') ? 'neofontrender_cosmic.dll' : (cosmicHostOs.contains('mac') ? 'libneofontrender_cosmic.dylib' : 'libneofontrender_cosmic.so')
+def cosmicHostLibrary = file("native/cosmic-text/target/release/${cosmicLibraryName}")
+def cosmicBundleDir = providers.gradleProperty('cosmicNativeBundleDir')
 
-// If you wish to use the default helper methods, uncomment the line below
-// apply from: 'gradle/scripts/helpers.gradle'
+tasks.register('buildCosmicNative', Exec) {
+    group = 'build'
+    description = 'Builds the cosmic-text JNI backend for the current host platform.'
+    workingDir file('native/cosmic-text')
+    commandLine 'cargo', 'build', '--release', '--locked'
+    inputs.files(fileTree('native/cosmic-text/src'), file('native/cosmic-text/Cargo.toml'), file('native/cosmic-text/Cargo.lock'))
+    outputs.file(cosmicHostLibrary)
+    onlyIf { !cosmicBundleDir.isPresent() }
+}
+
+tasks.named('processResources') {
+    if (cosmicBundleDir.isPresent()) {
+        from(file(cosmicBundleDir.get())) { into 'assets/neofontrender/natives' }
+    } else {
+        dependsOn 'buildCosmicNative'
+        from(cosmicHostLibrary) { into "assets/neofontrender/natives/${cosmicPlatform}" }
+    }
+}
+
+tasks.register('skijaDebugPng', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'neofontrender.core.font.skia.SkijaDebugTextRenderer'
+    args layout.buildDirectory.file('skija-debug/debug-font.png').get().asFile.absolutePath
+}
+tasks.register('skijaEmojiTest', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'neofontrender.core.font.skia.SkijaEmojiTest'
+    args layout.buildDirectory.dir('skija-debug').get().asFile.absolutePath
+}
+
+def packagedJar = tasks.named(remapTaskName)
+tasks.register('fullJar', Zip) {
+    group = 'build'; description = 'Packages the complete mod distribution.'
+    dependsOn packagedJar
+    archiveBaseName = mod_id; archiveVersion = mod_version; archiveClassifier = 'full'; archiveExtension = 'jar'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    from { zipTree(packagedJar.get().archiveFile.get().asFile) }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+tasks.register('coreJar', Zip) {
+    group = 'build'; description = 'Packages Cosmic/AWT rendering without bundled fonts or Skija runtime.'
+    dependsOn packagedJar
+    archiveBaseName = mod_id; archiveVersion = mod_version; archiveClassifier = 'core'; archiveExtension = 'jar'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
+        exclude 'assets/neofontrender/fonts/*.ttf', 'skija-*.jar'
+    }
+    from('src/corePack/resources') {
+        expand(mod_id: mod_id, mod_name: mod_name, mod_version: mod_version, mod_description: mod_description, mod_authors: mod_authors, mod_credits: mod_credits, mod_url: mod_url, mod_update_json: mod_update_json, mod_logo_path: mod_logo_path)
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+tasks.register('resourcesJar', Zip) {
+    group = 'build'; description = 'Packages bundled fonts as a standalone resource mod.'
+    dependsOn packagedJar
+    archiveBaseName = "${mod_id}-resources"; archiveVersion = mod_version; archiveExtension = 'jar'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) { include 'assets/neofontrender/fonts/**', 'neofontrender/resources/NeoFontRenderResources.class' }
+    from('src/resourcePack/resources') { expand(mod_version: mod_version, mod_authors: mod_authors, mod_url: mod_url) }
+}
+tasks.register('skiaJar', Zip) {
+    group = 'build'; description = 'Packages the optional Skija runtime mod.'
+    dependsOn packagedJar
+    archiveBaseName = "${mod_id}-skia"; archiveVersion = mod_version; archiveExtension = 'jar'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) { include 'skija-*.jar', 'neofontrender/skia/NeoFontRenderSkia.class' }
+    from('src/skiaPack/resources') { expand(mod_version: mod_version, mod_authors: mod_authors, mod_url: mod_url) }
+}
+tasks.register('packageVariants') { group = 'build'; dependsOn 'fullJar', 'coreJar', 'resourcesJar', 'skiaJar' }
+
+tasks.register('cosmicSmokeTest', JavaExec) {
+    group = 'verification'; dependsOn 'classes'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'neofontrender.core.font.cosmic.CosmicSmokeTest'
+    if (project.hasProperty('cosmicTestPrimaryFamily')) args project.property('cosmicTestPrimaryFamily').toString()
+}

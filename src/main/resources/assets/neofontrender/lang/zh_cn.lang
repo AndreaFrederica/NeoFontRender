@@ -158,5 +158,7 @@ neofontrender.gui.cache.segment_ttl=分段纹理缓存 TTL（秒）
 neofontrender.gui.about.name=Neo Font Render
 neofontrender.gui.about.version=版本
 neofontrender.gui.about.description=面向 Minecraft 1.12.2 的现代字体整形、栅格化与缓存渲染器。
+neofontrender.gui.about.license=项目许可证
+neofontrender.gui.about.contributors=贡献者
 neofontrender.gui.licenses.title=使用的主要开源项目
 neofontrender.gui.licenses.notice=完整许可证文本随对应依赖和字体资源分发。
