@@ -17,7 +17,9 @@ public class MixinMinecraft {
     @Inject(method = "startGame", at = @At("RETURN"))
     private void sfr$onStartGame(CallbackInfo ci) {
         Minecraft mc = Minecraft.getMinecraft();
-        NeofontrenderConfig.load();
+        if (!NeofontrenderConfig.isLoaded()) {
+            NeofontrenderConfig.load();
+        }
         if (mc.getTextureManager() != null) {
             FontManager.INSTANCE.init(mc.getTextureManager());
         }

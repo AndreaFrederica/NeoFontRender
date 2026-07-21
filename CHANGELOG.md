@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.4]
+
+- Match dropdown menus to the Neo Font Render dark UI, including menu borders and hover states.
+- Keep scrollable settings content correctly sized after GUI-scale and window-aspect-ratio changes.
+- Improve the Font page split layout at narrow logical resolutions.
+
 ## [0.3.3]
 
 - Add configurable shadow masking, focused compatibility fixes, and experimental hex-color chat rendering.
