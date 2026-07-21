@@ -23,7 +23,7 @@ public abstract class MixinForgeGuiScrollingListSmoothScroll {
     @Unique private final SmoothScrollController nfrUi$scroller = new SmoothScrollController();
 
     @Inject(method = "drawScreen", at = @At("HEAD"))
-    private void nfrUi$update(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+    private void nfrUi$update(int mouseX, int mouseY, CallbackInfo ci) {
         if (!SmoothScrollConfigAccess.forgeListsEnabled()) {
             nfrUi$scroller.sync(scrollDistance);
             return;
@@ -43,7 +43,7 @@ public abstract class MixinForgeGuiScrollingListSmoothScroll {
     }
 
     @Inject(method = "drawScreen", at = @At("RETURN"))
-    private void nfrUi$syncDrag(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+    private void nfrUi$syncDrag(int mouseX, int mouseY, CallbackInfo ci) {
         if (Mouse.isButtonDown(0) && initialMouseClickY >= 0.0F) nfrUi$scroller.sync(scrollDistance);
     }
 

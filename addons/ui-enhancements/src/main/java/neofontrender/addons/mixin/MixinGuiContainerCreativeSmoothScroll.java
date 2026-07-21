@@ -1,7 +1,6 @@
 package neofontrender.addons.mixin;
 
 import net.minecraft.client.gui.inventory.GuiContainerCreative;
-import net.minecraft.inventory.Container;
 import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
 import neofontrender.addons.scrolling.SmoothScrollController;
 import org.lwjgl.input.Mouse;
@@ -17,7 +16,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinGuiContainerCreativeSmoothScroll {
     @Shadow private float currentScroll;
     @Shadow private boolean isScrolling;
-    @Shadow protected Container inventorySlots;
     @Unique private final SmoothScrollController nfrUi$scroller = new SmoothScrollController();
 
     @Redirect(method = "handleMouseInput", at = @At(value = "INVOKE",
@@ -57,6 +55,7 @@ public abstract class MixinGuiContainerCreativeSmoothScroll {
 
     @Unique
     private GuiContainerCreative.ContainerCreative nfrUi$container() {
-        return (GuiContainerCreative.ContainerCreative) inventorySlots;
+        return (GuiContainerCreative.ContainerCreative)
+                ((AccessorGuiContainer) (Object) this).nfrUi$getInventorySlots();
     }
 }

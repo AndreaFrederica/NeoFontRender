@@ -1,4 +1,4 @@
-package mnm.mods.tabbychat.core.mixin;
+package neofontrender.addons.mixin.tabbychat;
 
 import mnm.mods.tabbychat.util.Translation;
 import net.minecraft.client.Minecraft;

@@ -22,6 +22,8 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
+import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
+import neofontrender.addons.scrolling.SmoothScrollController;
 
 import java.awt.Dimension;
 import java.awt.Point;
@@ -36,6 +38,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     private List<Message> messages = Lists.newLinkedList();
     private boolean dirty;
     private int scrollPos = 0;
+    private final SmoothScrollController nfrUi$scroller = new SmoothScrollController();
+    private float nfrUi$displayScroll;
 
     public ChatArea() {
         this.setMinimumSize(new Dimension(300, 160));
@@ -98,6 +102,10 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     @Override
     public void drawComponent(int mouseX, int mouseY) {
 
+        int maxScroll = Math.max(0, getChat().size() - GuiNewChatTC.getInstance().getLineCount());
+        nfrUi$displayScroll = SmoothScrollConfigAccess.chatEnabled()
+                ? nfrUi$scroller.update(nfrUi$displayScroll, maxScroll) : scrollPos;
+
         List<Message> visible = getVisibleChat();
         GlStateManager.enableBlend();
         float opac = mc.gameSettings.chatOpacity;
@@ -108,7 +116,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         zLevel = 100;
         // TODO abstracted padding
         int xPos = getBounds().x + 3;
-        int yPos = getBounds().height;
+        float fraction = nfrUi$displayScroll - (float) Math.floor(nfrUi$displayScroll);
+        int yPos = getBounds().height + Math.round(fraction * mc.fontRenderer.FONT_HEIGHT);
         for (Message line : visible) {
             yPos -= mc.fontRenderer.FONT_HEIGHT;
             drawChatLine(line, xPos, yPos);
@@ -148,7 +157,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         List<Message> messages = Lists.newArrayList();
         int length = 0;
 
-        int pos = getScrollPos();
+        int pos = SmoothScrollConfigAccess.chatEnabled()
+                ? MathHelper.floor(nfrUi$displayScroll) : getScrollPos();
         float unfoc = TabbyChat.getInstance().settings.advanced.unfocHeight.get();
         float div = GuiNewChatTC.getInstance().getChatOpen() ? 1 : unfoc;
         while (pos < lines.size() && length < super.getLocation().getHeight() * div - 10) {
@@ -194,7 +204,13 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
 
     @Override
     public void scroll(int scr) {
-        setScrollPos(getScrollPos() + scr);
+        if (!SmoothScrollConfigAccess.chatEnabled()) {
+            setScrollPos(getScrollPos() + scr);
+            return;
+        }
+        int maxScroll = Math.max(0, getChat().size() - GuiNewChatTC.getInstance().getLineCount());
+        nfrUi$scroller.scrollBy(scr, maxScroll, nfrUi$displayScroll);
+        scrollPos = MathHelper.clamp(Math.round(nfrUi$scroller.getTarget()), 0, maxScroll);
     }
 
     @Override
@@ -204,6 +220,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         scroll = Math.max(scroll, 0);
 
         this.scrollPos = scroll;
+        this.nfrUi$displayScroll = scroll;
+        this.nfrUi$scroller.sync(scroll);
     }
 
     @Override
@@ -232,7 +250,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
                 float bottom = (actual.getYPos() + actual.getHeight());
 
                 // The line to get
-                int linePos = MathHelper.floor((point.y - bottom) / -size) + scrollPos;
+                int linePos = MathHelper.floor((point.y - bottom) / -size)
+                        + (SmoothScrollConfigAccess.chatEnabled() ? MathHelper.floor(nfrUi$displayScroll) : scrollPos);
 
                 // Iterate through the chat component, stopping when the desired
                 // x is reached.

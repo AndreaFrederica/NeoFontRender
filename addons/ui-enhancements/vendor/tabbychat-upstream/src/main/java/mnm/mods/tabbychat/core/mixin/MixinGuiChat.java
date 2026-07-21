@@ -1,4 +1,4 @@
-package mnm.mods.tabbychat.core.mixin;
+package neofontrender.addons.mixin.tabbychat;
 
 import com.google.common.collect.Lists;
 import mnm.mods.tabbychat.ChatManager;
@@ -19,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import neofontrender.addons.chat.EnhancedChatConfigAccess;
 
 import java.io.IOException;
 import java.util.List;
@@ -50,6 +51,7 @@ public abstract class MixinGuiChat extends GuiScreen implements ITabCompleter {
 
     @Inject(method = "<init>*", at = @At("RETURN"))
     private void onInitialization(CallbackInfo ci) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled()) return;
 
         this.chatGui = tc.getChatGui();
         this.sentHistoryCursor = chatGui.getSentMessages().size();
@@ -68,6 +70,7 @@ public abstract class MixinGuiChat extends GuiScreen implements ITabCompleter {
 
     @Inject(method = "initGui()V", at = @At("RETURN"))
     private void onInitGui(CallbackInfo ci) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled()) return;
         if (this.textBox == null) this.onInitialization(null);
         this.inputField = this.textBox.getTextField();
         ((IChatTabCompleter) this.tabCompleter).setTextField(this.inputField);
@@ -110,6 +113,7 @@ public abstract class MixinGuiChat extends GuiScreen implements ITabCompleter {
                     target = "Lnet/minecraft/client/Minecraft;displayGuiScreen(Lnet/minecraft/client/gui/GuiScreen;)V",
                     ordinal = 1))
     private void keepChatOpen(char key, int code, CallbackInfo ci) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled()) return;
         this.chatGui.resetScroll();
         setText(this.defaultInputFieldText, true);
         if (tc.settings.advanced.keepChatOpen.get()) {
@@ -124,7 +128,7 @@ public abstract class MixinGuiChat extends GuiScreen implements ITabCompleter {
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/GuiChat;drawRect(IIIII)V"))
     private void onDrawScreen(int x1, int y1, int x2, int y2, int color) {
-        // noop
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled()) drawRect(x1, y1, x2, y2, color);
     }
 
 }

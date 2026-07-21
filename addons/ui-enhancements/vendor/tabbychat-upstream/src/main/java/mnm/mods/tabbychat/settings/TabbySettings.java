@@ -3,6 +3,7 @@ package mnm.mods.tabbychat.settings;
 import com.google.gson.reflect.TypeToken;
 import mnm.mods.tabbychat.Reference;
 import mnm.mods.util.config.SettingsFile;
+import neofontrender.addons.chat.NfrTabbySettingsBridge;
 
 import java.io.File;
 
@@ -21,14 +22,11 @@ public class TabbySettings extends SettingsFile {
 
     @Override
     public void loadConfig() {
-        if (!generalFile.exists() && !advancedFile.exists()) saveConfig();
-        general = loadFromJson(generalFile, (new TypeToken<GeneralSettings>(){}.getType()));
-        advanced = loadFromJson(advancedFile, (new TypeToken<AdvancedSettings>(){}.getType()));
+        NfrTabbySettingsBridge.loadGlobal(this);
     }
 
     @Override
     public void saveConfig() {
-        saveToJson(generalFile, general);
-        saveToJson(advancedFile, advanced);
+        NfrTabbySettingsBridge.saveGlobal(this);
     }
 }

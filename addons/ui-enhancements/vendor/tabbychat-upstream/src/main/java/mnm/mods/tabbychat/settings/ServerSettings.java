@@ -9,6 +9,7 @@ import mnm.mods.util.config.SettingsFile;
 import mnm.mods.util.config.ValueList;
 import mnm.mods.util.config.ValueMap;
 import net.minecraft.client.Minecraft;
+import neofontrender.addons.chat.NfrTabbySettingsBridge;
 
 import java.io.File;
 import java.net.InetSocketAddress;
@@ -24,9 +25,11 @@ public class ServerSettings extends SettingsFile {
     private final File generalFile;
     private final File filtersFile;
     private final File channelsFile;
+    private final String configKey;
 
     public ServerSettings(SocketAddress url) {
         super(Reference.MOD_ID + "/" + getIPForFileName(url), "server");
+        configKey = getIPForFileName(url);
         generalFile = new File(Reference.MOD_ID + "/" + getIPForFileName(url) + "/config/generalserversettings.json");
         filtersFile = new File(Reference.MOD_ID + "/" + getIPForFileName(url) + "/config/filters.json");
         channelsFile = new File(Reference.MOD_ID + "/" + getIPForFileName(url) + "/config/channels.json");
@@ -45,17 +48,12 @@ public class ServerSettings extends SettingsFile {
 
     @Override
     public void loadConfig() {
-        if (!generalFile.exists() && !filtersFile.exists() && !channelsFile.exists()) saveConfig();
-        general = loadFromJson(generalFile, (new TypeToken<GeneralServerSettings>(){}.getType()));
-        filters = loadFromJson(filtersFile, (new TypeToken<ValueList<UserFilter>>(){}.getType()));
-        channels = loadFromJson(channelsFile, (new TypeToken<ValueMap<ChatChannel>>(){}.getType()));
+        NfrTabbySettingsBridge.loadServer(this, configKey);
     }
 
     @Override
     public void saveConfig() {
-        saveToJson(generalFile, general);
-        saveToJson(filtersFile, filters);
-        saveToJson(channelsFile, channels);
+        NfrTabbySettingsBridge.saveServer(this, configKey);
     }
 
 }

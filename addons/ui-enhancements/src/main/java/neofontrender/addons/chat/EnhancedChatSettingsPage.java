@@ -21,6 +21,7 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
 
     private static final class Session implements NfrSettingsPageSession {
         private final boolean enabled = EnhancedChatConfig.enabled;
+        private final boolean tabbed = EnhancedChatConfig.tabbedChat;
         private final boolean extended = EnhancedChatConfig.extendedHistory;
         private final int limit = EnhancedChatConfig.maxMessages;
         private final boolean persistence = EnhancedChatConfig.persistence;
@@ -32,6 +33,8 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
             NfrOptionsGrid grid = c.grid()
                     .add(c.toggleText(() -> tr("gui.chat.enabled"), () -> tr("tooltip.chat.enabled"),
                             () -> EnhancedChatConfig.enabled, value -> EnhancedChatConfig.enabled = value))
+                    .add(c.toggleText(() -> tr("gui.chat.tabbed"), () -> tr("tooltip.chat.tabbed"),
+                            () -> EnhancedChatConfig.tabbedChat, value -> EnhancedChatConfig.tabbedChat = value))
                     .add(c.toggleText(() -> tr("gui.chat.extended_history"), () -> tr("tooltip.chat.extended_history"),
                             () -> EnhancedChatConfig.extendedHistory, value -> EnhancedChatConfig.extendedHistory = value))
                     .add(c.dropdownText("chat_history_limit", () -> tr("gui.chat.history_limit"),
@@ -52,6 +55,7 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
 
         @Override public void cancel() {
             EnhancedChatConfig.enabled = enabled;
+            EnhancedChatConfig.tabbedChat = tabbed;
             EnhancedChatConfig.extendedHistory = extended;
             EnhancedChatConfig.maxMessages = limit;
             EnhancedChatConfig.persistence = persistence;

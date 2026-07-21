@@ -2,7 +2,7 @@ package mnm.mods.tabbychat;
 
 import mnm.mods.tabbychat.api.ChannelStatus;
 import mnm.mods.tabbychat.core.GuiNewChatTC;
-import mnm.mods.tabbychat.core.mixin.IGuiIngame;
+import neofontrender.addons.mixin.tabbychat.IGuiIngame;
 import mnm.mods.tabbychat.extra.ChatAddonAntiSpam;
 import mnm.mods.tabbychat.extra.ChatLogging;
 import mnm.mods.tabbychat.extra.filters.FilterAddon;
@@ -17,10 +17,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiIngame;
 import net.minecraft.client.resources.IReloadableResourceManager;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.Mod.EventHandler;
-import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
-import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import neofontrender.client.gui.NeofontrenderConfigScreen;
+import neofontrender.addons.chat.EnhancedChatConfigAccess;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,8 +26,6 @@ import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
-@Mod(modid = Reference.MOD_ID, version = Reference.MOD_VERSION, name = Reference.MOD_NAME)
-@Mod.EventBusSubscriber
 public class TabbyChat {
     private IChatProxy chatProxy = new DefaultChatProxy();
     private static final Logger LOGGER = LogManager.getLogger(Reference.MOD_ID);
@@ -78,9 +74,8 @@ public class TabbyChat {
         return spellcheck;
     }
 
-    void openSettings(SettingPanel<?> setting) {
-        GuiSettingsScreen screen = new GuiSettingsScreen(setting);
-        Minecraft.getMinecraft().displayGuiScreen(screen);
+    public void openSettings(SettingPanel<?> setting) {
+        NeofontrenderConfigScreen.open(Minecraft.getMinecraft().currentScreen);
     }
 
     public InetSocketAddress getCurrentServer() {
@@ -91,8 +86,7 @@ public class TabbyChat {
         return dataFolder;
     }
 
-    @EventHandler
-    public void init(FMLPreInitializationEvent event) {
+    public void init() {
         LOGGER.info("TabbyChat initializing");
         // Set global settings
         settings = new TabbySettings();
@@ -111,8 +105,7 @@ public class TabbyChat {
 
     }
 
-    @EventHandler
-    public void postInit(FMLPostInitializationEvent event) {
+    public void postInit() {
         LOGGER.info("TabbyChat initializing");
         // gui related stuff should be done here
         chatManager = new ChatManager(this);
@@ -137,10 +130,12 @@ public class TabbyChat {
         serverSettings.loadConfig();
         //LiteLoader.getInstance().registerExposable(serverSettings, null);
 
-        try {
-            hookIntoChat(Minecraft.getMinecraft().ingameGUI);
-        } catch (Exception e) {
-            LOGGER.fatal("Unable to hook into chat.  This is bad.", e);
+        if (EnhancedChatConfigAccess.tabbedChatEnabled()) {
+            try {
+                hookIntoChat(Minecraft.getMinecraft().ingameGUI);
+            } catch (Exception e) {
+                LOGGER.fatal("Unable to hook into chat.  This is bad.", e);
+            }
         }
         // load chat
         File conf = serverSettings.getFile().getParentFile();

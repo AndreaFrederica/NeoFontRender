@@ -24,6 +24,14 @@ configurations {
     implementation.extendsFrom(contain)
 }
 
+sourceSets {
+    main {
+        java.srcDir 'vendor/tabbychat-upstream/src/main/java'
+        resources.srcDir 'vendor/tabbychat-upstream/src/main/resources'
+        java.exclude 'mnm/mods/tabbychat/TabbyChatLoadingPlugin.java'
+    }
+}
+
 unimined.minecraft {
     version '1.12.2'
     mappings { mcp('stable', '39-1.12') }
@@ -45,6 +53,9 @@ dependencies {
     compileOnly 'org.lwjgl:lwjgl:3.4.1'
     compileOnly 'org.lwjgl:lwjgl-opengl:3.4.1'
 
+    // Embedded TabbyChat spell-check engine. FML extracts this nested jar at launch.
+    contain 'net.sf.jazzy:jazzy:0.5.2-rtext-1.4.1-2'
+
     // Arc3D Core is distributed by the required NFR main mod. Compile against the same public
     // upstream packages without embedding a duplicate copy in this addon.
     compileOnly('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
@@ -57,11 +68,17 @@ dependencies {
 }
 
 processResources {
+    exclude 'mixin.tabbychat2.json'
+    exclude 'litemod.json'
     inputs.property('version', project.version)
     filesMatching('mcmod.info') { expand(version: project.version) }
     from(rootProject.file('src/main/resources/META-INF/LICENSE-Arc3D.txt')) {
         into 'META-INF'
         rename { 'LICENSE-ModernUI.txt' }
+    }
+    from('vendor/tabbychat-upstream/LICENCE') {
+        into 'META-INF'
+        rename { 'LICENSE-TabbyChat-2-Reforged.txt' }
     }
 }
 

@@ -9,6 +9,7 @@
   "server": [],
   "client": [
     "AccessorShaderGroup",
+    "AccessorGuiContainer",
     "MixinGuiContainerCreativeSmoothScroll",
     "MixinGuiNewChatSmoothScroll",
     "MixinGuiNewChatHistory",
@@ -16,6 +17,10 @@
     "MixinGuiScreenBackground",
     "MixinGuiSlotSmoothScroll",
     "MixinGuiTextFieldCursor",
-    "MixinModularTextFieldCursor"
+    "MixinModularTextFieldCursor",
+    "tabbychat.IChatTabCompleter",
+    "tabbychat.MixinChatTabCompleter",
+    "tabbychat.MixinGuiChat",
+    "tabbychat.IGuiIngame"
   ]
 }

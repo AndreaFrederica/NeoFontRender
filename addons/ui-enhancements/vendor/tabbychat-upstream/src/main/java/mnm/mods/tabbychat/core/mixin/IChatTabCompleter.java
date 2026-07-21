@@ -1,4 +1,4 @@
-package mnm.mods.tabbychat.core.mixin;
+package neofontrender.addons.mixin.tabbychat;
 
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.util.TabCompleter;
