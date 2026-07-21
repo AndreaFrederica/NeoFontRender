@@ -1,7 +1,7 @@
 use cosmic_text::fontdb::{Family as DbFamily, Query, ID};
 use cosmic_text::{
-    Attrs, Buffer, Color, Fallback, Family, FontSystem, Metrics, PlatformFallback, Shaping,
-    Style, SwashCache, Weight,
+    Attrs, Buffer, Color, Fallback, Family, FontSystem, Metrics, PlatformFallback, Shaping, Style,
+    SwashCache, Weight,
 };
 use jni::objects::{JByteArray, JClass, JObjectArray, JString};
 use jni::sys::{jboolean, jbyteArray, jfloat, jint, jlong, jstring};
@@ -214,11 +214,8 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
                 if selector.trim().is_empty() {
                     continue;
                 }
-                let (desired_weight, desired_style) = override_request(
-                    &automatic,
-                    index,
-                    variant_overrides_only_switch_font != 0,
-                );
+                let (desired_weight, desired_style) =
+                    override_request(&automatic, index, variant_overrides_only_switch_font != 0);
                 match resolve_selector(
                     &db,
                     &catalog,
@@ -642,7 +639,8 @@ fn selection_from_face(
         .unwrap_or(weight);
     let family = face.families.first()?.0.clone();
     let post_script_name = face.post_script_name.clone();
-    let render_family = render_family_for_face(db, id, &family, &post_script_name, Weight(weight), style);
+    let render_family =
+        render_family_for_face(db, id, &family, &post_script_name, Weight(weight), style);
     Some(ResolvedFace {
         id,
         family,
@@ -698,11 +696,12 @@ fn build_automatic_faces(
     catalog: &[FaceRecord],
     base: &ResolvedFace,
 ) -> [ResolvedFace; 4] {
+    let bold_weight = Weight(base.weight.0.max(Weight::BOLD.0));
     let desired = [
         (base.weight, base.style),
-        (Weight::BOLD, base.style),
+        (bold_weight, base.style),
         (base.weight, Style::Italic),
-        (Weight::BOLD, Style::Italic),
+        (bold_weight, Style::Italic),
     ];
     desired.map(|(weight, style)| {
         selection_for_family(db, catalog, &base.family, weight, style)
@@ -1143,6 +1142,38 @@ mod tests {
             override_request(&automatic, 3, false),
             (Weight::BOLD, Style::Italic)
         );
+    }
+
+    #[test]
+    fn automatic_bold_faces_never_reduce_configured_weight() {
+        let db = cosmic_text::fontdb::Database::new();
+        let catalog = Vec::new();
+
+        for (base_weight, expected_bold_weight) in [
+            (Weight::NORMAL, Weight::BOLD),
+            (Weight::BOLD, Weight::BOLD),
+            (Weight(800), Weight(800)),
+            (Weight::BLACK, Weight::BLACK),
+        ] {
+            let base = ResolvedFace {
+                id: ID::dummy(),
+                family: "Example".to_string(),
+                render_family: "Example".to_string(),
+                weight: base_weight,
+                style: Style::Normal,
+                post_script_name: "Example".to_string(),
+            };
+
+            let faces = build_automatic_faces(&db, &catalog, &base);
+            assert_eq!(faces[0].weight, base_weight);
+            assert_eq!(faces[0].style, Style::Normal);
+            assert_eq!(faces[1].weight, expected_bold_weight);
+            assert_eq!(faces[1].style, Style::Normal);
+            assert_eq!(faces[2].weight, base_weight);
+            assert_eq!(faces[2].style, Style::Italic);
+            assert_eq!(faces[3].weight, expected_bold_weight);
+            assert_eq!(faces[3].style, Style::Italic);
+        }
     }
 
     #[test]
