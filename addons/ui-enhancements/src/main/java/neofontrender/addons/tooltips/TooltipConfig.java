@@ -1,9 +1,7 @@
 package neofontrender.addons.tooltips;
 
-import neofontrender.api.config.NfrConfigApi;
 import neofontrender.api.config.NfrConfigFile;
-import neofontrender.api.config.NfrConfigStorage;
-import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.ui.UiEnhancementsConfig;
 
 import java.util.Arrays;
 import java.util.List;
@@ -48,11 +46,7 @@ final class TooltipConfig {
     private TooltipConfig() {}
 
     static void load() {
-        // Deliberately independent: integrations can opt into NFR_MAIN, but this addon must not.
-        config = NfrConfigApi.builder(NfrUiEnhancements.MOD_ID)
-                .storage(NfrConfigStorage.INDEPENDENT)
-                .fileName("neofontrender-ui-enhancements.toml")
-                .open();
+        config = UiEnhancementsConfig.file();
         defineDefaults();
         enabled = config.getBoolean("tooltip.enabled", true);
         renderStyle = normalizeStyle(config.getString("tooltip.style", "modernui"));

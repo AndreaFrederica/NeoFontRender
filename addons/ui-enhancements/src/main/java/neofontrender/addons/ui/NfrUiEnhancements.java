@@ -4,6 +4,9 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import neofontrender.addons.tooltips.TooltipModule;
+import neofontrender.addons.scrolling.SmoothScrollingModule;
+import neofontrender.addons.input.TextInputModule;
+import neofontrender.addons.effects.ScreenEffectsModule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -24,11 +27,15 @@ public final class NfrUiEnhancements {
     public static final Logger LOGGER = LogManager.getLogger("NFR UI Enhancements");
 
     private static final List<UiEnhancementModule> MODULES = Arrays.asList(
+            new SmoothScrollingModule(),
+            new TextInputModule(),
+            new ScreenEffectsModule(),
             new TooltipModule()
     );
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        UiEnhancementsConfig.open();
         MODULES.forEach(UiEnhancementModule::preInit);
     }
 

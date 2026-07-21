@@ -10,14 +10,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 /** Self-contained fallback when an old resource loader misses an addon's locale during startup. */
-final class AddonI18n {
+public final class AddonI18n {
     private static final String ROOT = "/assets/neofontrender_ui_enhancements/lang/";
     private static String loadedLanguage;
     private static Properties fallback = new Properties();
 
     private AddonI18n() {}
 
-    static String tr(String key) {
+    public static String tr(String key) {
         if (I18n.hasKey(key)) return I18n.format(key);
         String language = Minecraft.getMinecraft().gameSettings.language;
         if (!language.equals(loadedLanguage)) load(language);

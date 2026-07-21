@@ -8,6 +8,14 @@ its own tab to NFR's settings screen.
 The first module replaces Forge tooltip layout/background rendering while
 continuing to publish Forge tooltip color and post-render events.
 
+Current feature modules:
+
+- Smooth wheel scrolling for vanilla `GuiSlot` and Forge `GuiScrollingList`.
+- Native GLFW I-beam cursors over vanilla and ModularUI text fields.
+- In-world screen background fade, four-corner gradient, and configurable
+  two-pass Gaussian blur that yields to an already active post shader.
+- Modern tooltip layout, shading, rarity colors, and LegendaryTooltips interop.
+
 ## Runtime design
 
 - Requires Neo Font Render 0.3.4 or newer.

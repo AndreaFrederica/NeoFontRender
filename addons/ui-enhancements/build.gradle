@@ -39,6 +39,9 @@ dependencies {
     // Cleanroom exposes the real LWJGL 3 API and translates Minecraft's old LWJGL 2 calls
     // through lwjglxx. Never bundle lwjgl core or natives in this addon.
     compileOnly 'com.cleanroommc:lwjglxx:1.1.19'
+    // Compile-time signatures used by Minecraft 1.12. Cleanroom replaces these classes at runtime.
+    compileOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
+    compileOnly 'org.lwjgl.lwjgl:lwjgl_util:2.9.4-nightly-20150209'
     compileOnly 'org.lwjgl:lwjgl:3.4.1'
     compileOnly 'org.lwjgl:lwjgl-opengl:3.4.1'
 
@@ -67,7 +70,11 @@ jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(configurations.contain) { into '/' }
     doFirst {
-        def attributes = ['ModType': 'CRL']
+        def attributes = [
+                'ModType': 'CRL',
+                'FMLCorePlugin': 'neofontrender.addons.mixin.UiEnhancementsMixinLoader',
+                'FMLCorePluginContainsFMLMod': true
+        ]
         if (!configurations.contain.isEmpty()) {
             attributes['ContainedDeps'] = configurations.contain.collect { it.name }.join(' ')
             attributes['NonModDeps'] = true
@@ -90,6 +97,6 @@ test {
 jar {
     from('NOTICE.md') {
         into 'META-INF'
-        rename { 'NOTICE-NFR-MODERN-TOOLTIPS.md' }
+        rename { 'NOTICE-NFR-UI-ENHANCEMENTS.md' }
     }
 }
