@@ -101,6 +101,7 @@ public final class NeofontrenderConfigScreen {
         switch (route) {
             case FONT:
                 return new NfrFontSettingsView(draft, controls, () -> preview(draft),
+                        () -> reloadAndOpen(draft, NfrSettingsRoute.FONT),
                         NeofontrenderConfigScreen::openFontFolder);
             case GENERAL:
                 return new NfrGeneralSettingsView(draft, controls, route.id);

@@ -230,6 +230,11 @@ public class FontManager implements AutoCloseable {
         }
         ITextureObject texture = textureManager.getTexture(location);
         if (texture instanceof AbstractTexture) {
+            // AbstractTexture#setBlurMipmap changes the texture currently bound in OpenGL; it
+            // does not bind this AbstractTexture itself. Without this bind we only changed the
+            // Java-side flags while ascii.png kept GL_LINEAR, causing blurred pixels and atlas
+            // bleeding from neighbouring glyph cells after switching back to vanilla.
+            textureManager.bindTexture(location);
             ((AbstractTexture) texture).setBlurMipmap(false, false);
         }
     }

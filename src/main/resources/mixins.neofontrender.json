@@ -10,11 +10,15 @@
 	"server": [],
 	"client": [
 		"MixinFontRenderer",
+		"MixinForgeGuiUtils",
 		"MixinGuiOverlayDebug",
 		"MixinGuiEditSign",
 		"MixinGuiScreen",
 		"MixinGuiTextField",
 		"MixinMinecraft",
+		"MixinModularRichTooltip",
+		"MixinModularTextField",
+		"MixinModularTextRenderer",
 		"MixinTileEntityRendererDispatcher",
 		"MixinTileEntitySignRenderer",
 		"MixinTextureManager"

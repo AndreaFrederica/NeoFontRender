@@ -18,5 +18,22 @@ public interface TextRenderResult {
 
     float advance();
 
+    /** Pixel-space bounds relative to the draw origin; advance alone excludes glyph overhang. */
+    default float visualLeft() {
+        return 0.0F;
+    }
+
+    default float visualRight() {
+        return advance();
+    }
+
+    default float visualTop() {
+        return 0.0F;
+    }
+
+    default float visualBottom() {
+        return 8.0F;
+    }
+
     void draw(float x, float y, float alpha);
 }

@@ -134,6 +134,10 @@ shadowJar { configurations = [project.configurations.shadow]; archiveClassifier 
 tasks.named(remapTaskName).configure { doFirst { logging.captureStandardOutput LogLevel.INFO }; doLast { logging.captureStandardOutput LogLevel.QUIET } }
 
 compileTestJava { sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25 }
+// Unimined wires the Minecraft/LaunchWrapper/ASM classpath to main only. Tests that exercise
+// coremod transformers need that same compile/runtime classpath.
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
 test {
     useJUnitPlatform()
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })

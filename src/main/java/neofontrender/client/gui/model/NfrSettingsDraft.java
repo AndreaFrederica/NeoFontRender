@@ -1,5 +1,6 @@
 package neofontrender.client.gui.model;
 
+import net.minecraft.client.Minecraft;
 import neofontrender.client.gui.font.FontEntry;
 import neofontrender.core.config.NeofontrenderConfig;
 import java.util.List;
@@ -23,6 +24,7 @@ public final class NfrSettingsDraft {
     public static final int TARGET_SHADOW_MASK = 6;
     public static final int TARGET_COUNT = 7;
     public final boolean originalEnabled = NeofontrenderConfig.enabled();
+    public final boolean originalForceUnicodeFont = Minecraft.getMinecraft().gameSettings.forceUnicodeFont;
     public final String originalFontName = NeofontrenderConfig.fontName();
     public final String originalCosmicRegular = NeofontrenderConfig.cosmicRegularFont();
     public final String originalCosmicBold = NeofontrenderConfig.cosmicBoldFont();
@@ -70,6 +72,9 @@ public final class NfrSettingsDraft {
     public final boolean originalFixUnicodeTextDeletion = NeofontrenderConfig.fixUnicodeTextDeletion();
     public final boolean originalAllowSignPaste = NeofontrenderConfig.allowSignPaste();
     public final boolean originalLaboratoryHexChat = NeofontrenderConfig.laboratoryHexChat();
+    public final boolean originalLaboratoryTextUndoRedo = NeofontrenderConfig.laboratoryTextUndoRedo();
+    public final boolean originalCompatModernSplash = NeofontrenderConfig.compatModernSplash();
+    public final boolean originalSplashFontOverride = NeofontrenderConfig.splashFontOverrideEnabled();
     public final String originalTextCacheMin = Integer.toString(NeofontrenderConfig.skiaTextCacheMinEntries());
     public final String originalTextCacheMax = Integer.toString(NeofontrenderConfig.skiaTextCacheMaxEntries());
     public final String originalTextCacheTtl = Float.toString(NeofontrenderConfig.skiaTextCacheTtlSeconds());
@@ -79,6 +84,7 @@ public final class NfrSettingsDraft {
     public final String originalSegmentCacheTtl = Float.toString(NeofontrenderConfig.skiaSegmentTextureCacheTtlSeconds());
 
     public boolean enabled = originalEnabled;
+    public boolean forceUnicodeFont = originalForceUnicodeFont;
     public String engine = originalEngine;
     public boolean skiaAdvancedStringMode = originalSkiaAdvancedStringMode;
     public boolean adaptiveRasterScale = originalAdaptiveRasterScale;
@@ -108,6 +114,9 @@ public final class NfrSettingsDraft {
     public boolean fixUnicodeTextDeletion = originalFixUnicodeTextDeletion;
     public boolean allowSignPaste = originalAllowSignPaste;
     public boolean laboratoryHexChat = originalLaboratoryHexChat;
+    public boolean laboratoryTextUndoRedo = originalLaboratoryTextUndoRedo;
+    public boolean compatModernSplash = originalCompatModernSplash;
+    public boolean splashFontOverride = originalSplashFontOverride;
     public int categoryScroll;
     public String fontName = originalFontName;
     public String fontPath = isFontFile(originalFontName) ? originalFontName : "";
@@ -214,6 +223,7 @@ public final class NfrSettingsDraft {
     }
 
     public void writeToConfig(boolean save) {
+        applyForceUnicodeFont(forceUnicodeFont, save);
         NeofontrenderConfig.setEnabled(enabled);
         NeofontrenderConfig.setRenderingEngine(engine);
         NeofontrenderConfig.setSkiaAdvancedStringMode(skiaAdvancedStringMode);
@@ -244,6 +254,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setFixUnicodeTextDeletion(fixUnicodeTextDeletion);
         NeofontrenderConfig.setAllowSignPaste(allowSignPaste);
         NeofontrenderConfig.setLaboratoryHexChat(laboratoryHexChat);
+        NeofontrenderConfig.setLaboratoryTextUndoRedo(laboratoryTextUndoRedo);
+        NeofontrenderConfig.setCompatModernSplash(compatModernSplash);
+        NeofontrenderConfig.setSplashFontOverrideEnabled(splashFontOverride);
             NeofontrenderConfig.setFontName(selectedFont().isEmpty()
                 ? "neofontrender:fonts/sarasa_ui_sc_regular.ttf"
                 : selectedFont());
@@ -276,6 +289,7 @@ public final class NfrSettingsDraft {
     }
 
     public void restoreOriginal() {
+        applyForceUnicodeFont(originalForceUnicodeFont, false);
         NeofontrenderConfig.setEnabled(originalEnabled);
         NeofontrenderConfig.setRenderingEngine(originalEngine);
         NeofontrenderConfig.setSkiaAdvancedStringMode(originalSkiaAdvancedStringMode);
@@ -306,6 +320,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setFixUnicodeTextDeletion(originalFixUnicodeTextDeletion);
         NeofontrenderConfig.setAllowSignPaste(originalAllowSignPaste);
         NeofontrenderConfig.setLaboratoryHexChat(originalLaboratoryHexChat);
+        NeofontrenderConfig.setLaboratoryTextUndoRedo(originalLaboratoryTextUndoRedo);
+        NeofontrenderConfig.setCompatModernSplash(originalCompatModernSplash);
+        NeofontrenderConfig.setSplashFontOverrideEnabled(originalSplashFontOverride);
         NeofontrenderConfig.setFontName(originalFontName);
         NeofontrenderConfig.setFontFallbacks(parseFontList(originalFontFallbacks));
         NeofontrenderConfig.setCosmicRegularFont(originalCosmicRegular);
@@ -331,6 +348,18 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setSkiaSegmentTextureCacheMinEntries(parseInt(originalSegmentCacheMin, 512, 0, 65536));
         NeofontrenderConfig.setSkiaSegmentTextureCacheMaxEntries(parseInt(originalSegmentCacheMax, 4096, 1, 131072));
         NeofontrenderConfig.setSkiaSegmentTextureCacheTtlSeconds(parseFloat(originalSegmentCacheTtl, 600.0F, 0.0F, 86400.0F));
+    }
+
+    private static void applyForceUnicodeFont(boolean forceUnicode, boolean save) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        minecraft.gameSettings.forceUnicodeFont = forceUnicode;
+        if (minecraft.fontRenderer != null && minecraft.getLanguageManager() != null) {
+            minecraft.fontRenderer.setUnicodeFlag(
+                    minecraft.getLanguageManager().isCurrentLocaleUnicode() || forceUnicode);
+        }
+        if (save) {
+            minecraft.gameSettings.saveOptions();
+        }
     }
 
     private static String fontValue(FontEntry font) {

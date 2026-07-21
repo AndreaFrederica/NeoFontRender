@@ -13,7 +13,14 @@ public final class NfrLaboratorySettingsView extends NfrContentView<NfrLaborator
     }
 
     private static NfrOptionsGrid options(NfrSettingsDraft d, NfrSettingsControls c) {
-        return c.grid().add(c.toggle("neofontrender.gui.option.hex_chat", "neofontrender.tooltip.hex_chat",
-                () -> d.laboratoryHexChat, value -> d.laboratoryHexChat = value));
+        return c.grid()
+                .add(c.toggle("neofontrender.gui.option.hex_chat", "neofontrender.tooltip.hex_chat",
+                        () -> d.laboratoryHexChat, value -> d.laboratoryHexChat = value))
+                .add(c.toggle("neofontrender.gui.option.text_undo_redo", "neofontrender.tooltip.text_undo_redo",
+                        () -> d.laboratoryTextUndoRedo, value -> d.laboratoryTextUndoRedo = value))
+                .add(c.toggle("neofontrender.gui.option.splash_override", "neofontrender.tooltip.splash_override",
+                        () -> d.splashFontOverride, value -> d.splashFontOverride = value))
+                .add(c.toggle("neofontrender.gui.option.modern_splash", "neofontrender.tooltip.modern_splash",
+                        () -> d.compatModernSplash, value -> d.compatModernSplash = value));
     }
 }

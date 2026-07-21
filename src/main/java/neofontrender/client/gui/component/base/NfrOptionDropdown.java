@@ -11,19 +11,26 @@ import com.cleanroommc.modularui.widgets.menu.Menu;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** Dropdown option row supporting regular label/value and compact value-only presentation. */
 public final class NfrOptionDropdown extends ContextMenuButton<NfrOptionDropdown> {
-    private static final int MENU_BACKGROUND = 0xF0121720;
-    private static final int OPTION_BACKGROUND = 0xF018202C;
-    private static final int OPTION_HOVER_BACKGROUND = 0xFF263447;
-    private static final int MENU_BORDER = 0xFF64748B;
+    // Match neofontrender_modern.json: one translucent panel layer, transparent rows and the
+    // same translucent gray hover used by the rest of the settings buttons. Stacking opaque
+    // row backgrounds over the menu used to make the popup look like a foreign solid panel.
+    private static final int MENU_BACKGROUND = 0xC8000000;
+    private static final int OPTION_BACKGROUND = 0x00000000;
+    private static final int OPTION_HOVER_BACKGROUND = 0xB8333333;
+    private static final int MENU_BORDER = 0x8064748B;
 
     private final Supplier<String> label;
     private final Supplier<String> getter;
+    private final Consumer<String> setter;
+    private final List<String> values = new ArrayList<>();
     private final Function<String, String> display;
     private final boolean compact;
 
@@ -33,19 +40,32 @@ public final class NfrOptionDropdown extends ContextMenuButton<NfrOptionDropdown
         super(name);
         this.label = label;
         this.getter = getter;
+        this.setter = setter;
+        for (String value : values) this.values.add(value);
         this.display = display;
         this.compact = compact;
         requiresClick();
-        menu(createMenu(setter, values));
     }
 
-    private Menu<?> createMenu(Consumer<String> setter, Iterable<String> values) {
+    @Override
+    public void openMenu(boolean soft) {
+        if (!isOpen()) {
+            // A closed Menu has already belonged to a temporary MenuPanel. Reusing that widget
+            // tree leaves stale resizer parent/state in ModularUI 3.1.6, which can make the
+            // popup background shrink while its rows retain the old dropdown width.
+            setMenu(createFreshMenu());
+        }
+        super.openMenu(soft);
+    }
+
+    private Menu<?> createFreshMenu() {
         ListWidget<IWidget, ?> list = new ListWidget<>()
                 .widthRel(1f)
                 .maxSize(144)
                 .background(new Rectangle().color(MENU_BACKGROUND));
         for (String value : values) {
-            NfrTextButton option = new NfrTextButton(() -> display.apply(value), false)
+            NfrTextButton option = new NfrTextButton(
+                    () -> (value.equals(getter.get()) ? "✓ " : "") + display.apply(value), false)
                     .height(20)
                     .background(new Rectangle().color(OPTION_BACKGROUND))
                     .hoverBackground(new Rectangle().color(OPTION_HOVER_BACKGROUND))
@@ -54,7 +74,7 @@ public final class NfrOptionDropdown extends ContextMenuButton<NfrOptionDropdown
                         closeMenu(false);
                         return true;
                     });
-            option.relativeToParent().fullWidth();
+            option.widthRel(1f);
             list.child(option);
         }
         return new Menu<>()
