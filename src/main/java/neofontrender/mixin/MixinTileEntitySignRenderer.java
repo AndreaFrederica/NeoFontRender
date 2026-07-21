@@ -39,7 +39,7 @@ public abstract class MixinTileEntitySignRenderer {
     @Unique private double nfr$distanceSq;
     @Unique private int nfr$destroyStage;
 
-    @Inject(method = "render", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "render(Lnet/minecraft/tileentity/TileEntitySign;DDDFIF)V", at = @At("HEAD"), cancellable = true)
     private void nfr$cullSignModel(TileEntitySign sign, double x, double y, double z,
                                    float partialTicks, int destroyStage, float alpha,
                                    CallbackInfo ci) {
@@ -69,7 +69,7 @@ public abstract class MixinTileEntitySignRenderer {
     }
 
     @Redirect(
-            method = "render",
+            method = "render(Lnet/minecraft/tileentity/TileEntitySign;DDDFIF)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/model/ModelSign;renderSign()V")
     )
     private void nfr$renderSignModelLod(ModelSign model) {
@@ -125,7 +125,7 @@ public abstract class MixinTileEntitySignRenderer {
     }
 
     @Redirect(
-            method = "render",
+            method = "render(Lnet/minecraft/tileentity/TileEntitySign;DDDFIF)V",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/FontRenderer;drawString(Ljava/lang/String;III)I"
@@ -162,7 +162,7 @@ public abstract class MixinTileEntitySignRenderer {
 
     /** Draw once, while TileEntitySignRenderer's sign transform is still active. */
     @Inject(
-            method = "render",
+            method = "render(Lnet/minecraft/tileentity/TileEntitySign;DDDFIF)V",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/renderer/GlStateManager;depthMask(Z)V",
