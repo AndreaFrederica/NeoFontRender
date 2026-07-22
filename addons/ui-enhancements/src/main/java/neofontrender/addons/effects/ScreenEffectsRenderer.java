@@ -51,8 +51,12 @@ public enum ScreenEffectsRenderer {
     public void renderTick(TickEvent.RenderTickEvent event) {
         if (event.phase != TickEvent.Phase.START || !ownsShader) return;
         Minecraft mc = Minecraft.getMinecraft();
+        if (mc.currentScreen == null || mc.world == null || !ScreenEffectsConfig.enabled || !ScreenEffectsConfig.blur) {
+            releaseShader(mc);
+            return;
+        }
         ShaderGroup group = mc.entityRenderer.getShaderGroup();
-        if (mc.currentScreen != null && group != null) updateRadius(group, ScreenEffectsConfig.blurRadius * fadeProgress());
+        if (group != null) updateRadius(group, animatedRadius());
     }
 
     public void configChanged() {
@@ -68,14 +72,14 @@ public enum ScreenEffectsRenderer {
 
     private void installShader(Minecraft mc) {
         if (ownsShader && mc.entityRenderer.getShaderGroup() != null) {
-            updateRadius(mc.entityRenderer.getShaderGroup(), ScreenEffectsConfig.blurRadius * fadeProgress());
+            updateRadius(mc.entityRenderer.getShaderGroup(), animatedRadius());
             return;
         }
         if (mc.entityRenderer.isShaderActive()) return;
         mc.entityRenderer.loadShader(BLUR);
         ShaderGroup group = mc.entityRenderer.getShaderGroup();
         ownsShader = group != null;
-        if (ownsShader) updateRadius(group, ScreenEffectsConfig.blurRadius * fadeProgress());
+        if (ownsShader) updateRadius(group, animatedRadius());
     }
 
     private void updateRadius(ShaderGroup group, float amount) {
@@ -87,6 +91,12 @@ public enum ScreenEffectsRenderer {
         } catch (Throwable throwable) {
             NfrUiEnhancements.LOGGER.log(Level.WARN, "Could not update UI blur radius", throwable);
         }
+    }
+
+    private float animatedRadius() {
+        // Minecraft 1.12's built-in blur kernel is undefined at radius zero and can output a
+        // flat grey framebuffer. Radius 1 is its neutral, valid starting point.
+        return 1.0F + Math.max(0.0F, ScreenEffectsConfig.blurRadius - 1.0F) * fadeProgress();
     }
 
     private void releaseShader(Minecraft mc) {

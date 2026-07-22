@@ -36,7 +36,12 @@ final class Arc3DHudBarRenderer {
         float radius = HudBarsConfig.rounded ? Math.min(3.5F, HudBarsConfig.height * 0.5F) : 0.01F;
         float inset = 1.0F;
 
+        boolean lighting = GL11.glIsEnabled(GL11.GL_LIGHTING);
+        boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
+        boolean texture = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
         boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        int shadeModel = GL11.glGetInteger(GL11.GL_SHADE_MODEL);
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
         GlStateManager.enableBlend();
@@ -84,15 +89,21 @@ final class Arc3DHudBarRenderer {
                 else quad(innerRight - span * depletion, innerTop,
                         innerRight, stripeBottom, sample.depletionColor);
             }
-        } finally {
-            GlStateManager.shadeModel(GL11.GL_FLAT);
-            if (cull) GlStateManager.enableCull();
             GlStateManager.enableTexture2D();
-            GlStateManager.disableBlend();
-            GlStateManager.enableDepth();
-            GlStateManager.enableLighting();
+            drawText(sample.text, x, y);
+        } finally {
+            GlStateManager.shadeModel(shadeModel);
+            if (cull) GlStateManager.enableCull();
+            else GlStateManager.disableCull();
+            if (texture) GlStateManager.enableTexture2D();
+            else GlStateManager.disableTexture2D();
+            if (blend) GlStateManager.enableBlend();
+            else GlStateManager.disableBlend();
+            if (depth) GlStateManager.enableDepth();
+            else GlStateManager.disableDepth();
+            if (lighting) GlStateManager.enableLighting();
+            else GlStateManager.disableLighting();
         }
-        drawText(sample.text, x, y);
     }
 
     private float animated(String id, float target) {
@@ -115,11 +126,7 @@ final class Arc3DHudBarRenderer {
         FontRenderer font = Minecraft.getMinecraft().fontRenderer;
         int textX = x + (HudBarsConfig.width - font.getStringWidth(text)) / 2;
         int textY = y + (HudBarsConfig.height - font.FONT_HEIGHT) / 2;
-        GlStateManager.disableLighting();
-        GlStateManager.disableDepth();
         font.drawString(text, textX, textY, 0xFFFFFFFF, true);
-        GlStateManager.enableDepth();
-        GlStateManager.enableLighting();
     }
 
     private static void rounded(float left, float top, float right, float bottom, float requestedRadius, int color) {

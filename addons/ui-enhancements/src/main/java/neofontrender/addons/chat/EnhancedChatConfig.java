@@ -43,5 +43,6 @@ final class EnhancedChatConfig {
                 .set("chat.persistSent", persistSent)
                 .save();
         ChatHistoryManager.INSTANCE.configChanged();
+        ChatRuntimeController.sync();
     }
 }

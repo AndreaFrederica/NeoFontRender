@@ -68,6 +68,10 @@ public enum ChatHistoryManager {
         }
     }
 
+    public void scheduleRestore() {
+        pendingRestore = persistenceEnabled();
+    }
+
     @SubscribeEvent
     public void connected(FMLNetworkEvent.ClientConnectedToServerEvent event) {
         pendingRestore = persistenceEnabled();
