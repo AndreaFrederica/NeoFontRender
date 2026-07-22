@@ -28,5 +28,4 @@ plugins {
     id("com.gtnewhorizons.gtnhsettingsconvention") version("2.0.20")
 }
 
-include(":ui-enhancements")
-project(":ui-enhancements").projectDir = file("addons/ui-enhancements")
+include(":addons:ui-enhancements")
