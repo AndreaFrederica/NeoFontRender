@@ -2,7 +2,7 @@ package neofontrender.addons.vendor.tabbychat.foundation.gui.events;
 
 import neofontrender.addons.vendor.tabbychat.foundation.gui.GuiComponent;
 
-import org.lwjgl.input.Keyboard;
+import org.lwjglx.input.Keyboard;
 
 /**
  * An event for a keyboard adapter

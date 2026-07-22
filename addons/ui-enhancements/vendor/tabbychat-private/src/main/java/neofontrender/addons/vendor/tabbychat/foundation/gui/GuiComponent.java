@@ -17,8 +17,8 @@ import neofontrender.addons.vendor.tabbychat.foundation.render.GlState;
 import net.minecraft.util.IChatComponent;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
+import org.lwjglx.input.Keyboard;
+import org.lwjglx.input.Mouse;
 
 import java.awt.Dimension;
 import java.awt.Point;

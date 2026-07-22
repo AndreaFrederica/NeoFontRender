@@ -8,7 +8,7 @@ import net.minecraft.client.gui.Gui;
 import neofontrender.addons.vendor.tabbychat.foundation.render.GlState;
 import neofontrender.addons.vendor.tabbychat.foundation.render.GuiTextures;
 import net.minecraft.util.ResourceLocation;
-import org.lwjgl.input.Mouse;
+import org.lwjglx.input.Mouse;
 
 /**
  * A slider for double values. Click and drag or scroll to change the value.

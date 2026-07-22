@@ -4,13 +4,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import org.lwjgl.BufferUtils;
-import org.lwjgl.LWJGLException;
-import org.lwjgl.input.Cursor;
-import org.lwjgl.input.Mouse;
+import org.lwjglx.LWJGLException;
+import org.lwjglx.input.Cursor;
+import org.lwjglx.input.Mouse;
 
 import java.nio.IntBuffer;
 
-/** Owns the LWJGL2 native I-beam cursor and frame-level hover arbitration. */
+/** Owns the native I-beam cursor and frame-level hover arbitration. */
 public final class TextCursorManager {
     private static Cursor textCursor;
     private static Cursor defaultCursor;

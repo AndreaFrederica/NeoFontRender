@@ -15,8 +15,8 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.MathHelper;
-import org.lwjgl.input.Mouse;
-import org.lwjgl.input.Keyboard;
+import org.lwjglx.input.Keyboard;
+import org.lwjglx.input.Mouse;
 
 import java.awt.*;
 

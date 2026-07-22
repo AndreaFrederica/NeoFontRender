@@ -16,7 +16,7 @@ import net.minecraft.client.gui.GuiNewChat;
 import neofontrender.addons.vendor.tabbychat.foundation.render.GlState;
 import net.minecraft.util.IChatComponent;
 import net.minecraftforge.common.MinecraftForge;
-import org.lwjgl.input.Mouse;
+import org.lwjglx.input.Mouse;
 
 import java.util.List;
 import java.util.Set;

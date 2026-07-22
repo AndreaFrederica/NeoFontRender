@@ -3,7 +3,7 @@ package neofontrender.addons.mixin;
 import cpw.mods.fml.client.GuiScrollingList;
 import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
 import neofontrender.addons.scrolling.SmoothScrollController;
-import org.lwjgl.input.Mouse;
+import org.lwjglx.input.Mouse;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

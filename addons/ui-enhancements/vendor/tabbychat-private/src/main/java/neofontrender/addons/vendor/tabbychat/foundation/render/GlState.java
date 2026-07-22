@@ -2,7 +2,7 @@ package neofontrender.addons.vendor.tabbychat.foundation.render;
 
 import org.lwjgl.opengl.GL11;
 
-/** Minecraft 1.7.10/LWJGL2 replacement for the later GlStateManager calls. */
+/** Minecraft 1.7.10 replacement for the later GlStateManager calls. */
 public final class GlState {
 
     public enum LogicOp {

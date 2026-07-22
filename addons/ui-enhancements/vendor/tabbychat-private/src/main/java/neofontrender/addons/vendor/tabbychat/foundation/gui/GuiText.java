@@ -9,7 +9,7 @@ import neofontrender.addons.vendor.tabbychat.foundation.gui.events.GuiMouseEvent
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiTextField;
 import org.apache.commons.lang3.StringUtils;
-import org.lwjgl.input.Keyboard;
+import org.lwjglx.input.Keyboard;
 
 import javax.annotation.Nonnull;
 

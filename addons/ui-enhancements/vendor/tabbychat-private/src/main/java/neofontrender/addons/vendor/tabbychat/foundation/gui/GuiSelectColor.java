@@ -11,7 +11,7 @@ import neofontrender.addons.vendor.tabbychat.foundation.gui.events.GuiMouseEvent
 import neofontrender.addons.vendor.tabbychat.foundation.text.TextBuilder;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.util.EnumChatFormatting;
-import org.lwjgl.input.Keyboard;
+import org.lwjglx.input.Keyboard;
 
 import java.math.BigInteger;
 import java.util.function.Consumer;

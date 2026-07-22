@@ -15,7 +15,7 @@ import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Uses Arc3D-compatible color math with Minecraft 1.7's LWJGL2 tessellator. */
+/** Uses Arc3D-compatible color math with Minecraft 1.7's tessellator. */
 final class Arc3DHudBarRenderer {
     private static final double Z = 0.0D;
 

@@ -21,7 +21,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.EnumChatFormatting;
-import org.lwjgl.input.Keyboard;
+import org.lwjglx.input.Keyboard;
 
 import java.util.List;
 import java.util.function.Consumer;
