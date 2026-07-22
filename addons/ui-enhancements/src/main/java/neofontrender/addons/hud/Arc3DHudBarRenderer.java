@@ -33,8 +33,9 @@ final class Arc3DHudBarRenderer {
         float top = y;
         float right = x + HudBarsConfig.width;
         float bottom = y + HudBarsConfig.height;
-        float radius = HudBarsConfig.rounded ? Math.min(3.5F, HudBarsConfig.height * 0.5F) : 0.01F;
-        float inset = 1.0F;
+        HudBarTheme theme = HudBarTheme.parse(HudBarsConfig.theme);
+        float radius = radius(theme);
+        float inset = theme == HudBarTheme.MINIMAL ? 0.0F : 1.0F;
 
         boolean lighting = GL11.glIsEnabled(GL11.GL_LIGHTING);
         boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
@@ -52,7 +53,7 @@ final class Arc3DHudBarRenderer {
         GlStateManager.disableCull();
         GlStateManager.shadeModel(GL11.GL_SMOOTH);
         try {
-            rounded(left, top, right, bottom, radius, HudBarsConfig.border);
+            if (theme != HudBarTheme.MINIMAL) rounded(left, top, right, bottom, radius, HudBarsConfig.border);
             rounded(left + inset, top + inset, right - inset, bottom - inset,
                     Math.max(0.01F, radius - inset), HudBarsConfig.background);
             float innerLeft = left + inset;
@@ -62,18 +63,21 @@ final class Arc3DHudBarRenderer {
             float span = Math.max(0.0F, innerRight - innerLeft);
             if (ratio > 0.0F) {
                 if (side == HudBarSide.RIGHT) {
-                    rounded(innerRight - span * ratio, innerTop, innerRight, innerBottom,
-                            Math.min(radius - inset, span * ratio * 0.5F), sample.primaryColor);
+                    fill(innerRight - span * ratio, innerTop, innerRight, innerBottom,
+                            Math.min(radius - inset, span * ratio * 0.5F), sample.primaryColor, theme);
                 } else {
-                    rounded(innerLeft, innerTop, innerLeft + span * ratio, innerBottom,
-                            Math.min(radius - inset, span * ratio * 0.5F), sample.primaryColor);
+                    fill(innerLeft, innerTop, innerLeft + span * ratio, innerBottom,
+                            Math.min(radius - inset, span * ratio * 0.5F), sample.primaryColor, theme);
                 }
             }
             if (secondary > 0.0F) {
-                float stripTop = MathUtil.lerp(innerTop, innerBottom, 0.62F);
-                if (side == HudBarSide.RIGHT) quad(innerRight - span * secondary, stripTop,
-                        innerRight, innerBottom, sample.secondaryColor);
-                else quad(innerLeft, stripTop, innerLeft + span * secondary, innerBottom, sample.secondaryColor);
+                // Saturation is a value in its own right. Drawing it at full height makes its
+                // relationship to hunger immediately readable instead of looking like a clipped bar.
+                if (side == HudBarSide.RIGHT) fill(innerRight - span * secondary, innerTop,
+                        innerRight, innerBottom, Math.min(radius - inset, span * secondary * 0.5F),
+                        sample.secondaryColor, theme);
+                else fill(innerLeft, innerTop, innerLeft + span * secondary, innerBottom,
+                        Math.min(radius - inset, span * secondary * 0.5F), sample.secondaryColor, theme);
             }
             if (preview > 0.0F && ratio < 1.0F) {
                 float end = Math.min(1.0F, ratio + preview);
@@ -88,6 +92,13 @@ final class Arc3DHudBarRenderer {
                         innerLeft + span * depletion, stripeBottom, sample.depletionColor);
                 else quad(innerRight - span * depletion, innerTop,
                         innerRight, stripeBottom, sample.depletionColor);
+            }
+            if (theme == HudBarTheme.SEGMENTED) {
+                int separator = withAlpha(HudBarsConfig.background, 190);
+                for (int i = 1; i < 10; i++) {
+                    float marker = innerLeft + span * i / 10.0F;
+                    quad(marker - 0.35F, innerTop, marker + 0.35F, innerBottom, separator);
+                }
             }
             GlStateManager.enableTexture2D();
             drawText(sample.text, x, y);
@@ -104,6 +115,26 @@ final class Arc3DHudBarRenderer {
             if (lighting) GlStateManager.enableLighting();
             else GlStateManager.disableLighting();
         }
+    }
+
+    private static float radius(HudBarTheme theme) {
+        if (!HudBarsConfig.rounded || theme == HudBarTheme.FLAT || theme == HudBarTheme.SEGMENTED) return 0.01F;
+        if (theme == HudBarTheme.MINIMAL) return Math.min(2.0F, HudBarsConfig.height * 0.5F);
+        return Math.min(3.5F, HudBarsConfig.height * 0.5F);
+    }
+
+    private static void fill(float left, float top, float right, float bottom,
+                             float radius, int color, HudBarTheme theme) {
+        rounded(left, top, right, bottom, Math.max(0.01F, radius), color);
+        if (theme == HudBarTheme.GLASS && right - left > 2.0F && bottom - top > 2.0F) {
+            float highlightBottom = MathUtil.lerp(top, bottom, 0.42F);
+            quad(left + 1.0F, top + 0.75F, right - 1.0F, highlightBottom,
+                    withAlpha(0x00FFFFFF, 42));
+        }
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return color & 0x00FFFFFF | (Math.max(0, Math.min(255, alpha)) << 24);
     }
 
     private float animated(String id, float target) {

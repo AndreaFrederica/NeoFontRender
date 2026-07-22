@@ -39,6 +39,10 @@ final class HudBarsSettingsPage implements NfrSettingsPage {
                     .add(toggle(c, "numbers", () -> HudBarsConfig.showNumbers, v -> HudBarsConfig.showNumbers = v))
                     .add(toggle(c, "smooth", () -> HudBarsConfig.smoothValues, v -> HudBarsConfig.smoothValues = v))
                     .add(toggle(c, "rounded", () -> HudBarsConfig.rounded, v -> HudBarsConfig.rounded = v))
+                    .add(c.dropdownText("hud_bar_theme", () -> tr("gui.hud.theme"),
+                            () -> HudBarsConfig.theme, v -> HudBarsConfig.theme = HudBarTheme.parse(v).id,
+                            Arrays.asList("modern", "flat", "glass", "segmented", "minimal"),
+                            v -> tr("gui.hud.theme." + v)).size(260, 24))
                     .add(c.dropdownText("hud_bar_width", () -> tr("gui.hud.width"),
                             () -> Integer.toString(HudBarsConfig.width), v -> HudBarsConfig.width = Integer.parseInt(v),
                             Arrays.asList("60", "72", "81", "96", "120", "144"), v -> v + " px").size(260, 24))
@@ -83,6 +87,7 @@ final class HudBarsSettingsPage implements NfrSettingsPage {
                 HudBarsConfig.food, HudBarsConfig.air, HudBarsConfig.mountHealth, HudBarsConfig.showNumbers,
                 HudBarsConfig.smoothValues, HudBarsConfig.rounded };
         private final int width = HudBarsConfig.width, height = HudBarsConfig.height, gap = HudBarsConfig.gap;
+        private final String theme = HudBarsConfig.theme;
         private final int[] c = { HudBarsConfig.background, HudBarsConfig.border, HudBarsConfig.healthColor,
                 HudBarsConfig.healthyColor, HudBarsConfig.absorptionColor, HudBarsConfig.armorColor,
                 HudBarsConfig.toughnessColor, HudBarsConfig.foodColor, HudBarsConfig.saturationColor,
@@ -93,6 +98,7 @@ final class HudBarsSettingsPage implements NfrSettingsPage {
             HudBarsConfig.absorption=b[3]; HudBarsConfig.armor=b[4]; HudBarsConfig.toughness=b[5];
             HudBarsConfig.food=b[6]; HudBarsConfig.air=b[7]; HudBarsConfig.mountHealth=b[8];
             HudBarsConfig.showNumbers=b[9]; HudBarsConfig.smoothValues=b[10]; HudBarsConfig.rounded=b[11];
+            HudBarsConfig.theme=theme;
             HudBarsConfig.width=width; HudBarsConfig.height=height; HudBarsConfig.gap=gap;
             HudBarsConfig.background=c[0]; HudBarsConfig.border=c[1]; HudBarsConfig.healthColor=c[2];
             HudBarsConfig.healthyColor=c[3]; HudBarsConfig.absorptionColor=c[4]; HudBarsConfig.armorColor=c[5];

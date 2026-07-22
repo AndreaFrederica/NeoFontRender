@@ -16,6 +16,7 @@ final class HudBarsConfig {
     static boolean showNumbers = true;
     static boolean smoothValues = true;
     static boolean rounded = true;
+    static String theme = HudBarTheme.MODERN.id;
     static int width = 81;
     static int height = 9;
     static int gap = 2;
@@ -47,6 +48,8 @@ final class HudBarsConfig {
                 .define("hudBars.showNumbers", true, "Draw current and maximum values in bars.")
                 .define("hudBars.smoothValues", true, "Animate fill changes.")
                 .define("hudBars.rounded", true, "Use rounded analytic geometry.")
+                .define("hudBars.theme", HudBarTheme.MODERN.id,
+                        "Visual theme: modern, flat, glass, segmented or minimal.")
                 .define("hudBars.width", 81, "Bar width in GUI pixels (48-160).")
                 .define("hudBars.height", 9, "Bar height in GUI pixels (7-16).")
                 .define("hudBars.gap", 2, "Vertical gap between bars (0-8).")
@@ -73,6 +76,7 @@ final class HudBarsConfig {
         showNumbers = f.getBoolean("hudBars.showNumbers", true);
         smoothValues = f.getBoolean("hudBars.smoothValues", true);
         rounded = f.getBoolean("hudBars.rounded", true);
+        theme = HudBarTheme.parse(f.getString("hudBars.theme", HudBarTheme.MODERN.id)).id;
         width = f.getInt("hudBars.width", 81, 48, 160);
         height = f.getInt("hudBars.height", 9, 7, 16);
         gap = f.getInt("hudBars.gap", 2, 0, 8);
@@ -97,7 +101,7 @@ final class HudBarsConfig {
                 .set("hudBars.armor", armor).set("hudBars.toughness", toughness)
                 .set("hudBars.food", food).set("hudBars.air", air).set("hudBars.mountHealth", mountHealth)
                 .set("hudBars.showNumbers", showNumbers).set("hudBars.smoothValues", smoothValues)
-                .set("hudBars.rounded", rounded).set("hudBars.width", width)
+                .set("hudBars.rounded", rounded).set("hudBars.theme", theme).set("hudBars.width", width)
                 .set("hudBars.height", height).set("hudBars.gap", gap)
                 .set("hudBars.background", color(background)).set("hudBars.border", color(border))
                 .set("hudBars.color.healthLow", color(healthColor)).set("hudBars.color.healthHigh", color(healthyColor))
