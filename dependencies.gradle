@@ -20,9 +20,6 @@ dependencies {
     // ModularUI2 for the in-game config GUI (1.7.10 GTNH fork; :dev jars are auto-deobfuscated)
     implementation("com.github.GTNewHorizons:ModularUI2:2.3.81-1.7.10:dev")
 
-    // Optional compatibility target used only by the development client; never published with the mod.
-    runtimeOnlyNonPublishable 'curse.maven:modern-splash-629058:8262480'
-
     // Arc3D Core backs the public neofontrender.api.arc3d bridge and addon UI color math.
     embed('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
 
