@@ -12,6 +12,7 @@ import net.minecraft.client.shader.ShaderUniform;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.GuiOpenEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 import neofontrender.addons.mixin.AccessorShaderGroup;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import org.apache.logging.log4j.Level;
@@ -45,6 +46,15 @@ public enum ScreenEffectsRenderer {
         return true;
     }
 
+    /** GuiChat does not call drawWorldBackground, so advance blur independently of screen drawing. */
+    @SubscribeEvent
+    public void renderTick(TickEvent.RenderTickEvent event) {
+        if (event.phase != TickEvent.Phase.START || !ownsShader) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        ShaderGroup group = mc.entityRenderer.getShaderGroup();
+        if (mc.currentScreen != null && group != null) updateRadius(group, ScreenEffectsConfig.blurRadius * fadeProgress());
+    }
+
     public void configChanged() {
         Minecraft mc = Minecraft.getMinecraft();
         openedNanos = System.nanoTime();
@@ -58,21 +68,21 @@ public enum ScreenEffectsRenderer {
 
     private void installShader(Minecraft mc) {
         if (ownsShader && mc.entityRenderer.getShaderGroup() != null) {
-            updateRadius(mc.entityRenderer.getShaderGroup());
+            updateRadius(mc.entityRenderer.getShaderGroup(), ScreenEffectsConfig.blurRadius * fadeProgress());
             return;
         }
         if (mc.entityRenderer.isShaderActive()) return;
         mc.entityRenderer.loadShader(BLUR);
         ShaderGroup group = mc.entityRenderer.getShaderGroup();
         ownsShader = group != null;
-        if (ownsShader) updateRadius(group);
+        if (ownsShader) updateRadius(group, ScreenEffectsConfig.blurRadius * fadeProgress());
     }
 
-    private void updateRadius(ShaderGroup group) {
+    private void updateRadius(ShaderGroup group, float amount) {
         try {
             for (Shader pass : ((AccessorShaderGroup) group).nfrUi$getShaders()) {
                 ShaderUniform radius = pass.getShaderManager().getShaderUniform("Radius");
-                if (radius != null) radius.set(ScreenEffectsConfig.blurRadius);
+                if (radius != null) radius.set(amount);
             }
         } catch (Throwable throwable) {
             NfrUiEnhancements.LOGGER.log(Level.WARN, "Could not update UI blur radius", throwable);
