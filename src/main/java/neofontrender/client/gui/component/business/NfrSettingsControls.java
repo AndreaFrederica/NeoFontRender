@@ -7,6 +7,7 @@ import com.cleanroommc.modularui.widgets.SliderWidget;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import net.minecraft.client.resources.I18n;
 import neofontrender.client.gui.component.base.NfrContentButton;
+import neofontrender.client.gui.component.base.NfrColorPickerButton;
 import neofontrender.client.gui.component.base.NfrDoubleValue;
 import neofontrender.client.gui.component.base.NfrLabeledSlider;
 import neofontrender.client.gui.component.base.NfrLabeledTextField;
@@ -24,6 +25,7 @@ import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 import static neofontrender.core.util.ConfigValueParser.parseFloat;
@@ -62,13 +64,26 @@ public final class NfrSettingsControls {
 
     public IWidget toggle(String labelKey, String tooltipKey, Supplier<Boolean> getter,
                           Consumer<Boolean> setter, Runnable afterChange) {
-        return tooltip(new NfrContentButton(() -> tr(labelKey), false, new NfrToggleIndicator(getter))
+        return toggleText(() -> tr(labelKey),
+                () -> tooltipKey == null || tooltipKey.isEmpty() ? "" : tr(tooltipKey),
+                getter, setter, afterChange);
+    }
+
+    /** Localized-text overload for extension pages that own their translation lifecycle. */
+    public IWidget toggleText(Supplier<String> label, Supplier<String> tooltipText,
+                              Supplier<Boolean> getter, Consumer<Boolean> setter) {
+        return toggleText(label, tooltipText, getter, setter, preview);
+    }
+
+    public IWidget toggleText(Supplier<String> label, Supplier<String> tooltipText,
+                              Supplier<Boolean> getter, Consumer<Boolean> setter, Runnable afterChange) {
+        return tooltipText(new NfrContentButton(label, false, new NfrToggleIndicator(getter))
                 .size(260, 24)
                 .onMousePressed(mouseButton -> {
                     setter.accept(!getter.get());
                     afterChange.run();
                     return true;
-                }), tooltipKey);
+                }), tooltipText);
     }
 
     public NfrOptionDropdown dropdown(String name, String labelKey, Supplier<String> getter,
@@ -77,10 +92,23 @@ public final class NfrSettingsControls {
         return new NfrOptionDropdown(name, () -> tr(labelKey), getter, setter, values, display, false);
     }
 
+    /** Localized-text overload for extension pages that own their translation lifecycle. */
+    public NfrOptionDropdown dropdownText(String name, Supplier<String> label, Supplier<String> getter,
+                                          Consumer<String> setter, Iterable<String> values,
+                                          java.util.function.Function<String, String> display) {
+        return new NfrOptionDropdown(name, label, getter, setter, values, display, false);
+    }
+
     public NfrOptionDropdown compactDropdown(String name, Supplier<String> getter, Consumer<String> setter,
                                              Iterable<String> values,
                                              java.util.function.Function<String, String> display) {
         return new NfrOptionDropdown(name, () -> "", getter, setter, values, display, true);
+    }
+
+    /** Opens ModularUI's native RGB/HSV/hex picker in an NFR-styled dialog. */
+    public NfrColorPickerButton colorText(String name, Supplier<String> label, IntSupplier getter,
+                                          IntConsumer setter, boolean alpha) {
+        return new NfrColorPickerButton(name, label, getter, setter, alpha, preview);
     }
 
     public NfrTextButton action(String labelKey, int width, int height, Runnable action) {
@@ -173,6 +201,14 @@ public final class NfrSettingsControls {
     private static <T extends Widget<?>> T tooltip(T widget, String key) {
         if (key != null && !key.isEmpty()) {
             widget.tooltip(new RichTooltip().showUpTimer(8).addLine(tr(key)));
+        }
+        return widget;
+    }
+
+    private static <T extends Widget<?>> T tooltipText(T widget, Supplier<String> text) {
+        String value = text == null ? "" : text.get();
+        if (value != null && !value.isEmpty()) {
+            widget.tooltip(new RichTooltip().showUpTimer(8).addLine(value));
         }
         return widget;
     }

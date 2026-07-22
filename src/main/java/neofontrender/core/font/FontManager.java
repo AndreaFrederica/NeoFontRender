@@ -231,7 +231,7 @@ public class FontManager implements AutoCloseable {
         }
         ITextureObject texture = textureManager.getTexture(location);
         if (texture instanceof AbstractTexture) {
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture.getGlTextureId());
+            textureManager.bindTexture(location);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
         }

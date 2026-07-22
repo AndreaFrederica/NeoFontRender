@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.5]
+
+- Add the optional UI Enhancements companion mod with modern tooltips, screen effects, enhanced
+  chat, smooth scrolling, configurable Arc3D HUD bars, and embedded settings pages.
+- Expose stable configuration, settings-page, About, and open-source-license contribution APIs.
+- Improve splash-screen compatibility, tooltip bounds, dropdown behavior, Unicode font controls,
+  and vanilla-renderer restoration.
+- Add independent build and GitHub Release workflows for the UI Enhancements addon.
+
 ## [0.3.4]
 
 - Match dropdown menus to the Neo Font Render dark UI, including menu borders and hover states.

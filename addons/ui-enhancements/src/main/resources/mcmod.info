@@ -1,0 +1,12 @@
+[
+  {
+    "modid": "neofontrender_ui_enhancements",
+    "name": "NFR UI Enhancements",
+    "description": "Modern tooltips, smooth scrolling, enhanced chat, HUD status bars, and screen effects for Neo Font Render.",
+    "version": "${version}",
+    "mcversion": "1.7.10",
+    "url": "https://github.com/AndreaFrederica/NeoFontRender",
+    "authorList": ["Neo Font Render contributors"],
+    "requiredMods": ["neofontrender"]
+  }
+]

@@ -1,0 +1,145 @@
+import com.gtnewhorizons.retrofuturagradle.mcp.ReobfuscatedJar
+
+plugins {
+    id 'java-library'
+}
+
+group = 'neofontrender.addons'
+version = providers.gradleProperty('ui_enhancements_version').get()
+
+base {
+    archivesName = 'neofontrender-ui-enhancements'
+}
+
+configurations {
+    contain
+    runtimeOnlyNonPublishable
+    implementation.extendsFrom(contain)
+    runtimeClasspath.extendsFrom(runtimeOnlyNonPublishable)
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://nexus.gtnewhorizons.com/repository/public/' }
+    maven { url = 'https://maven.cleanroommc.com/' }
+    maven { url = 'https://repo.cleanroommc.com/releases' }
+}
+
+sourceSets {
+    main {
+        java.srcDir 'vendor/tabbychat-private/src/main/java'
+        resources.srcDir 'vendor/tabbychat-private/src/main/resources'
+    }
+}
+
+dependencies {
+    compileOnly project(':')
+    compileOnly files(rootProject.configurations.compileClasspath)
+    compileOnly 'com.github.GTNewHorizons:AppleCore:3.3.11:api'
+    runtimeOnlyNonPublishable 'com.github.GTNewHorizons:AppleCore:3.3.11:dev'
+
+    // 1.7.10 is expected to run through lwjgl3ify here; keep LWJGL3 and Arc3D available.
+    compileOnly('com.github.GTNewHorizons:lwjgl3ify:3.0.25:api') { transitive = false }
+    compileOnly 'com.cleanroommc:lwjglxx:1.1.19'
+    compileOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
+    compileOnly 'org.lwjgl.lwjgl:lwjgl_util:2.9.4-nightly-20150209'
+    compileOnly 'org.lwjgl:lwjgl:3.4.1'
+    compileOnly 'org.lwjgl:lwjgl-opengl:3.4.1'
+    compileOnly('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
+
+    contain 'net.sf.jazzy:jazzy:0.5.2-rtext-1.4.1-2'
+
+    annotationProcessor files(provider {
+        rootProject.configurations.compileClasspath.findAll { it.name.startsWith('unimixins-') }
+    })
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testImplementation project(':')
+    testImplementation('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
+    testImplementation 'org.lwjgl:lwjgl:3.4.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly files(rootProject.tasks.named('compileJava').get().classpath)
+    testRuntimeOnly files(rootProject.sourceSets.main.output)
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    classpath += rootProject.tasks.named('compileJava').get().classpath
+    options.encoding = 'UTF-8'
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+def rootReobfJar = rootProject.tasks.named('reobfJar', ReobfuscatedJar)
+def mixinSrg = layout.buildDirectory.file('tmp/mixins/mixins.srg')
+def mixinRefMap = layout.buildDirectory.file('tmp/mixins/mixins.neofontrender_ui_enhancements.refmap.json')
+tasks.named('compileJava', JavaCompile) {
+    def reobfSrg = rootReobfJar.get().srg.locationOnly.get().asFile
+    inputs.file(rootReobfJar.flatMap { it.srg })
+    outputs.files(mixinSrg, mixinRefMap)
+    options.compilerArgs.addAll(
+            "-AreobfSrgFile=${reobfSrg}",
+            "-AoutSrgFile=${mixinSrg.get().asFile}",
+            "-AoutRefMapFile=${mixinRefMap.get().asFile}")
+}
+
+processResources {
+    exclude 'mixin.tabbychat2.json'
+    exclude 'litemod.json'
+    inputs.property('version', project.version)
+    filesMatching('mcmod.info') {
+        expand(version: project.version)
+    }
+    from(rootProject.file('src/main/resources/META-INF/LICENSE-Arc3D.txt')) {
+        into 'META-INF'
+        rename { 'LICENSE-ModernUI.txt' }
+    }
+    from('vendor/tabbychat-private/LICENSE-APACHE-2.0.txt') {
+        into 'META-INF'
+        rename { 'LICENSE-TabbyChat-2-Reforged.txt' }
+    }
+}
+
+jar {
+    archiveClassifier = 'dev'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(configurations.contain) { into '/' }
+    from(mixinRefMap)
+    from('NOTICE.md') {
+        into 'META-INF'
+        rename { 'NOTICE-NFR-UI-ENHANCEMENTS.md' }
+    }
+    manifest.attributes(
+            'FMLCorePlugin': 'neofontrender.addons.mixin.UiEnhancementsMixinLoader',
+            'FMLCorePluginContainsFMLMod': 'true',
+            'ContainedDeps': configurations.contain.collect { it.name }.join(' '),
+            'NonModDeps': true)
+}
+
+tasks.register('reobfJar', ReobfuscatedJar) {
+    setInputJarFromTask(tasks.named('jar', Jar))
+    archiveClassifier = ''
+    mcVersion.set(rootReobfJar.flatMap { it.mcVersion })
+    srg.set(rootReobfJar.flatMap { it.srg })
+    fieldCsv.set(rootReobfJar.flatMap { it.fieldCsv })
+    methodCsv.set(rootReobfJar.flatMap { it.methodCsv })
+    exceptorCfg.set(rootReobfJar.flatMap { it.exceptorCfg })
+    recompMcJar.set(rootReobfJar.flatMap { it.recompMcJar })
+    extraSrgEntries.set(rootReobfJar.flatMap { it.extraSrgEntries })
+    extraSrgFiles.from(rootReobfJar.map { it.extraSrgFiles }, mixinSrg)
+    referenceClasspath.from(rootReobfJar.map { it.referenceClasspath }, sourceSets.main.compileClasspath)
+}
+
+tasks.named('assemble') {
+    dependsOn tasks.named('reobfJar')
+}
+
+test {
+    useJUnitPlatform()
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+}

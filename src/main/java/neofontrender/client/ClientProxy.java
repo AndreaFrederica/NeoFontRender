@@ -8,6 +8,8 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import neofontrender.NeoFontRender;
 import neofontrender.common.CommonProxy;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.splash.ModernSplashDetector;
+import neofontrender.splash.SplashCompat;
 
 public class ClientProxy extends CommonProxy {
 
@@ -22,6 +24,15 @@ public class ClientProxy extends CommonProxy {
         super.init(event);
 
         NeofontrenderConfig.load();
+        if (ModernSplashDetector.isInstalled()) {
+            if (SplashCompat.isInstalled()) {
+                NeoFontRender.LOGGER.info("ModernSplash font override is active");
+            } else if (NeofontrenderConfig.splashFontOverrideEnabled()
+                    && NeofontrenderConfig.compatModernSplash()) {
+                NeoFontRender.LOGGER.warn("ModernSplash detected but font override was not installed. " +
+                        "This usually means ModernSplash changed its internal structure; splash screen will use the default bitmap font.");
+            }
+        }
         NeofontrenderKeyHandler.init();
         MinecraftForge.EVENT_BUS.register(new NeofontrenderMainMenuBranding());
         MinecraftForge.EVENT_BUS.register(new NeofontrenderOptionsButtonHandler());

@@ -4,16 +4,27 @@
  */
 configurations {
     embed
+    runtimeOnlyNonPublishable
     implementation.extendsFrom(embed)
+    runtimeClasspath.extendsFrom(runtimeOnlyNonPublishable)
 }
 
 dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
     // TOML configuration library (embedded so no extra jar needed at runtime)
     embed 'com.electronwill.night-config:core:3.8.3'
     embed 'com.electronwill.night-config:toml:3.8.3'
 
     // ModularUI2 for the in-game config GUI (1.7.10 GTNH fork; :dev jars are auto-deobfuscated)
     implementation("com.github.GTNewHorizons:ModularUI2:2.3.81-1.7.10:dev")
+
+    // Optional compatibility target used only by the development client; never published with the mod.
+    runtimeOnlyNonPublishable 'curse.maven:modern-splash-629058:8262480'
+
+    // Arc3D Core backs the public neofontrender.api.arc3d bridge and addon UI color math.
+    embed('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
 
     // Bundle all Skija native platforms that actually exist on Maven Central.
     // Runtime.load() will pick the matching native from the classpath.
@@ -25,6 +36,6 @@ dependencies {
 
     // LWJGL3 GLFW for the optional Skija isolated GPU offscreen context.
     // Compile-time only: runtime presence is detected and the feature stays off otherwise.
-    compileOnly 'org.lwjgl:lwjgl-glfw:3.3.6'
-    compileOnly 'org.lwjgl:lwjgl:3.3.6'
+    compileOnly 'org.lwjgl:lwjgl-glfw:3.4.1'
+    compileOnly 'org.lwjgl:lwjgl:3.4.1'
 }

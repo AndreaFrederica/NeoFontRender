@@ -16,7 +16,7 @@ import neofontrender.core.font.FontManager;
  */
 @SideOnly(Side.CLIENT)
 public final class NeoFontRenderApi {
-    public static final int API_VERSION = 1;
+    public static final int API_VERSION = 3;
 
     private NeoFontRenderApi() {}
 

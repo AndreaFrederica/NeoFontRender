@@ -36,6 +36,10 @@ jar {
     from(provider { configurations.embed.collect { it.isDirectory() ? it : zipTree(it) } })
 }
 
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
 // ---------------------------------------------------------------------------
 // cosmic-text native
 // ---------------------------------------------------------------------------

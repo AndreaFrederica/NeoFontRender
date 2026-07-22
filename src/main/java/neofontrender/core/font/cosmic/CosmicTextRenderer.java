@@ -458,6 +458,11 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             return advance;
         }
 
+        @Override public float visualLeft() { return offsetX; }
+        @Override public float visualRight() { return offsetX + width; }
+        @Override public float visualTop() { return offsetY; }
+        @Override public float visualBottom() { return offsetY + height; }
+
         private void touch() {
             lastAccessMillis = System.currentTimeMillis();
         }
@@ -575,6 +580,34 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         @Override
         public float advance() {
             return advance;
+        }
+
+        @Override
+        public float visualLeft() {
+            float left = 0.0F;
+            for (PositionedResult part : parts) left = Math.min(left, part.x + part.result.visualLeft());
+            return left;
+        }
+
+        @Override
+        public float visualRight() {
+            float right = advance;
+            for (PositionedResult part : parts) right = Math.max(right, part.x + part.result.visualRight());
+            return right;
+        }
+
+        @Override
+        public float visualTop() {
+            float top = 0.0F;
+            for (PositionedResult part : parts) top = Math.min(top, part.result.visualTop());
+            return top;
+        }
+
+        @Override
+        public float visualBottom() {
+            float bottom = 8.0F;
+            for (PositionedResult part : parts) bottom = Math.max(bottom, part.result.visualBottom());
+            return bottom;
         }
 
         @Override

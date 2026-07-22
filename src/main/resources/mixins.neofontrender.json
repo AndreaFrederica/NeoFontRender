@@ -13,6 +13,9 @@
 		"MixinGuiEditSign",
 		"MixinGuiTextField",
 		"MixinMinecraft",
+		"MixinModularRichTooltip",
+		"MixinModularTextField",
+		"MixinModularTextRenderer",
 		"MixinTileEntityRendererDispatcher",
 		"MixinTileEntitySignRenderer",
 		"MixinTextureManager"
