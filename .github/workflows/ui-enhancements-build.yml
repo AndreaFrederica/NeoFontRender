@@ -1,0 +1,100 @@
+name: UI Enhancements / Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'addons/ui-enhancements/**'
+      - 'src/main/java/icyllis/arc3d/**'
+      - 'src/main/java/neofontrender/api/**'
+      - 'src/main/resources/META-INF/LICENSE-Arc3D.txt'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/ui-enhancements-build.yml'
+      - '.github/workflows/ui-enhancements-release.yml'
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'addons/ui-enhancements/**'
+      - 'src/main/java/icyllis/arc3d/**'
+      - 'src/main/java/neofontrender/api/**'
+      - 'src/main/resources/META-INF/LICENSE-Arc3D.txt'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/ui-enhancements-build.yml'
+      - '.github/workflows/ui-enhancements-release.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-enhancements-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build remapped addon
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Grant execute permission for Gradle wrapper
+        run: |
+          sed -i 's/\r$//' gradlew
+          chmod +x gradlew
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '25'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Read addon version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^ui_enhancements_version[[:space:]]*=[[:space:]]*//p' gradle.properties | tr -d '\r' | xargs)"
+          test -n "$version"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test addon
+        run: ./gradlew :addons:ui-enhancements:build --no-daemon
+
+      - name: Validate installable JAR
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          set -euo pipefail
+          jar="addons/ui-enhancements/build/libs/neofontrender-ui-enhancements-${VERSION}.jar"
+          test -s "$jar"
+          entries="$(jar tf "$jar")"
+          grep -Fxq 'mcmod.info' <<<"$entries"
+          grep -Fxq 'mixins.neofontrender_ui_enhancements.json' <<<"$entries"
+          grep -Fxq 'neofontrender/addons/mixin/UiEnhancementsMixinLoader.class' <<<"$entries"
+          if [[ -e "addons/ui-enhancements/build/libs/neofontrender-ui-enhancements-${VERSION}-dev.jar" ]]; then
+            test "$jar" -nt "addons/ui-enhancements/build/libs/neofontrender-ui-enhancements-${VERSION}-dev.jar" || true
+          fi
+
+      - name: Upload addon artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neofontrender-ui-enhancements-${{ steps.version.outputs.value }}
+          path: addons/ui-enhancements/build/libs/neofontrender-ui-enhancements-${{ steps.version.outputs.value }}.jar
+          if-no-files-found: error
+          retention-days: 14

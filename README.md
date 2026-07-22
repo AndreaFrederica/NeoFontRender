@@ -40,6 +40,16 @@ Download the distribution that fits your installation and put it in the `mods` f
 
 Do not install `full` together with the split `core`, `resources`, or `skia` packages.
 
+### Optional UI Enhancements addon
+
+[NeoFontRender UI Enhancements](addons/ui-enhancements/README.md) is the optional companion mod for
+modern tooltips, configurable HUD bars, enhanced chat, smooth scrolling, text-field cursors, and
+screen transitions. It keeps its own configuration file while embedding its settings pages in the
+NeoFontRender settings screen.
+
+- [Addon documentation and build instructions](addons/ui-enhancements/README.md)
+- [Download UI Enhancements releases](https://github.com/AndreaFrederica/NeoFontRender/releases?q=ui-enhancements)
+
 ## Getting started
 
 Open the configuration screen with `O`; `P` opens the emoji test screen. The main configuration file is:

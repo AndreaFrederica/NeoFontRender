@@ -61,10 +61,10 @@ public final class NfrFontSettingsView extends ParentWidget<NfrFontSettingsView>
     private final java.util.function.IntSupplier formHeight;
 
     public NfrFontSettingsView(NfrSettingsDraft draft, NfrSettingsControls controls, Runnable preview,
-                               Runnable openFontFolder) {
+                               Runnable reloadAfterFontSelection, Runnable openFontFolder) {
         NfrFontFieldRefs refs = new NfrFontFieldRefs();
         NfrFontList[] listRef = new NfrFontList[1];
-        this.selector = selector(draft, controls, refs, listRef, preview, openFontFolder);
+        this.selector = selector(draft, controls, refs, listRef, reloadAfterFontSelection, openFontFolder);
         NfrFontForm fontForm = form(draft, controls, refs, preview);
         this.form = new NfrScrollablePane(fontForm);
         this.formHeight = fontForm::preferredHeight;
@@ -89,7 +89,8 @@ public final class NfrFontSettingsView extends ParentWidget<NfrFontSettingsView>
     }
 
     private static NfrFontSelector selector(NfrSettingsDraft d, NfrSettingsControls c, NfrFontFieldRefs refs,
-                                            NfrFontList[] listRef, Runnable preview, Runnable openFolder) {
+                                            NfrFontList[] listRef, Runnable reloadAfterSelection,
+                                            Runnable openFolder) {
         TextFieldWidget search = new TextFieldWidget().setMaxLength(128)
                 .value(new NfrStringValue(() -> d.search, value -> {
                     d.search = value;
@@ -110,7 +111,10 @@ public final class NfrFontSettingsView extends ParentWidget<NfrFontSettingsView>
                 font -> d.matchesSearch(font.displayName), d::isSelected, d::selectFont, () -> {
                     refs.refresh(d.fontName, d.fontPath, d.fontFallbacks, d.shadowMaskFonts,
                             d.cosmicRegular, d.cosmicBold, d.cosmicItalic, d.cosmicBoldItalic);
-                    preview.run();
+                    // FontManager reload swaps the FontRenderer used by every TextWidget and
+                    // TextField on this page. Rebuild the route so ModularUI does not keep stale
+                    // text layout, selection and scroll-area state from the previous renderer.
+                    reloadAfterSelection.run();
                 });
         listRef[0] = list;
         return new NfrFontSelector(label(tr("neofontrender.gui.label.search_fonts")), search, target, source,

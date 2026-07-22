@@ -473,6 +473,18 @@ public final class NeofontrenderConfig {
         return cached.laboratoryHexChat;
     }
 
+    public static boolean laboratoryTextUndoRedo() {
+        return cached.laboratoryTextUndoRedo;
+    }
+
+    public static boolean compatModernSplash() {
+        return cached.compatModernSplash;
+    }
+
+    public static boolean splashFontOverrideEnabled() {
+        return cached.splashFontOverrideEnabled;
+    }
+
     public static void setEnabled(boolean value) {
         setValue("enabled", value);
     }
@@ -583,6 +595,18 @@ public final class NeofontrenderConfig {
 
     public static void setLaboratoryHexChat(boolean value) {
         setValue("laboratory.hexChat", value);
+    }
+
+    public static void setLaboratoryTextUndoRedo(boolean value) {
+        setValue("laboratory.textUndoRedo", value);
+    }
+
+    public static void setCompatModernSplash(boolean value) {
+        setValue("compat.modernsplash.enabled", value);
+    }
+
+    public static void setSplashFontOverrideEnabled(boolean value) {
+        setValue("splash.enabled", value);
     }
 
     public static void setRenderingInterpolation(boolean value) {
@@ -752,6 +776,44 @@ public final class NeofontrenderConfig {
         }
     }
 
+    /** Internal bridge used by the public extension-config API. */
+    public static synchronized Object getExtensionValue(String key, Object defaultValue) {
+        ensureLoadedForExtensionApi();
+        return config.getOrElse(key, defaultValue);
+    }
+
+    public static synchronized boolean hasExtensionValue(String key) {
+        ensureLoadedForExtensionApi();
+        return config.contains(key);
+    }
+
+    public static synchronized Object removeExtensionValue(String key) {
+        ensureLoadedForExtensionApi();
+        return config.remove(key);
+    }
+
+    /** Internal bridge used by the public extension-config API. */
+    public static synchronized void setExtensionValue(String key, Object value) {
+        ensureLoadedForExtensionApi();
+        config.set(key, value);
+    }
+
+    /** Internal bridge used by the public extension-config API. */
+    public static synchronized void setExtensionComment(String key, String comment) {
+        ensureLoadedForExtensionApi();
+        config.setComment(key, comment);
+    }
+
+    /** Internal bridge used by the public extension-config API. */
+    public static synchronized void saveExtensionValues() {
+        ensureLoadedForExtensionApi();
+        config.save();
+    }
+
+    private static void ensureLoadedForExtensionApi() {
+        if (config == null) load();
+    }
+
     public static void load() {
         if (configPath == null) {
             configPath = new File(Minecraft.getMinecraft().gameDir, "config" + File.separator + CONFIG_NAME).toPath();
@@ -905,6 +967,13 @@ public final class NeofontrenderConfig {
             w.write("\n");
             w.write("[laboratory]\n");
             w.write("hexChat = false\n");
+            w.write("textUndoRedo = false\n");
+            w.write("\n");
+            w.write("[compat]\n");
+            w.write("modernsplash.enabled = true\n");
+            w.write("\n");
+            w.write("[splash]\n");
+            w.write("enabled = true\n");
             w.write("\n");
             w.write("[debug]\n");
             w.write("imeInput = false\n");
@@ -942,7 +1011,12 @@ public final class NeofontrenderConfig {
         config.setComment("shadow.maskFonts", "Comma-separated font families whose displayable code points skip shadows in mask mode.");
         config.setComment("shadow.maskCodepoints", "Comma-separated Unicode code points/ranges whose shadows are skipped, e.g. 1F300-1FAFF,2600-27BF.");
         config.setComment("input.fixUnicodeTextDeletion", "Delete a whole Unicode code point in text fields instead of half of an emoji surrogate pair.");
+        config.setComment("laboratory.textUndoRedo", "Enable per-field undo/redo history in vanilla and ModularUI text inputs (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z).");
         config.setComment("laboratory.hexChat", "Experimental #RRGGBB chat rendering for Skia/Cosmic text backends.");
+        config.setComment("compat", "Compatibility options for third-party mods.");
+        config.setComment("compat.modernsplash.enabled", "Allow the loading-screen font override to patch ModernSplash when it is installed. Requires splash.enabled and a restart.");
+        config.setComment("splash", "Forge loading-screen font replacement options.");
+        config.setComment("splash.enabled", "Replace the Forge loading-screen bitmap font with the configured TTF font. Restart required.");
         config.setComment("rendering", "OpenGL texture rendering options.");
         config.setComment("rendering.engine", "Text renderer engine: vanilla, sfr, skia, or cosmic.");
         config.setComment("rendering.skiaAdvancedStringMode", "In Skia mode, render full formatted strings as one paragraph so shaping, ligatures, kerning, emoji ZWJ, and BiDi can work across the whole text. Disable to use legacy per-format-run rendering.");
@@ -1045,6 +1119,9 @@ public final class NeofontrenderConfig {
         private final boolean allowSignPaste;
         private final boolean fixUnicodeTextDeletion;
         private final boolean laboratoryHexChat;
+        private final boolean laboratoryTextUndoRedo;
+        private final boolean compatModernSplash;
+        private final boolean splashFontOverrideEnabled;
         private final int fontStyle;
         private final int fontVariableWeight;
         private final boolean cosmicVariantOverridesOnlySwitchFont;
@@ -1127,6 +1204,9 @@ public final class NeofontrenderConfig {
             allowSignPaste = true;
             fixUnicodeTextDeletion = true;
             laboratoryHexChat = false;
+            laboratoryTextUndoRedo = false;
+            compatModernSplash = true;
+            splashFontOverrideEnabled = true;
             fontStyle = 0;
             fontVariableWeight = 0;
             cosmicVariantOverridesOnlySwitchFont = false;
@@ -1210,6 +1290,9 @@ public final class NeofontrenderConfig {
             allowSignPaste = config.getOrElse("input.allowSignPaste", true);
             fixUnicodeTextDeletion = config.getOrElse("input.fixUnicodeTextDeletion", true);
             laboratoryHexChat = config.getOrElse("laboratory.hexChat", false);
+            laboratoryTextUndoRedo = config.getOrElse("laboratory.textUndoRedo", false);
+            compatModernSplash = config.getOrElse("compat.modernsplash.enabled", true);
+            splashFontOverrideEnabled = config.getOrElse("splash.enabled", true);
             fontStyle = config.getOrElse("font.style", 0);
             fontVariableWeight = Math.max(0, Math.min(1000, getInt(config, "font.variableWeight", 0)));
             cosmicVariantOverridesOnlySwitchFont = config.getOrElse("font.cosmic.variantOverridesOnlySwitchFont", false);

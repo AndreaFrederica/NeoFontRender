@@ -1,0 +1,13 @@
+[
+  {
+    "modid": "neofontrender_ui_enhancements",
+    "name": "NFR UI Enhancements",
+    "version": "${version}",
+    "mcversion": "1.12.2",
+    "description": "Optional UI improvements powered by Neo Font Render, including modern tooltips.",
+    "authorList": ["AndreaFrederica"],
+    "url": "https://github.com/AndreaFrederica/NeoFontRender-UIEnhancements",
+    "clientSideOnly": true,
+    "requiredMods": ["neofontrender"]
+  }
+]

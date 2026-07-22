@@ -15,6 +15,7 @@ import java.util.Map;
  */
 @IFMLLoadingPlugin.Name("NeofontrenderMixinLoader")
 @IFMLLoadingPlugin.MCVersion("1.12.2")
+@IFMLLoadingPlugin.SortingIndex(2000)
 public class NeofontrenderMixinLoader implements IFMLLoadingPlugin, IEarlyMixinLoader {
 
     @Override
@@ -24,7 +25,7 @@ public class NeofontrenderMixinLoader implements IFMLLoadingPlugin, IEarlyMixinL
 
     @Override
     public String[] getASMTransformerClass() {
-        return new String[0];
+        return new String[] { "neofontrender.splash.SplashProgressTransformer" };
     }
 
     @Override

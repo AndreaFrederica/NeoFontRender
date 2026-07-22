@@ -1,0 +1,119 @@
+plugins {
+    id 'java'
+    id 'java-library'
+    id 'xyz.wagyourtail.unimined' version '1.4.26-kappa'
+}
+
+group = 'neofontrender.addons'
+version = providers.gradleProperty('ui_enhancements_version').get()
+
+base { archivesName = 'neofontrender-ui-enhancements' }
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.cleanroommc.com/releases' }
+    maven { url = 'https://maven.minecraftforge.net/' }
+}
+
+configurations {
+    contain
+    implementation.extendsFrom(contain)
+}
+
+sourceSets {
+    main {
+        java.srcDir 'vendor/tabbychat-upstream/src/main/java'
+        resources.srcDir 'vendor/tabbychat-upstream/src/main/resources'
+        java.exclude 'mnm/mods/tabbychat/TabbyChatLoadingPlugin.java'
+    }
+}
+
+unimined.minecraft {
+    version '1.12.2'
+    mappings { mcp('stable', '39-1.12') }
+    cleanroom { loader '0.5.17-alpha' }
+    defaultRemapJar = false
+    remap(tasks.named('jar').get())
+}
+
+dependencies {
+    compileOnly project(':')
+    compileOnly('com.cleanroommc:modularui:3.1.6') { transitive = false }
+
+    // Cleanroom exposes the real LWJGL 3 API and translates Minecraft's old LWJGL 2 calls
+    // through lwjglxx. Never bundle lwjgl core or natives in this addon.
+    compileOnly 'com.cleanroommc:lwjglxx:1.1.19'
+    // Compile-time signatures used by Minecraft 1.12. Cleanroom replaces these classes at runtime.
+    compileOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
+    compileOnly 'org.lwjgl.lwjgl:lwjgl_util:2.9.4-nightly-20150209'
+    compileOnly 'org.lwjgl:lwjgl:3.4.1'
+    compileOnly 'org.lwjgl:lwjgl-opengl:3.4.1'
+
+    // Embedded TabbyChat spell-check engine. FML extracts this nested jar at launch.
+    contain 'net.sf.jazzy:jazzy:0.5.2-rtext-1.4.1-2'
+
+    // Arc3D Core is distributed by the required NFR main mod. Compile against the same public
+    // upstream packages without embedding a duplicate copy in this addon.
+    compileOnly('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testImplementation project(':')
+    testImplementation('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
+    testImplementation 'org.lwjgl:lwjgl:3.4.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+processResources {
+    exclude 'mixin.tabbychat2.json'
+    exclude 'litemod.json'
+    inputs.property('version', project.version)
+    filesMatching('mcmod.info') { expand(version: project.version) }
+    from(rootProject.file('src/main/resources/META-INF/LICENSE-Arc3D.txt')) {
+        into 'META-INF'
+        rename { 'LICENSE-ModernUI.txt' }
+    }
+    from('vendor/tabbychat-upstream/LICENCE') {
+        into 'META-INF'
+        rename { 'LICENSE-TabbyChat-2-Reforged.txt' }
+    }
+}
+
+jar {
+    archiveClassifier = 'dev'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(configurations.contain) { into '/' }
+    doFirst {
+        def attributes = [
+                'ModType': 'CRL',
+                'FMLCorePlugin': 'neofontrender.addons.mixin.UiEnhancementsMixinLoader',
+                'FMLCorePluginContainsFMLMod': true
+        ]
+        if (!configurations.contain.isEmpty()) {
+            attributes['ContainedDeps'] = configurations.contain.collect { it.name }.join(' ')
+            attributes['NonModDeps'] = true
+        }
+        manifest.attributes(attributes)
+    }
+    finalizedBy tasks.named('remapJar')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
+}
+
+test {
+    useJUnitPlatform()
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+}
+
+jar {
+    from('NOTICE.md') {
+        into 'META-INF'
+        rename { 'NOTICE-NFR-UI-ENHANCEMENTS.md' }
+    }
+}

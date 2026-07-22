@@ -17,3 +17,5 @@ plugins {
 }
 
 rootProject.name = rootProject.projectDir.getName()
+
+include 'addons:ui-enhancements'

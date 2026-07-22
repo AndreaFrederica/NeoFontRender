@@ -31,6 +31,9 @@ import neofontrender.client.gui.views.NfrLicensesSettingsView;
 import neofontrender.client.gui.views.NfrPerformanceSettingsView;
 import neofontrender.client.gui.views.NfrRenderingSettingsView;
 import neofontrender.client.gui.views.NfrShadowSettingsView;
+import neofontrender.api.client.settings.NfrSettingsPageContext;
+import neofontrender.api.client.settings.NfrSettingsPageRegistry;
+import neofontrender.api.client.settings.NfrSettingsPageSession;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.skia.SkijaRuntimeSupport;
@@ -40,6 +43,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /** Settings entry point and route controller. Page content lives under {@code gui.views}. */
 @SideOnly(Side.CLIENT)
@@ -54,53 +59,66 @@ public final class NeofontrenderConfigScreen {
 
     public static void open(net.minecraft.client.gui.GuiScreen parent) {
         returnScreen = parent;
-        openRoute(new NfrSettingsDraft(), NfrSettingsRoute.FONT);
+        ScreenSession session = new ScreenSession(new NfrSettingsDraft());
+        openRoute(session, Route.builtin(NfrSettingsRoute.FONT));
     }
 
-    private static void openRoute(NfrSettingsDraft draft, NfrSettingsRoute route) {
-        ClientGUI.open(createScreen(buildPanel(draft, route)));
+    private static void openRoute(ScreenSession session, Route route) {
+        ClientGUI.open(createScreen(buildPanel(session, route)));
     }
 
-    private static ModularPanel buildPanel(NfrSettingsDraft draft, NfrSettingsRoute route) {
-        ModularPanel panel = new ModularPanel("font_config_" + route.name().toLowerCase())
+    private static ModularPanel buildPanel(ScreenSession session, Route route) {
+        ModularPanel panel = new ModularPanel("font_config_" + route.panelId())
                 .relativeToScreen()
                 .full();
         configureRootBackground(panel);
-        panel.child(new NfrSettingsPage(buildLayout(draft, route)).relativeToParent().full());
+        panel.child(new NfrSettingsPage(buildLayout(session, route)).relativeToParent().full());
         return panel;
     }
 
-    private static NfrSettingsLayout buildLayout(NfrSettingsDraft draft, NfrSettingsRoute route) {
+    private static NfrSettingsLayout buildLayout(ScreenSession session, Route route) {
+        NfrSettingsDraft draft = session.draft;
         TextWidget title = new TextWidget(IKey.str(tr("neofontrender.gui.title")
-                + (route == NfrSettingsRoute.FONT ? "" : " / " + tr(route.titleKey))))
+                + (route.isFont() ? "" : " / " + route.title())))
                 .alignment(Alignment.CenterLeft)
                 .color(0xFFFFFF);
-        NfrSettingsTabs tabs = tabs(draft, route);
+        NfrSettingsTabs tabs = tabs(session, route);
         NfrScrollablePane tabsPane = new NfrScrollablePane(tabs);
         NfrSettingsControls controls = new NfrSettingsControls(draft, () -> preview(draft),
-                id -> reloadAndOpen(draft, NfrSettingsRoute.byId(id)), NeofontrenderConfigScreen::skiaAvailable);
-        IWidget view = view(draft, route, controls);
-        IWidget auxiliary = route == NfrSettingsRoute.FONT
+                id -> reloadAndOpen(session, NfrSettingsRoute.byId(id)), NeofontrenderConfigScreen::skiaAvailable);
+        IWidget view = view(session, route, controls);
+        IWidget auxiliary = route.isFont()
                 ? controls.action("neofontrender.gui.button.preview", 90, 20, () -> preview(draft))
                 : controls.action("neofontrender.gui.button.back", 80, 20,
-                        () -> openRoute(draft, NfrSettingsRoute.FONT));
+                        () -> openRoute(session, Route.builtin(NfrSettingsRoute.FONT)));
         NfrSettingsFooter footer = new NfrSettingsFooter(auxiliary,
                 controls.action("neofontrender.gui.button.apply", 80, 20, () -> {
-                    apply(draft);
+                    apply(session);
                     closeToParent();
                 }),
                 controls.action("neofontrender.gui.button.cancel", 80, 20, () -> {
                     draft.restoreOriginal();
+                    session.cancelExtensions();
                     reloadFontManager();
                     closeToParent();
                 }));
         return new NfrSettingsLayout(title, tabsPane, view, footer, tabs::preferredHeight, draft.categoryScroll);
     }
 
-    private static IWidget view(NfrSettingsDraft draft, NfrSettingsRoute route, NfrSettingsControls controls) {
+    private static IWidget view(ScreenSession screen, Route selected, NfrSettingsControls controls) {
+        NfrSettingsDraft draft = screen.draft;
+        if (selected.extension != null) {
+            NfrSettingsPageSession session = screen.extensionSessions.get(selected.extension.id());
+            NfrSettingsControls extensionControls = new NfrSettingsControls(draft, session::preview,
+                    id -> reloadAndOpen(screen, NfrSettingsRoute.byId(id)), NeofontrenderConfigScreen::skiaAvailable);
+            return session.createView(new NfrSettingsPageContext(extensionControls,
+                    () -> openRoute(screen, selected)));
+        }
+        NfrSettingsRoute route = selected.builtin;
         switch (route) {
             case FONT:
                 return new NfrFontSettingsView(draft, controls, () -> preview(draft),
+                        () -> reloadAndOpen(screen, NfrSettingsRoute.FONT),
                         NeofontrenderConfigScreen::openFontFolder);
             case GENERAL:
                 return new NfrGeneralSettingsView(draft, controls, route.id);
@@ -127,13 +145,26 @@ public final class NeofontrenderConfigScreen {
         }
     }
 
-    private static NfrSettingsTabs tabs(NfrSettingsDraft draft, NfrSettingsRoute selected) {
+    private static NfrSettingsTabs tabs(ScreenSession session, Route selected) {
         List<NfrSettingsTabs.Tab> items = new ArrayList<>();
         for (NfrSettingsRoute route : NfrSettingsRoute.values()) {
-            items.add(new NfrSettingsTabs.Tab(() -> tr(route.titleKey), route == selected,
-                    () -> openRoute(draft, route)));
+            if (route != NfrSettingsRoute.ABOUT && route != NfrSettingsRoute.LICENSES) {
+                addBuiltinTab(items, session, selected, route);
+            }
         }
-        return new NfrSettingsTabs(items, scroll -> draft.categoryScroll = scroll);
+        for (neofontrender.api.client.settings.NfrSettingsPage page : session.extensionPages) {
+            items.add(new NfrSettingsTabs.Tab(page::title, selected.extension == page,
+                    () -> openRoute(session, Route.extension(page))));
+        }
+        addBuiltinTab(items, session, selected, NfrSettingsRoute.ABOUT);
+        addBuiltinTab(items, session, selected, NfrSettingsRoute.LICENSES);
+        return new NfrSettingsTabs(items, scroll -> session.draft.categoryScroll = scroll);
+    }
+
+    private static void addBuiltinTab(List<NfrSettingsTabs.Tab> items, ScreenSession session, Route selected,
+                                      NfrSettingsRoute route) {
+        items.add(new NfrSettingsTabs.Tab(() -> tr(route.titleKey), selected.builtin == route,
+                () -> openRoute(session, Route.builtin(route))));
     }
 
     private static ModularScreen createScreen(ModularPanel panel) {
@@ -147,10 +178,10 @@ public final class NeofontrenderConfigScreen {
         }
     }
 
-    private static void reloadAndOpen(NfrSettingsDraft draft, NfrSettingsRoute route) {
-        draft.writeToConfig(false);
+    private static void reloadAndOpen(ScreenSession session, NfrSettingsRoute route) {
+        session.draft.writeToConfig(false);
         reloadFontManager();
-        openRoute(draft, route);
+        openRoute(session, Route.builtin(route));
     }
 
     private static void preview(NfrSettingsDraft draft) {
@@ -159,9 +190,42 @@ public final class NeofontrenderConfigScreen {
         reloadFontManager();
     }
 
-    private static void apply(NfrSettingsDraft draft) {
-        draft.writeToConfig(true);
+    private static void apply(ScreenSession session) {
+        session.draft.writeToConfig(true);
+        session.applyExtensions();
         reloadFontManager();
+    }
+
+    private static final class ScreenSession {
+        private final NfrSettingsDraft draft;
+        private final List<neofontrender.api.client.settings.NfrSettingsPage> extensionPages;
+        private final Map<String, NfrSettingsPageSession> extensionSessions = new LinkedHashMap<>();
+
+        private ScreenSession(NfrSettingsDraft draft) {
+            this.draft = draft;
+            this.extensionPages = NfrSettingsPageRegistry.snapshot();
+            for (neofontrender.api.client.settings.NfrSettingsPage page : extensionPages) {
+                NfrSettingsPageSession session = page.createSession();
+                if (session == null) throw new IllegalStateException("Settings page returned a null session: " + page.id());
+                extensionSessions.put(page.id(), session);
+            }
+        }
+
+        private void applyExtensions() { for (NfrSettingsPageSession session : extensionSessions.values()) session.apply(); }
+        private void cancelExtensions() { for (NfrSettingsPageSession session : extensionSessions.values()) session.cancel(); }
+    }
+
+    private static final class Route {
+        private final NfrSettingsRoute builtin;
+        private final neofontrender.api.client.settings.NfrSettingsPage extension;
+        private Route(NfrSettingsRoute builtin, neofontrender.api.client.settings.NfrSettingsPage extension) {
+            this.builtin = builtin; this.extension = extension;
+        }
+        private static Route builtin(NfrSettingsRoute route) { return new Route(route, null); }
+        private static Route extension(neofontrender.api.client.settings.NfrSettingsPage page) { return new Route(null, page); }
+        private boolean isFont() { return builtin == NfrSettingsRoute.FONT; }
+        private String title() { return extension != null ? extension.title() : tr(builtin.titleKey); }
+        private String panelId() { return extension != null ? extension.id().replace(':', '_') : builtin.name().toLowerCase(); }
     }
 
     private static void reloadFontManager() {

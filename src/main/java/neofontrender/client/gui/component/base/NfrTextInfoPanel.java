@@ -19,6 +19,10 @@ public final class NfrTextInfoPanel extends ParentWidget<NfrTextInfoPanel> imple
         this.lines = Arrays.asList(lines);
     }
 
+    public NfrTextInfoPanel(List<Line> lines) {
+        this.lines = new java.util.ArrayList<>(lines);
+    }
+
     public int preferredHeight() {
         int lineHeight = lineHeight();
         int height = 4;
@@ -66,6 +70,10 @@ public final class NfrTextInfoPanel extends ParentWidget<NfrTextInfoPanel> imple
 
     public static Line spaced(Supplier<String> text, int color) {
         return new Line(text, color, 9);
+    }
+
+    public static Line line(Supplier<String> text, int color, int gapBefore) {
+        return new Line(text, color, Math.max(0, gapBefore));
     }
 
     public static final class Line {

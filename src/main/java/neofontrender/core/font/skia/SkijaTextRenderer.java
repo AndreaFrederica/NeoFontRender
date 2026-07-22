@@ -2202,6 +2202,11 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return advance;
         }
 
+        @Override public float visualLeft() { return horizontalOffset; }
+        @Override public float visualRight() { return horizontalOffset + drawWidth; }
+        @Override public float visualTop() { return verticalOffset; }
+        @Override public float visualBottom() { return verticalOffset + drawHeight; }
+
         public void draw(float x, float y, float alpha) {
             drawTinted(x, y, alpha, 0xFFFFFFFF);
         }
@@ -2342,6 +2347,11 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return rendered.advance();
         }
 
+        @Override public float visualLeft() { return rendered.visualLeft(); }
+        @Override public float visualRight() { return rendered.visualRight(); }
+        @Override public float visualTop() { return rendered.visualTop(); }
+        @Override public float visualBottom() { return rendered.visualBottom(); }
+
         @Override
         public void draw(float x, float y, float alpha) {
             rendered.drawTinted(x, y, alpha, argb);
@@ -2360,6 +2370,34 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         @Override
         public float advance() {
             return advance;
+        }
+
+        @Override
+        public float visualLeft() {
+            float left = 0.0F;
+            for (CompositePiece piece : pieces) left = Math.min(left, piece.offsetX + piece.result.visualLeft());
+            return left;
+        }
+
+        @Override
+        public float visualRight() {
+            float right = advance;
+            for (CompositePiece piece : pieces) right = Math.max(right, piece.offsetX + piece.result.visualRight());
+            return right;
+        }
+
+        @Override
+        public float visualTop() {
+            float top = 0.0F;
+            for (CompositePiece piece : pieces) top = Math.min(top, piece.result.visualTop());
+            return top;
+        }
+
+        @Override
+        public float visualBottom() {
+            float bottom = 8.0F;
+            for (CompositePiece piece : pieces) bottom = Math.max(bottom, piece.result.visualBottom());
+            return bottom;
         }
 
         @Override

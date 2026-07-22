@@ -1,0 +1,21 @@
+# gradle logs
+.gradle
+*.log
+
+# IDE project files
+# eclipse
+.project
+.classpath
+.settings/
+*.launch
+
+# IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# build
+bin/
+build/
+run/
