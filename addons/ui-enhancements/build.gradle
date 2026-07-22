@@ -88,12 +88,13 @@ tasks.named('compileJava', JavaCompile) {
             "-AoutRefMapFile=${mixinRefMap.get().asFile}")
 }
 
+def resourceVersion = project.version.toString()
 processResources {
     exclude 'mixin.tabbychat2.json'
     exclude 'litemod.json'
-    inputs.property('version', project.version)
+    inputs.property('version', resourceVersion)
     filesMatching('mcmod.info') {
-        expand(version: project.version)
+        expand(version: resourceVersion)
     }
     from(rootProject.file('src/main/resources/META-INF/LICENSE-Arc3D.txt')) {
         into 'META-INF'
