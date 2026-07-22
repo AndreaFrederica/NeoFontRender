@@ -10,6 +10,7 @@
   "client": [
     "AccessorShaderGroup",
     "AccessorGuiContainer",
+    "MixinGuiChatAnimation",
     "MixinGuiContainerCreativeSmoothScroll",
     "MixinGuiNewChatSmoothScroll",
     "MixinGuiNewChatHistory",
@@ -18,7 +19,10 @@
     "MixinGuiSlotSmoothScroll",
     "MixinGuiTextFieldCursor",
     "MixinModularTextFieldCursor",
+    "compat.MixinObscureHeaderComponent",
     "compat.MixinObscureTooltipState",
+    "compat.MixinHeiCollapsedGroupTooltip",
+    "compat.MixinHeiTooltipRenderer",
     "tabbychat.IChatTabCompleter",
     "tabbychat.MixinChatTabCompleter",
     "tabbychat.MixinGuiChat",

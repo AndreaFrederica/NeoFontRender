@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiNewChat;
 import net.minecraft.client.renderer.GlStateManager;
 import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
 import neofontrender.addons.scrolling.SmoothScrollController;
+import neofontrender.addons.chat.ChatAnimationController;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -26,6 +27,11 @@ public abstract class MixinGuiNewChatSmoothScroll {
     @Unique private final SmoothScrollController nfrUi$scroller = new SmoothScrollController();
     @Unique private boolean nfrUi$translated;
     @Unique private float nfrUi$fraction;
+
+    @Inject(method = "printChatMessageWithOptionalDeletion", at = @At("HEAD"))
+    private void nfrUi$messageAdded(net.minecraft.util.text.ITextComponent component, int id, CallbackInfo ci) {
+        ChatAnimationController.messageAdded();
+    }
 
     @Inject(method = "scroll", at = @At("HEAD"), cancellable = true)
     private void nfrUi$smoothScroll(int amount, CallbackInfo ci) {
@@ -53,9 +59,11 @@ public abstract class MixinGuiNewChatSmoothScroll {
         isScrolled = position > 0.0F;
         float fraction = position - scrollPos;
         nfrUi$fraction = fraction;
-        if (fraction > 0.001F) {
+        float messageOffset = ChatAnimationController.messageOffset(scrollPos != 0) * getChatScale();
+        float totalOffset = fraction * 9.0F * getChatScale() + messageOffset;
+        if (Math.abs(totalOffset) > 0.001F) {
             GlStateManager.pushMatrix();
-            GlStateManager.translate(0.0F, fraction * 9.0F * getChatScale(), 0.0F);
+            GlStateManager.translate(0.0F, totalOffset, 0.0F);
             nfrUi$translated = true;
         }
     }

@@ -15,6 +15,9 @@ final class TooltipConfig {
     static String renderStyle = "modernui";
     static boolean yieldToLegendaryTooltips = true;
     static boolean yieldToObscureTooltips = false;
+    static boolean heiCustomTooltips = true;
+    static boolean modNameEnabled = true;
+    static String modNameFormat = "blue italic";
     static boolean rounded = true;
     static boolean centerTitle = true;
     static boolean titleBreak = true;
@@ -53,6 +56,9 @@ final class TooltipConfig {
         renderStyle = normalizeStyle(config.getString("tooltip.style", "modernui"));
         yieldToLegendaryTooltips = config.getBoolean("tooltip.yieldToLegendaryTooltips", true);
         yieldToObscureTooltips = config.getBoolean("tooltip.yieldToObscureTooltips", false);
+        heiCustomTooltips = config.getBoolean("tooltip.heiCustomTooltips", true);
+        modNameEnabled = config.getBoolean("tooltip.modName.enabled", true);
+        modNameFormat = config.getString("tooltip.modName.format", "blue italic");
         rounded = config.getBoolean("tooltip.rounded", true);
         centerTitle = config.getBoolean("tooltip.centerTitle", true);
         titleBreak = config.getBoolean("tooltip.titleBreak", true);
@@ -89,6 +95,9 @@ final class TooltipConfig {
                 .set("tooltip.style", renderStyle)
                 .set("tooltip.yieldToLegendaryTooltips", yieldToLegendaryTooltips)
                 .set("tooltip.yieldToObscureTooltips", yieldToObscureTooltips)
+                .set("tooltip.heiCustomTooltips", heiCustomTooltips)
+                .set("tooltip.modName.enabled", modNameEnabled)
+                .set("tooltip.modName.format", modNameFormat)
                 .set("tooltip.rounded", rounded)
                 .set("tooltip.centerTitle", centerTitle)
                 .set("tooltip.titleBreak", titleBreak)
@@ -127,6 +136,9 @@ final class TooltipConfig {
                 .define("tooltip.style", "modernui", "Renderer style: modernui, mica or legacy.")
                 .define("tooltip.yieldToLegendaryTooltips", true, "Yield when LegendaryTooltips is installed.")
                 .define("tooltip.yieldToObscureTooltips", false, "Let Obscure Tooltips draw its own panel and frame instead of combining its effects with NFR's modern panel.")
+                .define("tooltip.heiCustomTooltips", true, "Apply NFR's panel and frame to HEI tooltips that contain custom-rendered ingredient grids.")
+                .define("tooltip.modName.enabled", true, "Append the owning mod's display name to item tooltips.")
+                .define("tooltip.modName.format", "blue italic", "Space-separated TextFormatting friendly names; empty means unformatted.")
                 .define("tooltip.rounded", true, "Draw rounded antialiased corners.")
                 .define("tooltip.centerTitle", true, "Center the first tooltip line.")
                 .define("tooltip.titleBreak", true, "Draw a divider after the title.")
@@ -219,6 +231,9 @@ final class TooltipConfig {
         private final String originalRenderStyle = renderStyle;
         private final boolean originalYield = yieldToLegendaryTooltips;
         private final boolean originalYieldObscure = yieldToObscureTooltips;
+        private final boolean originalHeiCustomTooltips = heiCustomTooltips;
+        private final boolean originalModNameEnabled = modNameEnabled;
+        private final String originalModNameFormat = modNameFormat;
         private final boolean originalRounded = rounded;
         private final boolean originalCenterTitle = centerTitle;
         private final boolean originalTitleBreak = titleBreak;
@@ -252,6 +267,8 @@ final class TooltipConfig {
             enabled = originalEnabled; renderStyle = originalRenderStyle;
             yieldToLegendaryTooltips = originalYield; rounded = originalRounded;
             yieldToObscureTooltips = originalYieldObscure;
+            heiCustomTooltips = originalHeiCustomTooltips;
+            modNameEnabled = originalModNameEnabled; modNameFormat = originalModNameFormat;
             centerTitle = originalCenterTitle; titleBreak = originalTitleBreak; adaptiveBorder = originalAdaptive;
             borderShading = originalBorderShading; borderCycleMillis = originalBorderCycleMillis;
             cornerRadius = originalCorner; borderWidth = originalBorder; shadowRadius = originalShadow;

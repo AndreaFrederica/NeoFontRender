@@ -26,6 +26,7 @@ import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
 import neofontrender.addons.scrolling.SmoothScrollController;
 import neofontrender.addons.chat.ChatStyleConfig;
 import neofontrender.addons.chat.ChatStyleRenderer;
+import neofontrender.addons.chat.ChatAnimationController;
 
 import java.awt.Dimension;
 import java.awt.Point;
@@ -125,10 +126,17 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         int xPos = getBounds().x + 3;
         float fraction = nfrUi$displayScroll - (float) Math.floor(nfrUi$displayScroll);
         int yPos = getBounds().height + Math.round(fraction * mc.fontRenderer.FONT_HEIGHT);
+        float messageOffset = ChatAnimationController.messageOffset(getScrollPos() != 0);
+        boolean translated = Math.abs(messageOffset) > 0.001F;
+        if (translated) {
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(0.0F, messageOffset, 0.0F);
+        }
         for (Message line : visible) {
             yPos -= mc.fontRenderer.FONT_HEIGHT;
             drawChatLine(line, xPos, yPos);
         }
+        if (translated) GlStateManager.popMatrix();
         zLevel = 0;
         GlStateManager.disableAlpha();
         GlStateManager.disableBlend();

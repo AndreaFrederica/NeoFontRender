@@ -8,6 +8,7 @@ import mnm.mods.tabbychat.api.events.ChatScreenEvents.ChatInitEvent;
 import mnm.mods.tabbychat.core.GuiNewChatTC;
 import mnm.mods.util.gui.GuiComponent;
 import mnm.mods.util.gui.GuiText;
+import mnm.mods.util.ILocation;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
@@ -20,6 +21,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import neofontrender.addons.chat.EnhancedChatConfigAccess;
+import neofontrender.addons.input.TextCursorManager;
 
 import java.io.IOException;
 import java.util.List;
@@ -86,6 +88,17 @@ public abstract class MixinGuiChat extends GuiScreen implements ITabCompleter {
     @Inject(method = "updateScreen()V", at = @At("RETURN"))
     private void onUpdateScreen(CallbackInfo ci) {
         this.componentList.forEach(GuiComponent::updateComponent);
+    }
+
+    @Inject(method = "drawScreen(IIF)V", at = @At("HEAD"))
+    private void nfrUi$updateTextCursor(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled() || this.chat == null) return;
+        // The embedded text box is drawn during the HUD pass, before TextInputModule starts the
+        // GuiScreen frame and clears cursor requests. Request the cursor here instead, using the
+        // component's fully scaled screen bounds rather than TabbyChat's raw LWJGL draw coords.
+        ILocation bounds = this.chat.getChatBox().getChatInput().getActualLocation();
+        TextCursorManager.textFieldDrawn(bounds.getXPos(), bounds.getYPos(),
+                bounds.getWidth(), bounds.getHeight(), true, true);
     }
 
     @Inject(method = "onGuiClosed()V", at = @At("RETURN"))

@@ -12,6 +12,10 @@ final class ModernTooltipHandler {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onTooltip(RenderTooltipEvent.Pre event) {
         if (!TooltipConfig.enabled || !Arc3DRuntimeSupport.isAvailable() || event.isCanceled()) return;
+        // HEI's ingredient-grid tooltips post Pre for compatibility, but their item icons are
+        // rendered after the event. Cancelling here would replace the text and silently lose the
+        // grid, so let HEI finish the content while its dedicated mixin replaces only the panel.
+        if (HeiTooltipCompat.isCustomTooltipActive()) return;
         if (TooltipConfig.yieldToLegendaryTooltips && Loader.isModLoaded("legendarytooltips")) {
             if (!warnedLegendary) {
                 warnedLegendary = true;

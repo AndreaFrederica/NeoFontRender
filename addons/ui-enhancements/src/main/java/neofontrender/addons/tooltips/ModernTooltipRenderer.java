@@ -183,6 +183,44 @@ final class ModernTooltipRenderer {
         }
     }
 
+    /** Draws NFR's title divider inside a foreign tooltip while preserving its content renderer. */
+    static void drawCompatibleDivider(int x, int y, int width, ItemStack stack) {
+        if (!TooltipConfig.titleBreak || width <= 0) return;
+
+        int[] border = TooltipConfig.borderColors.clone();
+        boolean spectrum = false;
+        if (TooltipConfig.adaptiveBorder && stack != null && !stack.isEmpty()) {
+            AdaptiveBorderColors.Result adaptive = AdaptiveBorderColors.compute(stack, stack.getDisplayName(), border);
+            border = adaptive.colors;
+            spectrum = adaptive.spectrum;
+        }
+        spectrum |= "spectrum".equals(TooltipConfig.borderShading);
+        applyBorderShading(border, TooltipConfig.borderShading);
+        if (spectrum) applyFallbackSpectrum(border);
+
+        GlStateManager.disableTexture2D();
+        GlStateManager.enableBlend();
+        GlStateManager.disableAlpha();
+        GlStateManager.tryBlendFuncSeparate(
+                GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SourceFactor.ONE,
+                GlStateManager.DestFactor.ZERO);
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        try {
+            drawQuad(x, y, x + width, y + 1.0F,
+                    withAlpha(border[3], TooltipConfig.dividerAlpha),
+                    withAlpha(border[2], TooltipConfig.dividerAlpha),
+                    withAlpha(border[2], TooltipConfig.dividerAlpha),
+                    withAlpha(border[3], TooltipConfig.dividerAlpha));
+        } finally {
+            GlStateManager.shadeModel(GL11.GL_FLAT);
+            GlStateManager.enableAlpha();
+            GlStateManager.disableBlend();
+            GlStateManager.enableTexture2D();
+        }
+    }
+
     private static void drawText(TooltipLayout layout, FontRenderer font) {
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();

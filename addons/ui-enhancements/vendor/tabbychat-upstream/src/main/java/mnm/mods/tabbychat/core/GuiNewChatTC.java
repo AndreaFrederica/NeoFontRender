@@ -14,6 +14,7 @@ import mnm.mods.tabbychat.gui.ChatBox;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiNewChat;
 import neofontrender.addons.chat.ChatHistoryManager;
+import neofontrender.addons.chat.ChatAnimationController;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraftforge.common.MinecraftForge;
@@ -113,6 +114,7 @@ public class GuiNewChatTC extends GuiNewChat implements ChatScreen {
         ichat = chatevent.text;
         id = chatevent.id;
         if (ichat != null && !ichat.getUnformattedText().isEmpty()) {
+            ChatAnimationController.messageAdded();
             // GuiNewChatTC overrides the vanilla method targeted by NFR's base mixin. Record the
             // post-filter component here; replay is suppressed by ChatHistoryManager itself.
             ChatHistoryManager.INSTANCE.recordReceived(ichat, id);

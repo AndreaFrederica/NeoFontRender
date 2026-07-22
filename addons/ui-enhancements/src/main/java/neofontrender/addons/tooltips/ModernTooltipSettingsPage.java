@@ -35,6 +35,16 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             () -> TooltipConfig.yieldToLegendaryTooltips, value -> TooltipConfig.yieldToLegendaryTooltips = value))
                     .add(c.toggleText(() -> tr("gui.obscure_yield"), () -> tr("tooltip.obscure_yield"),
                             () -> TooltipConfig.yieldToObscureTooltips, value -> TooltipConfig.yieldToObscureTooltips = value))
+                    .add(c.toggleText(() -> tr("gui.hei_custom"), () -> tr("tooltip.hei_custom"),
+                            () -> TooltipConfig.heiCustomTooltips, value -> TooltipConfig.heiCustomTooltips = value))
+                    .add(c.toggleText(() -> tr("gui.mod_name"), () -> tr("tooltip.mod_name"),
+                            () -> TooltipConfig.modNameEnabled, value -> TooltipConfig.modNameEnabled = value))
+                    .add(c.dropdownText("tooltip_mod_name_format", () -> tr("gui.mod_name_format"),
+                            () -> TooltipConfig.modNameFormat,
+                            value -> TooltipConfig.modNameFormat = value,
+                            Arrays.asList("", "blue italic", "gray italic", "dark_gray italic",
+                                    "aqua italic", "gold italic", "blue", "gray"),
+                            ModernTooltipSettingsPage::modNameFormatLabel).size(260, 24))
                     .add(c.toggleText(() -> tr("gui.rounded"), () -> "",
                             () -> TooltipConfig.rounded, value -> TooltipConfig.rounded = value))
                     .add(c.toggleText(() -> tr("gui.center_title"), () -> "",
@@ -154,5 +164,10 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
 
     private static final class PageView extends NfrContentView<PageView> {
         private PageView(NfrOptionsGrid grid) { super(section(grid, grid::preferredHeight)); }
+    }
+
+    private static String modNameFormatLabel(String value) {
+        String suffix = value == null || value.isEmpty() ? "none" : value.replace(' ', '_');
+        return AddonI18n.tr("neofontrender_ui_enhancements.gui.mod_name_format." + suffix);
     }
 }

@@ -24,6 +24,7 @@ import net.minecraft.util.text.TextComponentString;
 import org.lwjgl.opengl.GL11;
 import neofontrender.addons.chat.ChatStyleConfig;
 import neofontrender.addons.chat.ChatStyleRenderer;
+import neofontrender.addons.chat.ChatAnimationController;
 
 import java.awt.Dimension;
 import java.awt.Rectangle;
@@ -62,6 +63,12 @@ public class TextBox extends GuiComponent implements ChatInput {
 
     @Override
     public void drawComponent(int mouseX, int mouseY) {
+        float inputOffset = ChatAnimationController.inputOffset();
+        boolean translated = Math.abs(inputOffset) > 0.001F;
+        if (translated) {
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(0.0F, inputOffset, 0.0F);
+        }
         GlStateManager.enableBlend();
         if (ChatStyleConfig.enabled) {
             ChatStyleRenderer.panel(getBounds().width, getBounds().height,
@@ -73,6 +80,8 @@ public class TextBox extends GuiComponent implements ChatInput {
 
         drawText();
         drawCursor();
+
+        if (translated) GlStateManager.popMatrix();
 
     }
 

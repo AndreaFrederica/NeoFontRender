@@ -27,6 +27,14 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
         private final boolean persistence = EnhancedChatConfig.persistence;
         private final boolean received = EnhancedChatConfig.persistReceived;
         private final boolean sent = EnhancedChatConfig.persistSent;
+        private final boolean animateMessages = EnhancedChatConfig.animateMessages;
+        private final int messageDuration = EnhancedChatConfig.messageAnimationDuration;
+        private final float messageDistance = EnhancedChatConfig.messageAnimationDistance;
+        private final String messageEasing = EnhancedChatConfig.messageAnimationEasing;
+        private final boolean animateInput = EnhancedChatConfig.animateInput;
+        private final int inputDuration = EnhancedChatConfig.inputAnimationDuration;
+        private final float inputDistance = EnhancedChatConfig.inputAnimationDistance;
+        private final String inputEasing = EnhancedChatConfig.inputAnimationEasing;
 
         @Override public IWidget createView(NfrSettingsPageContext context) {
             NfrSettingsControls c = context.controls();
@@ -47,7 +55,35 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
                     .add(c.toggleText(() -> tr("gui.chat.persist_received"), () -> "",
                             () -> EnhancedChatConfig.persistReceived, value -> EnhancedChatConfig.persistReceived = value))
                     .add(c.toggleText(() -> tr("gui.chat.persist_sent"), () -> "",
-                            () -> EnhancedChatConfig.persistSent, value -> EnhancedChatConfig.persistSent = value));
+                            () -> EnhancedChatConfig.persistSent, value -> EnhancedChatConfig.persistSent = value))
+                    .add(c.toggleText(() -> tr("gui.chat.animate_messages"), () -> tr("tooltip.chat.animate_messages"),
+                            () -> EnhancedChatConfig.animateMessages, value -> EnhancedChatConfig.animateMessages = value))
+                    .add(c.dropdownText("chat_message_animation_duration", () -> tr("gui.chat.message_duration"),
+                            () -> Integer.toString(EnhancedChatConfig.messageAnimationDuration),
+                            value -> EnhancedChatConfig.messageAnimationDuration = Integer.parseInt(value),
+                            Arrays.asList("75", "100", "150", "200", "300", "500"), value -> value + " ms").size(260, 24))
+                    .add(c.dropdownText("chat_message_animation_distance", () -> tr("gui.chat.message_distance"),
+                            () -> Float.toString(EnhancedChatConfig.messageAnimationDistance),
+                            value -> EnhancedChatConfig.messageAnimationDistance = Float.parseFloat(value),
+                            Arrays.asList("3.0", "5.0", "7.0", "9.0", "12.0"), value -> value + " px").size(260, 24))
+                    .add(c.dropdownText("chat_message_animation_easing", () -> tr("gui.chat.message_easing"),
+                            () -> EnhancedChatConfig.messageAnimationEasing,
+                            value -> EnhancedChatConfig.messageAnimationEasing = value,
+                            Arrays.asList("linear", "sine", "quad", "cubic", "back"), value -> value).size(260, 24))
+                    .add(c.toggleText(() -> tr("gui.chat.animate_input"), () -> tr("tooltip.chat.animate_input"),
+                            () -> EnhancedChatConfig.animateInput, value -> EnhancedChatConfig.animateInput = value))
+                    .add(c.dropdownText("chat_input_animation_duration", () -> tr("gui.chat.input_duration"),
+                            () -> Integer.toString(EnhancedChatConfig.inputAnimationDuration),
+                            value -> EnhancedChatConfig.inputAnimationDuration = Integer.parseInt(value),
+                            Arrays.asList("75", "100", "150", "170", "200", "300", "500"), value -> value + " ms").size(260, 24))
+                    .add(c.dropdownText("chat_input_animation_distance", () -> tr("gui.chat.input_distance"),
+                            () -> Float.toString(EnhancedChatConfig.inputAnimationDistance),
+                            value -> EnhancedChatConfig.inputAnimationDistance = Float.parseFloat(value),
+                            Arrays.asList("3.0", "5.0", "8.0", "10.0", "12.0"), value -> value + " px").size(260, 24))
+                    .add(c.dropdownText("chat_input_animation_easing", () -> tr("gui.chat.input_easing"),
+                            () -> EnhancedChatConfig.inputAnimationEasing,
+                            value -> EnhancedChatConfig.inputAnimationEasing = value,
+                            Arrays.asList("linear", "sine", "quad", "cubic", "back"), value -> value).size(260, 24));
             return new PageView(grid);
         }
 
@@ -61,6 +97,14 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
             EnhancedChatConfig.persistence = persistence;
             EnhancedChatConfig.persistReceived = received;
             EnhancedChatConfig.persistSent = sent;
+            EnhancedChatConfig.animateMessages = animateMessages;
+            EnhancedChatConfig.messageAnimationDuration = messageDuration;
+            EnhancedChatConfig.messageAnimationDistance = messageDistance;
+            EnhancedChatConfig.messageAnimationEasing = messageEasing;
+            EnhancedChatConfig.animateInput = animateInput;
+            EnhancedChatConfig.inputAnimationDuration = inputDuration;
+            EnhancedChatConfig.inputAnimationDistance = inputDistance;
+            EnhancedChatConfig.inputAnimationEasing = inputEasing;
         }
     }
 

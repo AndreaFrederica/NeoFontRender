@@ -73,7 +73,10 @@ public class ChatTab extends GuiButton {
             }
 
             int txtX = loc.getWidth() / 2;
-            int txtY = loc.getHeight() / 2 - 2;
+            // drawString's Y coordinate is the top of the font line, not its baseline. The
+            // upstream height/2-2 shortcut places a 9 px line three pixels too low in a 14 px
+            // tab; modern glyphs expose that error because they use their full visual bounds.
+            int txtY = Math.max(0, (loc.getHeight() - mc.fontRenderer.FONT_HEIGHT) / 2);
 
             Color primary = getPrimaryColorProperty();
             int color = ChatStyleConfig.enabled

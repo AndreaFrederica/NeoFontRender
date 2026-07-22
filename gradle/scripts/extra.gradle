@@ -39,6 +39,15 @@ tasks.register('skijaEmojiTest', JavaExec) {
 }
 
 def packagedJar = tasks.named(remapTaskName)
+def isSkijaRuntimeJar = { File file ->
+    file.name.startsWith('skija-') || file.name.startsWith('types-')
+}
+def coreContainedJars = providers.provider {
+    configurations.contain.files.findAll { !isSkijaRuntimeJar(it) }.collect { it.name }.sort()
+}
+def skijaContainedJars = providers.provider {
+    configurations.contain.files.findAll { isSkijaRuntimeJar(it) }.collect { it.name }.sort()
+}
 tasks.register('fullJar', Zip) {
     group = 'build'; description = 'Packages the complete mod distribution.'
     dependsOn packagedJar
@@ -47,16 +56,33 @@ tasks.register('fullJar', Zip) {
     from { zipTree(packagedJar.get().archiveFile.get().asFile) }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
-tasks.register('coreJar', Zip) {
+tasks.register('coreJar', Jar) {
     group = 'build'; description = 'Packages Cosmic/AWT rendering without bundled fonts or Skija runtime.'
     dependsOn packagedJar
     archiveBaseName = mod_id; archiveVersion = mod_version; archiveClassifier = 'core'; archiveExtension = 'jar'
     destinationDirectory = layout.buildDirectory.dir('libs')
     from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
-        exclude 'assets/neofontrender/fonts/*.ttf', 'skija-*.jar'
+        exclude 'META-INF/MANIFEST.MF', 'mcmod.info', 'assets/neofontrender/fonts/*.ttf',
+                'skija-*.jar', 'types-*.jar', 'io/github/humbleui/**',
+                'neofontrender/skia/NeoFontRenderSkia.class'
     }
     from('src/corePack/resources') {
         expand(mod_id: mod_id, mod_name: mod_name, mod_version: mod_version, mod_description: mod_description, mod_authors: mod_authors, mod_credits: mod_credits, mod_url: mod_url, mod_update_json: mod_update_json, mod_logo_path: mod_logo_path)
+    }
+    doFirst {
+        def contained = coreContainedJars.get()
+        def attributes = [
+                'ModType': 'CRL',
+                'FMLCorePlugin': coremod_plugin_class_name,
+                'FMLCorePluginContainsFMLMod': true,
+                'FMLAT': access_transformer_locations,
+                'Fabric-Loom-Mixin-Remap-Type': 'mixin'
+        ]
+        if (!contained.isEmpty()) {
+            attributes['ContainedDeps'] = contained.join(' ')
+            attributes['NonModDeps'] = true
+        }
+        manifest.attributes(attributes)
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
@@ -68,15 +94,55 @@ tasks.register('resourcesJar', Zip) {
     from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) { include 'assets/neofontrender/fonts/**', 'neofontrender/resources/NeoFontRenderResources.class' }
     from('src/resourcePack/resources') { expand(mod_version: mod_version, mod_authors: mod_authors, mod_url: mod_url) }
 }
-tasks.register('skiaJar', Zip) {
+tasks.register('skiaJar', Jar) {
     group = 'build'; description = 'Packages the optional Skija runtime mod.'
     dependsOn packagedJar
     archiveBaseName = "${mod_id}-skia"; archiveVersion = mod_version; archiveExtension = 'jar'
     destinationDirectory = layout.buildDirectory.dir('libs')
-    from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) { include 'skija-*.jar', 'neofontrender/skia/NeoFontRenderSkia.class' }
+    from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
+        include 'skija-*.jar', 'types-*.jar', 'neofontrender/skia/NeoFontRenderSkia.class'
+    }
     from('src/skiaPack/resources') { expand(mod_version: mod_version, mod_authors: mod_authors, mod_url: mod_url) }
+    doFirst {
+        def contained = skijaContainedJars.get()
+        manifest.attributes(
+                'ModType': 'CRL',
+                'ContainedDeps': contained.join(' '),
+                'NonModDeps': true
+        )
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
-tasks.register('packageVariants') { group = 'build'; dependsOn 'fullJar', 'coreJar', 'resourcesJar', 'skiaJar' }
+tasks.register('verifyPackageVariants') {
+    group = 'verification'
+    dependsOn 'coreJar', 'skiaJar'
+    doLast {
+        def coreFile = tasks.named('coreJar').get().archiveFile.get().asFile
+        def skiaFile = tasks.named('skiaJar').get().archiveFile.get().asFile
+        def core = new java.util.jar.JarFile(coreFile)
+        def skia = new java.util.jar.JarFile(skiaFile)
+        try {
+            def coreDeps = core.manifest.mainAttributes.getValue('ContainedDeps') ?: ''
+            if (coreDeps =~ /(?:^|\s)(?:skija-|types-)/) {
+                throw new GradleException("Core JAR still declares Skija runtime dependencies: ${coreDeps}")
+            }
+            if (core.entries().toList().any { it.name ==~ /(?:skija-|types-).*\.jar/ }) {
+                throw new GradleException('Core JAR still contains a Skija runtime dependency')
+            }
+            def skiaDeps = skia.manifest.mainAttributes.getValue('ContainedDeps') ?: ''
+            def skiaEntries = skia.entries().toList()*.name as Set
+            skijaContainedJars.get().each { name ->
+                if (!skiaDeps.tokenize().contains(name) || !skiaEntries.contains(name)) {
+                    throw new GradleException("Skia JAR does not contain and declare ${name}")
+                }
+            }
+        } finally {
+            core.close()
+            skia.close()
+        }
+    }
+}
+tasks.register('packageVariants') { group = 'build'; dependsOn 'fullJar', 'resourcesJar', 'verifyPackageVariants' }
 
 tasks.register('cosmicSmokeTest', JavaExec) {
     group = 'verification'; dependsOn 'classes'
