@@ -20,7 +20,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /** Renders registered providers in Forge's native HUD layout and cancels only successful replacements. */
-final class HudBarsHandler {
+public final class HudBarsHandler {
     private final Arc3DHudBarRenderer renderer = new Arc3DHudBarRenderer();
     private final Set<String> failedProviders = new HashSet<String>();
     private boolean loggedClassicBar;

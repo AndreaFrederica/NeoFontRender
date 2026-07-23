@@ -5,6 +5,7 @@ import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.ui.UiEnhancementModule;
+import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 
 /** Activates native text cursor tracking for vanilla text fields. */
 public final class TextInputModule implements UiEnhancementModule {
@@ -15,6 +16,7 @@ public final class TextInputModule implements UiEnhancementModule {
 
     @Override
     public void init() {
+        NfrSettingsPageRegistry.register(new TextInputSettingsPage());
         MinecraftForge.EVENT_BUS.register(this);
     }
 

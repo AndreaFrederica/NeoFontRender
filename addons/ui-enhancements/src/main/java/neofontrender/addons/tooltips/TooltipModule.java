@@ -2,6 +2,7 @@ package neofontrender.addons.tooltips;
 
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.addons.ui.UiEnhancementModule;
+import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 import org.apache.logging.log4j.Logger;
 
 /** Loads modern tooltip rendering configuration. */
@@ -15,5 +16,7 @@ public final class TooltipModule implements UiEnhancementModule {
     }
 
     @Override
-    public void init() {}
+    public void init() {
+        NfrSettingsPageRegistry.register(new ModernTooltipSettingsPage());
+    }
 }

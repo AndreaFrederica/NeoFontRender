@@ -40,6 +40,7 @@ public final class NfrUiEnhancements {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         UiEnhancementsConfig.open();
+        UiEnhancementsInfoContributions.register();
         for (UiEnhancementModule module : MODULES) module.preInit();
     }
 

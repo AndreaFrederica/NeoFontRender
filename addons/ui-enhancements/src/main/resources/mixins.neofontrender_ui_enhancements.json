@@ -1,23 +1,21 @@
 {
   "required": true,
   "minVersion": "0.8.5",
-  "compatibilityLevel": "JAVA_8",
-  "package": "neofontrender.addons",
+  "compatibilityLevel": "JAVA_11",
+  "package": "neofontrender.addons.mixin",
   "refmap": "mixins.neofontrender_ui_enhancements.refmap.json",
   "mixins": [],
   "client": [
-    "mixin.AccessorCreativeContainer",
-    "mixin.AccessorShaderGroup",
-    "mixin.MixinForgeGuiScrollingListSmoothScroll",
-    "mixin.MixinGuiContainerCreativeSmoothScroll",
-    "mixin.MixinGuiScreenBackground",
-    "mixin.MixinGuiScreenTooltip",
-    "mixin.MixinGuiNewChatHistory",
-    "mixin.MixinGuiNewChatSmoothScroll",
-    "mixin.MixinGuiSlotSmoothScroll",
-    "mixin.MixinGuiTextFieldCursor",
-    "vendor.tabbychat.core.mixin.IGuiIngame",
-    "vendor.tabbychat.core.mixin.MixinGuiChat"
+    "AccessorCreativeContainer",
+    "AccessorShaderGroup",
+    "MixinForgeGuiScrollingListSmoothScroll",
+    "MixinGuiContainerCreativeSmoothScroll",
+    "MixinGuiScreenBackground",
+    "MixinGuiScreenTooltip",
+    "MixinGuiNewChatHistory",
+    "MixinGuiNewChatSmoothScroll",
+    "MixinGuiSlotSmoothScroll",
+    "MixinGuiTextFieldCursor"
   ],
   "server": []
 }
