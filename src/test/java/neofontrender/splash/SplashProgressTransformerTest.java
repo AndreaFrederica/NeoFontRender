@@ -1,5 +1,6 @@
 package neofontrender.splash;
 
+import net.minecraft.launchwrapper.Launch;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -7,6 +8,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -15,18 +17,44 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SplashProgressTransformerTest {
 
+    private static final String DEOBFUSCATED_ENVIRONMENT = "fml.deobfuscatedEnvironment";
     private static final String TARGET =
-            "net.minecraftforge.fml.client.SplashProgress$SplashFontRenderer";
+            "cpw.mods.fml.client.SplashProgress$SplashFontRenderer";
 
     @Test
-    void addsModernSplashDrawAndWidthOverrides() {
+    void addsForge1710SrgDrawAndWidthOverrides() {
+        assertOverrides(false, "func_78256_a", "func_78276_b");
+    }
+
+    @Test
+    void addsForge1710McpDrawAndWidthOverridesInDevelopment() {
+        assertOverrides(true, "getStringWidth", "drawString");
+    }
+
+    private static void assertOverrides(boolean deobfuscated, String widthMethod, String drawMethod) {
         ClassWriter fixture = new ClassWriter(0);
         fixture.visit(Opcodes.V1_8, Opcodes.ACC_FINAL, TARGET.replace('.', '/'), null,
                 "net/minecraft/client/gui/FontRenderer", null);
         fixture.visitEnd();
 
-        byte[] transformed = new SplashProgressTransformer().transform(
-                TARGET, TARGET, fixture.toByteArray());
+        boolean blackboardWasNull = Launch.blackboard == null;
+        if (blackboardWasNull) {
+            Launch.blackboard = new HashMap<>();
+        }
+        Object previous = Launch.blackboard.put(DEOBFUSCATED_ENVIRONMENT, deobfuscated);
+        byte[] transformed;
+        try {
+            transformed = new SplashProgressTransformer().transform(
+                    TARGET, TARGET, fixture.toByteArray());
+        } finally {
+            if (blackboardWasNull) {
+                Launch.blackboard = null;
+            } else if (previous == null) {
+                Launch.blackboard.remove(DEOBFUSCATED_ENVIRONMENT);
+            } else {
+                Launch.blackboard.put(DEOBFUSCATED_ENVIRONMENT, previous);
+            }
+        }
 
         Set<String> methods = new HashSet<>();
         Set<String> bridgeCalls = new HashSet<>();
@@ -47,8 +75,8 @@ class SplashProgressTransformerTest {
             }
         }, 0);
 
-        assertTrue(methods.contains("func_78256_a(Ljava/lang/String;)I"));
-        assertTrue(methods.contains("func_78276_b(Ljava/lang/String;III)I"));
+        assertTrue(methods.contains(widthMethod + "(Ljava/lang/String;)I"));
+        assertTrue(methods.contains(drawMethod + "(Ljava/lang/String;III)I"));
         assertTrue(bridgeCalls.contains("isOverrideActive()Z"));
         assertTrue(bridgeCalls.contains("getStringWidth(Ljava/lang/String;)I"));
         assertTrue(bridgeCalls.contains("drawString(Ljava/lang/String;III)I"));

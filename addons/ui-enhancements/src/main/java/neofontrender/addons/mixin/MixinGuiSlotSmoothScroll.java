@@ -20,7 +20,8 @@ public abstract class MixinGuiSlotSmoothScroll {
     @Shadow public abstract int func_148135_f();
     @Unique private final SmoothScrollController nfrUi$scroller = new SmoothScrollController();
 
-    @Inject(method = "drawScreen", at = @At("HEAD"))
+    @Inject(method = "drawScreen", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/GuiSlot;bindAmountScrolled()V"), require = 1)
     private void nfrUi$update(int mouseX, int mouseY, float partialTicks, CallbackInfo callback) {
         if (!SmoothScrollConfigAccess.vanillaListsEnabled()) {
             nfrUi$scroller.sync(amountScrolled);

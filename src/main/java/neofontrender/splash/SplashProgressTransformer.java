@@ -1,9 +1,11 @@
 package neofontrender.splash;
 
 import net.minecraft.launchwrapper.IClassTransformer;
+import net.minecraft.launchwrapper.Launch;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.apache.logging.log4j.LogManager;
@@ -23,12 +25,15 @@ public final class SplashProgressTransformer implements IClassTransformer {
 
     private static final Logger LOGGER = LogManager.getLogger("Neo Font Render");
     private static final String TARGET =
-            "net.minecraftforge.fml.client.SplashProgress$SplashFontRenderer";
+            "cpw.mods.fml.client.SplashProgress$SplashFontRenderer";
     private static final String SPLASH_COMPAT_INTERNAL =
             "neofontrender/splash/SplashCompat";
-    private static final String WIDTH_METHOD = "func_78256_a";
+    private static final String DEOBFUSCATED_ENVIRONMENT = "fml.deobfuscatedEnvironment";
+    private static final String WIDTH_METHOD_MCP = "getStringWidth";
+    private static final String WIDTH_METHOD_SRG = "func_78256_a";
     private static final String WIDTH_DESC = "(Ljava/lang/String;)I";
-    private static final String DRAW_METHOD = "func_78276_b";
+    private static final String DRAW_METHOD_MCP = "drawString";
+    private static final String DRAW_METHOD_SRG = "func_78276_b";
     private static final String DRAW_DESC = "(Ljava/lang/String;III)I";
 
     @Override
@@ -43,7 +48,11 @@ public final class SplashProgressTransformer implements IClassTransformer {
         try {
             ClassReader reader = new ClassReader(basicClass);
             ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-            ClassVisitor visitor = new SplashFontRendererVisitor(writer);
+            boolean deobfuscated = Launch.blackboard != null
+                    && Boolean.TRUE.equals(Launch.blackboard.get(DEOBFUSCATED_ENVIRONMENT));
+            ClassVisitor visitor = new SplashFontRendererVisitor(writer,
+                    deobfuscated ? WIDTH_METHOD_MCP : WIDTH_METHOD_SRG,
+                    deobfuscated ? DRAW_METHOD_MCP : DRAW_METHOD_SRG);
             reader.accept(visitor, ClassReader.EXPAND_FRAMES);
             byte[] transformed = writer.toByteArray();
             LOGGER.info("Patched loading-screen font renderer bytecode");
@@ -57,11 +66,15 @@ public final class SplashProgressTransformer implements IClassTransformer {
 
     private static final class SplashFontRendererVisitor extends ClassVisitor {
         private String superName;
+        private final String widthMethod;
+        private final String drawMethod;
         private boolean hasWidthOverride;
         private boolean hasDrawOverride;
 
-        SplashFontRendererVisitor(ClassVisitor delegate) {
+        SplashFontRendererVisitor(ClassVisitor delegate, String widthMethod, String drawMethod) {
             super(Opcodes.ASM5, delegate);
+            this.widthMethod = widthMethod;
+            this.drawMethod = drawMethod;
         }
 
         @Override
@@ -74,9 +87,9 @@ public final class SplashProgressTransformer implements IClassTransformer {
         @Override
         public MethodVisitor visitMethod(int access, String name, String descriptor,
                                          String signature, String[] exceptions) {
-            if (WIDTH_METHOD.equals(name) && WIDTH_DESC.equals(descriptor)) {
+            if (widthMethod.equals(name) && WIDTH_DESC.equals(descriptor)) {
                 hasWidthOverride = true;
-            } else if (DRAW_METHOD.equals(name) && DRAW_DESC.equals(descriptor)) {
+            } else if (drawMethod.equals(name) && DRAW_DESC.equals(descriptor)) {
                 hasDrawOverride = true;
             }
             return super.visitMethod(access, name, descriptor, signature, exceptions);
@@ -94,11 +107,11 @@ public final class SplashProgressTransformer implements IClassTransformer {
         }
 
         private void addWidthOverride() {
-            MethodVisitor mv = super.visitMethod(Opcodes.ACC_PUBLIC, WIDTH_METHOD, WIDTH_DESC, null, null);
+            MethodVisitor mv = super.visitMethod(Opcodes.ACC_PUBLIC, widthMethod, WIDTH_DESC, null, null);
             mv.visitCode();
             mv.visitMethodInsn(Opcodes.INVOKESTATIC, SPLASH_COMPAT_INTERNAL,
                     "isOverrideActive", "()Z", false);
-            org.objectweb.asm.Label fallback = new org.objectweb.asm.Label();
+            Label fallback = new Label();
             mv.visitJumpInsn(Opcodes.IFEQ, fallback);
             mv.visitVarInsn(Opcodes.ALOAD, 1);
             mv.visitMethodInsn(Opcodes.INVOKESTATIC, SPLASH_COMPAT_INTERNAL,
@@ -107,18 +120,18 @@ public final class SplashProgressTransformer implements IClassTransformer {
             mv.visitLabel(fallback);
             mv.visitVarInsn(Opcodes.ALOAD, 0);
             mv.visitVarInsn(Opcodes.ALOAD, 1);
-            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, superName, WIDTH_METHOD, WIDTH_DESC, false);
+            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, superName, widthMethod, WIDTH_DESC, false);
             mv.visitInsn(Opcodes.IRETURN);
             mv.visitMaxs(0, 0);
             mv.visitEnd();
         }
 
         private void addDrawOverride() {
-            MethodVisitor mv = super.visitMethod(Opcodes.ACC_PUBLIC, DRAW_METHOD, DRAW_DESC, null, null);
+            MethodVisitor mv = super.visitMethod(Opcodes.ACC_PUBLIC, drawMethod, DRAW_DESC, null, null);
             mv.visitCode();
             mv.visitMethodInsn(Opcodes.INVOKESTATIC, SPLASH_COMPAT_INTERNAL,
                     "isOverrideActive", "()Z", false);
-            org.objectweb.asm.Label fallback = new org.objectweb.asm.Label();
+            Label fallback = new Label();
             mv.visitJumpInsn(Opcodes.IFEQ, fallback);
             mv.visitVarInsn(Opcodes.ALOAD, 1);
             mv.visitVarInsn(Opcodes.ILOAD, 2);
@@ -133,7 +146,7 @@ public final class SplashProgressTransformer implements IClassTransformer {
             mv.visitVarInsn(Opcodes.ILOAD, 2);
             mv.visitVarInsn(Opcodes.ILOAD, 3);
             mv.visitVarInsn(Opcodes.ILOAD, 4);
-            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, superName, DRAW_METHOD, DRAW_DESC, false);
+            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, superName, drawMethod, DRAW_DESC, false);
             mv.visitInsn(Opcodes.IRETURN);
             mv.visitMaxs(0, 0);
             mv.visitEnd();
