@@ -10,6 +10,7 @@ import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.awt.FontTexture;
 import neofontrender.core.font.awt.GlyphProvider;
+import neofontrender.core.font.awt.AwtModernTextRenderer;
 import neofontrender.core.font.awt.providers.AwtTtfGlyphProvider;
 import neofontrender.core.font.awt.providers.MissingGlyphProvider;
 import neofontrender.core.font.backend.TextRenderBackend;
@@ -33,8 +34,10 @@ public class FontManager implements AutoCloseable {
     public static final FontManager INSTANCE = new FontManager();
 
     private TextureManager textureManager;
+    private IResourceManager resourceManager;
     private FontSet defaultFontSet;
     private TextRenderBackend textRenderBackend;
+    private AwtModernTextRenderer modernAwtTextRenderer;
     private boolean active = false;
     private boolean skiaActive = false;
     private boolean cosmicActive = false;
@@ -56,6 +59,7 @@ public class FontManager implements AutoCloseable {
      */
     public synchronized void reload(IResourceManager resourceManager) {
         close(); // dispose old atlas & providers
+        this.resourceManager = resourceManager;
 
         if (NeofontrenderConfig.useVanillaEngine()) {
             this.active = false;
@@ -276,6 +280,22 @@ public class FontManager implements AutoCloseable {
         return textRenderBackend;
     }
 
+    /**
+     * Backend used by the public native-size text API. Modern native engines are preferred; SFR
+     * and vanilla selections receive a lazily-created AWT adapter with true per-size atlases.
+     */
+    public synchronized TextRenderBackend getModernTextBackend() {
+        if (textRenderBackend != null && textRenderBackend.isReady()
+                && textRenderBackend.supportsNativeFontSize()) {
+            return textRenderBackend;
+        }
+        if (modernAwtTextRenderer == null && textureManager != null && resourceManager != null) {
+            modernAwtTextRenderer = new AwtModernTextRenderer(textureManager, resourceManager);
+        }
+        return modernAwtTextRenderer != null && modernAwtTextRenderer.isReady()
+                ? modernAwtTextRenderer : null;
+    }
+
     public synchronized SkijaTextRenderer getSkijaTextRenderer() {
         return textRenderBackend instanceof SkijaTextRenderer ? (SkijaTextRenderer) textRenderBackend : null;
     }
@@ -286,6 +306,10 @@ public class FontManager implements AutoCloseable {
 
     @Override
     public synchronized void close() {
+        if (modernAwtTextRenderer != null) {
+            modernAwtTextRenderer.close();
+            modernAwtTextRenderer = null;
+        }
         if (defaultFontSet != null) {
             defaultFontSet.close();
             defaultFontSet = null;

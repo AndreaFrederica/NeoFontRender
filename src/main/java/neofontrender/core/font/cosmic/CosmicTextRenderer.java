@@ -14,6 +14,7 @@ import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.ModernShadowRasterizer;
 import neofontrender.core.font.support.ShadowMaskRules;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -36,6 +37,9 @@ import java.util.Map;
 /** cosmic-text shaping/Swash rasterization with Minecraft's LWJGL2 texture submission. */
 public final class CosmicTextRenderer implements TextRenderBackend {
     private static final int RASTER_MAGIC = 0x434F534D;
+    // Rust rejects either raster dimension above 8192. Keep a generous allowance for glyph
+    // bearings, italic overhang, and native padding beyond cosmic-text's line advance.
+    private static final float SEGMENT_RASTER_ADVANCE_LIMIT = 8192.0F - 1024.0F;
     private static final int[] COLOR_CODES = createColorCodes();
 
     private final TextureManager textureManager;
@@ -69,7 +73,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         // resolve a system family such as "JetBrains Mono" directly, while the old Cosmic bridge
         // silently skipped it and promoted the first bundled fallback (usually Sarasa) to primary.
         List<String> fallbackFamilies = NeofontrenderConfig.fontFamily();
-        if (!fallbackFamilies.isEmpty() && fallbackFamilies.get(0).equals(NeofontrenderConfig.fontName())) {
+        if (!fallbackFamilies.isEmpty() && fallbackFamilies.get(0).equals(NeofontrenderConfig.primaryFontLocation())) {
             fallbackFamilies = fallbackFamilies.subList(1, fallbackFamilies.size());
         }
         engine = CosmicNative.createEngine(fonts, aliases, NeofontrenderConfig.fontName(),
@@ -108,10 +112,16 @@ public final class CosmicTextRenderer implements TextRenderBackend {
 
     @Override
     public synchronized float measure(String text, boolean bold, boolean italic) {
+        return measureAtSize(text, bold, italic, NeofontrenderConfig.fontSize());
+    }
+
+    private float measureAtSize(String text, boolean bold, boolean italic, float fontSize) {
         if (text == null || text.isEmpty() || engine == 0L) {
             return 0.0F;
         }
-        MeasureKey key = new MeasureKey(text, effectiveFlags(bold, italic));
+        float logicalSize = Math.max(1.0F, fontSize);
+        MeasureKey key = new MeasureKey(text, effectiveFlags(bold, italic),
+                Float.floatToIntBits(logicalSize));
         Float cached = measureCache.get(key);
         if (cached != null) {
             measureCacheHits++;
@@ -119,7 +129,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             return cached;
         }
         measureCacheMisses++;
-        float width = CosmicNative.measure(engine, text, key.flags);
+        float width = CosmicNative.measureSized(engine, text, key.flags, logicalSize);
         measureCache.put(key, width);
         trimMeasureCache();
         periodicCacheCleanup();
@@ -132,11 +142,40 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             return TextRenderResult.EMPTY;
         }
         float scale = Math.max(1.0F, FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
+        return renderAtScale(text, argb, bold, italic, NeofontrenderConfig.fontSize(), scale);
+    }
+
+    private TextRenderResult renderAtScale(String text, int argb, boolean bold, boolean italic,
+                                           float fontSize, float scale) {
+        List<String> segments = renderingSegments(text, bold, italic, fontSize, scale);
+        if (segments.size() > 1) {
+            return renderSegments(segments, argb, bold, italic, fontSize, scale);
+        }
+        try {
+            return renderSingle(text, argb, bold, italic, fontSize, scale, false);
+        } catch (IllegalStateException error) {
+            if (!isRasterSizeError(error)) {
+                throw error;
+            }
+            // Advance is normally a reliable predictor, but unusual glyph bearings can make the
+            // tight raster much wider. Recursively bisect only this known native size failure.
+            List<String> fallbackSegments = CosmicTextSegmenter.splitInHalf(text);
+            if (fallbackSegments.size() <= 1) {
+                throw error;
+            }
+            return renderSegments(fallbackSegments, argb, bold, italic, fontSize, scale);
+        }
+    }
+
+    private CosmicRenderedText renderSingle(String text, int argb, boolean bold, boolean italic,
+                                            float fontSize, float scale, boolean modernShadow) {
         // Minecraft applies the caller alpha through vertex color during draw. Keeping the cached
         // raster opaque avoids multiplying that alpha a second time and also lets alpha variants
         // share the same native raster/GL texture.
         int rasterArgb = argb | 0xFF000000;
-        RenderKey key = new RenderKey(text, rasterArgb, effectiveFlags(bold, italic), Float.floatToIntBits(scale));
+        int shadowProfile = modernShadow ? modernShadowProfile() : 0;
+        RenderKey key = new RenderKey(text, rasterArgb, effectiveFlags(bold, italic),
+                Float.floatToIntBits(fontSize), Float.floatToIntBits(scale), shadowProfile);
         CosmicRenderedText cached = renderCache.get(key);
         if (cached != null) {
             renderCacheHits++;
@@ -145,9 +184,10 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             return cached;
         }
         renderCacheMisses++;
-        byte[] encoded = CosmicNative.render(engine, text, rasterArgb, key.flags, scale);
+        byte[] encoded = CosmicNative.renderSized(engine, text, rasterArgb, key.flags,
+                fontSize, scale);
         nativeRasterCount++;
-        CosmicRenderedText rendered = decode(encoded);
+        CosmicRenderedText rendered = decode(encoded, modernShadow, fontSize);
         renderCache.put(key, rendered);
         trimRenderCache();
         periodicCacheCleanup();
@@ -156,23 +196,101 @@ public final class CosmicTextRenderer implements TextRenderBackend {
 
     @Override
     public float measureFormatted(String text, int baseArgb, boolean shadow) {
+        return measureFormattedAtSize(text, baseArgb, shadow, NeofontrenderConfig.fontSize());
+    }
+
+    @Override
+    public float measureFormattedAtSize(String text, int baseArgb, boolean shadow,
+                                        float requestedFontSize) {
         float width = 0.0F;
+        float scale = Math.max(1.0F, FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
+        float fontSize = Math.max(1.0F, requestedFontSize);
         for (FormattedRun run : parseFormatted(text, baseArgb, shadow)) {
-            width += measure(run.text, run.bold, run.italic);
+            for (String segment : renderingSegments(run.text, run.bold, run.italic, fontSize, scale)) {
+                width += measureAtSize(segment, run.bold, run.italic, fontSize);
+            }
         }
         return width;
     }
 
     @Override
     public TextRenderResult renderFormatted(String text, int baseArgb, boolean shadow) {
+        return renderFormattedAtSize(text, baseArgb, shadow, NeofontrenderConfig.fontSize());
+    }
+
+    @Override
+    public boolean supportsNativeFontSize() {
+        return true;
+    }
+
+    @Override
+    public TextRenderResult renderFormattedAtSize(String text, int baseArgb, boolean shadow,
+                                                  float fontSize) {
         List<PositionedResult> results = new ArrayList<>();
         float x = 0.0F;
+        float logicalSize = Math.max(1.0F, fontSize);
+        float scale = Math.max(1.0F,
+                FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
         for (FormattedRun run : parseFormatted(text, baseArgb, shadow)) {
-            TextRenderResult rendered = render(run.text, run.argb, run.bold, run.italic);
+            TextRenderResult renderedRun = renderAtScale(run.text, run.argb, run.bold, run.italic,
+                    logicalSize, scale);
+            results.add(new PositionedResult(x, renderedRun));
+            x += renderedRun.advance();
+        }
+        return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
+    }
+
+    @Override
+    public boolean supportsModernShadow() {
+        return true;
+    }
+
+    @Override
+    public TextRenderResult renderFormattedWithShadow(String text, int baseArgb) {
+        return renderFormattedWithShadowAtSize(
+                text, baseArgb, NeofontrenderConfig.fontSize());
+    }
+
+    @Override
+    public TextRenderResult renderFormattedWithShadowAtSize(
+            String text, int baseArgb, float requestedFontSize) {
+        List<PositionedResult> results = new ArrayList<>();
+        float x = 0.0F;
+        float scale = Math.max(1.0F, FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
+        float fontSize = Math.max(1.0F, requestedFontSize);
+        for (FormattedRun run : parseFormatted(text, baseArgb, false)) {
+            for (String segment : renderingSegments(run.text, run.bold, run.italic, fontSize, scale)) {
+                TextRenderResult renderedRun = renderSingle(segment, run.argb, run.bold, run.italic,
+                        fontSize, scale, true);
+                results.add(new PositionedResult(x, renderedRun));
+                x += renderedRun.advance();
+            }
+        }
+        return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
+    }
+
+    private List<String> renderingSegments(String text, boolean bold, boolean italic,
+                                           float fontSize, float scale) {
+        return CosmicTextSegmenter.split(text, SEGMENT_RASTER_ADVANCE_LIMIT,
+                segment -> measureAtSize(segment, bold, italic, fontSize) * scale);
+    }
+
+    private TextRenderResult renderSegments(List<String> segments, int argb,
+                                            boolean bold, boolean italic,
+                                            float fontSize, float scale) {
+        List<PositionedResult> results = new ArrayList<>(segments.size());
+        float x = 0.0F;
+        for (String segment : segments) {
+            TextRenderResult rendered = renderAtScale(segment, argb, bold, italic, fontSize, scale);
             results.add(new PositionedResult(x, rendered));
             x += rendered.advance();
         }
-        return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
+        return new CompositeResult(results, x);
+    }
+
+    private static boolean isRasterSizeError(IllegalStateException error) {
+        return error.getMessage() != null
+                && error.getMessage().startsWith("invalid cosmic-text raster size ");
     }
 
     @Override
@@ -180,7 +298,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         measure("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", false, false);
     }
 
-    private CosmicRenderedText decode(byte[] encoded) {
+    private CosmicRenderedText decode(byte[] encoded, boolean modernShadow, float fontSize) {
         if (encoded == null || encoded.length < 32) {
             throw new IllegalStateException("cosmic-text returned a truncated raster");
         }
@@ -204,58 +322,100 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         if (width == 0 || height == 0) {
             return new CosmicRenderedText(null, null, advance, 0.0F, 0.0F, 0.0F, 0.0F, scale);
         }
-        DynamicTexture texture = new DynamicTexture(width, height);
-        int[] pixels = texture.getTextureData();
+        int[] pixels = new int[(int) pixelCount];
         // OptiFine can expose base, normal, and specular layers in one 3x-sized array. The native
         // payload contains only the base layer, so never use the target array length as the number
         // of encoded pixels to consume.
         CosmicRasterPixels.copyBaseLayer(data, (int) pixelCount, pixels);
+        int shadowOriginX = 0;
+        int shadowOriginY = 0;
+        if (modernShadow) {
+            ModernShadowRasterizer.Result shadow = ModernShadowRasterizer.compose(
+                    pixels, width, height, scale,
+                    NeofontrenderConfig.shadowOffsetX(), NeofontrenderConfig.shadowOffsetY(),
+                    NeofontrenderConfig.shadowBlurRadius(), NeofontrenderConfig.shadowColor(),
+                    NeofontrenderConfig.shadowOpacity(), true);
+            pixels = shadow.pixels;
+            width = shadow.width;
+            height = shadow.height;
+            shadowOriginX = shadow.originX;
+            shadowOriginY = shadow.originY;
+        }
+        DynamicTexture texture = new DynamicTexture(width, height);
+        int[] target = texture.getTextureData();
+        System.arraycopy(pixels, 0, target, 0, Math.min(pixels.length, target.length));
         texture.updateDynamicTexture();
         FontRenderTuning.applyFontTextureFilter(texture, scale, false);
         ResourceLocation location = new ResourceLocation("neofontrender", "cosmic/" + nextTextureId++);
         textureManager.loadTexture(location, texture);
         FontRenderTuning.applyFontTextureFilter(texture, scale, false);
+        float baseSize = Math.max(1.0F, NeofontrenderConfig.fontSize());
+        float sizeRatio = Math.max(1.0F, fontSize) / baseSize;
         return new CosmicRenderedText(location, texture, advance, width / scale, height / scale,
-                offsetX / scale,
-                offsetY / scale + NeofontrenderConfig.fontReferenceBaseline()
-                        + NeofontrenderConfig.fontBaselineShift() - baseline,
+                offsetX / scale - shadowOriginX / scale,
+                offsetY / scale + NeofontrenderConfig.fontReferenceBaseline() * sizeRatio
+                        + NeofontrenderConfig.fontBaselineShift() * sizeRatio
+                        - baseline - shadowOriginY / scale,
                 scale);
     }
 
+    private static int modernShadowProfile() {
+        int hash = Float.floatToIntBits(NeofontrenderConfig.shadowOffsetX());
+        hash = 31 * hash + Float.floatToIntBits(NeofontrenderConfig.shadowOffsetY());
+        hash = 31 * hash + Float.floatToIntBits(NeofontrenderConfig.shadowBlurRadius());
+        hash = 31 * hash + Float.floatToIntBits(NeofontrenderConfig.shadowOpacity());
+        return 31 * hash + NeofontrenderConfig.shadowColor();
+    }
+
     private List<LoadedFont> loadConfiguredFonts(IResourceManager resourceManager) throws IOException {
-        LinkedHashMap<String, Boolean> selectors = new LinkedHashMap<>();
-        selectors.put(NeofontrenderConfig.fontName(), Boolean.TRUE);
+        LinkedHashMap<String, String> selectors = new LinkedHashMap<>();
+        selectors.put(NeofontrenderConfig.fontName(), NeofontrenderConfig.primaryFontLocation());
+        for (File familyFile : NeofontrenderConfig.primaryFamilyFiles()) {
+            String location = NeofontrenderConfig.portableFontLocation(familyFile);
+            if (!selectors.containsValue(location)) {
+                // Use a unique source alias while preserving the internal family metadata. The
+                // Rust catalog groups these faces and chooses weight/style automatically.
+                selectors.put(location, location);
+            }
+        }
         for (String name : NeofontrenderConfig.cosmicFaceOverrides()) {
             if (name != null && !name.trim().isEmpty()) {
-                selectors.put(name, Boolean.TRUE);
+                selectors.putIfAbsent(name, name);
             }
         }
         for (String name : NeofontrenderConfig.fontFamily()) {
-            selectors.put(name, Boolean.TRUE);
+            if (!name.equals(NeofontrenderConfig.primaryFontLocation())) {
+                // A fallback may have the same family name as the primary but point at a
+                // different style file. It must never replace the primary alias/source pair:
+                // native fontdb treats the first byte font as the primary face.
+                selectors.putIfAbsent(name, name);
+            }
         }
 
         List<LoadedFont> fonts = new ArrayList<>();
-        for (String name : selectors.keySet()) {
-            if (name == null || name.trim().isEmpty()) {
+        for (Map.Entry<String, String> selector : selectors.entrySet()) {
+            String alias = selector.getKey();
+            String source = selector.getValue();
+            if (source == null || source.trim().isEmpty()) {
                 continue;
             }
             try {
-                File file = new File(name);
+                File file = NeofontrenderConfig.resolveFontFile(source);
                 if (file.isFile()) {
                     try (InputStream input = new FileInputStream(file)) {
-                        fonts.add(new LoadedFont(name, readAllBytes(input)));
+                        fonts.add(new LoadedFont(alias, readAllBytes(input)));
                     }
-                } else if (name.indexOf(':') >= 0) {
-                    IResource resource = resourceManager.getResource(new ResourceLocation(name));
+                } else if (source.indexOf(':') >= 0) {
+                    IResource resource = resourceManager.getResource(new ResourceLocation(source));
                     try (InputStream input = resource.getInputStream()) {
-                        fonts.add(new LoadedFont(name, readAllBytes(input)));
+                        fonts.add(new LoadedFont(alias, readAllBytes(input)));
                     }
                 }
             } catch (IOException error) {
                 // Core intentionally omits bundled TTF resources. A configured resource from
                 // the full/resources package must not make Cosmic fail completely: the native
                 // engine can resolve the configured family and emoji through the OS font DB.
-                NeoFontRender.LOGGER.warn("Skipped unavailable Cosmic font resource '{}'", name);
+                NeoFontRender.LOGGER.warn("Skipped unavailable Cosmic font resource '{}'", source);
             }
         }
         return fonts;
@@ -650,20 +810,27 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         private final String text;
         private final int argb;
         private final int flags;
+        private final int fontSize;
         private final int scale;
+        private final int shadowProfile;
 
-        private RenderKey(String text, int argb, int flags, int scale) {
+        private RenderKey(String text, int argb, int flags, int fontSize,
+                          int scale, int shadowProfile) {
             this.text = text;
             this.argb = argb;
             this.flags = flags;
+            this.fontSize = fontSize;
             this.scale = scale;
+            this.shadowProfile = shadowProfile;
         }
 
         @Override
         public boolean equals(Object object) {
             if (!(object instanceof RenderKey)) return false;
             RenderKey other = (RenderKey) object;
-            return argb == other.argb && flags == other.flags && scale == other.scale && text.equals(other.text);
+            return argb == other.argb && flags == other.flags && fontSize == other.fontSize
+                    && scale == other.scale
+                    && shadowProfile == other.shadowProfile && text.equals(other.text);
         }
 
         @Override
@@ -671,27 +838,34 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             int hash = text.hashCode();
             hash = 31 * hash + argb;
             hash = 31 * hash + flags;
-            return 31 * hash + scale;
+            hash = 31 * hash + fontSize;
+            hash = 31 * hash + scale;
+            return 31 * hash + shadowProfile;
         }
     }
 
     private static final class MeasureKey {
         private final String text;
         private final int flags;
+        private final int fontSize;
 
-        private MeasureKey(String text, int flags) {
+        private MeasureKey(String text, int flags, int fontSize) {
             this.text = text;
             this.flags = flags;
+            this.fontSize = fontSize;
         }
 
         @Override
         public boolean equals(Object object) {
-            return object instanceof MeasureKey && flags == ((MeasureKey) object).flags && text.equals(((MeasureKey) object).text);
+            return object instanceof MeasureKey && flags == ((MeasureKey) object).flags
+                    && fontSize == ((MeasureKey) object).fontSize
+                    && text.equals(((MeasureKey) object).text);
         }
 
         @Override
         public int hashCode() {
-            return 31 * text.hashCode() + flags;
+            int hash = 31 * text.hashCode() + flags;
+            return 31 * hash + fontSize;
         }
     }
 }

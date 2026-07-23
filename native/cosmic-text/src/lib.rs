@@ -13,7 +13,7 @@ use std::ptr;
 use std::sync::Mutex;
 use unicode_script::Script;
 
-const ABI_VERSION: jint = 7;
+const ABI_VERSION: jint = 8;
 const RASTER_MAGIC: i32 = 0x434F534D; // "COSM"
 const HEADER_SIZE: usize = 32;
 const MAX_TEXTURE_DIMENSION: i32 = 8192;
@@ -632,15 +632,22 @@ fn selection_from_face(
 ) -> Option<ResolvedFace> {
     let face = db.face(id)?;
     let record = catalog.iter().find(|record| record.id == id)?;
-    let (weight, style) = requested.unwrap_or((face.weight.0, face.style));
+    let (requested_weight, style) = requested.unwrap_or((face.weight.0, face.style));
+    // cosmic-text only accepts a named family as its primary candidate when a static face has an
+    // exact weight match. Reporting the requested 400 for a selected Medium/500 file therefore
+    // made the shaper skip that very face and silently use a system sans-serif fallback. Variable
+    // fonts can render an arbitrary in-range wght coordinate; static fonts must keep metadata.
     let weight = record
         .weight_range
-        .map(|(min, max)| weight.clamp(min, max))
-        .unwrap_or(weight);
+        .map(|(min, max)| requested_weight.clamp(min, max))
+        .unwrap_or(face.weight.0);
     let family = face.families.first()?.0.clone();
     let post_script_name = face.post_script_name.clone();
-    let render_family =
-        render_family_for_face(db, id, &family, &post_script_name, Weight(weight), style);
+    // cosmic-text's Attrs::family(Family::Name) matches font family metadata, not a
+    // PostScript face name. fontdb::Database::query happens to accept some PostScript names, but
+    // passing one into Buffer shaping can silently fall back to the platform sans-serif face.
+    // Keep the exact face choice in weight/style and always shape against the real family name.
+    let render_family = family.clone();
     Some(ResolvedFace {
         id,
         family,
@@ -649,27 +656,6 @@ fn selection_from_face(
         style,
         post_script_name,
     })
-}
-
-fn render_family_for_face(
-    db: &cosmic_text::fontdb::Database,
-    id: ID,
-    family: &str,
-    post_script_name: &str,
-    weight: Weight,
-    style: Style,
-) -> String {
-    let postscript_match = db.query(&Query {
-        families: &[DbFamily::Name(post_script_name)],
-        weight,
-        style,
-        ..Query::default()
-    });
-    if postscript_match == Some(id) {
-        post_script_name.to_string()
-    } else {
-        family.to_string()
-    }
 }
 
 fn selection_for_family(
@@ -812,7 +798,12 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_measure(
     text: JString,
     style_flags: jint,
 ) -> jfloat {
-    match with_text(&mut env, handle, text, style_flags, 1.0, |buffer, _, _| {
+    let font_size = if handle == 0 {
+        1.0
+    } else {
+        unsafe { &*(handle as *const Engine) }.font_size
+    };
+    match with_text(&mut env, handle, text, style_flags, font_size, 1.0, |buffer, _, _| {
         Ok(buffer
             .layout_runs()
             .map(|run| run.line_w)
@@ -836,24 +827,91 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_render(
     style_flags: jint,
     raster_scale: jfloat,
 ) -> jbyteArray {
+    let font_size = if handle == 0 {
+        1.0
+    } else {
+        unsafe { &*(handle as *const Engine) }.font_size
+    };
     let result = with_text(
         &mut env,
         handle,
         text,
         style_flags,
+        font_size,
         raster_scale.max(1.0),
         |buffer, engine, scale| rasterize(buffer, engine, argb as u32, scale),
     );
+    encode_render_result(&mut env, result)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_measureSized(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    text: JString,
+    style_flags: jint,
+    font_size: jfloat,
+) -> jfloat {
+    match with_text(
+        &mut env,
+        handle,
+        text,
+        style_flags,
+        font_size.max(1.0),
+        1.0,
+        |buffer, _, _| {
+            Ok(buffer
+                .layout_runs()
+                .map(|run| run.line_w)
+                .fold(0.0_f32, f32::max))
+        },
+    ) {
+        Ok(width) => width,
+        Err(message) => {
+            throw(&mut env, &message);
+            0.0
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_renderSized(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    text: JString,
+    argb: jint,
+    style_flags: jint,
+    font_size: jfloat,
+    raster_scale: jfloat,
+) -> jbyteArray {
+    let result = with_text(
+        &mut env,
+        handle,
+        text,
+        style_flags,
+        font_size.max(1.0),
+        raster_scale.max(1.0),
+        |buffer, engine, scale| rasterize(buffer, engine, argb as u32, scale),
+    );
+    encode_render_result(&mut env, result)
+}
+
+fn encode_render_result(
+    env: &mut JNIEnv,
+    result: Result<Vec<u8>, String>,
+) -> jbyteArray {
     match result {
         Ok(bytes) => match env.byte_array_from_slice(&bytes) {
             Ok(array) => array.into_raw(),
             Err(error) => {
-                throw(&mut env, &error.to_string());
+                throw(env, &error.to_string());
                 ptr::null_mut()
             }
         },
         Err(message) => {
-            throw(&mut env, &message);
+            throw(env, &message);
             ptr::null_mut()
         }
     }
@@ -864,6 +922,7 @@ fn with_text<T, F>(
     handle: jlong,
     text: JString,
     style_flags: jint,
+    logical_font_size: f32,
     raster_scale: f32,
     operation: F,
 ) -> Result<T, String>
@@ -877,7 +936,7 @@ where
         let engine = unsafe { &*(handle as *const Engine) };
         let value: String = env.get_string(&text).map_err(|e| e.to_string())?.into();
         let scale = raster_scale.max(1.0);
-        let font_size = engine.font_size * scale;
+        let font_size = logical_font_size.max(1.0) * scale;
         let metrics = Metrics::new(font_size, font_size * 1.4);
         let mut font_system = engine
             .font_system
@@ -1257,7 +1316,7 @@ mod tests {
     }
 
     #[test]
-    fn render_family_prefers_queryable_postscript_name_when_installed() {
+    fn render_family_is_the_real_family_name_when_installed() {
         let Some((db, catalog)) = load_test_font(r"C:\Windows\Fonts\MiSans-Demibold.ttf") else {
             return;
         };
@@ -1273,7 +1332,7 @@ mod tests {
         )
         .expect("MiSans Demibold face should resolve")
         .1;
-        assert_eq!(resolved.render_family, resolved.post_script_name);
+        assert_eq!(resolved.render_family, resolved.family);
     }
 
     #[test]

@@ -3,6 +3,7 @@ package neofontrender.core.font.awt.providers;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.util.ResourceLocation;
+import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.awt.BakedGlyph;
 import neofontrender.core.font.awt.FontTexture;
 import neofontrender.core.font.awt.GlyphInfo;
@@ -115,7 +116,7 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
                                            boolean allowDefaultFallback) throws IOException {
         Font baseFont;
         if (fontName != null && !fontName.isEmpty()) {
-            File fontFile = new File(fontName);
+            File fontFile = NeofontrenderConfig.resolveFontFile(fontName);
             if (fontFile.isFile()) {
                 try {
                     baseFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
