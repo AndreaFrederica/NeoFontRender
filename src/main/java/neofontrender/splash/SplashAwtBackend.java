@@ -93,7 +93,7 @@ public final class SplashAwtBackend {
         }
         String name = candidate.trim();
         try {
-            File file = new File(name);
+            File file = NeofontrenderConfig.resolveFontFile(name);
             if (file.isFile()) {
                 return loadFontBytes(Files.readAllBytes(file.toPath()));
             }

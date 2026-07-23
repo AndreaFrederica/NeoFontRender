@@ -150,3 +150,20 @@ tasks.register('cosmicSmokeTest', JavaExec) {
     mainClass = 'neofontrender.core.font.cosmic.CosmicSmokeTest'
     if (project.hasProperty('cosmicTestPrimaryFamily')) args project.property('cosmicTestPrimaryFamily').toString()
 }
+
+tasks.register('cosmicFontComparison', JavaExec) {
+    group = 'verification'; dependsOn 'classes'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'neofontrender.core.font.cosmic.CosmicFontComparison'
+    if (project.hasProperty('cosmicCompareOutput') && project.hasProperty('cosmicCompareFontDir')) {
+        def output = project.property('cosmicCompareOutput').toString()
+        def fontDir = project.property('cosmicCompareFontDir').toString()
+        setArgs([
+                output,
+                new File(fontDir, 'ChakraPetch-Medium.ttf').absolutePath,
+                new File(fontDir, 'chakra-petch-bold_ufonts.com.ttf').absolutePath,
+                new File(fontDir, 'chakra-petch-medium-italic_ufonts.com.ttf').absolutePath,
+                new File(fontDir, 'chakra-petch-semibold-italic_ufonts.com.ttf').absolutePath
+        ])
+    }
+}
