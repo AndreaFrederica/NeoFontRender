@@ -12,6 +12,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import neofontrender.api.text.ModernTextApi;
+import neofontrender.api.text.ModernTextLayout;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.BakedGlyph;
 import neofontrender.core.font.awt.FontSet;
@@ -19,6 +21,8 @@ import neofontrender.core.font.awt.GlyphInfo;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.core.font.preprocess.PreprocessedText;
+import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.StringErrorCorrector;
 import neofontrender.core.font.skia.SkiaTextSegmenter;
@@ -55,7 +59,19 @@ public class MixinFontRenderer {
     private void sfr$onDrawString(String text, float x, float y, int color, boolean dropShadow,
                                   CallbackInfoReturnable<Integer> cir) {
         FontRenderTuning.updateFromCurrentGlState(dropShadow);
-        if (!sfr$shouldHook() || text == null || !FontManager.INSTANCE.isTextBackendActive()
+        if (!sfr$shouldHook() || text == null) {
+            return;
+        }
+        PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
+        if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
+            float advance = sfr$drawPreprocessedText(
+                    preprocessed, x, y, color, dropShadow);
+            this.posX = x + advance;
+            this.posY = y;
+            cir.setReturnValue(sfr$drawStringReturnX(x, advance, dropShadow));
+            return;
+        }
+        if (!FontManager.INSTANCE.isTextBackendActive()
                 || !NeofontrenderConfig.skiaAdvancedStringMode()) {
             return;
         }
@@ -75,6 +91,15 @@ public class MixinFontRenderer {
             cir.setReturnValue(sfr$drawStringReturnX(x, advance, dropShadow));
             return;
         }
+        if (dropShadow && NeofontrenderConfig.modernShadowEnabled()
+                && backend.supportsModernShadow() && backend.shouldRenderShadow(text)) {
+            TextRenderResult rendered = backend.renderFormattedWithShadow(text, color);
+            rendered.draw(x, y, alphaFromColor(color));
+            this.posX = x + rendered.advance();
+            this.posY = y;
+            cir.setReturnValue(sfr$drawStringReturnX(x, rendered.advance(), true));
+            return;
+        }
         if (dropShadow) {
             sfr$drawSelectiveShadow(backend, text, x, y, color);
         }
@@ -89,6 +114,17 @@ public class MixinFontRenderer {
     private void sfr$onRenderStringAtPos(String text, boolean shadow, CallbackInfo ci) {
         FontRenderTuning.updateFromCurrentGlState(shadow);
         if (!sfr$shouldHook() || text == null) {
+            return;
+        }
+        PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
+        if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
+            ModernTextLayout layout = ModernTextApi.layoutFormatted(
+                    preprocessed.modernText(), NeofontrenderConfig.fontSize(),
+                    sfr$currentArgb(), shadow);
+            layout.draw(this.posX, this.posY,
+                    shadow ? NeofontrenderConfig.shadowOpacity() : 1.0F);
+            this.posX += layout.advance();
+            ci.cancel();
             return;
         }
         if (FontManager.INSTANCE.isTextBackendActive()) {
@@ -443,6 +479,10 @@ public class MixinFontRenderer {
 
     @Inject(method = "getCharWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$onGetCharWidth(char character, CallbackInfoReturnable<Integer> cir) {
+        if (TextPreprocessingPipeline.isInvisibleControlCharacter(character)) {
+            cir.setReturnValue(0);
+            return;
+        }
         if (!sfr$isAnyActive()) {
             return;
         }
@@ -478,17 +518,31 @@ public class MixinFontRenderer {
 
     @Inject(method = "getStringWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$onGetStringWidth(String text, CallbackInfoReturnable<Integer> cir) {
-        if (!sfr$isAnyActive() || text == null) {
+        if (text == null) {
             return;
         }
+        PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
+        if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
+            cir.setReturnValue((int) Math.ceil(ModernTextApi.measureFormatted(
+                    preprocessed.modernText(), NeofontrenderConfig.fontSize(),
+                    0xFFFFFFFF, false)));
+            return;
+        }
+        if (!sfr$isAnyActive()) return;
         cir.setReturnValue((int) Math.ceil(sfr$getFormattedStringWidthFloat(text)));
     }
 
     @Inject(method = "trimStringToWidth(Ljava/lang/String;IZ)Ljava/lang/String;", at = @At("HEAD"), cancellable = true)
     private void sfr$onTrimStringToWidth(String text, int width, boolean reverse, CallbackInfoReturnable<String> cir) {
-        if (!sfr$isAnyActive() || text == null) {
+        if (text == null) {
             return;
         }
+        PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
+        if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
+            cir.setReturnValue(sfr$trimPreprocessedText(preprocessed, width, reverse));
+            return;
+        }
+        if (!sfr$isAnyActive()) return;
 
         StringBuilder out = new StringBuilder();
         float currentWidth = 0.0F;
@@ -547,9 +601,15 @@ public class MixinFontRenderer {
 
     @Inject(method = "sizeStringToWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$onSizeStringToWidth(String str, int wrapWidth, CallbackInfoReturnable<Integer> cir) {
-        if (!sfr$isAnyActive() || str == null) {
+        if (str == null) {
             return;
         }
+        PreprocessedText preprocessed = TextPreprocessingPipeline.process(str);
+        if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
+            cir.setReturnValue(sfr$sizePreprocessedTextToWidth(preprocessed, wrapWidth));
+            return;
+        }
+        if (!sfr$isAnyActive()) return;
 
         int len = str.length();
         int pos;
@@ -710,14 +770,140 @@ public class MixinFontRenderer {
         if (!dropShadow) {
             return main;
         }
-        return Math.max(main, (int) (x + advance + NeofontrenderConfig.shadowLength()));
+        float offset = NeofontrenderConfig.modernShadowEnabled()
+                ? NeofontrenderConfig.shadowOffsetX() : NeofontrenderConfig.shadowLength();
+        return Math.max(main, (int) (x + advance + Math.max(0.0F, offset)));
+    }
+
+    private float sfr$drawPreprocessedText(PreprocessedText text, float x, float y,
+                                           int color, boolean dropShadow) {
+        GlStateManager.enableAlpha();
+        float fontSize = NeofontrenderConfig.fontSize();
+        if (dropShadow && NeofontrenderConfig.modernShadowEnabled()
+                && ModernTextApi.canRenderModernShadow(text.modernText())) {
+            ModernTextLayout rendered = ModernTextApi.layoutFormattedWithShadow(
+                    text.modernText(), fontSize, color);
+            rendered.draw(x, y);
+            return rendered.advance();
+        }
+        if (dropShadow) {
+            float offsetX = NeofontrenderConfig.modernShadowEnabled()
+                    ? NeofontrenderConfig.shadowOffsetX()
+                    : NeofontrenderConfig.shadowLength();
+            float offsetY = NeofontrenderConfig.modernShadowEnabled()
+                    ? NeofontrenderConfig.shadowOffsetY()
+                    : NeofontrenderConfig.shadowLength();
+            ModernTextLayout shadow = ModernTextApi.layoutFormatted(
+                    text.modernText(), fontSize, color, true);
+            shadow.draw(x + offsetX, y + offsetY, NeofontrenderConfig.shadowOpacity());
+        }
+        ModernTextLayout foreground = ModernTextApi.layoutFormatted(
+                text.modernText(), fontSize, color, false);
+        foreground.draw(x, y);
+        return foreground.advance();
+    }
+
+    private String sfr$trimPreprocessedText(PreprocessedText text, int width,
+                                            boolean reverse) {
+        String raw = text.rawText();
+        String visible = text.visibleText();
+        if (visible.isEmpty()) return raw;
+
+        if (!reverse) {
+            int acceptedRawEnd = text.rawEndForVisibleBoundary(0);
+            for (int index = 0; index < visible.length();) {
+                int next;
+                if (visible.charAt(index) == 167 && index + 1 < visible.length()) {
+                    next = index + 2;
+                } else {
+                    next = index + Character.charCount(visible.codePointAt(index));
+                }
+                int candidateRawEnd = text.rawEndForVisibleBoundary(next);
+                if (sfr$measurePreprocessedRaw(raw.substring(0, candidateRawEnd)) > width) {
+                    break;
+                }
+                acceptedRawEnd = candidateRawEnd;
+                index = next;
+            }
+            return raw.substring(0, acceptedRawEnd);
+        }
+
+        int acceptedRawStart = raw.length();
+        for (int index = visible.length(); index > 0;) {
+            int start = index - Character.charCount(visible.codePointBefore(index));
+            if (start > 0 && visible.charAt(start - 1) == 167) {
+                start--;
+            }
+            int candidateRawStart = text.rawStartForVisibleBoundary(start);
+            String prefix = sfr$activeFormatPrefix(raw.substring(0, candidateRawStart));
+            if (sfr$measurePreprocessedRaw(prefix + raw.substring(candidateRawStart)) > width) {
+                break;
+            }
+            acceptedRawStart = candidateRawStart;
+            index = start;
+        }
+        return raw.substring(acceptedRawStart);
+    }
+
+    private int sfr$sizePreprocessedTextToWidth(PreprocessedText text, int wrapWidth) {
+        String raw = text.rawText();
+        String visible = text.visibleText();
+        int breakRaw = -1;
+
+        for (int index = 0; index < visible.length();) {
+            char ch = visible.charAt(index);
+            if (ch == '\n') {
+                return text.rawStartForVisibleBoundary(index);
+            }
+            if (ch == 167 && index + 1 < visible.length()) {
+                index += 2;
+                continue;
+            }
+
+            int next = index + Character.charCount(visible.codePointAt(index));
+            if (ch == ' ') {
+                breakRaw = text.rawStartForVisibleBoundary(index);
+            }
+            int rawEnd = text.rawEndForVisibleBoundary(next);
+            if (sfr$measurePreprocessedRaw(raw.substring(0, rawEnd)) > wrapWidth) {
+                return breakRaw != -1 && breakRaw < rawEnd ? breakRaw : rawEnd;
+            }
+            index = next;
+        }
+        return raw.length();
+    }
+
+    private float sfr$measurePreprocessedRaw(String raw) {
+        return ModernTextApi.measureFormatted(
+                raw, NeofontrenderConfig.fontSize(), 0xFFFFFFFF, false);
+    }
+
+    private static String sfr$activeFormatPrefix(String text) {
+        String color = "";
+        StringBuilder styles = new StringBuilder(10);
+        for (int index = 0; index + 1 < text.length(); index++) {
+            if (text.charAt(index) != 167) continue;
+            char code = Character.toLowerCase(text.charAt(++index));
+            if (sfr$isFormatColor(code)) {
+                color = "\u00A7" + code;
+                styles.setLength(0);
+            } else if (code == 'r') {
+                color = "";
+                styles.setLength(0);
+            } else if ("klmno".indexOf(code) >= 0
+                    && styles.indexOf("\u00A7" + code) < 0) {
+                styles.append('\u00A7').append(code);
+            }
+        }
+        return color + styles;
     }
 
     private void sfr$drawSelectiveShadow(TextRenderBackend backend, String text, float x, float y, int color) {
-        float offset = NeofontrenderConfig.shadowLength();
+        float offsetX = NeofontrenderConfig.shadowOffsetX();
+        float offsetY = NeofontrenderConfig.shadowOffsetY();
         if (backend.shouldRenderShadow(text)) {
             TextRenderResult shadow = backend.renderFormatted(text, color, true);
-            shadow.draw(x + offset, y + offset, shadowAlpha(color));
+            shadow.draw(x + offsetX, y + offsetY, shadowAlpha(color));
             return;
         }
         // Group consecutive code points by shadow eligibility instead of splitting per code
@@ -738,17 +924,17 @@ public class MixinFontRenderer {
             int next = index + Character.charCount(codePoint);
             boolean shadow = backend.shouldRenderShadow(text.substring(index, next));
             if (unit.length() > 0 && shadow != unitShadow) {
-                cursor = sfr$drawShadowUnit(backend, unit, cursor, y, color, offset, unitShadow);
+                cursor = sfr$drawShadowUnit(backend, unit, cursor, y, color, offsetX, offsetY, unitShadow);
             }
             unitShadow = shadow;
             unit.appendCodePoint(codePoint);
             index = next;
         }
-        sfr$drawShadowUnit(backend, unit, cursor, y, color, offset, unitShadow);
+        sfr$drawShadowUnit(backend, unit, cursor, y, color, offsetX, offsetY, unitShadow);
     }
 
     private float sfr$drawShadowUnit(TextRenderBackend backend, StringBuilder unit, float cursor, float y,
-                                     int color, float offset, boolean shadow) {
+                                     int color, float offsetX, float offsetY, boolean shadow) {
         if (unit.length() == 0) {
             return cursor;
         }
@@ -757,7 +943,7 @@ public class MixinFontRenderer {
         TextRenderResult rendered = backend.renderFormatted(text, color, false);
         if (shadow) {
             TextRenderResult shadowText = backend.renderFormatted(text, color, true);
-            shadowText.draw(cursor + offset, y + offset, shadowAlpha(color));
+            shadowText.draw(cursor + offsetX, y + offsetY, shadowAlpha(color));
         }
         return cursor + rendered.advance();
     }
