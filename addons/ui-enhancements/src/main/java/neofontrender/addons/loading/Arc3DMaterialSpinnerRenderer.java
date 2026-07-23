@@ -20,7 +20,9 @@ final class Arc3DMaterialSpinnerRenderer {
     private static final long MORPH_DURATION_NANOS = 1_333_000_000L;
 
     void draw(float centerX, float centerY, int accent, float alpha, long now) {
-        float cycle = (now % MORPH_DURATION_NANOS) / (float) MORPH_DURATION_NANOS;
+        long completedMorphCycles = Math.floorDiv(now, MORPH_DURATION_NANOS);
+        float cycle = Math.floorMod(now, MORPH_DURATION_NANOS)
+                / (float) MORPH_DURATION_NANOS;
         float halfCycle = cycle < 0.5F ? cycle * 2.0F : (cycle - 0.5F) * 2.0F;
         float eased = smoothStep(halfCycle);
         float sweep;
@@ -35,8 +37,7 @@ final class Arc3DMaterialSpinnerRenderer {
 
         // A full base turn is deliberately out of phase with the head/tail morph. This prevents
         // the indicator from appearing to pause at either end of its expansion.
-        float baseRotation = (now % 1_600_000_000L) / 1_600_000_000.0F * 360.0F;
-        float startDegrees = baseRotation + tailAdvance - 90.0F;
+        float startDegrees = continuousStartDegrees(now, completedMorphCycles, tailAdvance);
         int color = scaleAlpha(accent, alpha);
 
         GlStateManager.disableTexture2D();
@@ -46,40 +47,79 @@ final class Arc3DMaterialSpinnerRenderer {
         GlStateManager.enableTexture2D();
     }
 
+    static float continuousStartDegrees(long now, long completedMorphCycles, float tailAdvance) {
+        float baseRotation = Math.floorMod(now, 1_600_000_000L)
+                / 1_600_000_000.0F * 360.0F;
+        // The shrinking half advances the tail by MAX_SWEEP - MIN_SWEEP. Carry that advance into
+        // every following morph cycle; otherwise tailAdvance snaps back to zero at the loop
+        // boundary and the arc visibly jumps backwards by 244 degrees.
+        float carriedTailRotation = (float) ((completedMorphCycles
+                * (double) (MAX_SWEEP - MIN_SWEEP)) % 360.0D);
+        return baseRotation + carriedTailRotation + tailAdvance - 90.0F;
+    }
+
     private static void drawArc(float centerX, float centerY, float startDegrees,
                                 float sweepDegrees, int color) {
-        int segments = Math.max(12, (int) Math.ceil(sweepDegrees / 5.0F));
+        int segments = Math.max(16, (int) Math.ceil(sweepDegrees / 3.0F));
         BufferBuilder buffer = Tessellator.getInstance().getBuffer();
-        buffer.begin(GL11.GL_TRIANGLE_STRIP, DefaultVertexFormats.POSITION_COLOR);
-        for (int i = 0; i <= segments; i++) {
-            float angle = radians(startDegrees + sweepDegrees * i / segments);
-            vertex(buffer, centerX + (float) Math.cos(angle) * OUTER_RADIUS,
-                    centerY + (float) Math.sin(angle) * OUTER_RADIUS, color);
-            vertex(buffer, centerX + (float) Math.cos(angle) * INNER_RADIUS,
-                    centerY + (float) Math.sin(angle) * INNER_RADIUS, color);
+        buffer.begin(GL11.GL_TRIANGLES, DefaultVertexFormats.POSITION_COLOR);
+        float previous = radians(startDegrees);
+        for (int i = 1; i <= segments; i++) {
+            float next = radians(startDegrees + sweepDegrees * i / segments);
+            arcQuad(buffer, centerX, centerY, previous, next, color);
+            previous = next;
         }
-        Tessellator.getInstance().draw();
 
         float middleRadius = (INNER_RADIUS + OUTER_RADIUS) * 0.5F;
         float capRadius = (OUTER_RADIUS - INNER_RADIUS) * 0.5F;
         float start = radians(startDegrees);
         float end = radians(startDegrees + sweepDegrees);
-        drawRoundCap(centerX + (float) Math.cos(start) * middleRadius,
-                centerY + (float) Math.sin(start) * middleRadius, capRadius, color);
-        drawRoundCap(centerX + (float) Math.cos(end) * middleRadius,
-                centerY + (float) Math.sin(end) * middleRadius, capRadius, color);
+        roundCap(buffer, centerX, centerY, start, middleRadius, capRadius, false, color);
+        roundCap(buffer, centerX, centerY, end, middleRadius, capRadius, true, color);
+        Tessellator.getInstance().draw();
     }
 
-    private static void drawRoundCap(float centerX, float centerY, float radius, int color) {
-        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
-        buffer.begin(GL11.GL_TRIANGLE_FAN, DefaultVertexFormats.POSITION_COLOR);
-        vertex(buffer, centerX, centerY, color);
-        for (int i = 0; i <= 12; i++) {
-            float angle = (float) (Math.PI * 2.0D * i / 12.0D);
-            vertex(buffer, centerX + (float) Math.cos(angle) * radius,
-                    centerY + (float) Math.sin(angle) * radius, color);
+    private static void arcQuad(BufferBuilder buffer, float cx, float cy,
+                                float first, float second, int color) {
+        float foX = cx + (float) Math.cos(first) * OUTER_RADIUS;
+        float foY = cy + (float) Math.sin(first) * OUTER_RADIUS;
+        float fiX = cx + (float) Math.cos(first) * INNER_RADIUS;
+        float fiY = cy + (float) Math.sin(first) * INNER_RADIUS;
+        float soX = cx + (float) Math.cos(second) * OUTER_RADIUS;
+        float soY = cy + (float) Math.sin(second) * OUTER_RADIUS;
+        float siX = cx + (float) Math.cos(second) * INNER_RADIUS;
+        float siY = cy + (float) Math.sin(second) * INNER_RADIUS;
+        vertex(buffer, foX, foY, color); vertex(buffer, fiX, fiY, color);
+        vertex(buffer, soX, soY, color);
+        vertex(buffer, soX, soY, color); vertex(buffer, fiX, fiY, color);
+        vertex(buffer, siX, siY, color);
+    }
+
+    private static void roundCap(BufferBuilder buffer, float cx, float cy, float angle,
+                                 float middleRadius, float radius, boolean end, int color) {
+        float px = cx + (float) Math.cos(angle) * middleRadius;
+        float py = cy + (float) Math.sin(angle) * middleRadius;
+        float nx = (float) Math.cos(angle);
+        float ny = (float) Math.sin(angle);
+        float tx = -(float) Math.sin(angle);
+        float ty = (float) Math.cos(angle);
+        int capSegments = 12;
+        for (int i = 0; i < capSegments; i++) {
+            float a = (float) Math.PI * i / capSegments;
+            float b = (float) Math.PI * (i + 1) / capSegments;
+            vertex(buffer, px, py, color);
+            capVertex(buffer, px, py, nx, ny, tx, ty, radius, a, end, color);
+            capVertex(buffer, px, py, nx, ny, tx, ty, radius, b, end, color);
         }
-        Tessellator.getInstance().draw();
+    }
+
+    private static void capVertex(BufferBuilder buffer, float px, float py,
+                                  float nx, float ny, float tx, float ty, float radius,
+                                  float phase, boolean end, int color) {
+        float normal = (float) Math.cos(phase) * (end ? -1.0F : 1.0F);
+        float tangent = (float) Math.sin(phase) * (end ? 1.0F : -1.0F);
+        vertex(buffer, px + radius * (normal * nx + tangent * tx),
+                py + radius * (normal * ny + tangent * ty), color);
     }
 
     private static void vertex(BufferBuilder buffer, float x, float y, int color) {

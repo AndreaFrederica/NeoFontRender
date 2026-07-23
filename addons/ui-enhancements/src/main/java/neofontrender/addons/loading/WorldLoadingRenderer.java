@@ -18,13 +18,13 @@ import net.minecraft.world.WorldServer;
 import net.minecraftforge.client.event.GuiOpenEvent;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
-import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.event.world.ChunkEvent;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import neofontrender.addons.mixin.AccessorChunkProviderClient;
+import neofontrender.api.text.ModernTextApi;
 
 import java.util.Collections;
 import java.util.Set;
@@ -62,6 +62,8 @@ public enum WorldLoadingRenderer {
     private IntegratedServer renderedIntegratedServer;
     private float integratedDisplayedProgress;
     private boolean worldJoinClientPhase;
+    private volatile String vanillaStage = "";
+    private volatile String vanillaDetail = "";
 
     @SubscribeEvent
     public void serverWorldLoaded(WorldEvent.Load event) {
@@ -92,15 +94,12 @@ public enum WorldLoadingRenderer {
         }
         if (event.getGui() instanceof GuiDownloadTerrain) {
             begin(Minecraft.getMinecraft(), System.nanoTime());
+            vanillaStage = I18n.format("multiplayer.downloadingTerrain");
+            vanillaDetail = "";
             integratedLaunchActive = false;
         } else if (active) {
             finish(System.nanoTime());
         }
-    }
-
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public void afterWorldRendered(RenderWorldLastEvent event) {
-        WorldLoadingSnapshotManager.INSTANCE.captureRequestedWorldFrame();
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -214,10 +213,12 @@ public enum WorldLoadingRenderer {
      * the initial world. Vanilla prepares exactly 625 spawn chunks in 1.12.2; chunk events provide
      * a granular real count, while MinecraftServer.percentDone remains an authoritative fallback.
      */
-    public void renderIntegratedServerLoading(int width, int height, int vanillaProgress) {
+    public void renderIntegratedServerLoading(int width, int height, int vanillaProgress,
+                                              String stage, String detail) {
         if (!WorldLoadingConfig.enabled || !WorldLoadingConfig.worldJoin
                 || !integratedLaunchActive) return;
         Minecraft mc = Minecraft.getMinecraft();
+        updateVanillaStage(stage, detail);
         IntegratedServer server = mc.getIntegratedServer();
 
         if (server != null && renderedIntegratedServer != server) {
@@ -338,7 +339,9 @@ public enum WorldLoadingRenderer {
 
         boolean snapshot = WorldLoadingSnapshotManager.INSTANCE.draw(width, height, alpha);
         if (!snapshot && mc.world == null) {
-            Gui.drawRect(0, 0, width, height, scaledAlpha(0xFF11151B, alpha));
+            // A new save or the first visit to a server cannot have a previous-world snapshot.
+            // Use Minecraft's original tiled menu background instead of showing an empty panel.
+            drawVanillaBackground(width, height, alpha);
         } else if (!snapshot) {
             Gui.drawRect(0, 0, width, height, scaledAlpha(0x18000000, alpha));
         }
@@ -347,13 +350,28 @@ public enum WorldLoadingRenderer {
                     scaledAlpha(0x00000000, alpha), scaledAlpha(0xC8000000, alpha));
         }
 
-        String label = translatedLoadingLabel(visualAmount) + animatedDots(now);
+        String label = currentStageLabel(visualAmount) + animatedDots(now);
         float titleScale = width >= 700 ? 2.5F : width >= 420 ? 2.0F : 1.55F;
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(margin, bottom - font.FONT_HEIGHT * titleScale, 0.0F);
-        GlStateManager.scale(titleScale, titleScale, 1.0F);
-        font.drawString(label, 0, 0, scaledAlpha(WorldLoadingConfig.textColor, alpha), false);
-        GlStateManager.popMatrix();
+        int titleColor = scaledAlpha(WorldLoadingConfig.textColor, alpha);
+        if (ModernTextApi.isAvailable()) {
+            // Request a real large logical font from NFR's public engine-independent API. UIE has
+            // no knowledge of Cosmic, Skia, or SFR/AWT and never scales a small cached texture.
+            float titleFontSize = Math.max(1.0F, font.FONT_HEIGHT * titleScale);
+            ModernTextApi.draw(label, margin, bottom - titleFontSize,
+                    titleFontSize, titleColor);
+        } else {
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(margin, bottom - font.FONT_HEIGHT * titleScale, 0.0F);
+            GlStateManager.scale(titleScale, titleScale, 1.0F);
+            font.drawString(label, 0, 0, titleColor, false);
+            GlStateManager.popMatrix();
+        }
+
+        String detail = currentDetailLabel(label);
+        if (!detail.isEmpty()) {
+            font.drawString(detail, margin, bottom + 2,
+                    scaledAlpha(0xFFB8C0CC, alpha), false);
+        }
 
         int spinnerX = width - margin - 10;
         int spinnerY = bottom - 7;
@@ -373,6 +391,30 @@ public enum WorldLoadingRenderer {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.enableDepth();
         GlStateManager.disableBlend();
+    }
+
+    private String currentStageLabel(float amount) {
+        String stage = cleanStage(vanillaStage);
+        return stage.isEmpty() ? translatedLoadingLabel(amount) : stage;
+    }
+
+    private String currentDetailLabel(String title) {
+        String detail = cleanStage(vanillaDetail);
+        return detail.equalsIgnoreCase(cleanStage(title)) ? "" : detail;
+    }
+
+    private void updateVanillaStage(String stage, String detail) {
+        String cleanStage = cleanStage(stage);
+        String cleanDetail = cleanStage(detail);
+        if (!cleanStage.isEmpty()) vanillaStage = cleanStage;
+        vanillaDetail = cleanDetail;
+    }
+
+    private static String cleanStage(String value) {
+        if (value == null) return "";
+        String result = value.trim();
+        while (result.endsWith(".")) result = result.substring(0, result.length() - 1).trim();
+        return result;
     }
 
     private static String translatedLoadingLabel(float amount) {
@@ -414,6 +456,31 @@ public enum WorldLoadingRenderer {
         Tessellator.getInstance().draw();
         GlStateManager.shadeModel(7424);
         GlStateManager.enableTexture2D();
+    }
+
+    /** Equivalent to GuiScreen.drawBackground(0), with alpha support for the loading fade. */
+    private static void drawVanillaBackground(int width, int height, float opacity) {
+        Minecraft.getMinecraft().getTextureManager().bindTexture(Gui.OPTIONS_BACKGROUND);
+        GlStateManager.disableLighting();
+        GlStateManager.disableFog();
+        GlStateManager.enableTexture2D();
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+        int alpha = Math.round(255.0F * Math.max(0.0F, Math.min(1.0F, opacity)));
+        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
+        buffer.pos(0.0D, height, 0.0D)
+                .tex(0.0D, height / 32.0F).color(64, 64, 64, alpha).endVertex();
+        buffer.pos(width, height, 0.0D)
+                .tex(width / 32.0F, height / 32.0F).color(64, 64, 64, alpha).endVertex();
+        buffer.pos(width, 0.0D, 0.0D)
+                .tex(width / 32.0F, 0.0D).color(64, 64, 64, alpha).endVertex();
+        buffer.pos(0.0D, 0.0D, 0.0D)
+                .tex(0.0D, 0.0D).color(64, 64, 64, alpha).endVertex();
+        Tessellator.getInstance().draw();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
     private static int scaledAlpha(int color, float scale) {

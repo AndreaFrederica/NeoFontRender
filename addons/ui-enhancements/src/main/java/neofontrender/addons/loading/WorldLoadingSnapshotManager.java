@@ -63,8 +63,9 @@ public enum WorldLoadingSnapshotManager {
     }
 
     /**
-     * Reads the framebuffer during RenderWorldLastEvent. The world is complete here, while the
-     * held item, HUD, chat, and current GuiScreen have not yet been drawn.
+     * Reads a freshly rendered world at EntityRenderer's pre-overlay boundary. The mixin calls
+     * this only after renderWorld ran in the same updateCameraAndRender invocation, so a paused or
+     * skipped world frame can never reuse an older framebuffer containing a complete GuiScreen.
      */
     public void captureRequestedWorldFrame() {
         if (!cleanCaptureRequested) return;

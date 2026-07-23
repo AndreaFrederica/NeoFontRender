@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import neofontrender.addons.loading.WorldLoadingRenderer;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -13,6 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LoadingScreenRenderer.class)
 public abstract class MixinLoadingScreenRenderer {
+    @Shadow private String message;
+    @Shadow private String currentlyDisplayedText;
     /**
      * LoadingScreenRenderer normally rejects frames arriving less than 100 ms apart. Lift only the
      * integrated-world presentation to about 60 FPS; all other vanilla loading paths keep 100 ms.
@@ -32,6 +35,7 @@ public abstract class MixinLoadingScreenRenderer {
         Minecraft mc = Minecraft.getMinecraft();
         ScaledResolution resolution = new ScaledResolution(mc);
         WorldLoadingRenderer.INSTANCE.renderIntegratedServerLoading(
-                resolution.getScaledWidth(), resolution.getScaledHeight(), vanillaProgress);
+                resolution.getScaledWidth(), resolution.getScaledHeight(), vanillaProgress,
+                currentlyDisplayedText, message);
     }
 }
