@@ -91,7 +91,7 @@ neofontrender.gui.off=关
 neofontrender.gui.manual=手动
 neofontrender.gui.preview.font=预览：%s
 neofontrender.gui.preview.sample=The quick brown fox 12345 你好世界
-neofontrender.gui.preview.styles=\u00a7l粗体 \u00a7r\u00a7o斜体 \u00a7r\u00a7l\u00a7o粗斜体 \u00a7r\u00a7n下划线 \u00a7r常规
+neofontrender.gui.preview.styles=§l粗体 §r§o斜体 §r§l§o粗斜体 §r§n下划线 §r常规
 
 neofontrender.tooltip.enabled=启用或关闭 Neo Font Render 的字体替换。
 neofontrender.tooltip.force_unicode_font=镜像 Minecraft 语言设置中的"强制使用 Unicode 字体"。影响原版字体渲染，并与原版开关保持同步。

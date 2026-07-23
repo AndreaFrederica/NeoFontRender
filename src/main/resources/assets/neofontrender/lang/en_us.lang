@@ -91,7 +91,7 @@ neofontrender.gui.off=OFF
 neofontrender.gui.manual=Manual
 neofontrender.gui.preview.font=Preview: %s
 neofontrender.gui.preview.sample=The quick brown fox 12345
-neofontrender.gui.preview.styles=\u00a7lBold \u00a7r\u00a7oItalic \u00a7r\u00a7l\u00a7oBold Italic \u00a7r\u00a7nUnderline \u00a7rNormal
+neofontrender.gui.preview.styles=§lBold §r§oItalic §r§l§oBold Italic §r§nUnderline §rNormal
 
 neofontrender.tooltip.enabled=Enable or disable Neo Font Render.
 neofontrender.tooltip.force_unicode_font=Mirrors Minecraft's Force Unicode Font language setting. It affects vanilla font rendering and stays synchronized with the vanilla toggle.
