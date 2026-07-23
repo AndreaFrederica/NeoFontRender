@@ -38,14 +38,17 @@ public final class FontCatalog {
         if (files == null || files.length == 0) return Collections.emptyList();
         Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
         List<FontEntry> fonts = new ArrayList<>();
-        for (File file : files) fonts.add(new FontEntry(file.getName(), file.getAbsolutePath()));
+        for (File file : files) {
+            fonts.add(new FontEntry(fontFamily(file), NeofontrenderConfig.fontFaceName(file),
+                    NeofontrenderConfig.portableFontLocation(file)));
+        }
         return fonts;
     }
 
     public static List<FontEntry> builtinFonts() {
         List<FontEntry> fonts = new ArrayList<>();
         for (NeofontrenderConfig.BuiltinFont font : NeofontrenderConfig.builtinFonts()) {
-            fonts.add(new FontEntry(font.displayName(), font.location()));
+            fonts.add(new FontEntry(font.displayName(), font.displayName(), font.location()));
         }
         return fonts;
     }
@@ -53,6 +56,10 @@ public final class FontCatalog {
     public static boolean isFontFile(String name) {
         String lower = name.toLowerCase(Locale.ROOT);
         return lower.endsWith(".ttf") || lower.endsWith(".otf") || lower.endsWith(".ttc");
+    }
+
+    private static String fontFamily(File file) {
+        return NeofontrenderConfig.fontFamilyName(file);
     }
 
     private static boolean isExposedStyleFamily(String name, Set<String> installedFamilies) {

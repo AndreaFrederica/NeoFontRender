@@ -26,6 +26,7 @@ public final class NfrSettingsDraft {
     public final boolean originalEnabled = NeofontrenderConfig.enabled();
     public final boolean originalForceUnicodeFont = Minecraft.getMinecraft().gameSettings.forceUnicodeFont;
     public final String originalFontName = NeofontrenderConfig.fontName();
+    public final String originalFontPath = NeofontrenderConfig.fontPath();
     public final String originalCosmicRegular = NeofontrenderConfig.cosmicRegularFont();
     public final String originalCosmicBold = NeofontrenderConfig.cosmicBoldFont();
     public final String originalCosmicItalic = NeofontrenderConfig.cosmicItalicFont();
@@ -68,12 +69,18 @@ public final class NfrSettingsDraft {
     public final String originalShadowMaskCodepoints = NeofontrenderConfig.shadowMaskCodepoints();
     public final float originalShadowLength = NeofontrenderConfig.shadowLength();
     public final float originalShadowOpacity = NeofontrenderConfig.shadowOpacity();
+    public final boolean originalModernShadow = NeofontrenderConfig.modernShadowEnabled();
+    public final float originalShadowOffsetX = NeofontrenderConfig.shadowOffsetX();
+    public final float originalShadowOffsetY = NeofontrenderConfig.shadowOffsetY();
+    public final float originalShadowBlurRadius = NeofontrenderConfig.shadowBlurRadius();
+    public final int originalShadowColor = NeofontrenderConfig.shadowColor();
     public final boolean originalFixImeInput = NeofontrenderConfig.fixImeInput();
     public final boolean originalFixUnicodeTextDeletion = NeofontrenderConfig.fixUnicodeTextDeletion();
     public final boolean originalAllowSignPaste = NeofontrenderConfig.allowSignPaste();
     public final boolean originalLaboratoryHexChat = NeofontrenderConfig.laboratoryHexChat();
     public final boolean originalLaboratoryTextUndoRedo = NeofontrenderConfig.laboratoryTextUndoRedo();
     public final boolean originalCompatModernSplash = NeofontrenderConfig.compatModernSplash();
+    public final boolean originalCompatTinkersAntique = NeofontrenderConfig.compatTinkersAntique();
     public final boolean originalSplashFontOverride = NeofontrenderConfig.splashFontOverrideEnabled();
     public final String originalTextCacheMin = Integer.toString(NeofontrenderConfig.skiaTextCacheMinEntries());
     public final String originalTextCacheMax = Integer.toString(NeofontrenderConfig.skiaTextCacheMaxEntries());
@@ -110,16 +117,22 @@ public final class NfrSettingsDraft {
     public String shadowMaskCodepoints = originalShadowMaskCodepoints;
     public float shadowLength = originalShadowLength;
     public float shadowOpacity = originalShadowOpacity;
+    public boolean modernShadow = originalModernShadow;
+    public float shadowOffsetX = originalShadowOffsetX;
+    public float shadowOffsetY = originalShadowOffsetY;
+    public float shadowBlurRadius = originalShadowBlurRadius;
+    public int shadowColor = originalShadowColor;
     public boolean fixImeInput = originalFixImeInput;
     public boolean fixUnicodeTextDeletion = originalFixUnicodeTextDeletion;
     public boolean allowSignPaste = originalAllowSignPaste;
     public boolean laboratoryHexChat = originalLaboratoryHexChat;
     public boolean laboratoryTextUndoRedo = originalLaboratoryTextUndoRedo;
     public boolean compatModernSplash = originalCompatModernSplash;
+    public boolean compatTinkersAntique = originalCompatTinkersAntique;
     public boolean splashFontOverride = originalSplashFontOverride;
     public int categoryScroll;
     public String fontName = originalFontName;
-    public String fontPath = isFontFile(originalFontName) ? originalFontName : "";
+    public String fontPath = originalFontPath;
     public String cosmicRegular = originalCosmicRegular;
     public String cosmicBold = originalCosmicBold;
     public String cosmicItalic = originalCosmicItalic;
@@ -158,20 +171,19 @@ public final class NfrSettingsDraft {
     }
 
     public boolean isSelected(FontEntry font) {
-        String value = fontValue(font);
         switch (fontTarget) {
             case TARGET_FALLBACK:
-                return parseFontList(fontFallbacks).contains(value);
+                return parseFontList(fontFallbacks).contains(font.familyName);
             case TARGET_COSMIC_REGULAR:
-                return value.equals(cosmicRegular);
+                return fontValue(font).equals(cosmicRegular);
             case TARGET_COSMIC_BOLD:
-                return value.equals(cosmicBold);
+                return fontValue(font).equals(cosmicBold);
             case TARGET_COSMIC_ITALIC:
-                return value.equals(cosmicItalic);
+                return fontValue(font).equals(cosmicItalic);
             case TARGET_COSMIC_BOLD_ITALIC:
-                return value.equals(cosmicBoldItalic);
+                return fontValue(font).equals(cosmicBoldItalic);
             case TARGET_SHADOW_MASK:
-                return parseFontList(shadowMaskFonts).contains(value);
+                return parseFontList(shadowMaskFonts).contains(fontValue(font));
             case TARGET_PRIMARY:
             default:
                 String path = font.path == null ? "" : font.path;
@@ -182,9 +194,9 @@ public final class NfrSettingsDraft {
     }
 
     public void selectFont(FontEntry font) {
-        String value = fontValue(font);
         switch (fontTarget) {
             case TARGET_FALLBACK:
+                String value = font.familyName;
                 List<String> fonts = parseFontList(fontFallbacks);
                 if (fonts.contains(value)) {
                     fonts.remove(value);
@@ -194,25 +206,26 @@ public final class NfrSettingsDraft {
                 fontFallbacks = joinFontList(fonts);
                 return;
             case TARGET_COSMIC_REGULAR:
-                cosmicRegular = toggleSingleFont(cosmicRegular, value);
+                cosmicRegular = toggleSingleFont(cosmicRegular, fontValue(font));
                 return;
             case TARGET_COSMIC_BOLD:
-                cosmicBold = toggleSingleFont(cosmicBold, value);
+                cosmicBold = toggleSingleFont(cosmicBold, fontValue(font));
                 return;
             case TARGET_COSMIC_ITALIC:
-                cosmicItalic = toggleSingleFont(cosmicItalic, value);
+                cosmicItalic = toggleSingleFont(cosmicItalic, fontValue(font));
                 return;
             case TARGET_COSMIC_BOLD_ITALIC:
-                cosmicBoldItalic = toggleSingleFont(cosmicBoldItalic, value);
+                cosmicBoldItalic = toggleSingleFont(cosmicBoldItalic, fontValue(font));
                 return;
             case TARGET_SHADOW_MASK:
                 List<String> masks = parseFontList(shadowMaskFonts);
-                if (masks.contains(value)) masks.remove(value); else masks.add(value);
+                String maskValue = fontValue(font);
+                if (masks.contains(maskValue)) masks.remove(maskValue); else masks.add(maskValue);
                 shadowMaskFonts = joinFontList(masks);
                 return;
             case TARGET_PRIMARY:
             default:
-                fontName = font.displayName;
+                fontName = font.familyName;
                 fontPath = font.path;
         }
     }
@@ -250,16 +263,22 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setShadowMaskCodepoints(shadowMaskCodepoints);
         NeofontrenderConfig.setShadowLength(shadowLength);
         NeofontrenderConfig.setShadowOpacity(shadowOpacity);
+        NeofontrenderConfig.setModernShadowEnabled(modernShadow);
+        NeofontrenderConfig.setShadowOffsetX(shadowOffsetX);
+        NeofontrenderConfig.setShadowOffsetY(shadowOffsetY);
+        NeofontrenderConfig.setShadowBlurRadius(shadowBlurRadius);
+        NeofontrenderConfig.setShadowColor(shadowColor);
         NeofontrenderConfig.setFixImeInput(fixImeInput);
         NeofontrenderConfig.setFixUnicodeTextDeletion(fixUnicodeTextDeletion);
         NeofontrenderConfig.setAllowSignPaste(allowSignPaste);
         NeofontrenderConfig.setLaboratoryHexChat(laboratoryHexChat);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(laboratoryTextUndoRedo);
         NeofontrenderConfig.setCompatModernSplash(compatModernSplash);
+        NeofontrenderConfig.setCompatTinkersAntique(compatTinkersAntique);
         NeofontrenderConfig.setSplashFontOverrideEnabled(splashFontOverride);
-            NeofontrenderConfig.setFontName(selectedFont().isEmpty()
-                ? "neofontrender:fonts/sarasa_ui_sc_regular.ttf"
-                : selectedFont());
+        NeofontrenderConfig.setFontName(fontName == null || fontName.trim().isEmpty()
+                ? "Sarasa UI SC" : fontName.trim());
+        NeofontrenderConfig.setFontPath(fontPath);
         NeofontrenderConfig.setFontFallbacks(parseFontList(fontFallbacks));
         NeofontrenderConfig.setCosmicRegularFont(cosmicRegular);
         NeofontrenderConfig.setCosmicBoldFont(cosmicBold);
@@ -316,14 +335,21 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setShadowMaskCodepoints(originalShadowMaskCodepoints);
         NeofontrenderConfig.setShadowLength(originalShadowLength);
         NeofontrenderConfig.setShadowOpacity(originalShadowOpacity);
+        NeofontrenderConfig.setModernShadowEnabled(originalModernShadow);
+        NeofontrenderConfig.setShadowOffsetX(originalShadowOffsetX);
+        NeofontrenderConfig.setShadowOffsetY(originalShadowOffsetY);
+        NeofontrenderConfig.setShadowBlurRadius(originalShadowBlurRadius);
+        NeofontrenderConfig.setShadowColor(originalShadowColor);
         NeofontrenderConfig.setFixImeInput(originalFixImeInput);
         NeofontrenderConfig.setFixUnicodeTextDeletion(originalFixUnicodeTextDeletion);
         NeofontrenderConfig.setAllowSignPaste(originalAllowSignPaste);
         NeofontrenderConfig.setLaboratoryHexChat(originalLaboratoryHexChat);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(originalLaboratoryTextUndoRedo);
         NeofontrenderConfig.setCompatModernSplash(originalCompatModernSplash);
+        NeofontrenderConfig.setCompatTinkersAntique(originalCompatTinkersAntique);
         NeofontrenderConfig.setSplashFontOverrideEnabled(originalSplashFontOverride);
         NeofontrenderConfig.setFontName(originalFontName);
+        NeofontrenderConfig.setFontPath(originalFontPath);
         NeofontrenderConfig.setFontFallbacks(parseFontList(originalFontFallbacks));
         NeofontrenderConfig.setCosmicRegularFont(originalCosmicRegular);
         NeofontrenderConfig.setCosmicBoldFont(originalCosmicBold);

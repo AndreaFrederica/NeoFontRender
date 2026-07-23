@@ -23,6 +23,7 @@ import neofontrender.client.gui.pages.NfrSettingsRoute;
 import neofontrender.client.gui.views.NfrAboutSettingsView;
 import neofontrender.client.gui.views.NfrAdvancedSettingsView;
 import neofontrender.client.gui.views.NfrCacheSettingsView;
+import neofontrender.client.gui.views.NfrCompatibilitySettingsView;
 import neofontrender.client.gui.views.NfrFixesSettingsView;
 import neofontrender.client.gui.views.NfrFontSettingsView;
 import neofontrender.client.gui.views.NfrGeneralSettingsView;
@@ -134,6 +135,8 @@ public final class NeofontrenderConfigScreen {
                 return new NfrShadowSettingsView(controls);
             case FIXES:
                 return new NfrFixesSettingsView(draft, controls);
+            case COMPATIBILITY:
+                return new NfrCompatibilitySettingsView(draft, controls);
             case LABORATORY:
                 return new NfrLaboratorySettingsView(draft, controls);
             case ABOUT:
