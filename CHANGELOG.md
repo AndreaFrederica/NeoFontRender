@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.6]
+
+- Normalize thin variable-font defaults toward the configured splash weight and safely fall back
+  to the loading screen's bitmap font when AWT cannot reduce a heavier default instance.
+
 ## [0.3.5]
 
 - Add the optional UI Enhancements companion mod with modern tooltips, screen effects, enhanced
