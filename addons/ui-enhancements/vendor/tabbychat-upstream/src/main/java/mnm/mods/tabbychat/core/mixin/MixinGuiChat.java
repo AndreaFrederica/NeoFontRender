@@ -21,6 +21,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import neofontrender.addons.chat.EnhancedChatConfigAccess;
+import neofontrender.addons.chat.ExternalChatCompat;
 import neofontrender.addons.input.TextCursorManager;
 
 import java.io.IOException;
@@ -110,6 +111,12 @@ public abstract class MixinGuiChat extends GuiScreen implements ITabCompleter {
     @Override
     public void handleKeyboardInput() throws IOException {
         super.handleKeyboardInput();
+        // Salutation's ChatScreen already writes this event into our substituted inputField and
+        // immediately requests Brigadier completions for that value. Sending the same LWJGL event
+        // through TabbyChat's GuiText afterwards types it a second time and makes the completion
+        // request stale. Keep our self-drawn chat, but let Salutation own keyboard input while its
+        // wrapper is open. Mouse/component drawing remains on the normal TabbyChat path.
+        if (ExternalChatCompat.isSalutationChatScreen(that)) return;
         this.componentList.forEach(GuiComponent::handleKeyboardInput);
     }
 

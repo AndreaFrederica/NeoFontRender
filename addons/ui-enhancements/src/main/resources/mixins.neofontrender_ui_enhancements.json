@@ -10,6 +10,8 @@
   "client": [
     "AccessorShaderGroup",
     "AccessorGuiContainer",
+    "AccessorChunkProviderClient",
+    "MixinEntityRendererScreenEffects",
     "MixinGuiChatAnimation",
     "MixinGuiContainerCreativeSmoothScroll",
     "MixinGuiNewChatSmoothScroll",
@@ -18,6 +20,9 @@
     "MixinGuiScreenBackground",
     "MixinGuiSlotSmoothScroll",
     "MixinGuiTextFieldCursor",
+    "MixinLoadingScreenRenderer",
+    "MixinMinecraftServerSpawnProgress",
+    "MixinMinecraftWorldLoadingSnapshot",
     "MixinModularTextFieldCursor",
     "compat.MixinObscureHeaderComponent",
     "compat.MixinObscureTooltipState",

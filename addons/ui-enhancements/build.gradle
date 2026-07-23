@@ -35,7 +35,7 @@ sourceSets {
 unimined.minecraft {
     version '1.12.2'
     mappings { mcp('stable', '39-1.12') }
-    cleanroom { loader '0.5.17-alpha' }
+    cleanroom { loader '0.6.1-alpha' }
     defaultRemapJar = false
     remap(tasks.named('jar').get())
 }
@@ -46,7 +46,7 @@ dependencies {
 
     // Cleanroom exposes the real LWJGL 3 API and translates Minecraft's old LWJGL 2 calls
     // through lwjglxx. Never bundle lwjgl core or natives in this addon.
-    compileOnly 'com.cleanroommc:lwjglxx:1.1.19'
+    compileOnly 'com.cleanroommc:lwjglxx:1.1.21'
     // Compile-time signatures used by Minecraft 1.12. Cleanroom replaces these classes at runtime.
     compileOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
     compileOnly 'org.lwjgl.lwjgl:lwjgl_util:2.9.4-nightly-20150209'
