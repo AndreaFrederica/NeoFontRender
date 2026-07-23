@@ -1,10 +1,15 @@
 {
-  "targets": ["swap"],
+  "targets": ["scene", "blur_swap", "blurred"],
   "passes": [
     {
-      "name": "blur",
+      "name": "neofontrender_ui_enhancements:ui_copy",
       "intarget": "minecraft:main",
-      "outtarget": "swap",
+      "outtarget": "scene"
+    },
+    {
+      "name": "blur",
+      "intarget": "scene",
+      "outtarget": "blur_swap",
       "uniforms": [
         { "name": "BlurDir", "values": [1.0, 0.0] },
         { "name": "Radius", "values": [5.0] }
@@ -12,11 +17,22 @@
     },
     {
       "name": "blur",
-      "intarget": "swap",
-      "outtarget": "minecraft:main",
+      "intarget": "blur_swap",
+      "outtarget": "blurred",
       "uniforms": [
         { "name": "BlurDir", "values": [0.0, 1.0] },
         { "name": "Radius", "values": [5.0] }
+      ]
+    },
+    {
+      "name": "neofontrender_ui_enhancements:ui_blur_composite",
+      "intarget": "scene",
+      "outtarget": "minecraft:main",
+      "auxtargets": [
+        { "name": "BlurredSampler", "id": "blurred" }
+      ],
+      "uniforms": [
+        { "name": "Progress", "values": [1.0] }
       ]
     }
   ]

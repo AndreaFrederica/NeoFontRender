@@ -206,9 +206,10 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         }
         DynamicTexture texture = new DynamicTexture(width, height);
         int[] pixels = texture.getTextureData();
-        for (int index = 0; index < pixels.length; index++) {
-            pixels[index] = data.getInt();
-        }
+        // OptiFine can expose base, normal, and specular layers in one 3x-sized array. The native
+        // payload contains only the base layer, so never use the target array length as the number
+        // of encoded pixels to consume.
+        CosmicRasterPixels.copyBaseLayer(data, (int) pixelCount, pixels);
         texture.updateDynamicTexture();
         FontRenderTuning.applyFontTextureFilter(texture, scale, false);
         ResourceLocation location = new ResourceLocation("neofontrender", "cosmic/" + nextTextureId++);
