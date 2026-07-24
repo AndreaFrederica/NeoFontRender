@@ -81,16 +81,6 @@ public class MixinFontRenderer {
         if (backend == null) {
             return;
         }
-        if (NeofontrenderConfig.laboratoryHexChat() && sfr$hasHexColorMarker(text)) {
-            if (dropShadow) {
-                sfr$drawHexChat(backend, text, x + NeofontrenderConfig.shadowLength(), y + NeofontrenderConfig.shadowLength(), color, true);
-            }
-            float advance = sfr$drawHexChat(backend, text, x, y, color, false);
-            this.posX = x + advance;
-            this.posY = y;
-            cir.setReturnValue(sfr$drawStringReturnX(x, advance, dropShadow));
-            return;
-        }
         if (dropShadow && NeofontrenderConfig.modernShadowEnabled()
                 && backend.supportsModernShadow() && backend.shouldRenderShadow(text)) {
             TextRenderResult rendered = backend.renderFormattedWithShadow(text, color);
@@ -129,12 +119,6 @@ public class MixinFontRenderer {
         }
         if (FontManager.INSTANCE.isTextBackendActive()) {
             TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
-            if (backend != null && NeofontrenderConfig.laboratoryHexChat() && sfr$hasHexColorMarker(text)) {
-                float advance = sfr$drawHexChat(backend, text, this.posX, this.posY, sfr$currentArgb(), shadow);
-                this.posX += advance;
-                ci.cancel();
-                return;
-            }
             if (shadow && backend != null && !backend.shouldRenderShadow(text)) {
                 // Vanilla advances the pen during its shadow pass as well. Preserve that state
                 // while omitting the duplicate color-glyph rasterization.
@@ -946,59 +930,6 @@ public class MixinFontRenderer {
             shadowText.draw(cursor + offsetX, y + offsetY, shadowAlpha(color));
         }
         return cursor + rendered.advance();
-    }
-
-    private float sfr$drawHexChat(TextRenderBackend backend, String text, float x, float y, int baseColor, boolean shadow) {
-        int color = baseColor | 0xFF000000;
-        float cursor = x;
-        StringBuilder run = new StringBuilder();
-        for (int index = 0; index < text.length();) {
-            if (text.charAt(index) == 167 && index + 1 < text.length()) {
-                // Chat siblings carry vanilla style controls; they are not visible glyphs here.
-                index += 2;
-                continue;
-            }
-            if (isHexMarker(text, index)) {
-                cursor = sfr$drawHexRun(backend, run, cursor, y, color, shadow);
-                color = (baseColor & 0xFF000000) | Integer.parseInt(text.substring(index + 1, index + 7), 16);
-                index += 7;
-                continue;
-            }
-            int codePoint = text.codePointAt(index);
-            run.appendCodePoint(codePoint);
-            index += Character.charCount(codePoint);
-        }
-        return sfr$drawHexRun(backend, run, cursor, y, color, shadow) - x;
-    }
-
-    private float sfr$drawHexRun(TextRenderBackend backend, StringBuilder run, float x, float y, int color, boolean shadow) {
-        if (run.length() == 0) return x;
-        String text = run.toString();
-        run.setLength(0);
-        if (shadow && !backend.shouldRenderShadow(text)) {
-            // Masked glyphs (color emoji, bitmap glyphs) get no shadow, matching the
-            // selective-shadow behaviour of the non-hex paths. Still advance the pen.
-            return x + backend.measure(text, false, false);
-        }
-        int argb = shadow ? (color & 0xFF000000) | ((color & 0xFCFCFC) >> 2) : color;
-        TextRenderResult rendered = backend.render(text, argb, false, false);
-        rendered.draw(x, y, shadow ? shadowAlpha(color) : alphaFromColor(color));
-        return x + rendered.advance();
-    }
-
-    private static boolean sfr$hasHexColorMarker(String text) {
-        for (int index = 0; index + 6 < text.length(); index++) {
-            if (isHexMarker(text, index)) return true;
-        }
-        return false;
-    }
-
-    private static boolean isHexMarker(String text, int index) {
-        if (text.charAt(index) != '#' || index + 6 >= text.length()) return false;
-        for (int digit = index + 1; digit <= index + 6; digit++) {
-            if (Character.digit(text.charAt(digit), 16) < 0) return false;
-        }
-        return true;
     }
 
     private boolean[] sfr$boldStateByIndex(String text) {
