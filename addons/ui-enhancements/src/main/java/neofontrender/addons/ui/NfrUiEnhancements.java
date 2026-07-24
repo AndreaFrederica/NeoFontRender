@@ -26,7 +26,7 @@ import java.util.List;
 )
 public final class NfrUiEnhancements {
     public static final String MOD_ID = "neofontrender_ui_enhancements";
-    public static final String VERSION = "0.1.0";
+    public static final String VERSION = "0.2.2";
     public static final Logger LOGGER = LogManager.getLogger("NFR UI Enhancements");
 
     private static final List<UiEnhancementModule> MODULES = Arrays.asList(

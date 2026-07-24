@@ -100,12 +100,12 @@ void main() {
     }
 
     if (uPassMode > 1.5) {
-        // Dark mode only. Material operations remain in linear light until the final output.
+        // Keep the captured scene legible. The material tint is composited by the tooltip shader;
+        // baking a second near-black tint into this texture made Mica opaque and featureless,
+        // especially when the UI-effects module had already dimmed the framebuffer.
         float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
         color = mix(vec3(luminance), color, 0.90);
         color = color / (vec3(1.0) + color * 0.65);
-        color = mix(color, srgbToLinear(vec3(0.032, 0.036, 0.048)), 0.92);
-        color *= 0.80;
         color = linearToSrgb(color);
     }
     gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
