@@ -19,8 +19,6 @@
     "MixinGuiSlotSmoothScroll",
     "MixinGuiTextFieldCursor",
     "MixinModularTextFieldCursor",
-    "compat.MixinHeiCollapsedGroupTooltip",
-    "compat.MixinHeiTooltipRenderer",
     "compat.MixinObscureTooltipState",
     "compat.MixinObscureHeaderComponent",
     "tabbychat.IGuiIngame",

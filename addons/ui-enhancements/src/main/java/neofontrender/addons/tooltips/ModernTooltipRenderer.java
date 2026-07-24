@@ -73,8 +73,13 @@ final class ModernTooltipRenderer {
     }
 
     static void drawCompatibleBackground(int x, int y, int width, int height, ItemStack stack) {
+        drawCompatibleBackground(x, y, width, height, stack, "");
+    }
+
+    private static void drawCompatibleBackground(
+            int x, int y, int width, int height, ItemStack stack, String title) {
         AdaptiveBorderColors.Result adaptive = TooltipConfig.adaptiveBorder
-                ? AdaptiveBorderColors.compute(stack, "", TooltipConfig.borderColors)
+                ? AdaptiveBorderColors.compute(stack, title, TooltipConfig.borderColors)
                 : AdaptiveBorderColors.Result.unchanged(TooltipConfig.borderColors);
         int[] border = effectiveBorder(adaptive);
         float left = x;
@@ -96,6 +101,31 @@ final class ModernTooltipRenderer {
         GL11.glShadeModel(GL11.GL_SMOOTH);
         drawBackground(left, top, right, bottom, radius, border);
         GL11.glPopMatrix();
+        GL11.glPopAttrib();
+    }
+
+    static void drawCompatibleTextPage(
+            List<String> lines, int x, int y, int width, int height, int[] lineHeights,
+            boolean hasTitle, boolean paged, ItemStack stack, FontRenderer font) {
+        String adaptiveTitle = hasTitle ? lines.get(0) : "";
+        drawCompatibleBackground(x - 4, y - 4, width + 7, height + 7, stack, adaptiveTitle);
+        if (hasTitle && TooltipConfig.titleBreak && (lines.size() > 1 || paged)) {
+            drawCompatibleDivider(x, y + Math.max(1, lineHeights[0] - 2), width, stack);
+        }
+
+        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        int textY = y;
+        for (int index = 0; index < lines.size(); index++) {
+            String line = lines.get(index);
+            boolean titleLine = hasTitle && index == 0;
+            int color = titleLine ? TooltipConfig.titleColor : TooltipConfig.textColor;
+            int textX = titleLine && TooltipConfig.centerTitle
+                    ? x + (width - font.getStringWidth(line)) / 2 : x;
+            if (TooltipConfig.textShadow) font.drawStringWithShadow(line, textX, textY, color);
+            else font.drawString(line, textX, textY, color);
+            textY += lineHeights[index];
+        }
         GL11.glPopAttrib();
     }
 

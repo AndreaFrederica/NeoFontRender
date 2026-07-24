@@ -11,6 +11,8 @@ import neofontrender.addons.ui.NfrUiEnhancements;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 
 final class ModernTooltipSettingsPage implements NfrSettingsPage {
     @Override public String id() { return NfrUiEnhancements.MOD_ID + ":tooltips"; }
@@ -35,8 +37,8 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             () -> TooltipConfig.yieldToLegendaryTooltips, value -> TooltipConfig.yieldToLegendaryTooltips = value))
                     .add(c.toggleText(() -> tr("gui.obscure_yield"), () -> tr("tooltip.obscure_yield"),
                             () -> TooltipConfig.yieldToObscureTooltips, value -> TooltipConfig.yieldToObscureTooltips = value))
-                    .add(c.toggleText(() -> tr("gui.hei_custom"), () -> tr("tooltip.hei_custom"),
-                            () -> TooltipConfig.heiCustomTooltips, value -> TooltipConfig.heiCustomTooltips = value))
+                    .add(c.toggleText(() -> tr("gui.nei_custom"), () -> tr("tooltip.nei_custom"),
+                            () -> TooltipConfig.neiCustomTooltips, value -> TooltipConfig.neiCustomTooltips = value))
                     .add(c.toggleText(() -> tr("gui.mod_name"), () -> tr("tooltip.mod_name"),
                             () -> TooltipConfig.modNameEnabled, value -> TooltipConfig.modNameEnabled = value))
                     .add(c.dropdownText("tooltip_mod_name_format", () -> tr("gui.mod_name_format"),
@@ -149,8 +151,7 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
         }
 
         private static IWidget colorPicker(NfrSettingsControls controls, String name, String label,
-                                           java.util.function.IntSupplier getter,
-                                           java.util.function.IntConsumer setter) {
+                                           IntSupplier getter, IntConsumer setter) {
             return controls.colorText(name, () -> tr(label), getter, setter, true).size(260, 24);
         }
 

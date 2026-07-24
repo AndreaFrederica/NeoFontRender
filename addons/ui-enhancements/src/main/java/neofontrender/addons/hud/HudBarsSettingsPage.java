@@ -1,7 +1,7 @@
 package neofontrender.addons.hud;
 
 import com.cleanroommc.modularui.api.widget.IWidget;
-import net.minecraft.client.resources.I18n;
+import neofontrender.addons.tooltips.AddonI18n;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.api.client.settings.NfrSettingsPage;
 import neofontrender.api.client.settings.NfrSettingsPageContext;
@@ -20,6 +20,7 @@ import java.util.function.Supplier;
 final class HudBarsSettingsPage implements NfrSettingsPage {
     @Override public String id() { return NfrUiEnhancements.MOD_ID + ":hud_bars"; }
     @Override public String titleKey() { return "neofontrender_ui_enhancements.gui.hud.category"; }
+    @Override public String title() { return AddonI18n.tr(titleKey()); }
     @Override public int order() { return 1005; }
     @Override public NfrSettingsPageSession createSession() { return new Session(); }
 
@@ -65,21 +66,21 @@ final class HudBarsSettingsPage implements NfrSettingsPage {
                             () -> Integer.toString(HudBarsConfig.width),
                             value -> HudBarsConfig.width = Integer.parseInt(value),
                             Arrays.asList("60", "72", "81", "96", "120", "144"),
-                            value -> value + " px").size(260, 24))
+                            value -> withUnit(value, "pixels")).size(260, 24))
                     .add(controls.dropdownText(
                             "hud_bar_height",
                             () -> tr("gui.hud.height"),
                             () -> Integer.toString(HudBarsConfig.height),
                             value -> HudBarsConfig.height = Integer.parseInt(value),
                             Arrays.asList("7", "8", "9", "10", "12", "14"),
-                            value -> value + " px").size(260, 24))
+                            value -> withUnit(value, "pixels")).size(260, 24))
                     .add(controls.dropdownText(
                             "hud_bar_gap",
                             () -> tr("gui.hud.gap"),
                             () -> Integer.toString(HudBarsConfig.gap),
                             value -> HudBarsConfig.gap = Integer.parseInt(value),
                             Arrays.asList("0", "1", "2", "3", "4", "6", "8"),
-                            value -> value + " px").size(260, 24))
+                            value -> withUnit(value, "pixels")).size(260, 24))
                     .add(color(controls, "hud_background", "background",
                             () -> HudBarsConfig.background, value -> HudBarsConfig.background = value))
                     .add(color(controls, "hud_border", "border",
@@ -130,7 +131,11 @@ final class HudBarsSettingsPage implements NfrSettingsPage {
     }
 
     private static String tr(String suffix) {
-        return I18n.format("neofontrender_ui_enhancements." + suffix);
+        return AddonI18n.tr("neofontrender_ui_enhancements." + suffix);
+    }
+
+    private static String withUnit(String value, String unit) {
+        return value + " " + tr("gui.unit." + unit);
     }
 
     private static final class PageView extends NfrContentView<PageView> {

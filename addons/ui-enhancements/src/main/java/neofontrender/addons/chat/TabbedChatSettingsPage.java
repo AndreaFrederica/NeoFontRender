@@ -17,6 +17,9 @@ import neofontrender.client.gui.component.business.NfrSettingsControls;
 import neofontrender.client.gui.views.NfrContentView;
 
 import java.util.Arrays;
+import java.util.Locale;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 final class TabbedChatSettingsPage implements NfrSettingsPage {
@@ -75,13 +78,13 @@ final class TabbedChatSettingsPage implements NfrSettingsPage {
                     .add(c.dropdownText("tabby_visibility", () -> tr("visibility"),
                             () -> advanced.visibility.get().name(),
                             value -> advanced.visibility.set(ChatVisibility.valueOf(value)),
-                            Arrays.stream(ChatVisibility.values()).map(Enum::name).collect(Collectors.toList()), value -> value).size(260, 24));
+                            Arrays.stream(ChatVisibility.values()).map(Enum::name).collect(Collectors.toList()),
+                            TabbedChatSettingsPage::visibilityLabel).size(260, 24));
             return new PageView(grid);
         }
 
         private IWidget toggle(NfrSettingsControls c, String key,
-                               java.util.function.Supplier<Boolean> getter,
-                               java.util.function.Consumer<Boolean> setter) {
+                               Supplier<Boolean> getter, Consumer<Boolean> setter) {
             return c.toggleText(() -> tr(key), () -> "", getter, setter);
         }
 
@@ -105,6 +108,10 @@ final class TabbedChatSettingsPage implements NfrSettingsPage {
     }
 
     private static String tr(String key) { return AddonI18n.tr("neofontrender_ui_enhancements.gui.tabby." + key); }
+    static String visibilityKey(String value) {
+        return "neofontrender_ui_enhancements.gui.tabby.visibility." + value.toLowerCase(Locale.ROOT);
+    }
+    private static String visibilityLabel(String value) { return AddonI18n.tr(visibilityKey(value)); }
     private static final class PageView extends NfrContentView<PageView> {
         private PageView(NfrOptionsGrid grid) { super(section(grid, grid::preferredHeight)); }
     }

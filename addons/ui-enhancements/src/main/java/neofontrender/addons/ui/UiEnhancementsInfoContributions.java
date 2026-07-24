@@ -1,6 +1,6 @@
 package neofontrender.addons.ui;
 
-import net.minecraft.client.resources.I18n;
+import neofontrender.addons.tooltips.AddonI18n;
 import neofontrender.api.client.settings.NfrInfoLine;
 import neofontrender.api.client.settings.NfrInfoPage;
 import neofontrender.api.client.settings.NfrInfoPageContribution;
@@ -38,6 +38,6 @@ final class UiEnhancementsInfoContributions {
     }
 
     private static String tr(String key) {
-        return I18n.format(key);
+        return AddonI18n.tr(key);
     }
 }

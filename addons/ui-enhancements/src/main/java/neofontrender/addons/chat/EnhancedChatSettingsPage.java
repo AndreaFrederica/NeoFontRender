@@ -1,8 +1,8 @@
 package neofontrender.addons.chat;
 
 import com.cleanroommc.modularui.api.widget.IWidget;
-import net.minecraft.client.resources.I18n;
 import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
+import neofontrender.addons.tooltips.AddonI18n;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.api.client.settings.NfrSettingsPage;
 import neofontrender.api.client.settings.NfrSettingsPageContext;
@@ -17,6 +17,7 @@ import java.util.Arrays;
 final class EnhancedChatSettingsPage implements NfrSettingsPage {
     @Override public String id() { return NfrUiEnhancements.MOD_ID + ":enhanced_chat"; }
     @Override public String titleKey() { return "neofontrender_ui_enhancements.gui.chat.category"; }
+    @Override public String title() { return AddonI18n.tr(titleKey()); }
     @Override public int order() { return 1040; }
     @Override public NfrSettingsPageSession createSession() { return new Session(); }
 
@@ -95,21 +96,21 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
                             () -> Integer.toString(EnhancedChatConfig.messageAnimationDuration),
                             value -> EnhancedChatConfig.messageAnimationDuration = Integer.parseInt(value),
                             Arrays.asList("75", "100", "150", "200", "300", "500"),
-                            value -> value + " ms").size(260, 24))
+                            value -> withUnit(value, "milliseconds")).size(260, 24))
                     .add(controls.dropdownText(
                             "chat_message_animation_distance",
                             () -> tr("gui.chat.message_distance"),
                             () -> Float.toString(EnhancedChatConfig.messageAnimationDistance),
                             value -> EnhancedChatConfig.messageAnimationDistance = Float.parseFloat(value),
                             Arrays.asList("3.0", "5.0", "7.0", "9.0", "12.0"),
-                            value -> value + " px").size(260, 24))
+                            value -> withUnit(value, "pixels")).size(260, 24))
                     .add(controls.dropdownText(
                             "chat_message_animation_easing",
                             () -> tr("gui.chat.message_easing"),
                             () -> EnhancedChatConfig.messageAnimationEasing,
                             value -> EnhancedChatConfig.messageAnimationEasing = value,
                             Arrays.asList("linear", "sine", "quad", "cubic", "back"),
-                            value -> value).size(260, 24))
+                            EnhancedChatSettingsPage::easingLabel).size(260, 24))
                     .add(controls.toggleText(
                             () -> tr("gui.chat.animate_input"),
                             () -> tr("tooltip.chat.animate_input"),
@@ -121,21 +122,21 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
                             () -> Integer.toString(EnhancedChatConfig.inputAnimationDuration),
                             value -> EnhancedChatConfig.inputAnimationDuration = Integer.parseInt(value),
                             Arrays.asList("75", "100", "150", "170", "200", "300", "500"),
-                            value -> value + " ms").size(260, 24))
+                            value -> withUnit(value, "milliseconds")).size(260, 24))
                     .add(controls.dropdownText(
                             "chat_input_animation_distance",
                             () -> tr("gui.chat.input_distance"),
                             () -> Float.toString(EnhancedChatConfig.inputAnimationDistance),
                             value -> EnhancedChatConfig.inputAnimationDistance = Float.parseFloat(value),
                             Arrays.asList("3.0", "5.0", "8.0", "10.0", "12.0"),
-                            value -> value + " px").size(260, 24))
+                            value -> withUnit(value, "pixels")).size(260, 24))
                     .add(controls.dropdownText(
                             "chat_input_animation_easing",
                             () -> tr("gui.chat.input_easing"),
                             () -> EnhancedChatConfig.inputAnimationEasing,
                             value -> EnhancedChatConfig.inputAnimationEasing = value,
                             Arrays.asList("linear", "sine", "quad", "cubic", "back"),
-                            value -> value).size(260, 24));
+                            EnhancedChatSettingsPage::easingLabel).size(260, 24));
             return new PageView(grid);
         }
 
@@ -177,7 +178,19 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
     }
 
     private static String tr(String suffix) {
-        return I18n.format("neofontrender_ui_enhancements." + suffix);
+        return AddonI18n.tr("neofontrender_ui_enhancements." + suffix);
+    }
+
+    static String easingKey(String value) {
+        return "neofontrender_ui_enhancements.gui.chat.easing." + value;
+    }
+
+    private static String easingLabel(String value) {
+        return AddonI18n.tr(easingKey(value));
+    }
+
+    private static String withUnit(String value, String unit) {
+        return value + " " + tr("gui.unit." + unit);
     }
 
     private static final class PageView extends NfrContentView<PageView> {

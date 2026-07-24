@@ -27,11 +27,22 @@ public final class AddonI18n {
 
     private static synchronized void load(String language) {
         if (language.equals(loadedLanguage)) return;
-        Properties values = new Properties();
-        read(values, "en_us");
-        if (!"en_us".equals(language)) read(values, language);
-        fallback = values;
+        fallback = loadLanguage(language);
         loadedLanguage = language;
+    }
+
+    static Properties loadLanguage(String language) {
+        Properties values = new Properties();
+        read(values, "en_US");
+        String selectedLanguage = canonicalLanguage(language);
+        if (!"en_US".equals(selectedLanguage)) read(values, selectedLanguage);
+        return values;
+    }
+
+    private static String canonicalLanguage(String language) {
+        if ("en_us".equalsIgnoreCase(language)) return "en_US";
+        if ("zh_cn".equalsIgnoreCase(language)) return "zh_CN";
+        return language;
     }
 
     private static void read(Properties values, String language) {

@@ -27,4 +27,12 @@ class TooltipConfigTest {
         assertFalse(ModNameTooltipSupport.containsModName(
                 Arrays.asList("Item", "minecraft:stone"), "Minecraft"));
     }
+
+    @Test
+    void migratesHeiTooltipSettingOnlyWhenNeiSettingIsAbsent() {
+        assertFalse(TooltipConfig.selectNeiCustomTooltips(false, true, true, false));
+        assertTrue(TooltipConfig.selectNeiCustomTooltips(true, true, true, false));
+        assertFalse(TooltipConfig.selectNeiCustomTooltips(true, false, true, true));
+        assertTrue(TooltipConfig.selectNeiCustomTooltips(false, false, false, false));
+    }
 }

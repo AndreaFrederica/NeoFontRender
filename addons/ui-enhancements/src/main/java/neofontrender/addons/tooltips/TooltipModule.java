@@ -1,5 +1,7 @@
 package neofontrender.addons.tooltips;
 
+import cpw.mods.fml.common.Loader;
+import cpw.mods.fml.common.Optional;
 import cpw.mods.fml.common.eventhandler.EventPriority;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.client.event.GuiOpenEvent;
@@ -29,6 +31,19 @@ public final class TooltipModule implements UiEnhancementModule {
     public static void registerRuntimeHooks() {
         MinecraftForge.EVENT_BUS.register(new TooltipModule());
         MinecraftForge.EVENT_BUS.register(new ModNameTooltipHandler());
+        if (Loader.isModLoaded("NotEnoughItems")) {
+            registerNeiCompatIfGtnhLibLoaded();
+        }
+    }
+
+    @Optional.Method(modid = "NotEnoughItems")
+    private static void registerNeiCompatIfGtnhLibLoaded() {
+        if (Loader.isModLoaded("gtnhlib")) registerNeiCompat();
+    }
+
+    @Optional.Method(modid = "gtnhlib")
+    private static void registerNeiCompat() {
+        MinecraftForge.EVENT_BUS.register(new NeiTooltipCompat());
     }
 
     /** Preserves the scene before the GUI draws panels, widgets, or tooltips. */
