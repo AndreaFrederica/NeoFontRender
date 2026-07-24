@@ -23,6 +23,12 @@ final class ModernTooltipHandler {
             }
             return;
         }
+        // Capture the scene right before rendering the tooltip. At this point the GUI's
+        // background, panels and widgets are already in the framebuffer, so Mica will blur
+        // the actual GUI content behind the tooltip — not the bare world/HUD.
+        if ("mica".equals(TooltipConfig.renderStyle)) {
+            MicaBackdrop.captureScene();
+        }
         if (renderer.draw(event)) event.setCanceled(true);
     }
 }
