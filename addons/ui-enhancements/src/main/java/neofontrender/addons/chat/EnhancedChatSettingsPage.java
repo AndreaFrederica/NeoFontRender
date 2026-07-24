@@ -29,6 +29,14 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
         private final boolean originalSent = EnhancedChatConfig.persistSent;
         private final boolean originalTabbed = EnhancedChatConfig.tabbedChat;
         private final boolean originalSmooth = SmoothScrollConfigAccess.chatConfigured();
+        private final boolean originalAnimateMessages = EnhancedChatConfig.animateMessages;
+        private final int originalMessageDuration = EnhancedChatConfig.messageAnimationDuration;
+        private final float originalMessageDistance = EnhancedChatConfig.messageAnimationDistance;
+        private final String originalMessageEasing = EnhancedChatConfig.messageAnimationEasing;
+        private final boolean originalAnimateInput = EnhancedChatConfig.animateInput;
+        private final int originalInputDuration = EnhancedChatConfig.inputAnimationDuration;
+        private final float originalInputDistance = EnhancedChatConfig.inputAnimationDistance;
+        private final String originalInputEasing = EnhancedChatConfig.inputAnimationEasing;
 
         @Override
         public IWidget createView(NfrSettingsPageContext context) {
@@ -75,7 +83,59 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
                             () -> tr("gui.chat.persist_sent"),
                             () -> tr("tooltip.chat.persist_sent"),
                             () -> EnhancedChatConfig.persistSent,
-                            value -> EnhancedChatConfig.persistSent = value));
+                            value -> EnhancedChatConfig.persistSent = value))
+                    .add(controls.toggleText(
+                            () -> tr("gui.chat.animate_messages"),
+                            () -> tr("tooltip.chat.animate_messages"),
+                            () -> EnhancedChatConfig.animateMessages,
+                            value -> EnhancedChatConfig.animateMessages = value))
+                    .add(controls.dropdownText(
+                            "chat_message_animation_duration",
+                            () -> tr("gui.chat.message_duration"),
+                            () -> Integer.toString(EnhancedChatConfig.messageAnimationDuration),
+                            value -> EnhancedChatConfig.messageAnimationDuration = Integer.parseInt(value),
+                            Arrays.asList("75", "100", "150", "200", "300", "500"),
+                            value -> value + " ms").size(260, 24))
+                    .add(controls.dropdownText(
+                            "chat_message_animation_distance",
+                            () -> tr("gui.chat.message_distance"),
+                            () -> Float.toString(EnhancedChatConfig.messageAnimationDistance),
+                            value -> EnhancedChatConfig.messageAnimationDistance = Float.parseFloat(value),
+                            Arrays.asList("3.0", "5.0", "7.0", "9.0", "12.0"),
+                            value -> value + " px").size(260, 24))
+                    .add(controls.dropdownText(
+                            "chat_message_animation_easing",
+                            () -> tr("gui.chat.message_easing"),
+                            () -> EnhancedChatConfig.messageAnimationEasing,
+                            value -> EnhancedChatConfig.messageAnimationEasing = value,
+                            Arrays.asList("linear", "sine", "quad", "cubic", "back"),
+                            value -> value).size(260, 24))
+                    .add(controls.toggleText(
+                            () -> tr("gui.chat.animate_input"),
+                            () -> tr("tooltip.chat.animate_input"),
+                            () -> EnhancedChatConfig.animateInput,
+                            value -> EnhancedChatConfig.animateInput = value))
+                    .add(controls.dropdownText(
+                            "chat_input_animation_duration",
+                            () -> tr("gui.chat.input_duration"),
+                            () -> Integer.toString(EnhancedChatConfig.inputAnimationDuration),
+                            value -> EnhancedChatConfig.inputAnimationDuration = Integer.parseInt(value),
+                            Arrays.asList("75", "100", "150", "170", "200", "300", "500"),
+                            value -> value + " ms").size(260, 24))
+                    .add(controls.dropdownText(
+                            "chat_input_animation_distance",
+                            () -> tr("gui.chat.input_distance"),
+                            () -> Float.toString(EnhancedChatConfig.inputAnimationDistance),
+                            value -> EnhancedChatConfig.inputAnimationDistance = Float.parseFloat(value),
+                            Arrays.asList("3.0", "5.0", "8.0", "10.0", "12.0"),
+                            value -> value + " px").size(260, 24))
+                    .add(controls.dropdownText(
+                            "chat_input_animation_easing",
+                            () -> tr("gui.chat.input_easing"),
+                            () -> EnhancedChatConfig.inputAnimationEasing,
+                            value -> EnhancedChatConfig.inputAnimationEasing = value,
+                            Arrays.asList("linear", "sine", "quad", "cubic", "back"),
+                            value -> value).size(260, 24));
             return new PageView(grid);
         }
 
@@ -104,6 +164,14 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
             EnhancedChatConfig.persistReceived = originalReceived;
             EnhancedChatConfig.persistSent = originalSent;
             EnhancedChatConfig.tabbedChat = originalTabbed;
+            EnhancedChatConfig.animateMessages = originalAnimateMessages;
+            EnhancedChatConfig.messageAnimationDuration = originalMessageDuration;
+            EnhancedChatConfig.messageAnimationDistance = originalMessageDistance;
+            EnhancedChatConfig.messageAnimationEasing = originalMessageEasing;
+            EnhancedChatConfig.animateInput = originalAnimateInput;
+            EnhancedChatConfig.inputAnimationDuration = originalInputDuration;
+            EnhancedChatConfig.inputAnimationDistance = originalInputDistance;
+            EnhancedChatConfig.inputAnimationEasing = originalInputEasing;
             SmoothScrollConfigAccess.setChatConfigured(originalSmooth);
         }
     }

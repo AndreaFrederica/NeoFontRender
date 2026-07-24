@@ -99,6 +99,27 @@ final class ModernTooltipRenderer {
         GL11.glPopAttrib();
     }
 
+    /** Draws NFR's title divider inside a foreign tooltip while preserving its content renderer. */
+    static void drawCompatibleDivider(int x, int y, int width, ItemStack stack) {
+        if (!TooltipConfig.titleBreak || width <= 0) return;
+        AdaptiveBorderColors.Result adaptive = TooltipConfig.adaptiveBorder && stack != null && stack.stackSize > 0
+                ? AdaptiveBorderColors.compute(stack, stack.getDisplayName(), TooltipConfig.borderColors)
+                : AdaptiveBorderColors.Result.unchanged(TooltipConfig.borderColors);
+        int[] border = effectiveBorder(adaptive);
+        int leftColor = border[3] & 0x00FFFFFF | TooltipConfig.dividerAlpha << 24;
+        int rightColor = border[2] & 0x00FFFFFF | TooltipConfig.dividerAlpha << 24;
+
+        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL11.glDisable(GL11.GL_ALPHA_TEST);
+        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL11.glShadeModel(GL11.GL_SMOOTH);
+        drawGradientQuad(x, y, x + width, y + 1.0F,
+                new int[] {leftColor, rightColor, rightColor, leftColor});
+        GL11.glPopAttrib();
+    }
+
     private static void drawBackground(float left, float top, float right, float bottom, float radius, int[] border) {
         boolean shaderStyle = !"legacy".equals(TooltipConfig.renderStyle);
         boolean mica = "mica".equals(TooltipConfig.renderStyle);

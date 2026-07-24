@@ -1,6 +1,6 @@
 package neofontrender.addons.vendor.tabbychat.host;
 
-import neofontrender.addons.vendor.tabbychat.core.mixin.IGuiIngame;
+import neofontrender.addons.mixin.tabbychat.IGuiIngame;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiNewChat;
 import net.minecraft.client.gui.GuiScreen;

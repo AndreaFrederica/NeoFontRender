@@ -2,6 +2,7 @@ package neofontrender.addons.vendor.tabbychat.gui;
 
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.Subscribe;
+import neofontrender.addons.chat.ChatAnimationController;
 import neofontrender.addons.vendor.tabbychat.ChatChannel;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import neofontrender.addons.vendor.tabbychat.api.Message;
@@ -108,10 +109,17 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         // TODO abstracted padding
         int xPos = getBounds().x + 3;
         int yPos = getBounds().height;
+        float messageOffset = ChatAnimationController.messageOffset(getScrollPos() != 0);
+        boolean translated = Math.abs(messageOffset) > 0.001F;
+        if (translated) {
+            GlState.pushMatrix();
+            GlState.translate(0.0F, messageOffset, 0.0F);
+        }
         for (Message line : visible) {
             yPos -= mc.fontRenderer.FONT_HEIGHT;
             drawChatLine(line, xPos, yPos);
         }
+        if (translated) GlState.popMatrix();
         zLevel = 0;
         GlState.disableAlpha();
         GlState.disableBlend();

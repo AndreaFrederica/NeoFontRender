@@ -1,4 +1,4 @@
-package neofontrender.addons.vendor.tabbychat.core.mixin;
+package neofontrender.addons.mixin.tabbychat;
 
 import net.minecraft.client.gui.GuiIngame;
 import net.minecraft.client.gui.GuiNewChat;

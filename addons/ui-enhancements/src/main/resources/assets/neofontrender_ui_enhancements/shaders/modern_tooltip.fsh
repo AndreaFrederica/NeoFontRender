@@ -12,6 +12,9 @@ uniform float uAaScale;
 uniform float uSpectrumOffset;
 uniform float uSpectrumAlpha;
 uniform float uMaterialMode;
+uniform float uBackdropEnabled;
+uniform sampler2D uBackdrop;
+uniform vec4 uBackdropUv;
 uniform vec4 uFill0;
 uniform vec4 uFill1;
 uniform vec4 uFill2;
@@ -80,9 +83,14 @@ void main() {
     vec2 t = clamp(0.5 * fPosition / (uSize + uThickness) + 0.5, 0.0, 1.0);
     vec4 fill = gradient4(uFill0, uFill1, uFill2, uFill3, t);
     if (uMaterialMode > 0.5) {
-        float grain = (noise1(gl_FragCoord.x * 0.73, gl_FragCoord.y * 0.73) - 0.5) * 0.025;
-        float softLight = (1.0 - t.y) * 0.018 + (1.0 - t.x) * 0.008;
-        fill.rgb = clamp(fill.rgb + grain + softLight, 0.0, 1.0);
+        if (uBackdropEnabled > 0.5) {
+            vec2 backdropUv = vec2(mix(uBackdropUv.x, uBackdropUv.z, t.x),
+                    mix(uBackdropUv.y, uBackdropUv.w, t.y));
+            fill.rgb = texture2D(uBackdrop, backdropUv).rgb;
+        } else {
+            fill.rgb = vec3(0.055, 0.060, 0.075);
+        }
+        fill.a = 1.0;
     }
     vec4 border;
     if (uSpectrumOffset > 0.0) {

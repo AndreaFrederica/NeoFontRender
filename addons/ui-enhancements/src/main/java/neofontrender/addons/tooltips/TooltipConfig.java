@@ -21,6 +21,9 @@ final class TooltipConfig {
     static String renderStyle = DEFAULT_RENDER_STYLE;
     static boolean yieldToLegendaryTooltips = true;
     static boolean yieldToObscureTooltips = false;
+    static boolean heiCustomTooltips = true;
+    static boolean modNameEnabled = true;
+    static String modNameFormat = "blue italic";
     static boolean rounded = true;
     static boolean centerTitle = true;
     static boolean titleBreak = true;
@@ -59,6 +62,9 @@ final class TooltipConfig {
         renderStyle = normalizeStyle(file.getString("tooltip.renderStyle", DEFAULT_RENDER_STYLE));
         yieldToLegendaryTooltips = file.getBoolean("tooltip.yieldToLegendaryTooltips", true);
         yieldToObscureTooltips = file.getBoolean("tooltip.yieldToObscureTooltips", false);
+        heiCustomTooltips = file.getBoolean("tooltip.heiCustomTooltips", true);
+        modNameEnabled = file.getBoolean("tooltip.modName.enabled", true);
+        modNameFormat = file.getString("tooltip.modName.format", "blue italic");
         rounded = file.getBoolean("tooltip.rounded", true);
         centerTitle = file.getBoolean("tooltip.centerTitle", true);
         titleBreak = file.getBoolean("tooltip.titleBreak", true);
@@ -96,6 +102,9 @@ final class TooltipConfig {
                 .define("tooltip.renderStyle", DEFAULT_RENDER_STYLE, "Tooltip renderer style: modernui, mica, or legacy.")
                 .define("tooltip.yieldToLegendaryTooltips", true, "Let Legendary Tooltips render when it is installed.")
                 .define("tooltip.yieldToObscureTooltips", false, "Let Obscure Tooltips keep its own panel.")
+                .define("tooltip.heiCustomTooltips", true, "Apply NFR's panel to HEI ingredient-grid tooltips.")
+                .define("tooltip.modName.enabled", true, "Append the owning mod's display name to item tooltips.")
+                .define("tooltip.modName.format", "blue italic", "Space-separated formatting names.")
                 .define("tooltip.rounded", true, "Draw rounded corners.")
                 .define("tooltip.centerTitle", true, "Center the first tooltip line.")
                 .define("tooltip.titleBreak", true, "Draw a divider after the title.")
@@ -132,6 +141,9 @@ final class TooltipConfig {
                 .set("tooltip.renderStyle", normalizeStyle(renderStyle))
                 .set("tooltip.yieldToLegendaryTooltips", yieldToLegendaryTooltips)
                 .set("tooltip.yieldToObscureTooltips", yieldToObscureTooltips)
+                .set("tooltip.heiCustomTooltips", heiCustomTooltips)
+                .set("tooltip.modName.enabled", modNameEnabled)
+                .set("tooltip.modName.format", modNameFormat)
                 .set("tooltip.rounded", rounded)
                 .set("tooltip.centerTitle", centerTitle)
                 .set("tooltip.titleBreak", titleBreak)
@@ -226,6 +238,9 @@ final class TooltipConfig {
         private final String renderStyle = TooltipConfig.renderStyle;
         private final boolean yieldToLegendaryTooltips = TooltipConfig.yieldToLegendaryTooltips;
         private final boolean yieldToObscureTooltips = TooltipConfig.yieldToObscureTooltips;
+        private final boolean heiCustomTooltips = TooltipConfig.heiCustomTooltips;
+        private final boolean modNameEnabled = TooltipConfig.modNameEnabled;
+        private final String modNameFormat = TooltipConfig.modNameFormat;
         private final boolean rounded = TooltipConfig.rounded;
         private final boolean centerTitle = TooltipConfig.centerTitle;
         private final boolean titleBreak = TooltipConfig.titleBreak;
@@ -260,6 +275,9 @@ final class TooltipConfig {
             TooltipConfig.renderStyle = renderStyle;
             TooltipConfig.yieldToLegendaryTooltips = yieldToLegendaryTooltips;
             TooltipConfig.yieldToObscureTooltips = yieldToObscureTooltips;
+            TooltipConfig.heiCustomTooltips = heiCustomTooltips;
+            TooltipConfig.modNameEnabled = modNameEnabled;
+            TooltipConfig.modNameFormat = modNameFormat;
             TooltipConfig.rounded = rounded;
             TooltipConfig.centerTitle = centerTitle;
             TooltipConfig.titleBreak = titleBreak;

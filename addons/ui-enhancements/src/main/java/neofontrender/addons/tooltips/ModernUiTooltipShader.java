@@ -8,6 +8,7 @@ package neofontrender.addons.tooltips;
 import icyllis.arc3d.core.Color;
 import net.minecraft.client.renderer.Tessellator;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL20;
 
 import java.io.IOException;
@@ -35,6 +36,10 @@ final class ModernUiTooltipShader {
         float extent = TooltipConfig.borderWidth * 0.5F + 1.0F + shadowRadius * 1.2F
                 + Math.max(Math.abs(TooltipConfig.shadowOffsetX), Math.abs(TooltipConfig.shadowOffsetY));
         int previous = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
+        int previousActiveTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        int previousTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        MicaBackdrop.Capture backdrop = mica ? MicaBackdrop.capture(left, top, right, bottom) : null;
 
         try {
             GL20.glUseProgram(shader);
@@ -52,6 +57,13 @@ final class ModernUiTooltipShader {
             uniform1(shader, "uSpectrumOffset", spectrumOffset);
             uniform1(shader, "uSpectrumAlpha", Color.alpha(border[0]) / 255.0F);
             uniform1(shader, "uMaterialMode", mica ? 1.0F : 0.0F);
+            uniform1(shader, "uBackdropEnabled", backdrop == null ? 0.0F : 1.0F);
+            if (backdrop != null) {
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, backdrop.texture);
+                GL20.glUniform1i(GL20.glGetUniformLocation(shader, "uBackdrop"), 0);
+                GL20.glUniform4f(GL20.glGetUniformLocation(shader, "uBackdropUv"),
+                        backdrop.left, backdrop.top, backdrop.right, backdrop.bottom);
+            }
             for (int i = 0; i < 4; i++) {
                 uniformColor(shader, "uFill" + i, fill[i]);
                 uniformColor(shader, "uBorder" + i, border[i]);
@@ -75,6 +87,8 @@ final class ModernUiTooltipShader {
             return false;
         } finally {
             GL20.glUseProgram(previous);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
+            GL13.glActiveTexture(previousActiveTexture);
         }
     }
 

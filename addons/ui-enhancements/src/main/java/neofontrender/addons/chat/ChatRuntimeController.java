@@ -2,9 +2,9 @@ package neofontrender.addons.chat;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiNewChat;
+import neofontrender.addons.mixin.tabbychat.IGuiIngame;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import neofontrender.addons.vendor.tabbychat.core.GuiNewChatTC;
-import neofontrender.addons.vendor.tabbychat.core.mixin.IGuiIngame;
 
 import java.util.ArrayList;
 import java.util.List;

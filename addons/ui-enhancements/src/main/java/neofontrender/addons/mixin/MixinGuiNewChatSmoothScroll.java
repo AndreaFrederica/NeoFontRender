@@ -2,6 +2,8 @@ package neofontrender.addons.mixin;
 
 import net.minecraft.client.gui.ChatLine;
 import net.minecraft.client.gui.GuiNewChat;
+import net.minecraft.util.IChatComponent;
+import neofontrender.addons.chat.ChatAnimationController;
 import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
 import neofontrender.addons.scrolling.SmoothScrollController;
 import org.lwjgl.opengl.GL11;
@@ -28,6 +30,11 @@ public abstract class MixinGuiNewChatSmoothScroll {
     @Unique private boolean nfrUi$translated;
     @Unique private float nfrUi$fraction;
 
+    @Inject(method = "printChatMessageWithOptionalDeletion", at = @At("HEAD"))
+    private void nfrUi$messageAdded(IChatComponent component, int id, CallbackInfo callback) {
+        ChatAnimationController.messageAdded();
+    }
+
     @Inject(method = "scroll", at = @At("HEAD"), cancellable = true)
     private void nfrUi$smoothScroll(int amount, CallbackInfo callback) {
         if (!SmoothScrollConfigAccess.chatEnabled() || amount == 0) return;
@@ -53,9 +60,11 @@ public abstract class MixinGuiNewChatSmoothScroll {
         field_146250_j = (int) Math.floor(position);
         field_146251_k = position > 0.0F;
         nfrUi$fraction = position - field_146250_j;
-        if (nfrUi$fraction > 0.001F) {
+        float messageOffset = ChatAnimationController.messageOffset(field_146250_j != 0) * func_146244_h();
+        float totalOffset = nfrUi$fraction * 9.0F * func_146244_h() + messageOffset;
+        if (Math.abs(totalOffset) > 0.001F) {
             GL11.glPushMatrix();
-            GL11.glTranslatef(0.0F, nfrUi$fraction * 9.0F * func_146244_h(), 0.0F);
+            GL11.glTranslatef(0.0F, totalOffset, 0.0F);
             nfrUi$translated = true;
         }
     }

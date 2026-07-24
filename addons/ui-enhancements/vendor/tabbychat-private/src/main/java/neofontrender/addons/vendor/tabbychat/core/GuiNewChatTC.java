@@ -3,6 +3,7 @@ package neofontrender.addons.vendor.tabbychat.core;
 import com.google.common.collect.Sets;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.Runnables;
+import neofontrender.addons.chat.ChatAnimationController;
 import neofontrender.addons.vendor.tabbychat.ChatChannel;
 import neofontrender.addons.vendor.tabbychat.ChatManager;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
@@ -116,6 +117,7 @@ public class GuiNewChatTC extends GuiNewChat implements ChatScreen {
         ichat = chatevent.text;
         id = chatevent.id;
         if (ichat != null && !ichat.getUnformattedText().isEmpty()) {
+            ChatAnimationController.messageAdded();
             if (id != 0) {
                 // send removable msg to current channel
                 chatevent.channels.clear();

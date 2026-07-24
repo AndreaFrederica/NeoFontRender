@@ -6,16 +6,25 @@
   "refmap": "mixins.neofontrender_ui_enhancements.refmap.json",
   "mixins": [],
   "client": [
+    "AccessorGuiContainer",
     "AccessorCreativeContainer",
     "AccessorShaderGroup",
     "MixinForgeGuiScrollingListSmoothScroll",
     "MixinGuiContainerCreativeSmoothScroll",
+    "MixinGuiChatAnimation",
     "MixinGuiScreenBackground",
     "MixinGuiScreenTooltip",
     "MixinGuiNewChatHistory",
     "MixinGuiNewChatSmoothScroll",
     "MixinGuiSlotSmoothScroll",
-    "MixinGuiTextFieldCursor"
+    "MixinGuiTextFieldCursor",
+    "MixinModularTextFieldCursor",
+    "compat.MixinHeiCollapsedGroupTooltip",
+    "compat.MixinHeiTooltipRenderer",
+    "compat.MixinObscureTooltipState",
+    "compat.MixinObscureHeaderComponent",
+    "tabbychat.IGuiIngame",
+    "tabbychat.MixinGuiChat"
   ],
   "server": []
 }

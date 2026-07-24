@@ -52,6 +52,11 @@ public final class SplashCompat {
             installed = true;
             LOGGER.info("Installed AWT font override for {} loading screen",
                     modernSplash ? "ModernSplash" : "Forge");
+        } catch (SplashFontWeight.Fallback fallback) {
+            backend = null;
+            installed = false;
+            LOGGER.warn("Loading-screen AWT font cannot satisfy the requested weight; "
+                    + "using its bitmap font: {}", fallback.getMessage());
         } catch (Throwable t) {
             backend = null;
             installed = false;

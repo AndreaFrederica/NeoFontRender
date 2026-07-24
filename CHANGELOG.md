@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.6]
+
+- Add a captured, blurred Mica backdrop and addon logo for UI Enhancements tooltips.
+- Add configurable chat entrance animations for vanilla chat and the embedded TabbyChat UI.
+- Improve optional HEI and Obscure tooltip integration and add owning-mod names without duplicates.
+- Run screen blur through a private shader chain to avoid replacing other renderer effects.
+
 ## [0.3.5]
 
 - Add the optional UI Enhancements companion mod with modern tooltips, screen effects, enhanced

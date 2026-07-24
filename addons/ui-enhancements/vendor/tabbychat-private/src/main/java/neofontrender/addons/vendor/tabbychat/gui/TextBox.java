@@ -1,6 +1,7 @@
 package neofontrender.addons.vendor.tabbychat.gui;
 
 import com.google.common.eventbus.Subscribe;
+import neofontrender.addons.chat.ChatAnimationController;
 import neofontrender.addons.vendor.tabbychat.ChatManager;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import neofontrender.addons.vendor.tabbychat.api.gui.ChatInput;
@@ -58,13 +59,19 @@ public class TextBox extends GuiComponent implements ChatInput {
 
     @Override
     public void drawComponent(int mouseX, int mouseY) {
+        float inputOffset = ChatAnimationController.inputOffset();
+        boolean translated = Math.abs(inputOffset) > 0.001F;
+        if (translated) {
+            GlState.pushMatrix();
+            GlState.translate(0.0F, inputOffset, 0.0F);
+        }
         GlState.enableBlend();
         drawModalCorners(MODAL);
         GlState.disableBlend();
 
         drawText();
         drawCursor();
-
+        if (translated) GlState.popMatrix();
     }
 
     private void drawCursor() {

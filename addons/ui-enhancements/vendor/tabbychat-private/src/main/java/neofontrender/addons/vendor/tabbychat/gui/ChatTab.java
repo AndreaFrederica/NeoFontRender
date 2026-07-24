@@ -66,7 +66,7 @@ public class ChatTab extends GuiButton {
             drawModalCorners(getStatusModal());
 
             int txtX = loc.getWidth() / 2;
-            int txtY = loc.getHeight() / 2 - 2;
+            int txtY = Math.max(0, (loc.getHeight() - mc.fontRenderer.FONT_HEIGHT) / 2);
 
             Color primary = getPrimaryColorProperty();
             int color = Color.getColor(primary.getRed(), primary.getGreen(), primary.getBlue(), (int) (mc.gameSettings.chatOpacity * 255));

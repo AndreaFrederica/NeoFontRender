@@ -1,4 +1,4 @@
-package neofontrender.addons.vendor.tabbychat.core.mixin;
+package neofontrender.addons.mixin.tabbychat;
 
 import com.google.common.collect.Lists;
 import neofontrender.addons.vendor.tabbychat.ChatManager;
@@ -8,7 +8,9 @@ import neofontrender.addons.vendor.tabbychat.api.events.ChatScreenEvents.ChatIni
 import neofontrender.addons.vendor.tabbychat.core.GuiNewChatTC;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.GuiComponent;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.GuiText;
+import neofontrender.addons.vendor.tabbychat.foundation.ILocation;
 import neofontrender.addons.vendor.tabbychat.util.Translation;
+import neofontrender.addons.input.TextCursorManager;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
@@ -80,6 +82,14 @@ public abstract class MixinGuiChat extends GuiScreen {
     @Inject(method = "updateScreen()V", at = @At("RETURN"))
     private void onUpdateScreen(CallbackInfo ci) {
         this.componentList.forEach(GuiComponent::updateComponent);
+    }
+
+    @Inject(method = "drawScreen(IIF)V", at = @At("HEAD"))
+    private void nfrUi$updateTextCursor(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+        if (this.chat == null) return;
+        ILocation bounds = this.chat.getChatBox().getChatInput().getActualLocation();
+        TextCursorManager.textFieldDrawn(bounds.getXPos(), bounds.getYPos(),
+                bounds.getWidth(), bounds.getHeight(), true, true);
     }
 
     @Inject(method = "onGuiClosed()V", at = @At("RETURN"))

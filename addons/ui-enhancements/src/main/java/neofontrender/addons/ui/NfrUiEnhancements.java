@@ -48,5 +48,6 @@ public final class NfrUiEnhancements {
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         for (UiEnhancementModule module : MODULES) module.init();
+        TooltipModule.registerRuntimeHooks();
     }
 }
