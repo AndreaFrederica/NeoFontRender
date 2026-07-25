@@ -19,14 +19,14 @@ public final class CosmicSmokeTest {
             throw new IllegalStateException(compatibility.getMessage());
         }
         boolean systemOnly = args.length > 0 && "--system-only".equals(args[0]);
-        byte[] font = systemOnly ? null : readResource("/assets/neofontrender/fonts/sarasa_ui_sc_regular.ttf");
+        byte[] font = systemOnly ? null : readResource("/assets/neofontrender/fonts/noto_sans_sc-regular.otf");
         String primaryFamily = systemOnly ? "" : args.length > 0 ? args[0] : "";
         byte[] emojiFont = systemOnly ? null : args.length > 1
                 ? Files.readAllBytes(Paths.get(args[1]))
                 : readResource("/assets/neofontrender/fonts/noto_color_emoji_regular.ttf");
         byte[][] suppliedFonts = systemOnly ? new byte[0][] : new byte[][] {font, emojiFont};
         String[] suppliedAliases = systemOnly ? new String[0] : new String[] {
-                "neofontrender:fonts/sarasa_ui_sc_regular.ttf",
+                "neofontrender:fonts/noto_sans_sc-regular.otf",
                 "neofontrender:fonts/noto_color_emoji_regular.ttf"
         };
         long engine = CosmicNative.createEngine(suppliedFonts, suppliedAliases, primaryFamily,
