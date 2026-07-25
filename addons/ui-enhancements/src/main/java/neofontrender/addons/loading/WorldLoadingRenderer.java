@@ -332,6 +332,7 @@ public enum WorldLoadingRenderer {
         float visualAmount = arc3dBar.update(amount, now);
         int margin = Math.max(12, Math.min(28, width / 32));
         int bottom = height - Math.max(13, height / 28);
+        int textBottom = bottom - 4;
 
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
@@ -357,11 +358,11 @@ public enum WorldLoadingRenderer {
             // Request a real large logical font from NFR's public engine-independent API. UIE has
             // no knowledge of Cosmic or SFR/AWT and never scales a small cached texture.
             float titleFontSize = Math.max(1.0F, font.FONT_HEIGHT * titleScale);
-            ModernTextApi.draw(label, margin, bottom - titleFontSize,
+            ModernTextApi.draw(label, margin, textBottom - titleFontSize,
                     titleFontSize, titleColor);
         } else {
             GlStateManager.pushMatrix();
-            GlStateManager.translate(margin, bottom - font.FONT_HEIGHT * titleScale, 0.0F);
+            GlStateManager.translate(margin, textBottom - font.FONT_HEIGHT * titleScale, 0.0F);
             GlStateManager.scale(titleScale, titleScale, 1.0F);
             font.drawString(label, 0, 0, titleColor, false);
             GlStateManager.popMatrix();
@@ -369,7 +370,7 @@ public enum WorldLoadingRenderer {
 
         String detail = currentDetailLabel(label);
         if (!detail.isEmpty()) {
-            font.drawString(detail, margin, bottom + 2,
+            font.drawString(detail, margin, textBottom + 2,
                     scaledAlpha(0xFFB8C0CC, alpha), false);
         }
 
