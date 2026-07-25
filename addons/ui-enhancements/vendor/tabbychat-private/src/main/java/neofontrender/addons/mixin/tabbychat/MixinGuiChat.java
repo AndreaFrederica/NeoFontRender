@@ -1,6 +1,7 @@
 package neofontrender.addons.mixin.tabbychat;
 
 import com.google.common.collect.Lists;
+import neofontrender.addons.chat.ExternalChatCompat;
 import neofontrender.addons.vendor.tabbychat.ChatManager;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import neofontrender.addons.vendor.tabbychat.api.Channel;
@@ -101,6 +102,12 @@ public abstract class MixinGuiChat extends GuiScreen {
     @Override
     public void handleKeyboardInput() {
         super.handleKeyboardInput();
+        // Salutation's ChatScreen already writes this event into our substituted inputField and
+        // immediately requests Brigadier completions for that value. Sending the same LWJGL event
+        // through TabbyChat's GuiText afterwards types it a second time and makes the completion
+        // request stale. Keep our self-drawn chat, but let Salutation own keyboard input while its
+        // wrapper is open. Mouse/component drawing remains on the normal TabbyChat path.
+        if (ExternalChatCompat.isSalutationChatScreen(that)) return;
         this.componentList.forEach(GuiComponent::handleKeyboardInput);
     }
 

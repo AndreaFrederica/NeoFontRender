@@ -74,6 +74,24 @@ public final class CosmicSmokeTest {
                 throw new IllegalStateException("cosmic-text raster contains no visible pixels");
             }
             assertTransparentBorder(raster);
+            float doubledWidth = CosmicNative.measureSized(engine, sample, 0, 18.0F);
+            byte[] doubledRaster = CosmicNative.renderSized(
+                    engine, sample, 0xFFFFFFFF, 0, 18.0F, 1.0F);
+            ByteBuffer doubledData = ByteBuffer.wrap(doubledRaster).order(ByteOrder.LITTLE_ENDIAN);
+            doubledData.getInt();
+            int doubledPixelWidth = doubledData.getInt();
+            int doubledPixelHeight = doubledData.getInt();
+            doubledData.position(28);
+            float doubledScale = doubledData.getFloat();
+            if (Math.abs(doubledWidth - width * 2.0F) > Math.max(1.0F, width * 0.03F)
+                    || doubledPixelWidth <= pixelWidth / 2 || doubledPixelHeight <= pixelHeight / 2
+                    || doubledScale != 1.0F) {
+                throw new IllegalStateException("native font-size request did not enlarge the "
+                        + "logical font: base=" + width + "/" + pixelWidth + "x" + pixelHeight
+                        + ", doubled=" + doubledWidth + "/" + doubledPixelWidth + "x"
+                        + doubledPixelHeight + " scale=" + doubledScale);
+            }
+            assertTransparentBorder(doubledRaster);
             System.out.println("Cosmic smoke test: family=" + CosmicNative.primaryFamily(engine)
                     + ", faces=[" + CosmicNative.resolvedFace(engine, 0)
                     + ", " + CosmicNative.resolvedFace(engine, 1)

@@ -9,6 +9,7 @@ import net.minecraft.client.resources.I18n;
 import neofontrender.client.gui.component.base.NfrContentButton;
 import neofontrender.client.gui.component.base.NfrColorPickerButton;
 import neofontrender.client.gui.component.base.NfrDoubleValue;
+import neofontrender.client.gui.component.base.NfrDecimalSlider;
 import neofontrender.client.gui.component.base.NfrLabeledSlider;
 import neofontrender.client.gui.component.base.NfrLabeledTextField;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
@@ -51,6 +52,10 @@ public final class NfrSettingsControls {
 
     public NfrOptionsGrid grid() {
         return new NfrOptionsGrid(260, 24, 8, true);
+    }
+
+    public NfrSettingsDraft draft() {
+        return draft;
     }
 
     public void reload(int route) {
@@ -174,6 +179,25 @@ public final class NfrSettingsControls {
                     else draft.shadowLength = Float.parseFloat(value);
                     preview.run();
                 }, values, value -> value).size(260, 24);
+    }
+
+    public IWidget decimalSlider(String labelKey, Supplier<Float> getter, Consumer<Float> setter,
+                                 float min, float max, float step) {
+        NfrDecimalSlider slider = new NfrDecimalSlider(() -> tr(labelKey),
+                () -> String.format(Locale.ROOT, step < 0.1F ? "%.2f" : "%.1f", getter.get()));
+        slider.value(new NfrDoubleValue(() -> (double) getter.get(), value -> {
+                    double clipped = Math.max(min, Math.min(max, value));
+                    float rounded = (float) (Math.round(clipped / step) * step);
+                    setter.accept(rounded);
+                    preview.run();
+                }))
+                .bounds(min, max);
+        return slider.size(260, 24);
+    }
+
+    public IWidget shadowColor() {
+        return colorText("shadow_color", () -> tr("neofontrender.gui.option.shadow_color"),
+                () -> draft.shadowColor, value -> draft.shadowColor = value, true).size(260, 24);
     }
 
     public NfrLabeledSlider brightness() {

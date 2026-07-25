@@ -2,7 +2,10 @@ package neofontrender.addons.effects;
 
 import com.google.gson.JsonSyntaxException;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiChat;
+import net.minecraft.client.gui.GuiDownloadTerrain;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.resources.IResourceManager;
@@ -12,7 +15,7 @@ import net.minecraft.client.shader.ShaderGroup;
 import net.minecraft.client.shader.ShaderUniform;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.GuiOpenEvent;
-import net.minecraftforge.client.event.GuiScreenEvent;
+import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import cpw.mods.fml.common.eventhandler.EventPriority;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.mixin.AccessorShaderGroup;
@@ -24,9 +27,10 @@ import java.io.IOException;
 /**
  * Renders in-world screen effects without taking ownership of EntityRenderer's global ShaderGroup.
  *
- * <p>Cleanroom's Kirino renderer finalizes the world into Minecraft's framebuffer immediately before
- * the GUI is drawn. Running our private post chain from DrawScreenEvent.Pre therefore consumes the
- * completed frame and cannot race Kirino's HDR/ping-pong framebuffers or another mod's entity shader.</p>
+ * <p>The blur chain runs after the world and EntityRenderer's global post chain have finalized
+ * into Minecraft's main framebuffer, but before overlay projection, HUD, and screen rendering.
+ * The gradient is drawn after the HUD, which also lets it remain visible while a closing
+ * transition finishes after the current screen has gone away.</p>
  */
 public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
     INSTANCE;
@@ -34,7 +38,9 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
     private static final ResourceLocation BLUR = new ResourceLocation(
             NfrUiEnhancements.MOD_ID, "shaders/post/ui_blur.json");
 
-    private long openedNanos;
+    private final Transition overlayTransition = new Transition();
+    private final Transition blurTransition = new Transition();
+    private ScreenProfile currentProfile = ScreenProfile.NONE;
     private ShaderGroup blurGroup;
     private int framebufferWidth = -1;
     private int framebufferHeight = -1;
@@ -42,34 +48,65 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
 
     @SubscribeEvent
     public void onGuiOpen(GuiOpenEvent event) {
-        openedNanos = System.nanoTime();
-        if (event.gui == null || !ScreenEffectsConfig.enabled || !ScreenEffectsConfig.blur) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.theWorld == null) {
+            snapHidden();
             discardShader();
+            return;
         }
+        applyProfile(profileFor(event.gui));
     }
 
-    /** Runs after the world (including Kirino's finalizer) and before any GUI pixels are submitted. */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void beforeScreenDraw(GuiScreenEvent.DrawScreenEvent.Pre event) {
+    /** Draws the dimming layer after the HUD, including during the close transition. */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void afterGameOverlay(RenderGameOverlayEvent.Post event) {
+        if (event.type != RenderGameOverlayEvent.ElementType.ALL) return;
         Minecraft mc = Minecraft.getMinecraft();
-        if (event.gui == null || mc.theWorld == null || !ScreenEffectsConfig.enabled) return;
+        if (mc.theWorld == null) return;
 
-        float progress = fadeProgress();
-        if (ScreenEffectsConfig.blur) renderBlur(mc, event.renderPartialTicks);
-        if (ScreenEffectsConfig.gradient) drawGradient(event.gui.width, event.gui.height, progress);
+        float progress = overlayTransition.progress(System.nanoTime());
+        if (progress <= 0.0F) return;
+        drawGradient(event.resolution.getScaledWidth(), event.resolution.getScaledHeight(), progress);
+    }
+
+    /**
+     * Invoked from EntityRenderer at the vanilla post-processing boundary. This must remain before
+     * setupOverlayRendering so the private chain sees only the completed world framebuffer.
+     */
+    public void renderBeforeOverlay(float partialTicks) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.theWorld == null) {
+            discardShader();
+            return;
+        }
+
+        float progress = blurTransition.progress(System.nanoTime());
+        if (progress <= 0.0F) {
+            if (!blurTransition.targetsVisible()) discardShader();
+            return;
+        }
+        if (!OpenGlHelper.shadersSupported) return;
+        renderBlur(mc, partialTicks, progress);
     }
 
     /** Cancel the opaque vanilla dirt/dim background; the replacement was already drawn in Pre. */
     public boolean drawBackground(GuiScreen screen) {
         Minecraft mc = Minecraft.getMinecraft();
-        return ScreenEffectsConfig.enabled && mc.theWorld != null
-                && (ScreenEffectsConfig.blur || ScreenEffectsConfig.gradient);
+        if (mc.theWorld == null) return false;
+        ScreenProfile profile = profileFor(screen);
+        return profile.overlay
+                || (profile.blur && OpenGlHelper.shadersSupported && !shaderCreationFailed);
     }
 
     public void configChanged() {
-        openedNanos = System.nanoTime();
         shaderCreationFailed = false;
-        if (!ScreenEffectsConfig.enabled || !ScreenEffectsConfig.blur) discardShader();
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.theWorld == null) {
+            snapHidden();
+            discardShader();
+            return;
+        }
+        applyProfile(profileFor(mc.currentScreen));
     }
 
     @Override
@@ -78,15 +115,15 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
         discardShader();
     }
 
-    private void renderBlur(Minecraft mc, float partialTicks) {
+    private void renderBlur(Minecraft mc, float partialTicks, float progress) {
         ShaderGroup group = ensureShader(mc);
         if (group == null) {
-            restoreGuiTarget(mc);
+            restoreMainTarget(mc);
             return;
         }
 
         try {
-            updateRadius(group, animatedRadius());
+            updateParameters(group, effectiveBlurRadius(ScreenEffectsConfig.blurRadius), progress);
             group.loadShaderGroup(partialTicks);
         } catch (Throwable throwable) {
             NfrUiEnhancements.LOGGER.warn(
@@ -94,20 +131,22 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
             shaderCreationFailed = true;
             discardShader();
         } finally {
-            restoreGuiTarget(mc);
+            restoreMainTarget(mc);
         }
     }
 
-    private static void restoreGuiTarget(Minecraft mc) {
-        // ShaderGroup leaves its last output bound and changes the projection matrices. The GUI
-        // event expects Minecraft's main target and the standard scaled overlay projection.
+    private static void restoreMainTarget(Minecraft mc) {
+        // EntityRenderer performs the normal overlay projection and state setup immediately after
+        // this hook. ShaderManager leaves the active texture at its final sampler unit; our
+        // composite has two samplers, so explicitly return to unit zero before HUD textures bind.
         mc.getFramebuffer().bindFramebuffer(true);
-        mc.entityRenderer.setupOverlayRendering();
+        OpenGlHelper.setActiveTexture(OpenGlHelper.defaultTexUnit);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
     private ShaderGroup ensureShader(Minecraft mc) {
-        if (shaderCreationFailed || !OpenGlHelper.shadersSupported) return null;
+        if (shaderCreationFailed) return null;
         int width = mc.displayWidth;
         int height = mc.displayHeight;
         if (blurGroup != null && width == framebufferWidth && height == framebufferHeight) return blurGroup;
@@ -128,17 +167,19 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
         }
     }
 
-    private void updateRadius(ShaderGroup group, float amount) {
+    private void updateParameters(ShaderGroup group, float radiusAmount, float progressAmount) {
         for (Shader pass : ((AccessorShaderGroup) group).nfrUi$getShaders()) {
             ShaderUniform radius = pass.getShaderManager().func_147991_a("Radius");
-            if (radius != null) radius.func_148090_a(amount);
+            if (radius != null) radius.func_148090_a(radiusAmount);
+            ShaderUniform progress = pass.getShaderManager().func_147991_a("Progress");
+            if (progress != null) progress.func_148090_a(progressAmount);
         }
     }
 
-    private float animatedRadius() {
-        // Minecraft 1.12's built-in blur kernel is undefined at radius zero and can output a
-        // flat grey framebuffer. Radius 1 is its neutral, valid starting point.
-        return 1.0F + Math.max(0.0F, ScreenEffectsConfig.blurRadius - 1.0F) * fadeProgress();
+    static int effectiveBlurRadius(int configuredRadius) {
+        // The vanilla GLSL loop changes its sample count discontinuously for fractional radii.
+        // Supplying an integer keeps the number of taps and its normalization denominator equal.
+        return Math.max(1, Math.min(16, configuredRadius));
     }
 
     private void discardShader() {
@@ -150,11 +191,101 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
         framebufferHeight = -1;
     }
 
-    private float fadeProgress() {
-        if (!ScreenEffectsConfig.fade || ScreenEffectsConfig.fadeDurationMillis <= 0) return 1.0F;
-        float p = Math.min((System.nanoTime() - openedNanos) /
-                (ScreenEffectsConfig.fadeDurationMillis * 1_000_000.0F), 1.0F);
-        return 1.0F - (1.0F - p) * (1.0F - p);
+    private static ScreenProfile profileFor(GuiScreen screen) {
+        if (screen == null || !ScreenEffectsConfig.enabled) return ScreenProfile.NONE;
+        // The world-loading module owns its backdrop and transition independently.
+        if (screen instanceof GuiDownloadTerrain) return ScreenProfile.NONE;
+
+        if (screen instanceof GuiChat) {
+            return new ScreenProfile(
+                    ScreenEffectsConfig.gradient && ScreenEffectsConfig.gradientChat,
+                    ScreenEffectsConfig.blur && ScreenEffectsConfig.blurChat,
+                    ScreenEffectsConfig.fade && ScreenEffectsConfig.fadeChat);
+        }
+        if (screen instanceof GuiContainer) {
+            return new ScreenProfile(
+                    ScreenEffectsConfig.gradient && ScreenEffectsConfig.gradientContainers,
+                    ScreenEffectsConfig.blur && ScreenEffectsConfig.blurContainers,
+                    ScreenEffectsConfig.fade && ScreenEffectsConfig.fadeContainers);
+        }
+        return new ScreenProfile(
+                ScreenEffectsConfig.gradient && ScreenEffectsConfig.gradientMenus,
+                ScreenEffectsConfig.blur && ScreenEffectsConfig.blurMenus,
+                ScreenEffectsConfig.fade && ScreenEffectsConfig.fadeMenus);
+    }
+
+    private void applyProfile(ScreenProfile next) {
+        long now = System.nanoTime();
+        overlayTransition.setTarget(next.overlay,
+                next.overlay ? next.animate : currentProfile.animate,
+                ScreenEffectsConfig.fadeDurationMillis, now);
+        blurTransition.setTarget(next.blur,
+                next.blur ? next.animate : currentProfile.animate,
+                ScreenEffectsConfig.fadeDurationMillis, now);
+        currentProfile = next;
+    }
+
+    private void snapHidden() {
+        overlayTransition.snap(false);
+        blurTransition.snap(false);
+        currentProfile = ScreenProfile.NONE;
+    }
+
+    private static final class ScreenProfile {
+        private static final ScreenProfile NONE = new ScreenProfile(false, false, false);
+        private final boolean overlay;
+        private final boolean blur;
+        private final boolean animate;
+
+        private ScreenProfile(boolean overlay, boolean blur, boolean animate) {
+            this.overlay = overlay;
+            this.blur = blur;
+            this.animate = animate;
+        }
+    }
+
+    private static final class Transition {
+        private float startProgress;
+        private float targetProgress;
+        private long startedNanos;
+        private long durationNanos;
+
+        private void setTarget(boolean visible, boolean animate, int durationMillis, long now) {
+            float desired = visible ? 1.0F : 0.0F;
+            float current = progress(now);
+            if (!animate || durationMillis <= 0) {
+                snap(visible);
+                return;
+            }
+            if (targetProgress == desired) return;
+
+            startProgress = current;
+            targetProgress = desired;
+            startedNanos = now;
+            durationNanos = Math.max(1L, Math.round(
+                    durationMillis * 1_000_000.0D * Math.abs(desired - current)));
+        }
+
+        private void snap(boolean visible) {
+            float progress = visible ? 1.0F : 0.0F;
+            startProgress = progress;
+            targetProgress = progress;
+            startedNanos = System.nanoTime();
+            durationNanos = 0L;
+        }
+
+        private boolean targetsVisible() {
+            return targetProgress > 0.0F;
+        }
+
+        private float progress(long now) {
+            if (durationNanos <= 0L) return targetProgress;
+            float elapsed = (float) (now - startedNanos) / durationNanos;
+            if (elapsed >= 1.0F) return targetProgress;
+            if (elapsed <= 0.0F) return startProgress;
+            float eased = elapsed * elapsed * (3.0F - 2.0F * elapsed);
+            return startProgress + (targetProgress - startProgress) * eased;
+        }
     }
 
     private static void drawGradient(int width, int height, float alphaScale) {

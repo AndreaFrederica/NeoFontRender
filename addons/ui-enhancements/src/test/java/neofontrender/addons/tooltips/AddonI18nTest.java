@@ -80,8 +80,16 @@ class AddonI18nTest {
         add(keys, "neofontrender_ui_enhancements.gui.input.", "category ibeam");
         add(keys, "neofontrender_ui_enhancements.tooltip.input.", "ibeam");
         add(keys, "neofontrender_ui_enhancements.gui.effects.",
-                "category enabled fade fade_duration blur blur_radius gradient color");
-        add(keys, "neofontrender_ui_enhancements.tooltip.effects.", "enabled blur");
+                "category enabled fade fade_duration blur blur_radius gradient color scope.chat scope.containers "
+                        + "scope.menus");
+        add(keys, "neofontrender_ui_enhancements.tooltip.effects.", "enabled blur scope");
+        add(keys, "neofontrender_ui_enhancements.gui.loading.",
+                "category enabled accent_color bottom_shade dimension_change fade_duration fade_out last_exit_snapshot "
+                        + "percentage progress_bar singleplayer_progress spinner text_color world_join");
+        add(keys, "neofontrender_ui_enhancements.loading.",
+                "finalizing label loading_world preparing_world");
+        add(keys, "neofontrender_ui_enhancements.tooltip.loading.",
+                "enabled last_exit_snapshot percentage scope singleplayer_progress");
         add(keys, "neofontrender_ui_enhancements.gui.hud.",
                 "category enabled yield_classic health absorption armor food air mount numbers smooth rounded width height gap "
                         + "background border health_low health_high absorption_color armor_color food_color saturation_color "
