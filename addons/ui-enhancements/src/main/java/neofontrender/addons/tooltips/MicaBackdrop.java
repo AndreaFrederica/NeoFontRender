@@ -13,7 +13,7 @@ import java.io.InputStream;
 import java.nio.IntBuffer;
 import java.nio.charset.StandardCharsets;
 
-/** Captures the game scene before GUI rendering and filters it behind a Mica tooltip. */
+/** Captures the world and HUD before GUI dimming, then filters it behind a Mica tooltip. */
 final class MicaBackdrop {
     private static final String ROOT = "/assets/neofontrender_ui_enhancements/shaders/";
     private static final int DOWNSAMPLE = 2;
@@ -39,7 +39,7 @@ final class MicaBackdrop {
 
     private MicaBackdrop() {}
 
-    /** Copies the world framebuffer before the current GuiScreen renders any of its UI. */
+    /** Copies the completed world and HUD before UIE's dimming layer or GuiScreen rendering. */
     static void captureScene() {
         if (unavailable) return;
         Minecraft mc = Minecraft.getMinecraft();

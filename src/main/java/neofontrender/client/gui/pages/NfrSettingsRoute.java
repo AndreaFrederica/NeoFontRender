@@ -10,6 +10,7 @@ public enum NfrSettingsRoute {
     CACHE(5,"neofontrender.gui.category.cache"),
     SHADOW(8,"neofontrender.gui.category.shadow"),
     FIXES(9,"neofontrender.gui.category.fixes"),
+    COMPATIBILITY(11,"neofontrender.gui.category.compatibility"),
     LABORATORY(10,"neofontrender.gui.category.laboratory"),
     ABOUT(6,"neofontrender.gui.category.about"),
     LICENSES(7,"neofontrender.gui.category.licenses");

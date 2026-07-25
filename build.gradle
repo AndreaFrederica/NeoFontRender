@@ -43,11 +43,11 @@ unimined.minecraft {
         if (use_access_transformer.toBoolean()) {
             accessTransformer "${rootProject.projectDir}/src/main/resources/$access_transformer_locations"
         }
-        loader '0.5.17-alpha'
+        loader '0.6.1-alpha'
         runs.all {
             args += ['--username', minecraft_username]
             // ModularUI's early Minecraft mixin is required for its key-binding accessors,
-            // but Cleanroom 0.5.17's development splash thread is not compatible with it.
+            // while keeping development launches deterministic across loader updates.
             // This applies only to Gradle development runs, never to the packaged mod.
             systemProperty('fml.noSplash', 'true')
             if (extra_jvm_args?.trim()) jvmArgs += extra_jvm_args.split('\\s+').toList()

@@ -2,8 +2,6 @@ package neofontrender.addons.tooltips;
 
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.client.event.GuiOpenEvent;
-import net.minecraftforge.client.event.GuiScreenEvent;
-import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.addons.ui.UiEnhancementModule;
@@ -26,14 +24,6 @@ public final class TooltipModule implements UiEnhancementModule {
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new ModNameTooltipHandler());
         MinecraftForge.EVENT_BUS.register(new ModernTooltipHandler());
-    }
-
-    /** Preserve the scene before GuiScreen draws its background, panels, widgets or tooltips. */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void captureMicaScene(GuiScreenEvent.DrawScreenEvent.Pre event) {
-        if (TooltipConfig.enabled && "mica".equals(TooltipConfig.renderStyle)) {
-            MicaBackdrop.captureScene();
-        }
     }
 
     @SubscribeEvent

@@ -46,6 +46,22 @@ public class BakedGlyph {
         return textureLocation;
     }
 
+    public float visualLeft() {
+        return left;
+    }
+
+    public float visualRight() {
+        return right;
+    }
+
+    public float visualTop() {
+        return up;
+    }
+
+    public float visualBottom() {
+        return down;
+    }
+
     /**
      * Render this glyph at the given position using the current OpenGL color.
      *

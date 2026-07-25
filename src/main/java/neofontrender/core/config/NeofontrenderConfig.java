@@ -4,6 +4,7 @@ import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.electronwill.nightconfig.toml.TomlFormat;
 import net.minecraft.client.Minecraft;
 import neofontrender.NeoFontRender;
+import neofontrender.core.font.support.FontFileResolver;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -22,6 +23,7 @@ import java.util.Set;
 public final class NeofontrenderConfig {
 
     private static final String CONFIG_NAME = "neofontrender.toml";
+    private static final String DEFAULT_FONT_NAME = "Sarasa UI SC";
     private static final String DEFAULT_FONT = "neofontrender:fonts/sarasa_ui_sc_regular.ttf";
     private static Path configPath;
     private static CommentedFileConfig config;
@@ -38,12 +40,25 @@ public final class NeofontrenderConfig {
 
     // ===================== Font =====================
     public static String fontName() {
-        return normalizeFontLocation(config.getOrElse("font.name", DEFAULT_FONT));
+        String name = config.getOrElse("font.name", DEFAULT_FONT_NAME);
+        name = name == null ? "" : name.trim();
+        return name.isEmpty() ? DEFAULT_FONT_NAME : name;
+    }
+
+    /** Optional byte source for the primary font. The family name is always kept separately. */
+    public static String fontPath() {
+        return normalizeFontLocation(config.getOrElse("font.path", ""));
+    }
+
+    /** Selector used by byte-loading backends. */
+    public static String primaryFontLocation() {
+        String path = fontPath();
+        return path.isEmpty() ? fontName() : path;
     }
 
     public static List<String> fontFamily() {
         Set<String> fonts = new LinkedHashSet<>();
-        addFontNames(fonts, fontName());
+        addFontNames(fonts, primaryFontLocation());
         fonts.addAll(fontFallbacks());
         if (builtinFallbacksEnabled()) {
             for (BuiltinFont font : builtinFonts()) {
@@ -68,6 +83,8 @@ public final class NeofontrenderConfig {
         } else if (fallbackValue != null) {
             addFontNames(fonts, fallbackValue.toString());
         }
+        String primaryName = fontName();
+        fonts.removeIf(font -> font.equalsIgnoreCase(primaryName));
         return Collections.unmodifiableList(new ArrayList<>(fonts));
     }
 
@@ -152,6 +169,12 @@ public final class NeofontrenderConfig {
     public static float shadowLength() {
         return cached.shadowLength;
     }
+
+    public static boolean modernShadowEnabled() { return cached.modernShadow; }
+    public static float shadowOffsetX() { return cached.shadowOffsetX; }
+    public static float shadowOffsetY() { return cached.shadowOffsetY; }
+    public static float shadowBlurRadius() { return cached.shadowBlurRadius; }
+    public static int shadowColor() { return cached.shadowColor; }
 
     public static float shadowOpacity() {
         return cached.shadowOpacity;
@@ -481,6 +504,10 @@ public final class NeofontrenderConfig {
         return cached.compatModernSplash;
     }
 
+    public static boolean compatTinkersAntique() {
+        return cached.compatTinkersAntique;
+    }
+
     public static boolean splashFontOverrideEnabled() {
         return cached.splashFontOverrideEnabled;
     }
@@ -490,11 +517,30 @@ public final class NeofontrenderConfig {
     }
 
     public static void setFontName(String value) {
-        setValue("font.name", value);
+        String name = value == null ? "" : value.trim();
+        if (isFontFileLocation(name)) {
+            File file = resolveFontFile(name);
+            setValue("font.path", normalizeSingleFont(name));
+            name = inferFontFamily(file, name);
+        } else {
+            // The legacy setter selects a complete primary font. A family-only selection must not
+            // accidentally retain the byte source belonging to the previously selected font.
+            setValue("font.path", "");
+        }
+        setValue("font.name", name.isEmpty() ? DEFAULT_FONT_NAME : name);
+    }
+
+    public static void setFontPath(String value) {
+        setValue("font.path", normalizeSingleFont(value));
     }
 
     public static void setFontFallbacks(List<String> value) {
-        setValue("font.fallbacks", value == null ? Collections.emptyList() : new ArrayList<>(value));
+        List<String> fallbacks = value == null
+                ? new ArrayList<>()
+                : new ArrayList<>(normalizeFontValues(value));
+        String primaryName = fontName();
+        fallbacks.removeIf(font -> font.equalsIgnoreCase(primaryName));
+        setValue("font.fallbacks", fallbacks);
     }
 
     public static void setFontStyle(int value) {
@@ -506,19 +552,19 @@ public final class NeofontrenderConfig {
     }
 
     public static void setCosmicRegularFont(String value) {
-        setValue("font.cosmic.regular", value == null ? "" : value.trim());
+        setValue("font.cosmic.regular", normalizeSingleFont(value));
     }
 
     public static void setCosmicBoldFont(String value) {
-        setValue("font.cosmic.bold", value == null ? "" : value.trim());
+        setValue("font.cosmic.bold", normalizeSingleFont(value));
     }
 
     public static void setCosmicItalicFont(String value) {
-        setValue("font.cosmic.italic", value == null ? "" : value.trim());
+        setValue("font.cosmic.italic", normalizeSingleFont(value));
     }
 
     public static void setCosmicBoldItalicFont(String value) {
-        setValue("font.cosmic.boldItalic", value == null ? "" : value.trim());
+        setValue("font.cosmic.boldItalic", normalizeSingleFont(value));
     }
 
     public static void setCosmicVariantOverridesOnlySwitchFont(boolean value) {
@@ -571,6 +617,12 @@ public final class NeofontrenderConfig {
         setValue("shadow.length", value);
     }
 
+    public static void setModernShadowEnabled(boolean value) { setValue("shadow.modern", value); }
+    public static void setShadowOffsetX(float value) { setValue("shadow.offsetX", Math.max(-8.0F, Math.min(8.0F, value))); }
+    public static void setShadowOffsetY(float value) { setValue("shadow.offsetY", Math.max(-8.0F, Math.min(8.0F, value))); }
+    public static void setShadowBlurRadius(float value) { setValue("shadow.blurRadius", Math.max(0.0F, Math.min(6.0F, value))); }
+    public static void setShadowColor(int value) { setValue("shadow.color", value); }
+
     public static void setShadowOpacity(float value) {
         setValue("shadow.opacity", value);
     }
@@ -578,7 +630,10 @@ public final class NeofontrenderConfig {
     public static void setShadowMode(String value) {
         setValue("shadow.mode", normalizeShadowMode(value));
     }
-    public static void setShadowMaskFonts(String value) { setValue("shadow.maskFonts", value == null ? "" : value.trim()); }
+    public static void setShadowMaskFonts(String value) {
+        setValue("shadow.maskFonts", joinFontLocations(normalizeFontValues(
+                value == null ? Collections.emptyList() : Collections.singletonList(value))));
+    }
     public static void setShadowMaskCodepoints(String value) { setValue("shadow.maskCodepoints", value == null ? "" : value.trim()); }
 
     public static void setFixImeInput(boolean value) {
@@ -603,6 +658,10 @@ public final class NeofontrenderConfig {
 
     public static void setCompatModernSplash(boolean value) {
         setValue("compat.modernsplash.enabled", value);
+    }
+
+    public static void setCompatTinkersAntique(boolean value) {
+        setValue("compat.tinkersantique.enabled", value);
     }
 
     public static void setSplashFontOverrideEnabled(boolean value) {
@@ -836,8 +895,11 @@ public final class NeofontrenderConfig {
                 .build();
         config.load();
 
+        boolean migratedFontLocations = migratePortableFontLocations();
         if (needsDefault) {
             addComments();
+        }
+        if (needsDefault || migratedFontLocations) {
             config.save();
         }
         refreshCachedOptions();
@@ -866,6 +928,26 @@ public final class NeofontrenderConfig {
         return dir;
     }
 
+    public static String portableFontLocation(File file) {
+        return FontFileResolver.portableLocation(Minecraft.getMinecraft().gameDir, file);
+    }
+
+    public static File resolveFontFile(String location) {
+        return FontFileResolver.resolve(Minecraft.getMinecraft().gameDir, location);
+    }
+
+    public static List<File> primaryFamilyFiles() {
+        return FontFileResolver.familyFiles(Minecraft.getMinecraft().gameDir, fontName());
+    }
+
+    public static String fontFamilyName(File file) {
+        return FontFileResolver.familyName(file);
+    }
+
+    public static String fontFaceName(File file) {
+        return FontFileResolver.faceName(file);
+    }
+
     private static void writeDefaultConfig(File file) throws IOException {
         try (Writer w = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"))) {
             w.write("# Neo Font Render Configuration\n");
@@ -873,7 +955,8 @@ public final class NeofontrenderConfig {
             w.write("enabled = true\n");
             w.write("\n");
             w.write("[font]\n");
-            w.write("name = \"" + DEFAULT_FONT + "\"\n");
+            w.write("name = \"" + DEFAULT_FONT_NAME + "\"\n");
+            w.write("path = \"" + DEFAULT_FONT + "\"\n");
             w.write("fallbacks = [\"Serif\", \"Monospaced\"]\n");
             w.write("style = 0\n");
             w.write("variableWeight = 0\n");
@@ -896,7 +979,12 @@ public final class NeofontrenderConfig {
             w.write("variantOverridesOnlySwitchFont = false\n");
             w.write("\n");
             w.write("[shadow]\n");
+            w.write("modern = true\n");
             w.write("length = 1.0\n");
+            w.write("offsetX = 1.0\n");
+            w.write("offsetY = 1.0\n");
+            w.write("blurRadius = 0.5\n");
+            w.write("color = -16777216\n");
             w.write("opacity = 0.25\n");
             w.write("mode = \"mask\"\n");
             w.write("maskFonts = \"\"\n");
@@ -971,6 +1059,7 @@ public final class NeofontrenderConfig {
             w.write("\n");
             w.write("[compat]\n");
             w.write("modernsplash.enabled = true\n");
+            w.write("tinkersantique.enabled = true\n");
             w.write("\n");
             w.write("[splash]\n");
             w.write("enabled = true\n");
@@ -984,7 +1073,8 @@ public final class NeofontrenderConfig {
     private static void addComments() {
         config.setComment("enabled", "Enable/disable the entire font replacement pipeline.");
         config.setComment("font", "Font selection and rasterization settings.");
-        config.setComment("font.name", "Primary font name or TTF file path. Comma/semicolon-separated font family lists are also supported.");
+        config.setComment("font.name", "Primary font family/display name. This field never stores a file path.");
+        config.setComment("font.path", "Optional primary TTF/OTF/TTC source. Game-folder fonts use a portable neofontrender/fonts/... path.");
         config.setComment("font.fallbacks", "Fallback font names or TTF file paths queried after font.name when a glyph is missing.");
         config.setComment("font.style", "Font style: 0=Plain, 1=Bold, 2=Italic, 3=Bold+Italic.");
         config.setComment("font.variableWeight", "Variable font wght axis for regular text. 0=auto, otherwise 1-1000.");
@@ -1006,6 +1096,11 @@ public final class NeofontrenderConfig {
         config.setComment("font.cosmic.variantOverridesOnlySwitchFont", "For non-regular overrides, select the configured font without additionally requesting bold or italic styling. Empty overrides still use automatic family style matching.");
         config.setComment("shadow", "Text shadow rendering options.");
         config.setComment("shadow.length", "Shadow offset distance in pixels.");
+        config.setComment("shadow.modern", "Bake a colored soft shadow into the modern backend texture for a single foreground submission.");
+        config.setComment("shadow.offsetX", "Modern shadow horizontal offset in pixels.");
+        config.setComment("shadow.offsetY", "Modern shadow vertical offset in pixels.");
+        config.setComment("shadow.blurRadius", "Modern shadow blur radius in pixels.");
+        config.setComment("shadow.color", "Modern shadow ARGB color stored as a signed 32-bit integer.");
         config.setComment("shadow.opacity", "Shadow opacity multiplier (0.0-1.0).");
         config.setComment("shadow.mode", "Shadow mode: all, mask (skip color glyphs), emoji (skip Unicode emoji), or none.");
         config.setComment("shadow.maskFonts", "Comma-separated font families whose displayable code points skip shadows in mask mode.");
@@ -1015,6 +1110,7 @@ public final class NeofontrenderConfig {
         config.setComment("laboratory.hexChat", "Experimental #RRGGBB chat rendering for Skia/Cosmic text backends.");
         config.setComment("compat", "Compatibility options for third-party mods.");
         config.setComment("compat.modernsplash.enabled", "Allow the loading-screen font override to patch ModernSplash when it is installed. Requires splash.enabled and a restart.");
+        config.setComment("compat.tinkersantique.enabled", "Handle Tinkers' Construct / TinkersAntique custom PUA color markers (\\uE700-\\uE7FF) as invisible color-change characters instead of rendering them as glyphs.");
         config.setComment("splash", "Forge loading-screen font replacement options.");
         config.setComment("splash.enabled", "Replace the Forge loading-screen bitmap font with the configured TTF font. Restart required.");
         config.setComment("rendering", "OpenGL texture rendering options.");
@@ -1121,6 +1217,7 @@ public final class NeofontrenderConfig {
         private final boolean laboratoryHexChat;
         private final boolean laboratoryTextUndoRedo;
         private final boolean compatModernSplash;
+        private final boolean compatTinkersAntique;
         private final boolean splashFontOverrideEnabled;
         private final int fontStyle;
         private final int fontVariableWeight;
@@ -1136,6 +1233,11 @@ public final class NeofontrenderConfig {
         private final boolean fontLcdSubpixel;
         private final boolean builtinFallbacks;
         private final float shadowLength;
+        private final boolean modernShadow;
+        private final float shadowOffsetX;
+        private final float shadowOffsetY;
+        private final float shadowBlurRadius;
+        private final int shadowColor;
         private final float shadowOpacity;
         private final String shadowMode;
         private final String shadowMaskFonts;
@@ -1206,6 +1308,7 @@ public final class NeofontrenderConfig {
             laboratoryHexChat = false;
             laboratoryTextUndoRedo = false;
             compatModernSplash = true;
+            compatTinkersAntique = true;
             splashFontOverrideEnabled = true;
             fontStyle = 0;
             fontVariableWeight = 0;
@@ -1221,6 +1324,11 @@ public final class NeofontrenderConfig {
             fontLcdSubpixel = false;
             builtinFallbacks = true;
             shadowLength = 1.0F;
+            modernShadow = true;
+            shadowOffsetX = 1.0F;
+            shadowOffsetY = 1.0F;
+            shadowBlurRadius = 0.5F;
+            shadowColor = 0xFF000000;
             shadowOpacity = 0.25F;
             shadowMode = "mask";
             shadowMaskFonts = "";
@@ -1292,6 +1400,7 @@ public final class NeofontrenderConfig {
             laboratoryHexChat = config.getOrElse("laboratory.hexChat", false);
             laboratoryTextUndoRedo = config.getOrElse("laboratory.textUndoRedo", false);
             compatModernSplash = config.getOrElse("compat.modernsplash.enabled", true);
+            compatTinkersAntique = config.getOrElse("compat.tinkersantique.enabled", true);
             splashFontOverrideEnabled = config.getOrElse("splash.enabled", true);
             fontStyle = config.getOrElse("font.style", 0);
             fontVariableWeight = Math.max(0, Math.min(1000, getInt(config, "font.variableWeight", 0)));
@@ -1307,6 +1416,11 @@ public final class NeofontrenderConfig {
             fontLcdSubpixel = config.getOrElse("font.lcdSubpixel", false);
             builtinFallbacks = config.getOrElse("font.builtinFallbacks", true);
             shadowLength = getFloat(config, "shadow.length", 1.0F);
+            modernShadow = config.getOrElse("shadow.modern", true);
+            shadowOffsetX = getFloat(config, "shadow.offsetX", shadowLength);
+            shadowOffsetY = getFloat(config, "shadow.offsetY", shadowLength);
+            shadowBlurRadius = Math.max(0.0F, getFloat(config, "shadow.blurRadius", 0.5F));
+            shadowColor = getInt(config, "shadow.color", 0xFF000000);
             shadowOpacity = getFloat(config, "shadow.opacity", 0.25F);
             shadowMode = normalizeShadowMode(config.getOrElse("shadow.mode", "mask"));
             shadowMaskFonts = config.getOrElse("shadow.maskFonts", "");
@@ -1389,6 +1503,105 @@ public final class NeofontrenderConfig {
         }
     }
 
+    private static boolean migratePortableFontLocations() {
+        boolean changed = migratePrimaryFontFields();
+        changed |= migrateSingleFontLocation("font.path");
+        changed |= migrateFallbackFontNames();
+        changed |= migrateSingleFontLocation("font.cosmic.regular");
+        changed |= migrateSingleFontLocation("font.cosmic.bold");
+        changed |= migrateSingleFontLocation("font.cosmic.italic");
+        changed |= migrateSingleFontLocation("font.cosmic.boldItalic");
+        changed |= migrateFontLocationList("shadow.maskFonts", false);
+        if (changed) {
+            NeoFontRender.LOGGER.info("Migrated game-folder font paths to portable locations");
+        }
+        return changed;
+    }
+
+    private static boolean migrateFallbackFontNames() {
+        Object current = config.get("font.fallbacks");
+        if (current == null) return false;
+        List<?> values = current instanceof List ? (List<?>) current : Collections.singletonList(current);
+        List<String> migrated = new ArrayList<>();
+        for (Object item : values) {
+            if (item == null) continue;
+            for (String part : item.toString().split("[,;]")) {
+                String value = normalizeSingleFont(part.trim());
+                File file = resolveFontFile(value);
+                String name = file.isFile() && isFontFileLocation(value)
+                        ? inferFontFamily(file, value) : value;
+                if (!name.isEmpty() && !migrated.contains(name)) migrated.add(name);
+            }
+        }
+        if (migrated.equals(current)) return false;
+        config.set("font.fallbacks", migrated);
+        return true;
+    }
+
+    private static boolean migratePrimaryFontFields() {
+        Object current = config.get("font.name");
+        if (!(current instanceof String)) {
+            return false;
+        }
+        String value = ((String) current).trim();
+        if (!isFontFileLocation(value)) {
+            return false;
+        }
+        String location = normalizeSingleFont(value);
+        config.set("font.path", location);
+        config.set("font.name", inferFontFamily(resolveFontFile(location), value));
+        return true;
+    }
+
+    private static boolean migrateSingleFontLocation(String key) {
+        Object current = config.get(key);
+        if (!(current instanceof String)) {
+            return false;
+        }
+        String normalized = normalizeSingleFont((String) current);
+        if (normalized.equals(current)) {
+            return false;
+        }
+        config.set(key, normalized);
+        return true;
+    }
+
+    private static boolean migrateFontLocationList(String key, boolean storeAsList) {
+        Object current = config.get(key);
+        if (current == null) {
+            return false;
+        }
+        List<?> currentValues = current instanceof List
+                ? (List<?>) current
+                : Collections.singletonList(current);
+        List<String> normalized = normalizeFontValues(currentValues);
+        Object replacement = storeAsList ? normalized : joinFontLocations(normalized);
+        if (replacement.equals(current)) {
+            return false;
+        }
+        config.set(key, replacement);
+        return true;
+    }
+
+    private static String normalizeSingleFont(String value) {
+        return normalizeFontLocation(value == null ? "" : value.trim());
+    }
+
+    private static List<String> normalizeFontValues(Iterable<?> values) {
+        List<String> normalized = new ArrayList<>();
+        for (String value : FontFileResolver.normalizeLocations(Minecraft.getMinecraft().gameDir, values)) {
+            String font = normalizeSingleFont(value);
+            if (!font.isEmpty() && !normalized.contains(font)) {
+                normalized.add(font);
+            }
+        }
+        return normalized;
+    }
+
+    private static String joinFontLocations(List<String> fonts) {
+        return String.join(", ", fonts);
+    }
+
     private static String normalizeFontLocation(String font) {
         if ("neofontrender:fonts/NotoColorEmoji-Regular.ttf".equals(font)) {
             return "neofontrender:fonts/noto_color_emoji_regular.ttf";
@@ -1396,7 +1609,25 @@ public final class NeofontrenderConfig {
         if ("neofontrender:fonts/IBMPlexSansSC-Regular.ttf".equals(font)) {
             return DEFAULT_FONT;
         }
-        return font;
+        return FontFileResolver.normalizeLocation(Minecraft.getMinecraft().gameDir, font);
+    }
+
+    private static boolean isFontFileLocation(String value) {
+        if (value == null) return false;
+        String lower = value.trim().toLowerCase(Locale.ROOT);
+        return lower.endsWith(".ttf") || lower.endsWith(".otf") || lower.endsWith(".ttc");
+    }
+
+    private static String inferFontFamily(File file, String fallback) {
+        if (file != null && file.isFile()) {
+            return FontFileResolver.familyName(file);
+        }
+        String name = fallback == null ? "" : fallback.replace('\\', '/');
+        int slash = name.lastIndexOf('/');
+        if (slash >= 0) name = name.substring(slash + 1);
+        int dot = name.lastIndexOf('.');
+        if (dot > 0) name = name.substring(0, dot);
+        return name.isEmpty() ? DEFAULT_FONT_NAME : name;
     }
 
     private static String normalizeAntialiasMode(String value) {

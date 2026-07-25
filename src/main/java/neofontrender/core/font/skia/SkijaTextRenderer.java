@@ -48,6 +48,7 @@ import neofontrender.core.font.support.FontPixelUtils;
 import neofontrender.core.font.support.FontRenderPipeline;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.ShadowMaskRules;
+import neofontrender.core.font.support.ModernShadowRasterizer;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
@@ -368,6 +369,132 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
     }
 
+    @Override
+    public boolean supportsNativeFontSize() {
+        return true;
+    }
+
+    @Override
+    public float measureFormattedAtSize(String text, int baseArgb, boolean shadow,
+                                        float requestedFontSize) {
+        if (text == null || text.isEmpty()) {
+            return 0.0F;
+        }
+        float fontSize = Math.max(1.0F, requestedFontSize);
+        float rasterScale = currentRasterScale();
+        String cacheText = sizedCacheText(text, fontSize);
+        MeasureKey key = MeasureKey.formatted(cacheText, shadow, rasterScale,
+                FontRenderTuning.currentDrawContext().perspective());
+        Float cached = measureCache.get(key);
+        if (cached != null) {
+            if (debugRenderStats()) measureCacheHits++;
+            return cached;
+        }
+        if (debugRenderStats()) measureCacheMisses++;
+        float measured;
+        try (Paragraph paragraph = buildFormattedParagraphAtSize(
+                text, baseArgb, shadow, fontSize, rasterScale)) {
+            paragraph.layout(100000.0F * rasterScale);
+            measured = Math.max(paragraph.getMaxIntrinsicWidth(), paragraph.getLongestLine())
+                    / rasterScale;
+        }
+        measureCache.put(key, measured);
+        trimMeasureCache();
+        return measured;
+    }
+
+    @Override
+    public TextRenderResult renderFormattedAtSize(String text, int baseArgb, boolean shadow,
+                                                  float requestedFontSize) {
+        if (text == null || text.isEmpty()) {
+            return RenderedText.EMPTY;
+        }
+        float fontSize = Math.max(1.0F, requestedFontSize);
+        float rasterScale = currentRasterScale();
+        int normalizedArgb = normalizeBaseArgb(baseArgb);
+        String cacheText = sizedCacheText(text, fontSize);
+        RenderKey key = RenderKey.formatted(cacheText, normalizedArgb, shadow, rasterScale,
+                texturePathCacheBucket(), true);
+        RenderedText cached = renderCache.get(key);
+        if (cached != null) {
+            if (debugRenderStats()) renderCacheHits++;
+            cached.touch();
+            return cached;
+        }
+        if (debugRenderStats()) renderCacheMisses++;
+        try (Paragraph paragraph = buildFormattedParagraphAtSize(
+                text, normalizedArgb, shadow, fontSize, rasterScale)) {
+            paragraph.layout(100000.0F * rasterScale);
+            float measuredWidth = Math.max(1.0F,
+                    Math.max(paragraph.getMaxIntrinsicWidth(), paragraph.getLongestLine())
+                            / rasterScale);
+            int border = computeBorder(rasterScale);
+            int width = Math.max(1,
+                    (int) Math.ceil((measuredWidth + border * 2.0F) * rasterScale));
+            paragraph.layout(width);
+            RenderedText rendered = rasterizeParagraph(
+                    paragraph, key.hashCode(), measuredWidth, width, rasterScale, border,
+                    false, fontSize);
+            renderCache.put(key, rendered);
+            trimRenderCache();
+            return rendered;
+        } catch (Throwable t) {
+            NeoFontRender.LOGGER.error("Failed to render native-size Skija text '{}'", text, t);
+            return RenderedText.EMPTY;
+        }
+    }
+
+    private static String sizedCacheText(String text, float fontSize) {
+        return "\u0001native-size:" + Integer.toHexString(Float.floatToIntBits(fontSize))
+                + "\n" + text;
+    }
+
+    @Override
+    public boolean supportsModernShadow() {
+        return true;
+    }
+
+    @Override
+    public TextRenderResult renderFormattedWithShadow(String text, int baseArgb) {
+        return renderFormattedWithShadowAtSize(
+                text, baseArgb, NeofontrenderConfig.fontSize());
+    }
+
+    @Override
+    public TextRenderResult renderFormattedWithShadowAtSize(
+            String text, int baseArgb, float requestedFontSize) {
+        if (text == null || text.isEmpty()) return RenderedText.EMPTY;
+        float fontSize = Math.max(1.0F, requestedFontSize);
+        int normalizedArgb = normalizeBaseArgb(baseArgb);
+        float scale = currentRasterScale();
+        String cacheText = "\u0001modern-shadow:" + modernShadowProfile() + ":"
+                + Integer.toHexString(Float.floatToIntBits(fontSize)) + "\n" + text;
+        RenderKey key = RenderKey.formatted(cacheText, normalizedArgb, false, scale, 0, true);
+        RenderedText cached = renderCache.get(key);
+        if (cached != null) {
+            cached.touch();
+            return cached;
+        }
+        try (Paragraph paragraph = buildFormattedParagraphAtSize(
+                text, normalizedArgb, false, fontSize, scale)) {
+            paragraph.layout(100000.0F * scale);
+            float measuredWidth = Math.max(1.0F,
+                    Math.max(paragraph.getMaxIntrinsicWidth(), paragraph.getLongestLine()) / scale);
+            int border = computeBorder(scale);
+            int width = Math.max(1, (int) Math.ceil((measuredWidth + border * 2.0F) * scale));
+            paragraph.layout(width);
+            RenderedText rendered = rasterizeParagraph(
+                    paragraph, key.hashCode(), measuredWidth, width, scale, border,
+                    true, fontSize);
+            renderCache.put(key, rendered);
+            trimRenderCache();
+            return rendered;
+        } catch (Throwable t) {
+            NeoFontRender.LOGGER.error("Failed to render modern Skija shadow text '{}'", text, t);
+            return RenderedText.EMPTY;
+        }
+    }
+
     /**
      * Render all four vanilla sign lines into one centered paragraph texture. SignRenderer keeps
      * one stable model/view transform while drawing its lines, so this removes three immediate GL
@@ -498,9 +625,22 @@ public final class SkijaTextRenderer implements TextRenderBackend {
 
     private RenderedText rasterizeParagraph(Paragraph paragraph, int cacheHash, float measuredWidth, int width,
                                            float oversample, int border) throws IOException {
-        if (shouldUseGpuOffscreen()) {
+        return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width, oversample, border, false);
+    }
+
+    private RenderedText rasterizeParagraph(Paragraph paragraph, int cacheHash, float measuredWidth, int width,
+                                            float oversample, int border, boolean modernShadow) throws IOException {
+        return rasterizeParagraph(paragraph, cacheHash, measuredWidth, width, oversample, border,
+                modernShadow, NeofontrenderConfig.fontSize());
+    }
+
+    private RenderedText rasterizeParagraph(Paragraph paragraph, int cacheHash, float measuredWidth, int width,
+                                            float oversample, int border, boolean modernShadow,
+                                            float logicalFontSize) throws IOException {
+        if (!modernShadow && shouldUseGpuOffscreen()) {
             try {
-                return rasterizeParagraphGpu(paragraph, cacheHash, measuredWidth, width, oversample, border);
+                return rasterizeParagraphGpu(paragraph, cacheHash, measuredWidth, width, oversample,
+                        border, logicalFontSize);
             } catch (Throwable t) {
                 gpuUnavailable = true;
                 lastGpuFallbackReason = "isolated failed: " + t.getClass().getSimpleName();
@@ -519,11 +659,14 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         float paintX = border * oversample;
         float paintY = border * oversample / 2.0f;
         float baselineInTexture = (paintY + paragraph.getAlphabeticBaseline()) / oversample;
+        float sizeRatio = logicalFontSize / Math.max(1.0F, NeofontrenderConfig.fontSize());
         if (NeofontrenderConfig.fontAutoBaseline()) {
             float refBaseline = Float.isNaN(autoRefBaseline) ? computeAutoRefBaseline() : autoRefBaseline;
-            verticalOffset = refBaseline + NeofontrenderConfig.fontBaselineShift() - baselineInTexture;
+            verticalOffset = refBaseline * sizeRatio
+                    + NeofontrenderConfig.fontBaselineShift() * sizeRatio - baselineInTexture;
         } else {
-            verticalOffset = NeofontrenderConfig.fontReferenceBaseline() + NeofontrenderConfig.fontBaselineShift() - baselineInTexture;
+            verticalOffset = NeofontrenderConfig.fontReferenceBaseline() * sizeRatio
+                    + NeofontrenderConfig.fontBaselineShift() * sizeRatio - baselineInTexture;
         }
         float horizontalOffset = -paintX / oversample;
 
@@ -556,6 +699,18 @@ public final class SkijaTextRenderer implements TextRenderBackend {
                         pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
                     }
                 }
+            }
+            if (modernShadow) {
+                ModernShadowRasterizer.Result shadow = ModernShadowRasterizer.compose(
+                        pixels, width, height, oversample,
+                        NeofontrenderConfig.shadowOffsetX(), NeofontrenderConfig.shadowOffsetY(),
+                        NeofontrenderConfig.shadowBlurRadius(), NeofontrenderConfig.shadowColor(),
+                        NeofontrenderConfig.shadowOpacity(), premultiplied);
+                pixels = shadow.pixels;
+                width = shadow.width;
+                height = shadow.height;
+                horizontalOffset -= shadow.originX / oversample;
+                verticalOffset -= shadow.originY / oversample;
             }
             if (NeofontrenderConfig.textureEdgeBleed()) {
                 FontPixelUtils.normalizeTransparentRgb(pixels, width, height);
@@ -594,8 +749,17 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         }
     }
 
+    private static int modernShadowProfile() {
+        int hash = Float.floatToIntBits(NeofontrenderConfig.shadowOffsetX());
+        hash = 31 * hash + Float.floatToIntBits(NeofontrenderConfig.shadowOffsetY());
+        hash = 31 * hash + Float.floatToIntBits(NeofontrenderConfig.shadowBlurRadius());
+        hash = 31 * hash + Float.floatToIntBits(NeofontrenderConfig.shadowOpacity());
+        return 31 * hash + NeofontrenderConfig.shadowColor();
+    }
+
     private RenderedText rasterizeParagraphGpu(Paragraph paragraph, int cacheHash, float measuredWidth, int width,
-                                               float oversample, int border) throws IOException {
+                                               float oversample, int border,
+                                               float logicalFontSize) throws IOException {
         gpuRasterCount++;
         lastRasterPath = "gpu-isolated";
         if (!gpuActiveLogged) {
@@ -608,11 +772,14 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         float paintY = border * oversample / 2.0f;
         float baselineInTexture = (paintY + paragraph.getAlphabeticBaseline()) / oversample;
         float verticalOffset;
+        float sizeRatio = logicalFontSize / Math.max(1.0F, NeofontrenderConfig.fontSize());
         if (NeofontrenderConfig.fontAutoBaseline()) {
             float refBaseline = Float.isNaN(autoRefBaseline) ? computeAutoRefBaseline() : autoRefBaseline;
-            verticalOffset = refBaseline + NeofontrenderConfig.fontBaselineShift() - baselineInTexture;
+            verticalOffset = refBaseline * sizeRatio
+                    + NeofontrenderConfig.fontBaselineShift() * sizeRatio - baselineInTexture;
         } else {
-            verticalOffset = NeofontrenderConfig.fontReferenceBaseline() + NeofontrenderConfig.fontBaselineShift() - baselineInTexture;
+            verticalOffset = NeofontrenderConfig.fontReferenceBaseline() * sizeRatio
+                    + NeofontrenderConfig.fontBaselineShift() * sizeRatio - baselineInTexture;
         }
         float horizontalOffset = -paintX / oversample;
 
@@ -918,6 +1085,16 @@ public final class SkijaTextRenderer implements TextRenderBackend {
         return buildFormattedParagraph(text, baseArgb, shadow, scale, null);
     }
 
+    private Paragraph buildFormattedParagraphAtSize(String text, int baseArgb, boolean shadow,
+                                                    float fontSize, float rasterScale) {
+        ParagraphBuilder builder = new ParagraphBuilder(new ParagraphStyle(), fontCollection);
+        for (FormattedRun run : splitFormattedRuns(text, baseArgb, shadow)) {
+            appendStyledTextAtSize(builder, run.text, run.argb, run.bold, run.italic,
+                    run.underline, run.strikethrough, fontSize, rasterScale);
+        }
+        return builder.build();
+    }
+
     private Paragraph buildFormattedParagraph(String text, int baseArgb, boolean shadow, float scale,
                                                Alignment alignment) {
         ParagraphStyle paragraphStyle = new ParagraphStyle();
@@ -1098,10 +1275,19 @@ public final class SkijaTextRenderer implements TextRenderBackend {
 
     private void appendStyledText(ParagraphBuilder builder, String text, int argb, boolean bold, boolean italic,
                                   boolean underline, boolean strikethrough, float scale) {
+        appendStyledTextAtSize(builder, text, argb, bold, italic, underline, strikethrough,
+                NeofontrenderConfig.fontSize(), scale);
+    }
+
+    private void appendStyledTextAtSize(ParagraphBuilder builder, String text, int argb,
+                                        boolean bold, boolean italic,
+                                        boolean underline, boolean strikethrough,
+                                        float fontSize, float rasterScale) {
         if (text.isEmpty()) {
             return;
         }
-        try (TextStyle textStyle = makeTextStyle(argb, bold, italic, scale);
+        try (TextStyle textStyle = makeTextStyleAtSize(
+                argb, bold, italic, fontSize, rasterScale);
              Paint foreground = makeForegroundPaint(argb)) {
             textStyle.setForeground(foreground);
             if (underline || strikethrough) {
@@ -1116,13 +1302,19 @@ public final class SkijaTextRenderer implements TextRenderBackend {
     }
 
     private TextStyle makeTextStyle(int argb, boolean bold, boolean italic, float scale) {
+        return makeTextStyleAtSize(
+                argb, bold, italic, NeofontrenderConfig.fontSize(), scale);
+    }
+
+    private TextStyle makeTextStyleAtSize(int argb, boolean bold, boolean italic,
+                                          float fontSize, float rasterScale) {
         int configuredStyle = NeofontrenderConfig.fontStyle();
         boolean effectiveBold = bold || (configuredStyle & 1) != 0;
         boolean effectiveItalic = italic || (configuredStyle & 2) != 0;
         FontStyle style = skiaFontStyle(effectiveBold, effectiveItalic);
         return new TextStyle()
                 .setColor(opaqueRgb(argb))
-                .setFontSize(NeofontrenderConfig.fontSize() * scale)
+                .setFontSize(Math.max(1.0F, fontSize) * rasterScale)
                 .setFontStyle(style)
                 .setFontFamilies(fontFamilies)
                 .setHeight(1.0F);
@@ -1337,7 +1529,7 @@ public final class SkijaTextRenderer implements TextRenderBackend {
             return aliases;
         }
         aliases.add(name);
-        File file = new File(name);
+        File file = NeofontrenderConfig.resolveFontFile(name);
         if (file.isFile()) {
             Typeface typeface = FontMgr.getDefault().makeFromFile(file.getAbsolutePath());
             typeface = variableWeightTypeface(typeface);

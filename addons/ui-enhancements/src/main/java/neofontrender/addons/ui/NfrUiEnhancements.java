@@ -9,6 +9,7 @@ import neofontrender.addons.input.TextInputModule;
 import neofontrender.addons.effects.ScreenEffectsModule;
 import neofontrender.addons.chat.EnhancedChatModule;
 import neofontrender.addons.hud.HudBarsModule;
+import neofontrender.addons.loading.WorldLoadingModule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,13 +26,14 @@ import java.util.List;
 )
 public final class NfrUiEnhancements {
     public static final String MOD_ID = "neofontrender_ui_enhancements";
-    public static final String VERSION = "0.1.0";
+    public static final String VERSION = "0.2.2";
     public static final Logger LOGGER = LogManager.getLogger("NFR UI Enhancements");
 
     private static final List<UiEnhancementModule> MODULES = Arrays.asList(
             new SmoothScrollingModule(),
             new TextInputModule(),
             new ScreenEffectsModule(),
+            new WorldLoadingModule(),
             new HudBarsModule(),
             new EnhancedChatModule(),
             new TooltipModule()

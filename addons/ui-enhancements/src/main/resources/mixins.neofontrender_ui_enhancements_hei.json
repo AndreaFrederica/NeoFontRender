@@ -1,0 +1,14 @@
+{
+  "required": false,
+  "minVersion": "0.8.5",
+  "package": "neofontrender.addons.mixin",
+  "refmap": "mixins.neofontrender_ui_enhancements-refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "target": "@env(DEFAULT)",
+  "mixins": [],
+  "server": [],
+  "client": [
+    "compat.MixinHeiCollapsedGroupTooltip",
+    "compat.MixinHeiTooltipRenderer"
+  ]
+}
