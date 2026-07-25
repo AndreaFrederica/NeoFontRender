@@ -25,10 +25,6 @@ public final class FontRenderPipeline {
     private FontRenderPipeline() {
     }
 
-    public static State begin(float rasterScale) {
-        return begin(rasterScale, NeofontrenderConfig.enablePremultipliedAlpha());
-    }
-
     /**
      * Begin a text draw using the alpha representation of the bound texture.
      * Backends must pass the texture's actual representation rather than a global preference.

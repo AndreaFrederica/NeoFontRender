@@ -20,12 +20,12 @@ import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.awt.GlyphInfo;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
+import neofontrender.core.font.backend.BackendTextSegmenter;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.preprocess.PreprocessedText;
 import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.StringErrorCorrector;
-import neofontrender.core.font.skia.SkiaTextSegmenter;
 
 import java.util.List;
 import java.util.Locale;
@@ -72,7 +72,7 @@ public class MixinFontRenderer {
             return;
         }
         if (!FontManager.INSTANCE.isTextBackendActive()
-                || !NeofontrenderConfig.skiaAdvancedStringMode()) {
+                || !NeofontrenderConfig.advancedStringMode()) {
             return;
         }
 
@@ -126,7 +126,7 @@ public class MixinFontRenderer {
                 ci.cancel();
                 return;
             }
-            sfr$renderSkiaFormatted(text, shadow);
+            sfr$renderBackendFormatted(text, shadow);
             ci.cancel();
             return;
         }
@@ -309,7 +309,7 @@ public class MixinFontRenderer {
         this.posX = startX + width;
     }
 
-    private void sfr$renderSkiaFormatted(String text, boolean shadow) {
+    private void sfr$renderBackendFormatted(String text, boolean shadow) {
         float baseRed = this.red;
         float baseBlue = this.blue;
         float baseGreen = this.green;
@@ -324,7 +324,7 @@ public class MixinFontRenderer {
             }
 
             if (i > runStart) {
-                sfr$renderSkiaRun(text.substring(runStart, i), corrector);
+                sfr$renderBackendRun(text.substring(runStart, i), corrector);
             }
 
             int style = "0123456789abcdefklmnor".indexOf(String.valueOf(text.charAt(i + 1))
@@ -373,11 +373,11 @@ public class MixinFontRenderer {
         }
 
         if (runStart < text.length()) {
-            sfr$renderSkiaRun(text.substring(runStart), corrector);
+            sfr$renderBackendRun(text.substring(runStart), corrector);
         }
     }
 
-    private void sfr$renderSkiaRun(String run, StringErrorCorrector corrector) {
+    private void sfr$renderBackendRun(String run, StringErrorCorrector corrector) {
         if (run.isEmpty()) {
             return;
         }
@@ -386,7 +386,7 @@ public class MixinFontRenderer {
         if (backend == null) {
             return;
         }
-        List<String> segments = this.randomStyle ? null : SkiaTextSegmenter.segment(run);
+        List<String> segments = this.randomStyle ? null : BackendTextSegmenter.segment(run);
         if (segments != null) {
             float currentX = startX;
             for (String segment : segments) {
@@ -644,7 +644,7 @@ public class MixinFontRenderer {
     }
 
     private float sfr$getFormattedStringWidthFloat(String text) {
-        if (FontManager.INSTANCE.isTextBackendActive() && NeofontrenderConfig.skiaAdvancedStringMode()) {
+        if (FontManager.INSTANCE.isTextBackendActive() && NeofontrenderConfig.advancedStringMode()) {
             TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
             return backend == null ? 0.0F : backend.measureFormatted(text, 0xFFFFFFFF, false);
         }
@@ -682,10 +682,10 @@ public class MixinFontRenderer {
             if (backend == null) {
                 return 0.0F;
             }
-            if (NeofontrenderConfig.skiaAdvancedStringMode()) {
+            if (NeofontrenderConfig.advancedStringMode()) {
                 return backend.measureFormatted(run, 0xFFFFFFFF, false);
             }
-            List<String> segments = SkiaTextSegmenter.segment(run);
+            List<String> segments = BackendTextSegmenter.segment(run);
             if (segments != null) {
                 float width = 0.0F;
                 for (String segment : segments) {

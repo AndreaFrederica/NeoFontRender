@@ -37,7 +37,6 @@ import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 import neofontrender.api.client.settings.NfrSettingsPageSession;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.FontManager;
-import neofontrender.core.font.skia.SkijaRuntimeSupport;
 
 import java.awt.Desktop;
 import java.io.File;
@@ -86,7 +85,7 @@ public final class NeofontrenderConfigScreen {
         NfrSettingsTabs tabs = tabs(session, route);
         NfrScrollablePane tabsPane = new NfrScrollablePane(tabs);
         NfrSettingsControls controls = new NfrSettingsControls(draft, () -> preview(draft),
-                id -> reloadAndOpen(session, NfrSettingsRoute.byId(id)), NeofontrenderConfigScreen::skiaAvailable);
+                id -> reloadAndOpen(session, NfrSettingsRoute.byId(id)));
         IWidget view = view(session, route, controls);
         IWidget auxiliary = route.isFont()
                 ? controls.action("neofontrender.gui.button.preview", 90, 20, () -> preview(draft))
@@ -111,7 +110,7 @@ public final class NeofontrenderConfigScreen {
         if (selected.extension != null) {
             NfrSettingsPageSession session = screen.extensionSessions.get(selected.extension.id());
             NfrSettingsControls extensionControls = new NfrSettingsControls(draft, session::preview,
-                    id -> reloadAndOpen(screen, NfrSettingsRoute.byId(id)), NeofontrenderConfigScreen::skiaAvailable);
+                    id -> reloadAndOpen(screen, NfrSettingsRoute.byId(id)));
             return session.createView(new NfrSettingsPageContext(extensionControls,
                     () -> openRoute(screen, selected)));
         }
@@ -128,7 +127,7 @@ public final class NeofontrenderConfigScreen {
             case PERFORMANCE:
                 return new NfrPerformanceSettingsView(draft, controls);
             case ADVANCED:
-                return new NfrAdvancedSettingsView(draft, controls, skiaAvailable());
+                return new NfrAdvancedSettingsView(draft, controls);
             case CACHE:
                 return new NfrCacheSettingsView(draft, controls);
             case SHADOW:
@@ -140,7 +139,7 @@ public final class NeofontrenderConfigScreen {
             case LABORATORY:
                 return new NfrLaboratorySettingsView(draft, controls);
             case ABOUT:
-                return new NfrAboutSettingsView(draft, skiaAvailable());
+                return new NfrAboutSettingsView(draft);
             case LICENSES:
                 return new NfrLicensesSettingsView();
             default:
@@ -236,10 +235,6 @@ public final class NeofontrenderConfigScreen {
         if (minecraft.getResourceManager() != null) {
             FontManager.INSTANCE.reload(minecraft.getResourceManager());
         }
-    }
-
-    private static boolean skiaAvailable() {
-        return SkijaRuntimeSupport.checkCompatibility().isSupported();
     }
 
     private static void openFontFolder() {

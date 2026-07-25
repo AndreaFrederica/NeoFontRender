@@ -24,7 +24,7 @@ public final class NfrPipelineInfoPanel extends ParentWidget<NfrPipelineInfoPane
     }
 
     public int preferredHeight() {
-        return Math.max(18, Minecraft.getMinecraft().fontRenderer.FONT_HEIGHT + 6) * 7 + 16;
+        return Math.max(18, Minecraft.getMinecraft().fontRenderer.FONT_HEIGHT + 6) * 6 + 16;
     }
 
     @Override
@@ -58,7 +58,7 @@ public final class NfrPipelineInfoPanel extends ParentWidget<NfrPipelineInfoPane
         draw(minecraft, flags(
                 flag("neofontrender.gui.option.pipeline", state.pipeline),
                 flag("neofontrender.gui.option.shader", state.shader),
-                flag("neofontrender.gui.option.edge_bleed", state.edgeBleed)), 8, 8 + line * 3, 0xD8D8D8);
+                flag("neofontrender.gui.option.debug_stats", state.debugStats)), 8, 8 + line * 3, 0xD8D8D8);
         draw(minecraft, flags(
                 flag("neofontrender.gui.option.autoscale", state.autoScale),
                 flag("neofontrender.gui.option.linear", state.linear),
@@ -67,10 +67,6 @@ public final class NfrPipelineInfoPanel extends ParentWidget<NfrPipelineInfoPane
                 flag("neofontrender.gui.option.integer_scale", state.integerScale),
                 flag("neofontrender.gui.option.high_mag", state.highMagnification),
                 flag("neofontrender.gui.option.anisotropic", state.anisotropic)), 8, 8 + line * 5, 0xD8D8D8);
-        draw(minecraft, flags(
-                flag("neofontrender.gui.option.gpu_offscreen", state.gpuOffscreen),
-                flag("neofontrender.gui.option.gpu_cpu_submit", state.cpuSubmit),
-                flag("neofontrender.gui.option.debug_stats", state.debugStats)), 8, 8 + line * 6, 0xD8D8D8);
     }
 
     private static void draw(Minecraft minecraft, String text, int x, int y, int color) {
@@ -99,34 +95,28 @@ public final class NfrPipelineInfoPanel extends ParentWidget<NfrPipelineInfoPane
         public final String oversample;
         public final boolean pipeline;
         public final boolean shader;
-        public final boolean edgeBleed;
         public final boolean autoScale;
         public final boolean linear;
         public final boolean mipmap;
         public final boolean integerScale;
         public final boolean highMagnification;
         public final boolean anisotropic;
-        public final boolean gpuOffscreen;
-        public final boolean cpuSubmit;
         public final boolean debugStats;
 
         public Snapshot(String engineName, String oversample, boolean pipeline, boolean shader,
-                        boolean edgeBleed, boolean autoScale, boolean linear, boolean mipmap,
+                        boolean autoScale, boolean linear, boolean mipmap,
                         boolean integerScale, boolean highMagnification, boolean anisotropic,
-                        boolean gpuOffscreen, boolean cpuSubmit, boolean debugStats) {
+                        boolean debugStats) {
             this.engineName = engineName;
             this.oversample = oversample;
             this.pipeline = pipeline;
             this.shader = shader;
-            this.edgeBleed = edgeBleed;
             this.autoScale = autoScale;
             this.linear = linear;
             this.mipmap = mipmap;
             this.integerScale = integerScale;
             this.highMagnification = highMagnification;
             this.anisotropic = anisotropic;
-            this.gpuOffscreen = gpuOffscreen;
-            this.cpuSubmit = cpuSubmit;
             this.debugStats = debugStats;
         }
     }

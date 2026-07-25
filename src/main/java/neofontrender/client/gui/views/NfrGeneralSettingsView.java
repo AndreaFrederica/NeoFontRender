@@ -25,7 +25,7 @@ public final class NfrGeneralSettingsView extends NfrContentView<NfrGeneralSetti
                         () -> d.forceUnicodeFont, value -> d.forceUnicodeFont = value,
                         () -> c.reload(route)))
                 .add(c.toggle("neofontrender.gui.option.string_mode", "neofontrender.tooltip.string_mode",
-                        () -> d.skiaAdvancedStringMode, value -> d.skiaAdvancedStringMode = value))
+                        () -> d.advancedStringMode, value -> d.advancedStringMode = value))
                 .add(c.toggle("neofontrender.gui.option.autobase", "neofontrender.tooltip.autobase",
                         () -> d.autoBaseline, value -> d.autoBaseline = value))
                 .add(c.toggle("neofontrender.gui.option.fractional", "neofontrender.tooltip.fractional",

@@ -6,7 +6,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntitySign;
 import net.minecraft.world.World;
 import net.minecraft.util.math.Vec3d;
-import neofontrender.client.render.sign.SignBatchRenderer;
 import neofontrender.client.render.sign.SignOcclusionCuller;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -29,7 +28,6 @@ public abstract class MixinTileEntityRendererDispatcher {
         // visibility reset here means the counters belong to the frame that actually rendered
         // the signs; prepare() may be called at a different point and can erase those counters.
         SignOcclusionCuller.beginFrame(world);
-        SignBatchRenderer.begin();
     }
 
     @Inject(method = "render(Lnet/minecraft/tileentity/TileEntity;FI)V", at = @At("HEAD"), cancellable = true)
@@ -48,8 +46,4 @@ public abstract class MixinTileEntityRendererDispatcher {
         }
     }
 
-    @Inject(method = "drawBatch", at = @At("HEAD"), remap = false)
-    private void nfr$flushSignBatch(int pass, CallbackInfo ci) {
-        SignBatchRenderer.flush(pass);
-    }
 }

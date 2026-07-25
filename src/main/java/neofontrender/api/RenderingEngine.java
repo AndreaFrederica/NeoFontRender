@@ -5,7 +5,6 @@ import java.util.Locale;
 /** Rendering backends exposed by the public API. Availability is decided during reload. */
 public enum RenderingEngine {
     SFR("sfr"),
-    SKIA("skia"),
     COSMIC("cosmic"),
     VANILLA("vanilla");
 
@@ -20,12 +19,12 @@ public enum RenderingEngine {
     }
 
     static RenderingEngine fromConfig(String value) {
-        if (value == null) return SFR;
+        if (value == null) return COSMIC;
         String normalized = value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-        if ("skia".equals(normalized) || "skija".equals(normalized)) return SKIA;
+        if ("sfr".equals(normalized) || "awt".equals(normalized)) return SFR;
         if ("cosmic".equals(normalized) || "cosmic_text".equals(normalized)) return COSMIC;
         if ("vanilla".equals(normalized) || "minecraft".equals(normalized)
                 || "original".equals(normalized)) return VANILLA;
-        return SFR;
+        return COSMIC;
     }
 }

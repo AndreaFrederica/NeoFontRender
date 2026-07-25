@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * Public engine-independent API for clear, native logical-size text.
  *
- * <p>Third-party mods call this class without checking whether NFR currently uses Cosmic, Skia,
+ * <p>Third-party mods call this class without checking whether NFR currently uses Cosmic,
  * SFR/AWT, or vanilla. The main mod selects the implementation and keeps size-specific raster
  * caches. All methods that create or draw a layout must run on Minecraft's client render thread.</p>
  */
@@ -62,8 +62,8 @@ public final class ModernTextApi {
     /**
      * Shapes and rasterizes independently colored formatted runs as one draw-ready layout.
      *
-     * <p>Every configured renderer is supported: Cosmic and Skia are used directly, while SFR
-     * and vanilla selections use the modern AWT adapter chosen by {@link FontManager}.</p>
+     * <p>Every configured renderer is supported: Cosmic is used directly, while SFR and vanilla
+     * selections use the modern AWT adapter chosen by {@link FontManager}.</p>
      */
     public static ModernTextLayout layoutFormatted(
             ModernText text, float fontSize, int argb, boolean shadow) {

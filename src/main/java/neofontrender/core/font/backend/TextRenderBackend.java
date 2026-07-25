@@ -3,8 +3,8 @@ package neofontrender.core.font.backend;
 /**
  * Minimal abstraction for shaped-text backends.
  *
- * <p>Current implementation is Skija-backed, but callers should depend on this
- * surface so future engines can reuse the same FontRenderer integration.
+ * <p>Callers depend on this surface so shaped-text engines can reuse the same FontRenderer
+ * integration without leaking backend-specific types.
  */
 public interface TextRenderBackend extends AutoCloseable {
 

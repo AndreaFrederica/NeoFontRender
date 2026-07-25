@@ -4,7 +4,7 @@ import neofontrender.client.gui.component.base.NfrOptionsGrid;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
 import neofontrender.client.gui.model.NfrSettingsDraft;
 
-/** Performance route: raster scaling, filtering and sign batching. */
+/** Performance route: raster scaling, filtering and sign culling. */
 public final class NfrPerformanceSettingsView extends NfrContentView<NfrPerformanceSettingsView> {
     public NfrPerformanceSettingsView(NfrSettingsDraft d, NfrSettingsControls c) {
         this(options(d, c));
@@ -26,8 +26,6 @@ public final class NfrPerformanceSettingsView extends NfrContentView<NfrPerforma
                         () -> d.anisotropicFiltering, value -> d.anisotropicFiltering = value))
                 .add(c.toggle("neofontrender.gui.option.sign_model_lod", "neofontrender.tooltip.sign_model_lod",
                         () -> d.signModelLod, value -> d.signModelLod = value))
-                .add(c.toggle("neofontrender.gui.option.sign_cross_batch", "neofontrender.tooltip.sign_cross_batch",
-                        () -> d.signCrossTileBatching, value -> d.signCrossTileBatching = value))
                 .add(c.toggle("neofontrender.gui.option.sign_occlusion", "neofontrender.tooltip.sign_occlusion",
                         () -> d.signBlockOcclusionCulling, value -> d.signBlockOcclusionCulling = value));
     }

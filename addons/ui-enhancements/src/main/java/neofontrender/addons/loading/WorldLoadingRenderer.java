@@ -355,7 +355,7 @@ public enum WorldLoadingRenderer {
         int titleColor = scaledAlpha(WorldLoadingConfig.textColor, alpha);
         if (ModernTextApi.isAvailable()) {
             // Request a real large logical font from NFR's public engine-independent API. UIE has
-            // no knowledge of Cosmic, Skia, or SFR/AWT and never scales a small cached texture.
+            // no knowledge of Cosmic or SFR/AWT and never scales a small cached texture.
             float titleFontSize = Math.max(1.0F, font.FONT_HEIGHT * titleScale);
             ModernTextApi.draw(label, margin, bottom - titleFontSize,
                     titleFontSize, titleColor);

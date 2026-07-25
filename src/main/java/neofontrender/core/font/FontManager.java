@@ -17,8 +17,6 @@ import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.cosmic.CosmicRuntimeSupport;
 import neofontrender.core.font.cosmic.CosmicTextRenderer;
 import neofontrender.core.font.support.FontRenderTuning;
-import neofontrender.core.font.skia.SkijaRuntimeSupport;
-import neofontrender.core.font.skia.SkijaTextRenderer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +37,6 @@ public class FontManager implements AutoCloseable {
     private TextRenderBackend textRenderBackend;
     private AwtModernTextRenderer modernAwtTextRenderer;
     private boolean active = false;
-    private boolean skiaActive = false;
     private boolean cosmicActive = false;
     private String backendVersion = "vanilla Minecraft font renderer";
 
@@ -63,51 +60,10 @@ public class FontManager implements AutoCloseable {
 
         if (NeofontrenderConfig.useVanillaEngine()) {
             this.active = false;
-            this.skiaActive = false;
             this.cosmicActive = false;
             this.backendVersion = "vanilla Minecraft font renderer";
             resetVanillaFontTextureFiltering();
             return;
-        }
-
-        boolean preferSkia = NeofontrenderConfig.useSkiaEngine();
-        if (preferSkia) {
-            SkijaRuntimeSupport.Compatibility compatibility = SkijaRuntimeSupport.checkCompatibility();
-            if (!compatibility.isSupported()) {
-                neofontrender.NeoFontRender.LOGGER.warn("Skija renderer disabled: {}. Falling back to vanilla font renderer",
-                        compatibility.getMessage());
-                // A missing optional Skija add-on should be obvious. Silently selecting AWT or
-                // Cosmic makes a stale `rendering.engine=skia` config look successful and hides a
-                // broken installation, so preserve the configured value but render with vanilla.
-                this.active = false;
-                this.skiaActive = false;
-                this.cosmicActive = false;
-                this.backendVersion = "vanilla Minecraft font renderer";
-                resetVanillaFontTextureFiltering();
-                return;
-            } else {
-                try {
-                    this.textRenderBackend = new SkijaTextRenderer(textureManager, resourceManager);
-                    if (NeofontrenderConfig.performancePrewarmBasicLatin()) {
-                        this.textRenderBackend.prewarmBasicLatin();
-                    }
-                    this.skiaActive = this.textRenderBackend.isReady();
-                    this.active = false;
-                    this.backendVersion = "Skija " + compatibility.getMessage();
-                    neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with Skija renderer ({})", compatibility.getMessage());
-                    return;
-                } catch (Throwable t) {
-                    this.textRenderBackend = null;
-                    this.skiaActive = false;
-                    this.backendVersion = "vanilla Minecraft font renderer";
-                    neofontrender.NeoFontRender.LOGGER.error(
-                            "Failed to initialize Skija renderer ({}); falling back to vanilla font renderer",
-                            compatibility.getMessage(),
-                            t);
-                    resetVanillaFontTextureFiltering();
-                    return;
-                }
-            }
         }
 
         boolean preferCosmic = NeofontrenderConfig.useCosmicEngine();
@@ -123,7 +79,6 @@ public class FontManager implements AutoCloseable {
                         this.textRenderBackend.prewarmBasicLatin();
                     }
                     this.cosmicActive = this.textRenderBackend.isReady();
-                    this.skiaActive = false;
                     this.active = false;
                     this.backendVersion = compatibility.getMessage();
                     neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with Cosmic renderer ({})",
@@ -191,10 +146,9 @@ public class FontManager implements AutoCloseable {
             this.defaultFontSet.prewarmBasicLatin();
         }
         this.active = true;
-        this.skiaActive = false;
         this.cosmicActive = false;
         this.backendVersion = "AWT Java2D font renderer";
-        if (preferSkia || preferCosmic) {
+        if (preferCosmic) {
             neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with {} AWT providers after native backend fallback", providers.size());
         } else {
             neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with {} providers", providers.size());
@@ -251,10 +205,6 @@ public class FontManager implements AutoCloseable {
         return isActive();
     }
 
-    public synchronized boolean isSkiaActive() {
-        return skiaActive && textRenderBackend != null;
-    }
-
     public synchronized boolean isCosmicActive() {
         return cosmicActive && textRenderBackend != null;
     }
@@ -265,7 +215,7 @@ public class FontManager implements AutoCloseable {
     }
 
     public synchronized boolean isTextBackendActive() {
-        return (skiaActive || cosmicActive) && textRenderBackend != null;
+        return cosmicActive && textRenderBackend != null;
     }
 
     public synchronized FontSet getDefaultFontSet() {
@@ -296,10 +246,6 @@ public class FontManager implements AutoCloseable {
                 ? modernAwtTextRenderer : null;
     }
 
-    public synchronized SkijaTextRenderer getSkijaTextRenderer() {
-        return textRenderBackend instanceof SkijaTextRenderer ? (SkijaTextRenderer) textRenderBackend : null;
-    }
-
     public synchronized CosmicTextRenderer getCosmicTextRenderer() {
         return textRenderBackend instanceof CosmicTextRenderer ? (CosmicTextRenderer) textRenderBackend : null;
     }
@@ -319,7 +265,6 @@ public class FontManager implements AutoCloseable {
             textRenderBackend = null;
         }
         active = false;
-        skiaActive = false;
         cosmicActive = false;
     }
 }
