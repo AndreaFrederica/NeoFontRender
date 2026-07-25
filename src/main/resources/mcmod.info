@@ -19,13 +19,4 @@
 	"authorList": ["${mod_authors}"],
 	"url": "${mod_url}",
 	"clientSideOnly": true
-}, {
-	"modid": "neofontrender_skia",
-	"name": "Neo Font Render Skia Runtime",
-	"version": "${mod_version}",
-	"mcversion": "1.12.2",
-	"description": "Optional Skija runtime included by the full distribution.",
-	"authorList": ["${mod_authors}"],
-	"url": "${mod_url}",
-	"clientSideOnly": true
 }]
