@@ -11,28 +11,33 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MicaShaderRegressionTest {
     @Test
-    void capturesAfterHudBeforeTheLowPriorityScreenGradient() {
-        String classMetadata = classMetadata("TooltipModule.class");
+    void capturesBeforeTheGuiDraws() {
+        String moduleMetadata = classMetadata("TooltipModule.class");
+        String handlerMetadata = classMetadata("ModernTooltipHandler.class");
 
-        assertTrue(classMetadata.contains("captureMicaSceneAfterHud"));
-        assertTrue(classMetadata.contains("RenderGameOverlayEvent$Post"));
-        assertTrue(classMetadata.contains("HIGHEST"));
+        assertTrue(moduleMetadata.contains("captureMicaScene"));
+        assertTrue(moduleMetadata.contains("GuiScreenEvent$DrawScreenEvent$Pre"));
+        assertTrue(moduleMetadata.contains("HIGHEST"));
+        assertFalse(handlerMetadata.contains("captureScene"));
     }
 
     @Test
-    void backdropFilterDoesNotBakeInTheOldNearBlackTint() {
+    void backdropFilterBakesInTheDarkMaterialTint() {
         String shader = shader("mica_backdrop.fsh");
 
-        assertFalse(shader.contains("0.92"));
-        assertFalse(shader.contains("color *= 0.80"));
+        assertTrue(shader.contains("srgbToLinear(vec3(0.032, 0.036, 0.048)), 0.92"));
+        assertTrue(shader.contains("color *= 0.80"));
     }
 
     @Test
-    void materialUsesFillAlphaAsTintAndKeepsFallbackTranslucent() {
+    void materialUsesTheBackdropDirectlyAndKeepsAnOpaqueFallback() {
         String shader = shader("modern_tooltip.fsh");
 
-        assertTrue(shader.contains("fill.a * 0.55"));
-        assertTrue(shader.contains("fill.a = min(fill.a, 0.92)"));
+        assertTrue(shader.contains("fill.rgb = texture2D(uBackdrop, backdropUv).rgb"));
+        assertTrue(shader.contains("fill.rgb = vec3(0.055, 0.060, 0.075)"));
+        assertTrue(shader.contains("fill.a = 1.0"));
+        assertFalse(shader.contains("fill.a * 0.55"));
+        assertFalse(shader.contains("fill.a = min(fill.a, 0.92)"));
     }
 
     private static String shader(String name) {

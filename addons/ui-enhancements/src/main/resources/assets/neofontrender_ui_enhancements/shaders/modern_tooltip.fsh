@@ -86,16 +86,12 @@ void main() {
         if (uBackdropEnabled > 0.5) {
             vec2 backdropUv = vec2(mix(uBackdropUv.x, uBackdropUv.z, t.x),
                     mix(uBackdropUv.y, uBackdropUv.w, t.y));
-            vec3 backdrop = texture2D(uBackdrop, backdropUv).rgb;
-            // Mica is a reconstructed backdrop, so the final pixel remains opaque to avoid
-            // drawing the live scene over the captured scene a second time. The configured fill
-            // alpha controls a restrained material tint instead of erasing the backdrop.
-            fill.rgb = mix(backdrop, fill.rgb, clamp(fill.a * 0.55, 0.0, 0.55));
-            fill.a = 1.0;
+            fill.rgb = texture2D(uBackdrop, backdropUv).rgb;
         } else {
-            // Without a capture, fall back to the configured translucent fill.
-            fill.a = min(fill.a, 0.92);
+            // Capture is optional at runtime; retain a deterministic dark fallback.
+            fill.rgb = vec3(0.055, 0.060, 0.075);
         }
+        fill.a = 1.0;
     }
     vec4 border;
     if (uSpectrumOffset > 0.0) {
