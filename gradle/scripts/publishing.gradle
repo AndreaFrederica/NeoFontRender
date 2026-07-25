@@ -15,7 +15,6 @@ if (publish_to_maven.toBoolean()) {
                 artifact(tasks.named('fullJar'))
                 artifact(tasks.named('coreJar'))
                 artifact(tasks.named('resourcesJar')) { classifier = 'resources' }
-                artifact(tasks.named('skiaJar')) { classifier = 'skia' }
             }
         }
     }

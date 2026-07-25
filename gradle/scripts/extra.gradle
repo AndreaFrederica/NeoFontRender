@@ -25,28 +25,9 @@ tasks.named('processResources') {
     }
 }
 
-tasks.register('skijaDebugPng', JavaExec) {
-    group = 'verification'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'neofontrender.core.font.skia.SkijaDebugTextRenderer'
-    args layout.buildDirectory.file('skija-debug/debug-font.png').get().asFile.absolutePath
-}
-tasks.register('skijaEmojiTest', JavaExec) {
-    group = 'verification'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'neofontrender.core.font.skia.SkijaEmojiTest'
-    args layout.buildDirectory.dir('skija-debug').get().asFile.absolutePath
-}
-
 def packagedJar = tasks.named(remapTaskName)
-def isSkijaRuntimeJar = { File file ->
-    file.name.startsWith('skija-') || file.name.startsWith('types-')
-}
 def coreContainedJars = providers.provider {
-    configurations.contain.files.findAll { !isSkijaRuntimeJar(it) }.collect { it.name }.sort()
-}
-def skijaContainedJars = providers.provider {
-    configurations.contain.files.findAll { isSkijaRuntimeJar(it) }.collect { it.name }.sort()
+    configurations.contain.files.collect { it.name }.sort()
 }
 tasks.register('fullJar', Zip) {
     group = 'build'; description = 'Packages the complete mod distribution.'
@@ -57,14 +38,12 @@ tasks.register('fullJar', Zip) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 tasks.register('coreJar', Jar) {
-    group = 'build'; description = 'Packages Cosmic/AWT rendering without bundled fonts or Skija runtime.'
+    group = 'build'; description = 'Packages Cosmic/AWT rendering without bundled fonts.'
     dependsOn packagedJar
     archiveBaseName = mod_id; archiveVersion = mod_version; archiveClassifier = 'core'; archiveExtension = 'jar'
     destinationDirectory = layout.buildDirectory.dir('libs')
     from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
-        exclude 'META-INF/MANIFEST.MF', 'mcmod.info', 'assets/neofontrender/fonts/*.ttf',
-                'skija-*.jar', 'types-*.jar', 'io/github/humbleui/**',
-                'neofontrender/skia/NeoFontRenderSkia.class'
+        exclude 'META-INF/MANIFEST.MF', 'mcmod.info', 'assets/neofontrender/fonts/**'
     }
     from('src/corePack/resources') {
         expand(mod_id: mod_id, mod_name: mod_name, mod_version: mod_version, mod_description: mod_description, mod_authors: mod_authors, mod_credits: mod_credits, mod_url: mod_url, mod_update_json: mod_update_json, mod_logo_path: mod_logo_path)
@@ -94,51 +73,23 @@ tasks.register('resourcesJar', Zip) {
     from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) { include 'assets/neofontrender/fonts/**', 'neofontrender/resources/NeoFontRenderResources.class' }
     from('src/resourcePack/resources') { expand(mod_version: mod_version, mod_authors: mod_authors, mod_url: mod_url) }
 }
-tasks.register('skiaJar', Jar) {
-    group = 'build'; description = 'Packages the optional Skija runtime mod.'
-    dependsOn packagedJar
-    archiveBaseName = "${mod_id}-skia"; archiveVersion = mod_version; archiveExtension = 'jar'
-    destinationDirectory = layout.buildDirectory.dir('libs')
-    from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
-        include 'skija-*.jar', 'types-*.jar', 'neofontrender/skia/NeoFontRenderSkia.class'
-    }
-    from('src/skiaPack/resources') { expand(mod_version: mod_version, mod_authors: mod_authors, mod_url: mod_url) }
-    doFirst {
-        def contained = skijaContainedJars.get()
-        manifest.attributes(
-                'ModType': 'CRL',
-                'ContainedDeps': contained.join(' '),
-                'NonModDeps': true
-        )
-    }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
 tasks.register('verifyPackageVariants') {
     group = 'verification'
-    dependsOn 'coreJar', 'skiaJar'
+    dependsOn 'fullJar', 'coreJar', 'resourcesJar'
     doLast {
+        def fullFile = tasks.named('fullJar').get().archiveFile.get().asFile
         def coreFile = tasks.named('coreJar').get().archiveFile.get().asFile
-        def skiaFile = tasks.named('skiaJar').get().archiveFile.get().asFile
+        def resourcesFile = tasks.named('resourcesJar').get().archiveFile.get().asFile
+        if (!fullFile.isFile() || !coreFile.isFile() || !resourcesFile.isFile()) {
+            throw new GradleException('One or more distribution variants were not created')
+        }
         def core = new java.util.jar.JarFile(coreFile)
-        def skia = new java.util.jar.JarFile(skiaFile)
         try {
-            def coreDeps = core.manifest.mainAttributes.getValue('ContainedDeps') ?: ''
-            if (coreDeps =~ /(?:^|\s)(?:skija-|types-)/) {
-                throw new GradleException("Core JAR still declares Skija runtime dependencies: ${coreDeps}")
-            }
-            if (core.entries().toList().any { it.name ==~ /(?:skija-|types-).*\.jar/ }) {
-                throw new GradleException('Core JAR still contains a Skija runtime dependency')
-            }
-            def skiaDeps = skia.manifest.mainAttributes.getValue('ContainedDeps') ?: ''
-            def skiaEntries = skia.entries().toList()*.name as Set
-            skijaContainedJars.get().each { name ->
-                if (!skiaDeps.tokenize().contains(name) || !skiaEntries.contains(name)) {
-                    throw new GradleException("Skia JAR does not contain and declare ${name}")
-                }
+            if (core.entries().toList().any { it.name.startsWith('assets/neofontrender/fonts/') }) {
+                throw new GradleException('Core JAR contains bundled font resources')
             }
         } finally {
             core.close()
-            skia.close()
         }
     }
 }
