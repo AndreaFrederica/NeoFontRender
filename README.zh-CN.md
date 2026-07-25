@@ -14,9 +14,8 @@
 Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统位图字体路径。
 
 - 默认使用 Cosmic Text，提供原生的文本整形与栅格化。
-- 可选 Skia 段落渲染器，支持复杂文本整形、连字、BiDi 与彩色 emoji。
 - 保留 SFR/AWT 兼容渲染器，便于兼容与排障。
-- 支持系统字体、本地 TTF/OTF、内置 Sarasa UI SC、Noto Color Emoji 与 fallback 字体链。
+- 支持系统字体、本地 TTF/OTF、内置 Noto Sans SC、Noto Color Emoji 与 fallback 字体链。
 - 包含 Unicode/IME 输入修复、告示牌粘贴与换行、可配置的告示牌优化、游戏内设置界面和诊断命令。
 
 <p align="center">
@@ -36,9 +35,8 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 | `neofontrender-<version>-full.jar` | 完整的一体化安装。 |
 | `neofontrender-<version>-core.jar` | 只使用核心渲染器与系统字体。 |
 | `neofontrender-resources-<version>.jar` | 与 `core` 搭配，使用内置字体资源。 |
-| `neofontrender-skia-<version>.jar` | 与 `core` 搭配，启用可选 Skija 运行时。 |
 
-不要将 `full` 与拆分的 `core`、`resources` 或 `skia` 包同时安装。
+不要将 `full` 与拆分的 `core` 或 `resources` 包同时安装。
 
 ### 可选 UI Enhancements 附属模组
 
@@ -72,11 +70,10 @@ size = 8.5
 [rendering]
 engine = "cosmic"
 interpolation = true
-skiaGpuOffscreen = true
-skiaGpuSubmitViaCpuTexture = false
+advancedStringMode = true
 ```
 
-Cosmic 与 Skia 在缺字时会查询已配置的系统字体和内置资源。若某个渲染器不可用，可在设置界面选择 `sfr` 使用兼容路径。
+Cosmic 在缺字时会查询已配置的系统字体和内置资源。若其不可用，可在设置界面选择 `sfr` 使用兼容路径。
 
 常用命令：
 
@@ -99,7 +96,7 @@ import neofontrender.api.NeoFontRenderApi;
 import neofontrender.api.RenderingEngine;
 
 NeoFontRenderApi.updateFont()
-        .font("Sarasa UI SC")
+        .font("Noto Sans SC")
         .fallbackFonts("Noto Color Emoji", "SansSerif")
         .size(8.5F)
         .style(FontStyle.PLAIN)
@@ -126,7 +123,7 @@ regular、bold、italic 与 bold-italic 字体文件时，可组合使用 `prima
 ./gradlew packageVariants
 ```
 
-`packageVariants` 会在 `build/libs` 生成 full、core、resources 与 Skia 四种发行包。本地构建会通过 Cargo 编译 Cosmic JNI；CI 会组装跨平台 native 集合。
+`packageVariants` 会在 `build/libs` 生成 full、core 与 resources 三种发行包。本地构建会通过 Cargo 编译 Cosmic JNI；CI 会组装跨平台 native 集合。
 
 ## 项目信息
 

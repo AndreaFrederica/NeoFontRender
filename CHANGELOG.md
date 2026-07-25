@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0]
+
+- Remove the Skia/Skija renderer, runtime dependencies, package variant, settings, diagnostics,
+  and sign-text batching paths.
+- Keep whole-string rendering, conservative reusable segmentation, shared caches, and independent
+  sign model LOD/occlusion optimizations on the Cosmic/SFR architecture.
+- Remove the public `RenderingEngine.SKIA` value and raise the integration API version to 4.
+- Replace the bundled Sarasa primary font with Noto Sans SC and make split-package font exclusion
+  cover every bundled font format rather than only TTF files.
+
 ## [0.3.6]
 
 - Normalize thin variable-font defaults toward the configured splash weight and safely fall back
