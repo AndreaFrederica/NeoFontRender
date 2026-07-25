@@ -26,3 +26,5 @@ eclipse
 run
 hs_err_pid*.log
 src/main/java/io/
+/addons/ui-enhancements/logs
+/logs
