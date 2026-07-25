@@ -25,6 +25,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import neofontrender.addons.mixin.AccessorChunkProviderClient;
 import neofontrender.api.text.ModernTextApi;
+import org.lwjgl.opengl.GL11;
 
 import java.util.Collections;
 import java.util.Set;
@@ -39,6 +40,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public enum WorldLoadingRenderer {
     INSTANCE;
 
+    private static final int MATERIAL_GRADIENT_SEGMENTS = 24;
+    private static final float[] MATERIAL_GRADIENT_AMOUNTS = createMaterialGradientAmounts();
     private final WorldLoadingProgress progress = new WorldLoadingProgress();
     private final Arc3DLoadingBarRenderer arc3dBar = new Arc3DLoadingBarRenderer();
     private final Arc3DMaterialSpinnerRenderer materialSpinner =
@@ -332,10 +335,7 @@ public enum WorldLoadingRenderer {
 
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
-                GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+        LoadingBlendMode.enableSourceOver();
 
         boolean snapshot = WorldLoadingSnapshotManager.INSTANCE.draw(width, height, alpha);
         if (!snapshot && mc.world == null) {
@@ -390,6 +390,7 @@ public enum WorldLoadingRenderer {
 
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.enableDepth();
+        LoadingBlendMode.restoreMinecraftDefault();
         GlStateManager.disableBlend();
     }
 
@@ -437,25 +438,82 @@ public enum WorldLoadingRenderer {
 
     private static void drawVerticalGradient(int left, int top, int right, int bottom,
                                              int topColor, int bottomColor) {
-        float topA = (topColor >>> 24) / 255.0F;
-        float topR = (topColor >> 16 & 255) / 255.0F;
-        float topG = (topColor >> 8 & 255) / 255.0F;
-        float topB = (topColor & 255) / 255.0F;
-        float bottomA = (bottomColor >>> 24) / 255.0F;
-        float bottomR = (bottomColor >> 16 & 255) / 255.0F;
-        float bottomG = (bottomColor >> 8 & 255) / 255.0F;
-        float bottomB = (bottomColor & 255) / 255.0F;
+        float startA = (topColor >>> 24) / 255.0F;
+        float startR = (topColor >> 16 & 255) / 255.0F;
+        float startG = (topColor >> 8 & 255) / 255.0F;
+        float startB = (topColor & 255) / 255.0F;
+        float endA = (bottomColor >>> 24) / 255.0F;
+        float endR = (bottomColor >> 16 & 255) / 255.0F;
+        float endG = (bottomColor >> 8 & 255) / 255.0F;
+        float endB = (bottomColor & 255) / 255.0F;
+        // GUI rendering normally keeps alpha test at 0.1. Leaving it enabled discards the
+        // transparent end of this gradient and creates a visible horizontal start edge.
+        GlStateManager.disableAlpha();
         GlStateManager.disableTexture2D();
-        GlStateManager.shadeModel(7425);
-        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
-        buffer.begin(7, DefaultVertexFormats.POSITION_COLOR);
-        buffer.pos(right, top, 0.0D).color(topR, topG, topB, topA).endVertex();
-        buffer.pos(left, top, 0.0D).color(topR, topG, topB, topA).endVertex();
-        buffer.pos(left, bottom, 0.0D).color(bottomR, bottomG, bottomB, bottomA).endVertex();
-        buffer.pos(right, bottom, 0.0D).color(bottomR, bottomG, bottomB, bottomA).endVertex();
-        Tessellator.getInstance().draw();
-        GlStateManager.shadeModel(7424);
-        GlStateManager.enableTexture2D();
+        LoadingBlendMode.enableSourceOver();
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        try {
+            BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+            buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
+            for (int segment = 0; segment < MATERIAL_GRADIENT_SEGMENTS; segment++) {
+                float firstPosition = segment / (float) MATERIAL_GRADIENT_SEGMENTS;
+                float secondPosition = (segment + 1) / (float) MATERIAL_GRADIENT_SEGMENTS;
+                float firstAmount = MATERIAL_GRADIENT_AMOUNTS[segment];
+                float secondAmount = MATERIAL_GRADIENT_AMOUNTS[segment + 1];
+                float firstY = top + (bottom - top) * firstPosition;
+                float secondY = top + (bottom - top) * secondPosition;
+                float firstR = lerp(startR, endR, firstAmount);
+                float firstG = lerp(startG, endG, firstAmount);
+                float firstB = lerp(startB, endB, firstAmount);
+                float firstA = lerp(startA, endA, firstAmount);
+                float secondR = lerp(startR, endR, secondAmount);
+                float secondG = lerp(startG, endG, secondAmount);
+                float secondB = lerp(startB, endB, secondAmount);
+                float secondA = lerp(startA, endA, secondAmount);
+                buffer.pos(right, firstY, 0.0D).color(firstR, firstG, firstB, firstA).endVertex();
+                buffer.pos(left, firstY, 0.0D).color(firstR, firstG, firstB, firstA).endVertex();
+                buffer.pos(left, secondY, 0.0D).color(secondR, secondG, secondB, secondA).endVertex();
+                buffer.pos(right, secondY, 0.0D).color(secondR, secondG, secondB, secondA).endVertex();
+            }
+            Tessellator.getInstance().draw();
+        } finally {
+            GlStateManager.shadeModel(GL11.GL_FLAT);
+            GlStateManager.enableTexture2D();
+            GlStateManager.enableAlpha();
+        }
+    }
+
+    /** Material standard curve: cubic-bezier(0.4, 0.0, 0.2, 1.0). */
+    static float materialGradientCurve(float position) {
+        float target = Math.max(0.0F, Math.min(1.0F, position));
+        float low = 0.0F;
+        float high = 1.0F;
+        for (int iteration = 0; iteration < 10; iteration++) {
+            float parameter = (low + high) * 0.5F;
+            float x = cubicBezier(parameter, 0.4F, 0.2F);
+            if (x < target) low = parameter;
+            else high = parameter;
+        }
+        return cubicBezier((low + high) * 0.5F, 0.0F, 1.0F);
+    }
+
+    private static float[] createMaterialGradientAmounts() {
+        float[] amounts = new float[MATERIAL_GRADIENT_SEGMENTS + 1];
+        for (int index = 0; index <= MATERIAL_GRADIENT_SEGMENTS; index++) {
+            amounts[index] = materialGradientCurve(index / (float) MATERIAL_GRADIENT_SEGMENTS);
+        }
+        return amounts;
+    }
+
+    private static float cubicBezier(float parameter, float firstControl, float secondControl) {
+        float inverse = 1.0F - parameter;
+        return 3.0F * inverse * inverse * parameter * firstControl
+                + 3.0F * inverse * parameter * parameter * secondControl
+                + parameter * parameter * parameter;
+    }
+
+    private static float lerp(float start, float end, float amount) {
+        return start + (end - start) * amount;
     }
 
     /** Equivalent to GuiScreen.drawBackground(0), with alpha support for the loading fade. */
@@ -464,10 +522,7 @@ public enum WorldLoadingRenderer {
         GlStateManager.disableLighting();
         GlStateManager.disableFog();
         GlStateManager.enableTexture2D();
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
-                GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+        LoadingBlendMode.enableSourceOver();
         int alpha = Math.round(255.0F * Math.max(0.0F, Math.min(1.0F, opacity)));
         BufferBuilder buffer = Tessellator.getInstance().getBuffer();
         buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
