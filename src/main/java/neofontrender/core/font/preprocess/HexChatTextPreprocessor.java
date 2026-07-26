@@ -30,7 +30,7 @@ public final class HexChatTextPreprocessor implements RawTextPreprocessor {
         if (rawText == null || rawText.isEmpty() || !matches(rawText)) {
             return PreprocessedText.unchanged(rawText);
         }
-        return LegacyColorTextParser.process(rawText, false, true);
+        return LegacyColorTextParser.process(rawText);
     }
 
     static boolean isMarker(String text, int index) {

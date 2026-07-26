@@ -12,8 +12,7 @@ final class LegacyColorTextParser {
     private LegacyColorTextParser() {
     }
 
-    static PreprocessedText process(String rawText, boolean decodeTinkersPua,
-                                    boolean decodeHexColors) {
+    static PreprocessedText process(String rawText) {
         if (rawText == null || rawText.isEmpty()) {
             return PreprocessedText.unchanged(rawText);
         }
@@ -34,40 +33,7 @@ final class LegacyColorTextParser {
 
         for (int rawIndex = 0; rawIndex < rawText.length();) {
             char current = rawText.charAt(rawIndex);
-            if (decodeTinkersPua && TinkersAntiqueTextPreprocessor.isMarker(current)) {
-                appendRun(modern, run, colorOverride, rgb);
-                transformed = true;
-                while (rawIndex < rawText.length()
-                        && TinkersAntiqueTextPreprocessor.isMarker(rawText.charAt(rawIndex))) {
-                    int remaining = rawText.length() - rawIndex;
-                    if (remaining >= 3
-                            && TinkersAntiqueTextPreprocessor.isMarker(
-                                    rawText.charAt(rawIndex + 1))
-                            && TinkersAntiqueTextPreprocessor.isMarker(
-                                    rawText.charAt(rawIndex + 2))) {
-                        rgb = markerValue(rawText.charAt(rawIndex)) << 16
-                                | markerValue(rawText.charAt(rawIndex + 1)) << 8
-                                | markerValue(rawText.charAt(rawIndex + 2));
-                        colorOverride = true;
-                        rawIndex += 3;
-                    } else {
-                        // Tinkers hides partial sequences and resets GL color to white before the
-                        // next visible character.
-                        rgb = 0xFFFFFF;
-                        colorOverride = true;
-                        while (rawIndex < rawText.length()
-                                && TinkersAntiqueTextPreprocessor.isMarker(
-                                        rawText.charAt(rawIndex))) {
-                            rawIndex++;
-                        }
-                    }
-                }
-                rawEnds.set(visible.length(), rawIndex);
-                needsStylePrefix = true;
-                continue;
-            }
-
-            if (decodeHexColors && HexChatTextPreprocessor.isMarker(rawText, rawIndex)) {
+            if (HexChatTextPreprocessor.isMarker(rawText, rawIndex)) {
                 appendRun(modern, run, colorOverride, rgb);
                 rgb = Integer.parseInt(rawText.substring(rawIndex + 1, rawIndex + 7), 16);
                 colorOverride = true;
@@ -111,10 +77,6 @@ final class LegacyColorTextParser {
         if (!transformed) return PreprocessedText.unchanged(rawText);
         return new PreprocessedText(rawText, visible.toString(), modern.build(), true,
                 toArray(rawStarts), toArray(rawEnds));
-    }
-
-    private static int markerValue(char marker) {
-        return marker - TinkersAntiqueTextPreprocessor.MARKER_START;
     }
 
     private static void appendRun(ModernText.Builder builder, StringBuilder run,

@@ -35,4 +35,8 @@ dependencies {
     // Compile-time only: runtime presence is detected and the feature stays off otherwise.
     compileOnly 'org.lwjgl:lwjgl-glfw:3.4.1'
     compileOnly 'org.lwjgl:lwjgl:3.4.1'
+
+    //TiC
+    implementation rfg.deobf("curse.maven:tinkers-construct-74072:2264246")
+    implementation rfg.deobf("curse.maven:mantle-74924:2264244")
 }

@@ -16,6 +16,7 @@
 		"MixinModularRichTooltip",
 		"MixinModularTextField",
 		"MixinModularTextRenderer",
+		"MixinSmallFontRenderer",
 		"MixinTileEntityRendererDispatcher",
 		"MixinTileEntitySignRenderer",
 		"MixinTextureManager"

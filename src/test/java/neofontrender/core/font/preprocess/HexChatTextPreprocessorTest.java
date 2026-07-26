@@ -53,24 +53,6 @@ class HexChatTextPreprocessorTest {
     }
 
     @Test
-    void combinesPuaAndHexProtocolsInOnePass() {
-        String pua = new String(new char[]{
-                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + 0xAA),
-                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + 0xBB),
-                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + 0xCC)
-        });
-        PreprocessedText result = LegacyColorTextParser.process(
-                pua + "pua#00FF00hex", true, true);
-
-        List<ModernText.Run> runs = result.modernText().runs();
-        assertEquals(2, runs.size());
-        assertEquals(0xAABBCC, runs.get(0).rgb());
-        assertEquals("pua", runs.get(0).text());
-        assertEquals(0x00FF00, runs.get(1).rgb());
-        assertEquals("hex", runs.get(1).text());
-    }
-
-    @Test
     void leavesInvalidHexTextVisible() {
         PreprocessedText result =
                 HexChatTextPreprocessor.INSTANCE.process("literal #12ZZ34");

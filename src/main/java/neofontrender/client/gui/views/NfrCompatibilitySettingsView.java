@@ -14,8 +14,8 @@ public final class NfrCompatibilitySettingsView extends NfrContentView<NfrCompat
 
     private static NfrOptionsGrid options(NfrSettingsDraft d, NfrSettingsControls c) {
         return c.grid()
-                .add(c.toggle("neofontrender.gui.option.compat_tinkers_antique",
-                        "neofontrender.tooltip.compat_tinkers_antique",
-                        () -> d.compatTinkersAntique, value -> d.compatTinkersAntique = value));
+                .add(c.toggle("neofontrender.gui.option.compat_tinkers_construct",
+                        "neofontrender.tooltip.compat_tinkers_construct",
+                        () -> d.compatTinkersConstruct, value -> d.compatTinkersConstruct = value));
     }
 }

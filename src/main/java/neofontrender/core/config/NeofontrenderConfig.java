@@ -504,8 +504,8 @@ public final class NeofontrenderConfig {
         return cached.compatModernSplash;
     }
 
-    public static boolean compatTinkersAntique() {
-        return cached.compatTinkersAntique;
+    public static boolean compatTinkersConstruct() {
+        return cached.compatTinkersConstruct;
     }
 
     public static boolean splashFontOverrideEnabled() {
@@ -660,8 +660,8 @@ public final class NeofontrenderConfig {
         setValue("compat.modernsplash.enabled", value);
     }
 
-    public static void setCompatTinkersAntique(boolean value) {
-        setValue("compat.tinkersantique.enabled", value);
+    public static void setCompatTinkersConstruct(boolean value) {
+        setValue("compat.tinkersconstruct.enabled", value);
     }
 
     public static void setSplashFontOverrideEnabled(boolean value) {
@@ -1059,7 +1059,7 @@ public final class NeofontrenderConfig {
             w.write("\n");
             w.write("[compat]\n");
             w.write("modernsplash.enabled = true\n");
-            w.write("tinkersantique.enabled = true\n");
+            w.write("tinkersconstruct.enabled = true\n");
             w.write("\n");
             w.write("[splash]\n");
             w.write("enabled = true\n");
@@ -1110,7 +1110,7 @@ public final class NeofontrenderConfig {
         config.setComment("laboratory.hexChat", "Experimental #RRGGBB chat rendering for Skia/Cosmic text backends.");
         config.setComment("compat", "Compatibility options for third-party mods.");
         config.setComment("compat.modernsplash.enabled", "Allow the loading-screen font override to patch ModernSplash when it is installed. Requires splash.enabled and a restart.");
-        config.setComment("compat.tinkersantique.enabled", "Handle Tinkers' Construct / TinkersAntique custom PUA color markers (\\uE700-\\uE7FF) as invisible color-change characters instead of rendering them as glyphs.");
+        config.setComment("compat.tinkersconstruct.enabled", "Render the Minecraft 1.7.10 Tinkers' Construct manual through Neo Font Render while preserving Mantle's measurement and wrapping behavior.");
         config.setComment("splash", "Forge loading-screen font replacement options.");
         config.setComment("splash.enabled", "Replace the Forge loading-screen bitmap font with the configured TTF font. Restart required.");
         config.setComment("rendering", "OpenGL texture rendering options.");
@@ -1217,7 +1217,7 @@ public final class NeofontrenderConfig {
         private final boolean laboratoryHexChat;
         private final boolean laboratoryTextUndoRedo;
         private final boolean compatModernSplash;
-        private final boolean compatTinkersAntique;
+        private final boolean compatTinkersConstruct;
         private final boolean splashFontOverrideEnabled;
         private final int fontStyle;
         private final int fontVariableWeight;
@@ -1308,7 +1308,7 @@ public final class NeofontrenderConfig {
             laboratoryHexChat = false;
             laboratoryTextUndoRedo = false;
             compatModernSplash = true;
-            compatTinkersAntique = true;
+            compatTinkersConstruct = true;
             splashFontOverrideEnabled = true;
             fontStyle = 0;
             fontVariableWeight = 0;
@@ -1400,7 +1400,7 @@ public final class NeofontrenderConfig {
             laboratoryHexChat = config.getOrElse("laboratory.hexChat", false);
             laboratoryTextUndoRedo = config.getOrElse("laboratory.textUndoRedo", false);
             compatModernSplash = config.getOrElse("compat.modernsplash.enabled", true);
-            compatTinkersAntique = config.getOrElse("compat.tinkersantique.enabled", true);
+            compatTinkersConstruct = config.getOrElse("compat.tinkersconstruct.enabled", true);
             splashFontOverrideEnabled = config.getOrElse("splash.enabled", true);
             fontStyle = config.getOrElse("font.style", 0);
             fontVariableWeight = Math.max(0, Math.min(1000, getInt(config, "font.variableWeight", 0)));

@@ -80,7 +80,7 @@ public final class NfrSettingsDraft {
     public final boolean originalLaboratoryHexChat = NeofontrenderConfig.laboratoryHexChat();
     public final boolean originalLaboratoryTextUndoRedo = NeofontrenderConfig.laboratoryTextUndoRedo();
     public final boolean originalCompatModernSplash = NeofontrenderConfig.compatModernSplash();
-    public final boolean originalCompatTinkersAntique = NeofontrenderConfig.compatTinkersAntique();
+    public final boolean originalCompatTinkersConstruct = NeofontrenderConfig.compatTinkersConstruct();
     public final boolean originalSplashFontOverride = NeofontrenderConfig.splashFontOverrideEnabled();
     public final String originalTextCacheMin = Integer.toString(NeofontrenderConfig.skiaTextCacheMinEntries());
     public final String originalTextCacheMax = Integer.toString(NeofontrenderConfig.skiaTextCacheMaxEntries());
@@ -128,7 +128,7 @@ public final class NfrSettingsDraft {
     public boolean laboratoryHexChat = originalLaboratoryHexChat;
     public boolean laboratoryTextUndoRedo = originalLaboratoryTextUndoRedo;
     public boolean compatModernSplash = originalCompatModernSplash;
-    public boolean compatTinkersAntique = originalCompatTinkersAntique;
+    public boolean compatTinkersConstruct = originalCompatTinkersConstruct;
     public boolean splashFontOverride = originalSplashFontOverride;
     public int categoryScroll;
     public String fontName = originalFontName;
@@ -274,7 +274,7 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryHexChat(laboratoryHexChat);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(laboratoryTextUndoRedo);
         NeofontrenderConfig.setCompatModernSplash(compatModernSplash);
-        NeofontrenderConfig.setCompatTinkersAntique(compatTinkersAntique);
+        NeofontrenderConfig.setCompatTinkersConstruct(compatTinkersConstruct);
         NeofontrenderConfig.setSplashFontOverrideEnabled(splashFontOverride);
         NeofontrenderConfig.setFontName(fontName == null || fontName.trim().isEmpty()
                 ? "Sarasa UI SC" : fontName.trim());
@@ -346,7 +346,7 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryHexChat(originalLaboratoryHexChat);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(originalLaboratoryTextUndoRedo);
         NeofontrenderConfig.setCompatModernSplash(originalCompatModernSplash);
-        NeofontrenderConfig.setCompatTinkersAntique(originalCompatTinkersAntique);
+        NeofontrenderConfig.setCompatTinkersConstruct(originalCompatTinkersConstruct);
         NeofontrenderConfig.setSplashFontOverrideEnabled(originalSplashFontOverride);
         NeofontrenderConfig.setFontName(originalFontName);
         NeofontrenderConfig.setFontPath(originalFontPath);

@@ -469,10 +469,6 @@ public class MixinFontRenderer {
 
     @Inject(method = "getCharWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$onGetCharWidth(char character, CallbackInfoReturnable<Integer> cir) {
-        if (TextPreprocessingPipeline.isInvisibleControlCharacter(character)) {
-            cir.setReturnValue(0);
-            return;
-        }
         if (!sfr$isAnyActive()) {
             return;
         }
