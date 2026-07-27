@@ -14,7 +14,7 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.charset.StandardCharsets;
 
-/** Captures the world and HUD before GUI dimming, then filters it behind a Mica tooltip. */
+/** Captures and filters the configured framebuffer source behind a Mica tooltip. */
 final class MicaBackdrop {
     private static final String ROOT = "/assets/neofontrender_ui_enhancements/shaders/";
     private static final int DOWNSAMPLE = 2;
@@ -40,7 +40,7 @@ final class MicaBackdrop {
 
     private MicaBackdrop() {}
 
-    /** Copies the completed world and HUD before UIE's dimming layer or GuiScreen rendering. */
+    /** Copies the framebuffer at the capture point selected by {@link TooltipModule}. */
     static void captureScene() {
         if (unavailable) return;
         Minecraft mc = Minecraft.getMinecraft();
@@ -108,6 +108,8 @@ final class MicaBackdrop {
             GL11.glDisable(GL11.GL_BLEND);
             GL20.glUseProgram(program);
             GL20.glUniform1i(GL20.glGetUniformLocation(program, "uTexture"), 0);
+            uniform1("uLowBrightnessMicaEnhancement",
+                    TooltipConfig.lowBrightnessMicaEnhancement ? 1.0F : 0.0F);
             uploadKernel();
 
             // Decode and average the four source texels before reducing resolution. Sampling the
@@ -142,8 +144,13 @@ final class MicaBackdrop {
             return new Capture(resultTexture, innerLeft, innerTop, innerRight, innerBottom);
         } catch (Throwable t) {
             unavailable = true;
-            TooltipModule.LOGGER.warn(
-                    "Mica backdrop capture failed; using the configured translucent fallback", t);
+            if (TooltipConfig.lowBrightnessMicaEnhancement) {
+                TooltipModule.LOGGER.warn(
+                        "Mica backdrop capture failed; using the configured translucent fallback", t);
+            } else {
+                TooltipModule.LOGGER.warn(
+                        "Mica backdrop capture failed; using the opaque dark fallback", t);
+            }
             return null;
         } finally {
             GL20.glUseProgram(oldProgram);

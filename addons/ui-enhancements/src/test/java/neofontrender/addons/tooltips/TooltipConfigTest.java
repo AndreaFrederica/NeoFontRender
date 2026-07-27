@@ -17,6 +17,22 @@ class TooltipConfigTest {
     }
 
     @Test
+    void snapshotRestoresLowBrightnessMicaEnhancement() {
+        boolean original = TooltipConfig.lowBrightnessMicaEnhancement;
+        try {
+            TooltipConfig.lowBrightnessMicaEnhancement = true;
+            TooltipConfig.Snapshot snapshot = TooltipConfig.snapshot();
+            TooltipConfig.lowBrightnessMicaEnhancement = false;
+
+            snapshot.restore();
+
+            assertTrue(TooltipConfig.lowBrightnessMicaEnhancement);
+        } finally {
+            TooltipConfig.lowBrightnessMicaEnhancement = original;
+        }
+    }
+
+    @Test
     void formatsAndDeduplicatesModNames() {
         assertEquals("\u00a79\u00a7o", ModNameTooltipSupport.format("blue italic"));
         assertEquals("", ModNameTooltipSupport.format("unknown reset"));

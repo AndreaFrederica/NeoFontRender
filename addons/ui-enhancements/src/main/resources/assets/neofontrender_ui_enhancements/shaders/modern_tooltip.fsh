@@ -12,6 +12,7 @@ uniform float uAaScale;
 uniform float uSpectrumOffset;
 uniform float uSpectrumAlpha;
 uniform float uMaterialMode;
+uniform float uLowBrightnessMicaEnhancement;
 uniform float uBackdropEnabled;
 uniform sampler2D uBackdrop;
 uniform vec4 uBackdropUv;
@@ -87,14 +88,23 @@ void main() {
             vec2 backdropUv = vec2(mix(uBackdropUv.x, uBackdropUv.z, t.x),
                     mix(uBackdropUv.y, uBackdropUv.w, t.y));
             vec3 backdrop = texture2D(uBackdrop, backdropUv).rgb;
-            // Mica is a reconstructed backdrop, so the final pixel remains opaque to avoid
-            // drawing the live scene over the captured scene a second time. The configured fill
-            // alpha controls a restrained material tint instead of erasing the backdrop.
-            fill.rgb = mix(backdrop, fill.rgb, clamp(fill.a * 0.55, 0.0, 0.55));
-            fill.a = 1.0;
-        } else {
-            // Without a capture, fall back to the configured translucent fill.
+            if (uLowBrightnessMicaEnhancement > 0.5) {
+                // The enhanced Mica is a reconstructed backdrop. Keep the final pixel opaque to
+                // avoid drawing the live scene over the capture, and use the configured fill
+                // alpha as a restrained material tint.
+                fill.rgb = mix(backdrop, fill.rgb, clamp(fill.a * 0.55, 0.0, 0.55));
+                fill.a = 1.0;
+            } else {
+                fill.rgb = backdrop;
+                fill.a = 1.0;
+            }
+        } else if (uLowBrightnessMicaEnhancement > 0.5) {
+            // Without an enhanced capture, fall back to the configured translucent fill.
             fill.a = min(fill.a, 0.92);
+        } else {
+            // Preserve the original deterministic dark fallback.
+            fill.rgb = vec3(0.055, 0.060, 0.075);
+            fill.a = 1.0;
         }
     }
     vec4 border;

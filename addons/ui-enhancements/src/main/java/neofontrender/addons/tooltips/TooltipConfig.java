@@ -19,6 +19,7 @@ final class TooltipConfig {
 
     static boolean enabled = true;
     static String renderStyle = DEFAULT_RENDER_STYLE;
+    static boolean lowBrightnessMicaEnhancement = false;
     static boolean yieldToLegendaryTooltips = true;
     static boolean yieldToObscureTooltips = false;
     static boolean neiCustomTooltips = true;
@@ -67,6 +68,8 @@ final class TooltipConfig {
         defineDefaults(file);
         enabled = file.getBoolean("tooltip.enabled", true);
         renderStyle = normalizeStyle(file.getString("tooltip.renderStyle", DEFAULT_RENDER_STYLE));
+        lowBrightnessMicaEnhancement = file.getBoolean(
+                "tooltip.lowBrightnessMicaEnhancement", false);
         yieldToLegendaryTooltips = file.getBoolean("tooltip.yieldToLegendaryTooltips", true);
         yieldToObscureTooltips = file.getBoolean("tooltip.yieldToObscureTooltips", false);
         neiCustomTooltips = migratedCustomTooltips;
@@ -114,6 +117,8 @@ final class TooltipConfig {
     private static void defineDefaults(NfrConfigFile file) {
         file.define("tooltip.enabled", true, "Replace vanilla tooltip layout and background.")
                 .define("tooltip.renderStyle", DEFAULT_RENDER_STYLE, "Tooltip renderer style: modernui, mica, or legacy.")
+                .define("tooltip.lowBrightnessMicaEnhancement", false,
+                        "May provide a better Mica appearance when the monitor brightness is low.")
                 .define("tooltip.yieldToLegendaryTooltips", true, "Let Legendary Tooltips render when it is installed.")
                 .define("tooltip.yieldToObscureTooltips", false, "Let Obscure Tooltips keep its own panel.")
                 .define("tooltip.neiCustomTooltips", true, "Apply NFR's panel to NotEnoughItems tooltips.")
@@ -153,6 +158,7 @@ final class TooltipConfig {
         UiEnhancementsConfig.file()
                 .set("tooltip.enabled", enabled)
                 .set("tooltip.renderStyle", normalizeStyle(renderStyle))
+                .set("tooltip.lowBrightnessMicaEnhancement", lowBrightnessMicaEnhancement)
                 .set("tooltip.yieldToLegendaryTooltips", yieldToLegendaryTooltips)
                 .set("tooltip.yieldToObscureTooltips", yieldToObscureTooltips)
                 .set("tooltip.neiCustomTooltips", neiCustomTooltips)
@@ -250,6 +256,7 @@ final class TooltipConfig {
     static final class Snapshot {
         private final boolean enabled = TooltipConfig.enabled;
         private final String renderStyle = TooltipConfig.renderStyle;
+        private final boolean lowBrightnessMicaEnhancement = TooltipConfig.lowBrightnessMicaEnhancement;
         private final boolean yieldToLegendaryTooltips = TooltipConfig.yieldToLegendaryTooltips;
         private final boolean yieldToObscureTooltips = TooltipConfig.yieldToObscureTooltips;
         private final boolean neiCustomTooltips = TooltipConfig.neiCustomTooltips;
@@ -287,6 +294,7 @@ final class TooltipConfig {
         void restore() {
             TooltipConfig.enabled = enabled;
             TooltipConfig.renderStyle = renderStyle;
+            TooltipConfig.lowBrightnessMicaEnhancement = lowBrightnessMicaEnhancement;
             TooltipConfig.yieldToLegendaryTooltips = yieldToLegendaryTooltips;
             TooltipConfig.yieldToObscureTooltips = yieldToObscureTooltips;
             TooltipConfig.neiCustomTooltips = neiCustomTooltips;

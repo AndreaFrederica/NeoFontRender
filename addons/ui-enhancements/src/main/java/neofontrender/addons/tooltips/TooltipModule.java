@@ -5,6 +5,7 @@ import cpw.mods.fml.common.Optional;
 import cpw.mods.fml.common.eventhandler.EventPriority;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.client.event.GuiOpenEvent;
+import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.common.MinecraftForge;
 import neofontrender.addons.ui.NfrUiEnhancements;
@@ -46,20 +47,28 @@ public final class TooltipModule implements UiEnhancementModule {
         MinecraftForge.EVENT_BUS.register(new NeiTooltipCompat());
     }
 
-    /**
-     * Preserves the completed world and HUD before UIE's low-priority screen gradient or the
-     * current GuiScreen is drawn.
-     */
+    /** Preserves the original Mica source immediately before the current GuiScreen is drawn. */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void captureMicaSceneAfterHud(RenderGameOverlayEvent.Post event) {
-        if (event.type != RenderGameOverlayEvent.ElementType.ALL) return;
-        if (TooltipConfig.enabled && "mica".equals(TooltipConfig.renderStyle)) {
+    public void captureOriginalMicaScene(GuiScreenEvent.DrawScreenEvent.Pre event) {
+        if (!TooltipConfig.lowBrightnessMicaEnhancement && isMicaEnabled()) {
             MicaBackdrop.captureScene();
         }
+    }
+
+    /** Preserves world and HUD before UIE's screen gradient for low-brightness enhancement. */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void captureMicaSceneAfterHud(RenderGameOverlayEvent.Post event) {
+        if (!TooltipConfig.lowBrightnessMicaEnhancement) return;
+        if (event.type != RenderGameOverlayEvent.ElementType.ALL) return;
+        if (isMicaEnabled()) MicaBackdrop.captureScene();
     }
 
     @SubscribeEvent
     public void screenChanged(GuiOpenEvent event) {
         MicaBackdrop.invalidateScene();
+    }
+
+    private static boolean isMicaEnabled() {
+        return TooltipConfig.enabled && "mica".equals(TooltipConfig.renderStyle);
     }
 }

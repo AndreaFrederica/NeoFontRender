@@ -47,7 +47,7 @@ class AddonI18nTest {
         add(keys, "neofontrender_ui_enhancements.",
                 "name tooltip scrolling input effects info.version info.description");
         add(keys, "neofontrender_ui_enhancements.gui.",
-                "tooltips.category enabled style style.modernui style.mica style.legacy legendary obscure_yield "
+                "tooltips.category enabled style style.modernui style.mica style.legacy low_brightness_mica_enhancement legendary obscure_yield "
                         + "nei_custom mod_name mod_name_format mod_name_format.none mod_name_format.blue_italic "
                         + "mod_name_format.gray_italic mod_name_format.dark_gray_italic mod_name_format.aqua_italic "
                         + "mod_name_format.gold_italic mod_name_format.blue mod_name_format.gray rounded center_title "
@@ -58,7 +58,7 @@ class AddonI18nTest {
                         + "line_height title_gap cursor_offset max_width unlimited fill_color border_color corner.ul "
                         + "corner.ur corner.lr corner.ll shadow_color text_color title_color");
         add(keys, "neofontrender_ui_enhancements.tooltip.",
-                "enabled legendary obscure_yield nei_custom mod_name");
+                "enabled low_brightness_mica_enhancement legendary obscure_yield nei_custom mod_name");
         add(keys, "neofontrender_ui_enhancements.gui.scrolling.",
                 "category enabled vanilla_lists forge_lists creative_inventory chat duration step");
         add(keys, "neofontrender_ui_enhancements.tooltip.scrolling.",
