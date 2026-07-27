@@ -68,6 +68,7 @@ unimined.minecraft {
 }
 
 dependencies {
+    runtimeOnly project(':addons:ui-enhancements')
     if (use_asset_mover.toBoolean()) implementation "com.cleanroommc:assetmover:${asset_mover_version}"
     if (enable_junit_testing.toBoolean()) {
         testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
@@ -99,8 +100,8 @@ idea {
     project.settings {
         runConfigurations {
             '1. Build'(Gradle) { taskNames = ['build'] }
-            '2. Run Client'(Gradle) { taskNames = ['runClient'] }
-            '3. Run Server'(Gradle) { taskNames = ['runServer'] }
+            '2. Run Client'(Gradle) { taskNames = [':runClient'] }
+            '3. Run Server'(Gradle) { taskNames = [':runServer'] }
         }
         taskTriggers { afterSync tasks.named('genSources') }
     }
