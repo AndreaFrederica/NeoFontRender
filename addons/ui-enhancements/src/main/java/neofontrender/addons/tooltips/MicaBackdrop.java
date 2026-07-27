@@ -10,10 +10,11 @@ import org.lwjgl.opengl.GL30;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.charset.StandardCharsets;
 
-/** Captures the game scene before GUI rendering and filters it behind a Mica tooltip. */
+/** Captures the world and HUD before GUI dimming, then filters it behind a Mica tooltip. */
 final class MicaBackdrop {
     private static final String ROOT = "/assets/neofontrender_ui_enhancements/shaders/";
     private static final int DOWNSAMPLE = 2;
@@ -39,7 +40,7 @@ final class MicaBackdrop {
 
     private MicaBackdrop() {}
 
-    /** Copies the world framebuffer before the current GuiScreen renders any of its UI. */
+    /** Copies the completed world and HUD before UIE's dimming layer or GuiScreen rendering. */
     static void captureScene() {
         if (unavailable) return;
         Minecraft mc = Minecraft.getMinecraft();
@@ -141,7 +142,8 @@ final class MicaBackdrop {
             return new Capture(resultTexture, innerLeft, innerTop, innerRight, innerBottom);
         } catch (Throwable t) {
             unavailable = true;
-            TooltipModule.LOGGER.warn("Mica backdrop capture failed; using the opaque dark fallback", t);
+            TooltipModule.LOGGER.warn(
+                    "Mica backdrop capture failed; using the configured translucent fallback", t);
             return null;
         } finally {
             GL20.glUseProgram(oldProgram);
@@ -181,7 +183,7 @@ final class MicaBackdrop {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12Compat.CLAMP_TO_EDGE);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12Compat.CLAMP_TO_EDGE);
         GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, internalFormat, width, height, 0,
-                GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (java.nio.ByteBuffer) null);
+                GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
     }
 
     private static void attach(int fbo, int texture) {
