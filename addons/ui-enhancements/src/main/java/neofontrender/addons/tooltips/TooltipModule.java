@@ -5,7 +5,7 @@ import cpw.mods.fml.common.Optional;
 import cpw.mods.fml.common.eventhandler.EventPriority;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.client.event.GuiOpenEvent;
-import net.minecraftforge.client.event.GuiScreenEvent;
+import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.common.MinecraftForge;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.addons.ui.UiEnhancementModule;
@@ -46,9 +46,13 @@ public final class TooltipModule implements UiEnhancementModule {
         MinecraftForge.EVENT_BUS.register(new NeiTooltipCompat());
     }
 
-    /** Preserves the scene before the GUI draws panels, widgets, or tooltips. */
+    /**
+     * Preserves the completed world and HUD before UIE's low-priority screen gradient or the
+     * current GuiScreen is drawn.
+     */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void captureMicaScene(GuiScreenEvent.DrawScreenEvent.Pre event) {
+    public void captureMicaSceneAfterHud(RenderGameOverlayEvent.Post event) {
+        if (event.type != RenderGameOverlayEvent.ElementType.ALL) return;
         if (TooltipConfig.enabled && "mica".equals(TooltipConfig.renderStyle)) {
             MicaBackdrop.captureScene();
         }
