@@ -23,7 +23,6 @@ import neofontrender.client.gui.model.NfrSettingsDraft;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
@@ -40,14 +39,11 @@ public final class NfrSettingsControls {
     private final NfrSettingsDraft draft;
     private final Runnable preview;
     private final IntConsumer reloadRoute;
-    private final BooleanSupplier skiaAvailable;
 
-    public NfrSettingsControls(NfrSettingsDraft draft, Runnable preview, IntConsumer reloadRoute,
-                               BooleanSupplier skiaAvailable) {
+    public NfrSettingsControls(NfrSettingsDraft draft, Runnable preview, IntConsumer reloadRoute) {
         this.draft = draft;
         this.preview = preview;
         this.reloadRoute = reloadRoute;
-        this.skiaAvailable = skiaAvailable;
     }
 
     public NfrOptionsGrid grid() {
@@ -126,15 +122,13 @@ public final class NfrSettingsControls {
     }
 
     public IWidget engine(int route) {
-        List<String> engines = skiaAvailable.getAsBoolean()
-                ? Arrays.asList("sfr", "skia", "cosmic", "vanilla")
-                : Arrays.asList("sfr", "cosmic", "vanilla");
+        List<String> engines = Arrays.asList("sfr", "cosmic", "vanilla");
         return tooltip(dropdown("engine", "neofontrender.gui.option.engine",
                 () -> normalizeEngine(draft.engine), value -> {
                     draft.engine = value;
                     draft.enabled = !"vanilla".equals(value);
                     reloadRoute.accept(route);
-                }, engines, value -> engineName(value, skiaAvailable.getAsBoolean())).size(260, 24),
+                }, engines, NfrSettingsControls::engineName).size(260, 24),
                 "neofontrender.tooltip.engine");
     }
 
@@ -237,24 +231,22 @@ public final class NfrSettingsControls {
         return widget;
     }
 
-    public static String engineName(String engine, boolean skiaAvailable) {
+    public static String engineName(String engine) {
         switch (normalizeEngine(engine)) {
-            case "skia":
-                return tr("neofontrender.gui.engine.skia")
-                        + (skiaAvailable ? "" : " (" + tr("neofontrender.gui.unavailable") + ")");
             case "cosmic": return tr("neofontrender.gui.engine.cosmic");
             case "vanilla": return tr("neofontrender.gui.engine.vanilla");
-            default: return tr("neofontrender.gui.engine.sfr");
+            case "sfr": return tr("neofontrender.gui.engine.sfr");
+            default: return tr("neofontrender.gui.engine.cosmic");
         }
     }
 
     public static String normalizeEngine(String engine) {
-        if (engine == null) return "sfr";
+        if (engine == null) return "cosmic";
         String value = engine.trim().toLowerCase(Locale.ROOT).replace('-', '_');
-        if ("skija".equals(value) || "skia".equals(value)) return "skia";
         if ("cosmic_text".equals(value) || "cosmic".equals(value)) return "cosmic";
         if ("vanilla".equals(value) || "original".equals(value) || "minecraft".equals(value)) return "vanilla";
-        return "sfr";
+        if ("sfr".equals(value) || "awt".equals(value)) return "sfr";
+        return "cosmic";
     }
 
     private static String aaModeName(String mode) {

@@ -5,18 +5,18 @@
 <h1 align="center">Neo Font Render</h1>
 
 <p align="center">
-  面向 Cleanroom 的 Minecraft 1.12.2 现代文本整形与字体渲染模组。<br>
+  面向 lwjgl3ify 运行环境的 Minecraft 1.7.10 现代文本整形与字体渲染模组。<br>
   <a href="README.md">English</a> · <a href="https://github.com/AndreaFrederica/NeoFontRender">GitHub</a>
 </p>
 
 ## 功能
 
-Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统位图字体路径。
+Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.7.10 的传统位图字体路径。
 
 - 默认使用 Cosmic Text，提供原生的文本整形与栅格化。
-- 可选 Skia 段落渲染器，支持复杂文本整形、连字、BiDi 与彩色 emoji。
 - 保留 SFR/AWT 兼容渲染器，便于兼容与排障。
-- 支持系统字体、本地 TTF/OTF、内置 Sarasa UI SC、Noto Color Emoji 与 fallback 字体链。
+- 可恢复原版渲染器，同时保留本 Mod 的输入与兼容性修复。
+- 支持系统字体、本地 TTF/OTF、内置 Noto Sans SC、Noto Color Emoji 与 fallback 字体链。
 - 包含 Unicode/IME 输入修复、告示牌粘贴与换行、可配置的告示牌优化、游戏内设置界面和诊断命令。
 
 <p align="center">
@@ -25,9 +25,9 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 
 ## 环境与安装
 
-- Minecraft 1.12.2 与 Cleanroom。
+- Minecraft 1.7.10 与 lwjgl3ify 运行环境。
 - Java 25。
-- [ModularUI 3.1.6+](https://github.com/CleanroomMC/ModularUI)。
+- [ModularUI2 2.3.81+](https://github.com/GTNewHorizons/ModularUI2)。
 
 下载适合安装方式的发行包并放入 `mods` 文件夹。一般建议直接使用 `full` 包。
 
@@ -36,9 +36,8 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 | `neofontrender-<version>-full.jar` | 完整的一体化安装。 |
 | `neofontrender-<version>-core.jar` | 只使用核心渲染器与系统字体。 |
 | `neofontrender-resources-<version>.jar` | 与 `core` 搭配，使用内置字体资源。 |
-| `neofontrender-skia-<version>.jar` | 与 `core` 搭配，启用可选 Skija 运行时。 |
 
-不要将 `full` 与拆分的 `core`、`resources` 或 `skia` 包同时安装。
+不要将 `full` 与拆分的 `core` 或 `resources` 包同时安装。
 
 ### 可选 UI Enhancements 附属模组
 
@@ -67,16 +66,25 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 
 ```toml
 [font]
+name = "Noto Sans SC"
+path = "neofontrender:fonts/noto_sans_sc-regular.otf"
+fallbacks = ["Serif", "Monospaced"]
 size = 8.5
 
 [rendering]
 engine = "cosmic"
 interpolation = true
-skiaGpuOffscreen = true
-skiaGpuSubmitViaCpuTexture = false
+advancedStringMode = true
 ```
 
-Cosmic 与 Skia 在缺字时会查询已配置的系统字体和内置资源。若某个渲染器不可用，可在设置界面选择 `sfr` 使用兼容路径。
+`rendering.engine` 可设为 `cosmic`、`sfr` 或 `vanilla`。Cosmic 缺字时会查询已配置的系统字体和
+内置资源；选择 `sfr` 可使用 AWT 兼容路径，选择 `vanilla` 可恢复 Minecraft 原版渲染器。
+
+### 兼容性
+
+- ModularUI2 提供设置界面；Neo Font Render 同时处理其文本输入框的 Unicode 编辑。
+- 可选的 Tinkers' Construct 与 Mantle 集成会使用选定字体渲染 1.7.10 匠魂手册，同时保持 Mantle 的文本测量与换行行为；可通过 `compat.tinkersconstruct.enabled` 控制。
+- UI Enhancements 附属模组会在检测到 NEI 时启用工具提示集成，但不会将 NEI 设为必需依赖。
 
 常用命令：
 
@@ -99,7 +107,7 @@ import neofontrender.api.NeoFontRenderApi;
 import neofontrender.api.RenderingEngine;
 
 NeoFontRenderApi.updateFont()
-        .font("Sarasa UI SC")
+        .font("Noto Sans SC")
         .fallbackFonts("Noto Color Emoji", "SansSerif")
         .size(8.5F)
         .style(FontStyle.PLAIN)
@@ -118,15 +126,15 @@ regular、bold、italic 与 bold-italic 字体文件时，可组合使用 `prima
 
 ## 开发
 
-项目已切换至当前的 [CleanroomModTemplate](https://github.com/CleanroomMC/CleanroomModTemplate)，使用 Gradle 9.6、Unimined、Cleanroom Loader 和 Java 25 工具链。
+项目使用 RetroFuturaGradle 与 GTNH Gradle 构建约定，基于 Gradle 9.3.1 和 Java 25 工具链。
 
 ```bash
-./gradlew runClient
+./gradlew runClient25
 ./gradlew build
 ./gradlew packageVariants
 ```
 
-`packageVariants` 会在 `build/libs` 生成 full、core、resources 与 Skia 四种发行包。本地构建会通过 Cargo 编译 Cosmic JNI；CI 会组装跨平台 native 集合。
+`packageVariants` 会在 `build/libs` 生成 full、core 与 resources 三种发行包。本地构建会通过 Cargo 编译 Cosmic JNI；CI 会组装供 full 和 core 共同使用的 Windows、Linux 与 macOS native 集合。
 
 ## 项目信息
 

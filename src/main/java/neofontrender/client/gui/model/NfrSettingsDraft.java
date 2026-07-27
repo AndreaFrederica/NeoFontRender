@@ -45,7 +45,7 @@ public final class NfrSettingsDraft {
     public final String originalFontFallbacks = joinFontList(NeofontrenderConfig.fontFallbacks());
     public final boolean originalBuiltinFallbacks = NeofontrenderConfig.builtinFallbacksEnabled();
     public final String originalEngine = NeofontrenderConfig.renderingEngine();
-    public final boolean originalSkiaAdvancedStringMode = NeofontrenderConfig.skiaAdvancedStringMode();
+    public final boolean originalAdvancedStringMode = NeofontrenderConfig.advancedStringMode();
     public final boolean originalAdaptiveRasterScale = NeofontrenderConfig.adaptiveRasterScale();
     public final boolean originalExcludeIntegerScale = NeofontrenderConfig.excludeIntegerScale();
     public final boolean originalExcludeHighMagnification = NeofontrenderConfig.excludeHighMagnification();
@@ -54,16 +54,10 @@ public final class NfrSettingsDraft {
     public final boolean originalMipmap = NeofontrenderConfig.renderingMipmap();
     public final boolean originalEnhancedTextPipeline = NeofontrenderConfig.enhancedTextPipeline();
     public final boolean originalShaderTextPipeline = NeofontrenderConfig.shaderTextPipeline();
-    public final boolean originalSkiaGpuOffscreen = NeofontrenderConfig.skiaGpuOffscreen();
-    public final boolean originalSkiaGpuSubmitViaCpuTexture = NeofontrenderConfig.skiaGpuSubmitViaCpuTexture();
-    public final boolean originalSkiaMonochromeText = NeofontrenderConfig.skiaMonochromeText();
-    public final boolean originalPremultipliedAlpha = NeofontrenderConfig.enablePremultipliedAlpha();
     public final boolean originalDebugRenderStats = NeofontrenderConfig.debugRenderStats();
     public final boolean originalSignModelLod = NeofontrenderConfig.signModelLod();
-    public final boolean originalSignCrossTileBatching = NeofontrenderConfig.signCrossTileBatching();
     public final boolean originalSignBlockOcclusionCulling = NeofontrenderConfig.signBlockOcclusionCulling();
     public final String originalBrightness = Float.toString(NeofontrenderConfig.renderingBrightness());
-    public final boolean originalTextureEdgeBleed = NeofontrenderConfig.textureEdgeBleed();
     public final String originalShadowMode = NeofontrenderConfig.shadowMode();
     public final String originalShadowMaskFonts = NeofontrenderConfig.shadowMaskFonts();
     public final String originalShadowMaskCodepoints = NeofontrenderConfig.shadowMaskCodepoints();
@@ -82,18 +76,15 @@ public final class NfrSettingsDraft {
     public final boolean originalCompatModernSplash = NeofontrenderConfig.compatModernSplash();
     public final boolean originalCompatTinkersConstruct = NeofontrenderConfig.compatTinkersConstruct();
     public final boolean originalSplashFontOverride = NeofontrenderConfig.splashFontOverrideEnabled();
-    public final String originalTextCacheMin = Integer.toString(NeofontrenderConfig.skiaTextCacheMinEntries());
-    public final String originalTextCacheMax = Integer.toString(NeofontrenderConfig.skiaTextCacheMaxEntries());
-    public final String originalTextCacheTtl = Float.toString(NeofontrenderConfig.skiaTextCacheTtlSeconds());
-    public final String originalMeasureCacheMax = Integer.toString(NeofontrenderConfig.skiaMeasureCacheMaxEntries());
-    public final String originalSegmentCacheMin = Integer.toString(NeofontrenderConfig.skiaSegmentTextureCacheMinEntries());
-    public final String originalSegmentCacheMax = Integer.toString(NeofontrenderConfig.skiaSegmentTextureCacheMaxEntries());
-    public final String originalSegmentCacheTtl = Float.toString(NeofontrenderConfig.skiaSegmentTextureCacheTtlSeconds());
+    public final String originalTextCacheMin = Integer.toString(NeofontrenderConfig.textCacheMinEntries());
+    public final String originalTextCacheMax = Integer.toString(NeofontrenderConfig.textCacheMaxEntries());
+    public final String originalTextCacheTtl = Float.toString(NeofontrenderConfig.textCacheTtlSeconds());
+    public final String originalMeasureCacheMax = Integer.toString(NeofontrenderConfig.measureCacheMaxEntries());
 
     public boolean enabled = originalEnabled;
     public boolean forceUnicodeFont = originalForceUnicodeFont;
     public String engine = originalEngine;
-    public boolean skiaAdvancedStringMode = originalSkiaAdvancedStringMode;
+    public boolean advancedStringMode = originalAdvancedStringMode;
     public boolean adaptiveRasterScale = originalAdaptiveRasterScale;
     public boolean excludeIntegerScale = originalExcludeIntegerScale;
     public boolean excludeHighMagnification = originalExcludeHighMagnification;
@@ -102,16 +93,10 @@ public final class NfrSettingsDraft {
     public boolean mipmap = originalMipmap;
     public boolean enhancedTextPipeline = originalEnhancedTextPipeline;
     public boolean shaderTextPipeline = originalShaderTextPipeline;
-    public boolean skiaGpuOffscreen = originalSkiaGpuOffscreen;
-    public boolean skiaGpuSubmitViaCpuTexture = originalSkiaGpuSubmitViaCpuTexture;
-    public boolean skiaMonochromeText = originalSkiaMonochromeText;
-    public boolean premultipliedAlpha = originalPremultipliedAlpha;
     public boolean debugRenderStats = originalDebugRenderStats;
     public boolean signModelLod = originalSignModelLod;
-    public boolean signCrossTileBatching = originalSignCrossTileBatching;
     public boolean signBlockOcclusionCulling = originalSignBlockOcclusionCulling;
     public String brightness = originalBrightness;
-    public boolean textureEdgeBleed = originalTextureEdgeBleed;
     public String shadowMode = originalShadowMode;
     public String shadowMaskFonts = originalShadowMaskFonts;
     public String shadowMaskCodepoints = originalShadowMaskCodepoints;
@@ -156,9 +141,6 @@ public final class NfrSettingsDraft {
     public String textCacheMax = originalTextCacheMax;
     public String textCacheTtl = originalTextCacheTtl;
     public String measureCacheMax = originalMeasureCacheMax;
-    public String segmentCacheMin = originalSegmentCacheMin;
-    public String segmentCacheMax = originalSegmentCacheMax;
-    public String segmentCacheTtl = originalSegmentCacheTtl;
 
     public String selectedFont() {
         String path = fontPath == null ? "" : fontPath.trim();
@@ -239,7 +221,7 @@ public final class NfrSettingsDraft {
         applyForceUnicodeFont(forceUnicodeFont, save);
         NeofontrenderConfig.setEnabled(enabled);
         NeofontrenderConfig.setRenderingEngine(engine);
-        NeofontrenderConfig.setSkiaAdvancedStringMode(skiaAdvancedStringMode);
+        NeofontrenderConfig.setAdvancedStringMode(advancedStringMode);
         NeofontrenderConfig.setAdaptiveRasterScale(adaptiveRasterScale);
         NeofontrenderConfig.setExcludeIntegerScale(excludeIntegerScale);
         NeofontrenderConfig.setExcludeHighMagnification(excludeHighMagnification);
@@ -248,16 +230,10 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setRenderingMipmap(mipmap);
         NeofontrenderConfig.setEnhancedTextPipeline(enhancedTextPipeline);
         NeofontrenderConfig.setShaderTextPipeline(shaderTextPipeline);
-        NeofontrenderConfig.setSkiaGpuOffscreen(skiaGpuOffscreen);
-        NeofontrenderConfig.setSkiaGpuSubmitViaCpuTexture(skiaGpuSubmitViaCpuTexture);
-        NeofontrenderConfig.setSkiaMonochromeText(skiaMonochromeText);
-        NeofontrenderConfig.setEnablePremultipliedAlpha(premultipliedAlpha);
         NeofontrenderConfig.setDebugRenderStats(debugRenderStats);
         NeofontrenderConfig.setSignModelLod(signModelLod);
-        NeofontrenderConfig.setSignCrossTileBatching(signCrossTileBatching);
         NeofontrenderConfig.setSignBlockOcclusionCulling(signBlockOcclusionCulling);
         NeofontrenderConfig.setRenderingBrightness(parseFloat(brightness, 3.0F, 0.0F, 12.0F));
-        NeofontrenderConfig.setTextureEdgeBleed(textureEdgeBleed);
         NeofontrenderConfig.setShadowMode(shadowMode);
         NeofontrenderConfig.setShadowMaskFonts(shadowMaskFonts);
         NeofontrenderConfig.setShadowMaskCodepoints(shadowMaskCodepoints);
@@ -277,7 +253,7 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setCompatTinkersConstruct(compatTinkersConstruct);
         NeofontrenderConfig.setSplashFontOverrideEnabled(splashFontOverride);
         NeofontrenderConfig.setFontName(fontName == null || fontName.trim().isEmpty()
-                ? "Sarasa UI SC" : fontName.trim());
+                ? "Noto Sans SC" : fontName.trim());
         NeofontrenderConfig.setFontPath(fontPath);
         NeofontrenderConfig.setFontFallbacks(parseFontList(fontFallbacks));
         NeofontrenderConfig.setCosmicRegularFont(cosmicRegular);
@@ -295,13 +271,10 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setFontAntialiasMode(antialias ? antialiasMode : "off");
         NeofontrenderConfig.setFontFractionalMetrics(fractionalMetrics);
         NeofontrenderConfig.setBuiltinFallbacksEnabled(builtinFallbacks);
-        NeofontrenderConfig.setSkiaTextCacheMinEntries(parseInt(textCacheMin, 256, 0, 65536));
-        NeofontrenderConfig.setSkiaTextCacheMaxEntries(parseInt(textCacheMax, 2048, 1, 131072));
-        NeofontrenderConfig.setSkiaTextCacheTtlSeconds(parseFloat(textCacheTtl, 300.0F, 0.0F, 86400.0F));
-        NeofontrenderConfig.setSkiaMeasureCacheMaxEntries(parseInt(measureCacheMax, 4096, 1, 262144));
-        NeofontrenderConfig.setSkiaSegmentTextureCacheMinEntries(parseInt(segmentCacheMin, 512, 0, 65536));
-        NeofontrenderConfig.setSkiaSegmentTextureCacheMaxEntries(parseInt(segmentCacheMax, 4096, 1, 131072));
-        NeofontrenderConfig.setSkiaSegmentTextureCacheTtlSeconds(parseFloat(segmentCacheTtl, 600.0F, 0.0F, 86400.0F));
+        NeofontrenderConfig.setTextCacheMinEntries(parseInt(textCacheMin, 256, 0, 65536));
+        NeofontrenderConfig.setTextCacheMaxEntries(parseInt(textCacheMax, 2048, 1, 131072));
+        NeofontrenderConfig.setTextCacheTtlSeconds(parseFloat(textCacheTtl, 300.0F, 0.0F, 86400.0F));
+        NeofontrenderConfig.setMeasureCacheMaxEntries(parseInt(measureCacheMax, 4096, 1, 262144));
         if (save) {
             NeofontrenderConfig.save();
         }
@@ -311,7 +284,7 @@ public final class NfrSettingsDraft {
         applyForceUnicodeFont(originalForceUnicodeFont, false);
         NeofontrenderConfig.setEnabled(originalEnabled);
         NeofontrenderConfig.setRenderingEngine(originalEngine);
-        NeofontrenderConfig.setSkiaAdvancedStringMode(originalSkiaAdvancedStringMode);
+        NeofontrenderConfig.setAdvancedStringMode(originalAdvancedStringMode);
         NeofontrenderConfig.setAdaptiveRasterScale(originalAdaptiveRasterScale);
         NeofontrenderConfig.setExcludeIntegerScale(originalExcludeIntegerScale);
         NeofontrenderConfig.setExcludeHighMagnification(originalExcludeHighMagnification);
@@ -320,16 +293,10 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setRenderingMipmap(originalMipmap);
         NeofontrenderConfig.setEnhancedTextPipeline(originalEnhancedTextPipeline);
         NeofontrenderConfig.setShaderTextPipeline(originalShaderTextPipeline);
-        NeofontrenderConfig.setSkiaGpuOffscreen(originalSkiaGpuOffscreen);
-        NeofontrenderConfig.setSkiaGpuSubmitViaCpuTexture(originalSkiaGpuSubmitViaCpuTexture);
-        NeofontrenderConfig.setSkiaMonochromeText(originalSkiaMonochromeText);
-        NeofontrenderConfig.setEnablePremultipliedAlpha(originalPremultipliedAlpha);
         NeofontrenderConfig.setDebugRenderStats(originalDebugRenderStats);
         NeofontrenderConfig.setSignModelLod(originalSignModelLod);
-        NeofontrenderConfig.setSignCrossTileBatching(originalSignCrossTileBatching);
         NeofontrenderConfig.setSignBlockOcclusionCulling(originalSignBlockOcclusionCulling);
         NeofontrenderConfig.setRenderingBrightness(parseFloat(originalBrightness, 3.0F, 0.0F, 12.0F));
-        NeofontrenderConfig.setTextureEdgeBleed(originalTextureEdgeBleed);
         NeofontrenderConfig.setShadowMode(originalShadowMode);
         NeofontrenderConfig.setShadowMaskFonts(originalShadowMaskFonts);
         NeofontrenderConfig.setShadowMaskCodepoints(originalShadowMaskCodepoints);
@@ -367,13 +334,10 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setFontAntialiasMode(originalAntialias ? originalAntialiasMode : "off");
         NeofontrenderConfig.setFontFractionalMetrics(originalFractionalMetrics);
         NeofontrenderConfig.setBuiltinFallbacksEnabled(originalBuiltinFallbacks);
-        NeofontrenderConfig.setSkiaTextCacheMinEntries(parseInt(originalTextCacheMin, 256, 0, 65536));
-        NeofontrenderConfig.setSkiaTextCacheMaxEntries(parseInt(originalTextCacheMax, 2048, 1, 131072));
-        NeofontrenderConfig.setSkiaTextCacheTtlSeconds(parseFloat(originalTextCacheTtl, 300.0F, 0.0F, 86400.0F));
-        NeofontrenderConfig.setSkiaMeasureCacheMaxEntries(parseInt(originalMeasureCacheMax, 4096, 1, 262144));
-        NeofontrenderConfig.setSkiaSegmentTextureCacheMinEntries(parseInt(originalSegmentCacheMin, 512, 0, 65536));
-        NeofontrenderConfig.setSkiaSegmentTextureCacheMaxEntries(parseInt(originalSegmentCacheMax, 4096, 1, 131072));
-        NeofontrenderConfig.setSkiaSegmentTextureCacheTtlSeconds(parseFloat(originalSegmentCacheTtl, 600.0F, 0.0F, 86400.0F));
+        NeofontrenderConfig.setTextCacheMinEntries(parseInt(originalTextCacheMin, 256, 0, 65536));
+        NeofontrenderConfig.setTextCacheMaxEntries(parseInt(originalTextCacheMax, 2048, 1, 131072));
+        NeofontrenderConfig.setTextCacheTtlSeconds(parseFloat(originalTextCacheTtl, 300.0F, 0.0F, 86400.0F));
+        NeofontrenderConfig.setMeasureCacheMaxEntries(parseInt(originalMeasureCacheMax, 4096, 1, 262144));
     }
 
     private static void applyForceUnicodeFont(boolean forceUnicode, boolean save) {

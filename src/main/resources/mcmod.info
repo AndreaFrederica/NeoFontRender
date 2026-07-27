@@ -3,7 +3,7 @@
 	"modList": [{
 		"modid": "${modId}",
 		"name": "${modName}",
-		"description": "A modern font rendering enhancement mod: configurable AWT atlas renderer plus Skia/Cosmic paragraph rendering with advanced shaping and emoji.",
+		"description": "A modern font rendering enhancement mod: configurable AWT atlas renderer plus Cosmic paragraph rendering with advanced shaping and emoji.",
 		"version": "${modVersion}",
 		"mcversion": "${minecraftVersion}",
 		"url": "https://github.com/AndreaFrederica/NeoFontRender",
@@ -21,15 +21,6 @@
 		"modid": "neofontrender_resources",
 		"name": "Neo Font Render Resources",
 		"description": "Optional bundled fonts included by the full distribution.",
-		"version": "${modVersion}",
-		"mcversion": "${minecraftVersion}",
-		"url": "https://github.com/AndreaFrederica/NeoFontRender",
-		"authorList": ["AndreaFrederica"],
-		"logoFile": "assets/neofontrender/logo.png"
-	}, {
-		"modid": "neofontrender_skia",
-		"name": "Neo Font Render Skia Runtime",
-		"description": "Optional Skija runtime included by the full distribution.",
 		"version": "${modVersion}",
 		"mcversion": "${minecraftVersion}",
 		"url": "https://github.com/AndreaFrederica/NeoFontRender",

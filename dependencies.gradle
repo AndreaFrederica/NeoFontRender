@@ -23,19 +23,6 @@ dependencies {
     // Arc3D Core backs the public neofontrender.api.arc3d bridge and addon UI color math.
     embed('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
 
-    // Bundle all Skija native platforms that actually exist on Maven Central.
-    // Runtime.load() will pick the matching native from the classpath.
-    embed 'io.github.humbleui:skija-windows-x64:0.143.11'
-    embed 'io.github.humbleui:skija-linux-x64:0.143.11'
-    embed 'io.github.humbleui:skija-linux-arm64:0.143.11'
-    embed 'io.github.humbleui:skija-macos-x64:0.143.11'
-    embed 'io.github.humbleui:skija-macos-arm64:0.143.11'
-
-    // LWJGL3 GLFW for the optional Skija isolated GPU offscreen context.
-    // Compile-time only: runtime presence is detected and the feature stays off otherwise.
-    compileOnly 'org.lwjgl:lwjgl-glfw:3.4.1'
-    compileOnly 'org.lwjgl:lwjgl:3.4.1'
-
     //TiC
     implementation rfg.deobf("curse.maven:tinkers-construct-74072:2264246")
     implementation rfg.deobf("curse.maven:mantle-74924:2264244")

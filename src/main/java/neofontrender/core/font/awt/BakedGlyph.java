@@ -84,7 +84,7 @@ public class BakedGlyph {
         FontRenderTuning.applyBoundTextureFilter(rasterScale);
 
         // AWT glyph pages are normalized to white straight-alpha in AwtTtfGlyphProvider.
-        // Do not inherit the Skia/Cosmic premultiplied preference here: GL_ONE blending makes
+        // Do not use premultiplied blending here: GL_ONE blending makes
         // low-coverage white edge texels contribute at full strength and produces a bright halo.
         try (FontRenderPipeline.State ignored = FontRenderPipeline.begin(rasterScale, false)) {
             Tessellator tessellator = Tessellator.instance;

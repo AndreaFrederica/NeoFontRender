@@ -248,8 +248,7 @@ jobs:
           full="build/libs/neofontrender-${{ steps.version.outputs.mod_version }}-full.jar"
           core="build/libs/neofontrender-${{ steps.version.outputs.mod_version }}-core.jar"
           resources="build/libs/neofontrender-resources-${{ steps.version.outputs.mod_version }}.jar"
-          skia="build/libs/neofontrender-skia-${{ steps.version.outputs.mod_version }}.jar"
-          for archive in "$full" "$core" "$resources" "$skia"; do
+          for archive in "$full" "$core" "$resources"; do
             test -s "$archive" || { echo "Missing distribution: $archive" >&2; exit 1; }
           done
 
@@ -275,8 +274,8 @@ jobs:
               exit 1
             }
           done
-          if grep -Eq '(^io/github/humbleui/|assets/neofontrender/fonts/.*\.ttf$)' <<<"$core_entries"; then
-            echo "Core JAR contains Skija or bundled TTF content" >&2
+          if grep -Eq '^assets/neofontrender/fonts/.*\.(ttf|otf)$' <<<"$core_entries"; then
+            echo "Core JAR contains bundled TTF or OTF content" >&2
             exit 1
           fi
 
@@ -288,7 +287,6 @@ jobs:
             build/libs/neofontrender-${{ steps.version.outputs.mod_version }}-full.jar
             build/libs/neofontrender-${{ steps.version.outputs.mod_version }}-core.jar
             build/libs/neofontrender-resources-${{ steps.version.outputs.mod_version }}.jar
-            build/libs/neofontrender-skia-${{ steps.version.outputs.mod_version }}.jar
           if-no-files-found: error
 
       - name: Publish to Maven
@@ -334,21 +332,17 @@ jobs:
             "build/libs/neofontrender-${VERSION}-full.jar"
             "build/libs/neofontrender-${VERSION}-core.jar"
             "build/libs/neofontrender-resources-${VERSION}.jar"
-            "build/libs/neofontrender-skia-${VERSION}.jar"
           )
           notes="${RUNNER_TEMP}/neofontrender-release-notes.md"
           cat > "$notes" <<'EOF'
           ## Distribution files
 
           - **`neofontrender-<version>-full.jar`**: all-in-one package. Includes the core mod,
-            bundled font resources, Skia runtime integration, and Cosmic native libraries.
+            bundled font resources and Cosmic native libraries.
           - **`neofontrender-<version>-core.jar`**: lightweight core package. Uses the system
-            font path and does not bundle the optional Skia/font resource payload.
+            font path and does not bundle the optional font resource payload.
           - **`neofontrender-resources-<version>.jar`**: optional bundled font/resource payload
             for installations that keep resources separate from the core mod.
-          - **`neofontrender-skia-<version>.jar`**: optional Skia runtime package used with the
-            core mod when Skia rendering is desired.
-
           The `full` package is the simplest choice for a normal installation. The other files
           are provided for modular deployments and testing.
           EOF

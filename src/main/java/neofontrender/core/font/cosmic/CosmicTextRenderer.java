@@ -67,9 +67,9 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         // The core package intentionally contains no bundled TTF files. cosmic-text/fontdb still
         // loads the operating system font database, so an empty byte-font list is a supported mode
         // and is also what lets the OS-provided color emoji font participate in fallback.
-        // Keep the configured family name separate from byte-backed fallback fonts. Skia can
-        // resolve a system family such as "JetBrains Mono" directly, while the old Cosmic bridge
-        // silently skipped it and promoted the first bundled fallback (usually Sarasa) to primary.
+        // Keep the configured family name separate from byte-backed fallback fonts. Native backends can
+        // resolve a system family such as "JetBrains Mono" directly, while an older bridge
+        // silently skipped it and promoted the first bundled fallback to primary.
         List<String> fallbackFamilies = NeofontrenderConfig.fontFamily();
         if (!fallbackFamilies.isEmpty() && fallbackFamilies.get(0).equals(NeofontrenderConfig.primaryFontLocation())) {
             fallbackFamilies = fallbackFamilies.subList(1, fallbackFamilies.size());

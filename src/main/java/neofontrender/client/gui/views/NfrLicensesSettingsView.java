@@ -24,14 +24,12 @@ public final class NfrLicensesSettingsView extends NfrContentView<NfrLicensesSet
         List<NfrTextInfoPanel.Line> lines = new ArrayList<>();
         lines.add(NfrTextInfoPanel.line(tr("neofontrender.gui.licenses.title"), 0xFFFFFF));
         lines.add(NfrTextInfoPanel.spaced("cosmic-text - MIT / Apache-2.0", 0xD8D8D8));
-        lines.add(NfrTextInfoPanel.line("Skija - Apache-2.0", 0xD8D8D8));
-        lines.add(NfrTextInfoPanel.line("Skia - BSD-3-Clause", 0xD8D8D8));
         lines.add(NfrTextInfoPanel.line("Arc3D Core - LGPL-3.0-or-later", 0xD8D8D8));
         lines.add(NfrTextInfoPanel.line("NightConfig - LGPL-3.0", 0xD8D8D8));
         lines.add(NfrTextInfoPanel.line("ModularUI - LGPL-3.0", 0xD8D8D8));
         lines.add(NfrTextInfoPanel.line("LWJGL / LWJGLX - BSD-3-Clause", 0xD8D8D8));
         lines.add(NfrTextInfoPanel.line("SpongePowered Mixin - MIT", 0xD8D8D8));
-        lines.add(NfrTextInfoPanel.line("Sarasa Gothic - SIL OFL-1.1", 0xD8D8D8));
+        lines.add(NfrTextInfoPanel.line("Noto Sans SC - SIL OFL-1.1", 0xD8D8D8));
         lines.add(NfrTextInfoPanel.line("Noto Color Emoji - SIL OFL-1.1", 0xD8D8D8));
         appendContributions(lines);
         lines.add(NfrTextInfoPanel.spaced(tr("neofontrender.gui.licenses.notice"), 0xBFC7D1));

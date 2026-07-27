@@ -4,44 +4,49 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.model.ModelSign;
 import net.minecraft.client.renderer.GLAllocation;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.culling.Frustrum;
 import net.minecraft.client.renderer.tileentity.TileEntitySignRenderer;
 import net.minecraft.tileentity.TileEntitySign;
-import neofontrender.client.render.sign.SignBatchRenderer;
+import net.minecraft.util.AxisAlignedBB;
 import neofontrender.core.config.NeofontrenderConfig;
-import neofontrender.core.font.FontManager;
-import neofontrender.core.font.backend.TextRenderResult;
-import neofontrender.core.font.skia.SkijaTextRenderer;
 import neofontrender.core.font.support.FontRenderTuning;
+import org.lwjgl.opengl.GL11;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.lwjgl.opengl.GL11;
 
 /**
  * Optional sign-only optimizations. The mixin config plugin prevents this class from being
- * applied at launch when both sign options are disabled, preserving the vanilla call graph.
+ * applied at launch when all sign options are disabled, preserving the vanilla call graph.
  */
 @Mixin(TileEntitySignRenderer.class)
 public abstract class MixinTileEntitySignRenderer {
-    // The redirect runs once per vanilla line; retain those calls until the renderer's
-    // depth state is ready, then replace four immediate submissions with one sign quad.
-    private static final ThreadLocal<Capture> CAPTURE = new ThreadLocal<>();
     @Unique private static int nfr$wallSignLodList;
     @Unique private static int nfr$standingSignLodList;
     @Unique private double nfr$distanceSq;
-    @Unique private int nfr$destroyStage;
 
     @Inject(method = "renderTileEntityAt", at = @At("HEAD"), cancellable = true)
     private void nfr$cullSignModel(TileEntitySign sign, double x, double y, double z,
                                    float partialTicks, CallbackInfo ci) {
         nfr$distanceSq = x * x + y * y + z * z;
-        nfr$destroyStage = -1;
-        if (SignBatchRenderer.collect(sign, x, y, z, -1)) {
-            ci.cancel();
+        if (!NeofontrenderConfig.signTextFrustumCulling()) {
             return;
+        }
+        // Dispatcher coordinates are relative to the camera-facing render origin. The sign model
+        // is translated to the block center, and a rotated standing sign reaches about 0.71 blocks
+        // from that center. The extra margin also covers board depth and wall-sign offsets.
+        Frustrum frustrum = new Frustrum();
+        frustrum.setPosition(0.0D, 0.0D, 0.0D);
+        double centerX = x + 0.5D;
+        double centerZ = z + 0.5D;
+        AxisAlignedBB bounds = AxisAlignedBB.getBoundingBox(
+                centerX - 0.85D, y - 0.15D, centerZ - 0.85D,
+                centerX + 0.85D, y + 1.20D, centerZ + 0.85D);
+        if (!frustrum.isBoundingBoxInFrustum(bounds)) {
+            ci.cancel();
         }
     }
 
@@ -51,7 +56,7 @@ public abstract class MixinTileEntitySignRenderer {
     )
     private void nfr$renderSignModelLod(ModelSign model) {
         float lodDistance = NeofontrenderConfig.signModelLodDistance();
-        if (!NeofontrenderConfig.signModelLod() || nfr$destroyStage >= 0
+        if (!NeofontrenderConfig.signModelLod()
                 || nfr$distanceSq < lodDistance * lodDistance) {
             model.renderSign();
             return;
@@ -109,94 +114,16 @@ public abstract class MixinTileEntitySignRenderer {
             )
     )
     private int nfr$drawSignLine(FontRenderer renderer, String text, int x, int y, int color) {
-        boolean lod = NeofontrenderConfig.signTextLodCulling();
-        boolean batching = NeofontrenderConfig.signTextBatching()
-                && FontManager.INSTANCE.isSkiaActive()
-                && FontManager.INSTANCE.getSkijaTextRenderer() != null;
-        if (!lod && !batching) {
+        if (!NeofontrenderConfig.signTextLodCulling()) {
             return renderer.drawString(text, x, y, color);
         }
 
         FontRenderTuning.updateFromCurrentGlState(false);
         int width = renderer.getStringWidth(text);
-        if (lod && !batching && !FontRenderTuning.isCurrentTextQuadVisible(
+        if (!FontRenderTuning.isCurrentTextQuadVisible(
                 x, y, width, renderer.FONT_HEIGHT, NeofontrenderConfig.signTextMinPixelHeight())) {
             return x + width;
         }
-        if (!batching) {
-            return renderer.drawString(text, x, y, color);
-        }
-
-        Capture capture = CAPTURE.get();
-        if (capture == null) {
-            capture = new Capture(renderer);
-            CAPTURE.set(capture);
-        }
-        int line = Math.max(0, Math.min(3, Math.round((y + 20.0F) / 10.0F)));
-        capture.lines[line] = text == null ? "" : text;
-        capture.x[line] = x;
-        capture.y[line] = y;
-        capture.color[line] = color;
-        return x + width;
-    }
-
-    /** Draw once, while TileEntitySignRenderer's sign transform is still active. */
-    @Inject(
-            method = "renderTileEntityAt",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lorg/lwjgl/opengl/GL11;glDepthMask(Z)V",
-                    remap = false,
-                    ordinal = 1,
-                    shift = At.Shift.BEFORE
-            )
-    )
-    private void nfr$flushBatchedSignText(TileEntitySign sign, double x, double y, double z,
-                                          float partialTicks, CallbackInfo ci) {
-        Capture capture = CAPTURE.get();
-        if (capture == null) {
-            return;
-        }
-        CAPTURE.remove();
-        SkijaTextRenderer renderer = FontManager.INSTANCE.getSkijaTextRenderer();
-        if (renderer == null || !FontManager.INSTANCE.isSkiaActive()) {
-            capture.replay();
-            return;
-        }
-        TextRenderResult result = renderer.renderSign(capture.lines);
-        if (result == null || result == TextRenderResult.EMPTY || result.advance() <= 0.0F) {
-            capture.replay();
-            return;
-        }
-        // Evaluate LOD once for the complete paragraph. Per-line thresholds caused visible
-        // re-centering when individual lines entered or left the LOD path.
-        if (NeofontrenderConfig.signTextLodCulling()
-                && !FontRenderTuning.isCurrentTextQuadVisible(-45.0F, -20.0F, 90.0F, 40.0F,
-                NeofontrenderConfig.signTextMinPixelHeight())) {
-            return;
-        }
-        // Vanilla's four lines occupy y=-20,-10,0,10 in a 90px sign. The centered Skia
-        // paragraph uses the same top-left anchor and therefore needs only one quad here.
-        result.draw(-45.0F, -20.0F, 1.0F);
-    }
-
-    private static final class Capture {
-        private final FontRenderer renderer;
-        private final String[] lines = new String[4];
-        private final int[] x = new int[4];
-        private final int[] y = new int[4];
-        private final int[] color = new int[4];
-
-        private Capture(FontRenderer renderer) {
-            this.renderer = renderer;
-        }
-
-        private void replay() {
-            for (int i = 0; i < lines.length; i++) {
-                if (lines[i] != null) {
-                    renderer.drawString(lines[i], x[i], y[i], color[i]);
-                }
-            }
-        }
+        return renderer.drawString(text, x, y, color);
     }
 }

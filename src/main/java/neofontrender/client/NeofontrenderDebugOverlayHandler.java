@@ -21,9 +21,8 @@ public final class NeofontrenderDebugOverlayHandler {
         event.right.add("NeoFontRender");
         event.right.add("  engine: " + NeofontrenderConfig.renderingEngine());
         event.right.add("  enabled: " + NeofontrenderConfig.enabled());
-        event.right.add("  SFR/Skia/Cosmic: "
+        event.right.add("  SFR/Cosmic: "
                 + FontManager.INSTANCE.isSfrActive() + "/"
-                + FontManager.INSTANCE.isSkiaActive() + "/"
                 + FontManager.INSTANCE.isCosmicActive());
     }
 }

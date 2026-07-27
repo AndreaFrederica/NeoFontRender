@@ -5,18 +5,18 @@
 <h1 align="center">Neo Font Render</h1>
 
 <p align="center">
-  Modern text shaping and font rendering for Minecraft 1.12.2 on Cleanroom.<br>
+  Modern text shaping and font rendering for Minecraft 1.7.10 in an lwjgl3ify runtime.<br>
   <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/AndreaFrederica/NeoFontRender">GitHub</a>
 </p>
 
 ## What it does
 
-Neo Font Render replaces Minecraft 1.12.2's bitmap-font path with configurable modern renderers.
+Neo Font Render replaces Minecraft 1.7.10's bitmap-font path with configurable modern renderers.
 
 - Cosmic Text is the default renderer, with native text shaping and rasterization.
-- Skia provides an optional paragraph renderer for complex shaping, ligatures, BiDi, and color emoji.
 - The built-in SFR/AWT renderer remains available for compatibility and troubleshooting.
-- System fonts, local TTF/OTF files, bundled Sarasa UI SC, Noto Color Emoji, and fallback chains are supported.
+- Vanilla rendering can be restored without disabling the mod's input and compatibility fixes.
+- System fonts, local TTF/OTF files, bundled Noto Sans SC, Noto Color Emoji, and fallback chains are supported.
 - Includes Unicode/IME input fixes, sign-editor paste and wrapping, configurable sign optimizations, an in-game settings screen, and diagnostic commands.
 
 <p align="center">
@@ -25,9 +25,9 @@ Neo Font Render replaces Minecraft 1.12.2's bitmap-font path with configurable m
 
 ## Requirements and installation
 
-- Minecraft 1.12.2 with Cleanroom.
+- Minecraft 1.7.10 with lwjgl3ify.
 - Java 25.
-- [ModularUI 3.1.6+](https://github.com/CleanroomMC/ModularUI).
+- [ModularUI2 2.3.81+](https://github.com/GTNewHorizons/ModularUI2).
 
 Download the distribution that fits your installation and put it in the `mods` folder. The `full` package is the usual choice.
 
@@ -36,9 +36,8 @@ Download the distribution that fits your installation and put it in the `mods` f
 | `neofontrender-<version>-full.jar` | You want the complete, all-in-one installation. |
 | `neofontrender-<version>-core.jar` | You want the small core renderer and system fonts. |
 | `neofontrender-resources-<version>.jar` | You use `core` and also want bundled font resources. |
-| `neofontrender-skia-<version>.jar` | You use `core` and want the optional Skija runtime. |
 
-Do not install `full` together with the split `core`, `resources`, or `skia` packages.
+Do not install `full` together with the split `core` or `resources` packages.
 
 ### Optional UI Enhancements addon
 
@@ -68,16 +67,26 @@ New installations use these rendering defaults:
 
 ```toml
 [font]
+name = "Noto Sans SC"
+path = "neofontrender:fonts/noto_sans_sc-regular.otf"
+fallbacks = ["Serif", "Monospaced"]
 size = 8.5
 
 [rendering]
 engine = "cosmic"
 interpolation = true
-skiaGpuOffscreen = true
-skiaGpuSubmitViaCpuTexture = false
+advancedStringMode = true
 ```
 
-Cosmic and Skia can fall back to configured system fonts and bundled resources when a glyph is missing. If a renderer is unavailable, select `sfr` in the settings screen to use the compatibility renderer.
+`rendering.engine` accepts `cosmic`, `sfr`, or `vanilla`. Cosmic can fall back to configured system
+fonts and bundled resources when a glyph is missing. Select `sfr` for the AWT compatibility path or
+`vanilla` to restore Minecraft's renderer.
+
+### Compatibility
+
+- ModularUI2 supplies the settings UI; Neo Font Render also handles Unicode editing in its text inputs.
+- Optional Tinkers' Construct and Mantle integration renders the 1.7.10 manual with the selected font while preserving Mantle's measurement and wrapping. It is enabled by `compat.tinkersconstruct.enabled`.
+- The UI Enhancements addon detects NEI when installed and applies its tooltip integration without making NEI a required dependency.
 
 Useful commands:
 
@@ -100,7 +109,7 @@ import neofontrender.api.NeoFontRenderApi;
 import neofontrender.api.RenderingEngine;
 
 NeoFontRenderApi.updateFont()
-        .font("Sarasa UI SC")
+        .font("Noto Sans SC")
         .fallbackFonts("Noto Color Emoji", "SansSerif")
         .size(8.5F)
         .style(FontStyle.PLAIN)
@@ -119,15 +128,15 @@ separate regular, bold, italic, and bold-italic font files.
 
 ## Development
 
-The project uses the current [CleanroomModTemplate](https://github.com/CleanroomMC/CleanroomModTemplate): Gradle 9.6, Unimined, Cleanroom Loader, and a Java 25 toolchain.
+The build uses RetroFuturaGradle and the GTNH Gradle conventions on Gradle 9.3.1 with a Java 25 toolchain.
 
 ```bash
-./gradlew runClient
+./gradlew runClient25
 ./gradlew build
 ./gradlew packageVariants
 ```
 
-`packageVariants` creates the full, core, resources, and Skia distribution jars in `build/libs`. The local build compiles the Cosmic JNI library with Cargo; CI assembles a multi-platform native bundle.
+`packageVariants` creates the full, core, and resources distribution jars in `build/libs`. The local build compiles the Cosmic JNI library with Cargo; CI assembles the Windows, Linux, and macOS native bundle used by both full and core packages.
 
 ## Project
 

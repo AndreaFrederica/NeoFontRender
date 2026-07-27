@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.0]
+
+- Remove the Skia/Skija renderer, runtime dependencies, package variant, settings, diagnostics,
+  and sign-text batching paths; retain Cosmic, SFR/AWT, and vanilla rendering.
+- Raise the integration API version to 4 and retain whole-string rendering, reusable segmentation,
+  shared caches, and engine-independent logical-size text APIs on the Cosmic/SFR architecture.
+- Replace the bundled Sarasa UI SC primary font with Noto Sans SC and exclude both TTF and OTF
+  resources from the Core package.
+- Replace Skia-specific configuration with generic rendering keys, including
+  `rendering.engine`, `rendering.interpolation`, and `rendering.advancedStringMode`.
+- Preserve Minecraft 1.7.10 compatibility for ModularUI2, NEI tooltips, Tinkers' Construct manuals,
+  and Mantle text measurement and wrapping.
+- Release UI Enhancements 0.2.2 and fix world-loading alpha blending, Material gradient fading,
+  loading text alignment, and snapshot compositing.
+
 ## [0.3.6]
 
 - Add a captured, blurred Mica backdrop and addon logo for UI Enhancements tooltips.

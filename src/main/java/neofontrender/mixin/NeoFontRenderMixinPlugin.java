@@ -72,10 +72,8 @@ public final class NeoFontRenderMixinPlugin implements IMixinConfigPlugin {
         }
         boolean inPerformance = false;
         boolean lod = true;
-        boolean batching = true;
         boolean frustum = true;
         boolean modelLod = false;
-        boolean crossTileBatching = false;
         boolean blockOcclusionCulling = true;
         try {
             List<String> lines = Files.readAllLines(config.toPath(), StandardCharsets.UTF_8);
@@ -91,14 +89,10 @@ public final class NeoFontRenderMixinPlugin implements IMixinConfigPlugin {
                 String key = key(line);
                 if ("signTextLodCulling".equals(key)) {
                     lod = parseBoolean(line, lod);
-                } else if ("signTextBatching".equals(key)) {
-                    batching = parseBoolean(line, batching);
                 } else if ("signTextFrustumCulling".equals(key)) {
                     frustum = parseBoolean(line, frustum);
                 } else if ("signModelLod".equals(key)) {
                     modelLod = parseBoolean(line, modelLod);
-                } else if ("signCrossTileBatching".equals(key)) {
-                    crossTileBatching = parseBoolean(line, crossTileBatching);
                 } else if ("signBlockOcclusionCulling".equals(key)) {
                     blockOcclusionCulling = parseBoolean(line, blockOcclusionCulling);
                 }
@@ -107,8 +101,8 @@ public final class NeoFontRenderMixinPlugin implements IMixinConfigPlugin {
             LOGGER.error("Failed to read sign options from " + config + "; keeping sign optimizations enabled", e);
             return new SignOptions(true, true);
         }
-        return new SignOptions(lod || batching || frustum || modelLod || crossTileBatching
-                || blockOcclusionCulling, crossTileBatching || blockOcclusionCulling);
+        return new SignOptions(lod || frustum || modelLod || blockOcclusionCulling,
+                blockOcclusionCulling);
     }
 
     private static String key(String line) {

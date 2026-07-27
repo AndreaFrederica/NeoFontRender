@@ -162,9 +162,7 @@ public enum WorldLoadingSnapshotManager {
 
         Minecraft.getMinecraft().getTextureManager().bindTexture(textureLocation);
         GL11.glEnable(GL11.GL_TEXTURE_2D);
-        GL11.glEnable(GL11.GL_BLEND);
-        OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
-                GL11.GL_ONE, GL11.GL_ZERO);
+        LoadingBlendMode.enableSourceOver();
         GL11.glColor4f(1.0F, 1.0F, 1.0F, Math.max(0.0F, Math.min(1.0F, alpha)));
         Tessellator tessellator = Tessellator.instance;
         tessellator.startDrawingQuads();

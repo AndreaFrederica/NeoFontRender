@@ -7,7 +7,6 @@ import net.minecraft.client.gui.GuiDownloadTerrain;
 import net.minecraft.client.gui.GuiIngameMenu;
 import net.minecraft.client.gui.GuiScreenWorking;
 import net.minecraft.client.multiplayer.ChunkProviderClient;
-import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.server.MinecraftServer;
@@ -38,6 +37,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public enum WorldLoadingRenderer {
     INSTANCE;
 
+    private static final int MATERIAL_GRADIENT_SEGMENTS = 24;
+    private static final float[] MATERIAL_GRADIENT_AMOUNTS = createMaterialGradientAmounts();
     private final WorldLoadingProgress progress = new WorldLoadingProgress();
     private final Arc3DLoadingBarRenderer arc3dBar = new Arc3DLoadingBarRenderer();
     private final Arc3DMaterialSpinnerRenderer materialSpinner =
@@ -328,12 +329,11 @@ public enum WorldLoadingRenderer {
         float visualAmount = arc3dBar.update(amount, now);
         int margin = Math.max(12, Math.min(28, width / 32));
         int bottom = height - Math.max(13, height / 28);
+        int textBottom = bottom - 4;
 
         GL11.glDisable(GL11.GL_LIGHTING);
         GL11.glDisable(GL11.GL_DEPTH_TEST);
-        GL11.glEnable(GL11.GL_BLEND);
-        OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
-                GL11.GL_ONE, GL11.GL_ZERO);
+        LoadingBlendMode.enableSourceOver();
 
         boolean snapshot = WorldLoadingSnapshotManager.INSTANCE.draw(width, height, alpha);
         if (!snapshot && mc.theWorld == null) {
@@ -353,13 +353,13 @@ public enum WorldLoadingRenderer {
         int titleColor = scaledAlpha(WorldLoadingConfig.textColor, alpha);
         if (ModernTextApi.isAvailable()) {
             // Request a real large logical font from NFR's public engine-independent API. UIE has
-            // no knowledge of Cosmic, Skia, or SFR/AWT and never scales a small cached texture.
+            // no knowledge of Cosmic or SFR/AWT and never scales a small cached texture.
             float titleFontSize = Math.max(1.0F, font.FONT_HEIGHT * titleScale);
-            ModernTextApi.draw(label, margin, bottom - titleFontSize,
+            ModernTextApi.draw(label, margin, textBottom - titleFontSize,
                     titleFontSize, titleColor);
         } else {
             GL11.glPushMatrix();
-            GL11.glTranslatef(margin, bottom - font.FONT_HEIGHT * titleScale, 0.0F);
+            GL11.glTranslatef(margin, textBottom - font.FONT_HEIGHT * titleScale, 0.0F);
             GL11.glScalef(titleScale, titleScale, 1.0F);
             font.drawString(label, 0, 0, titleColor, false);
             GL11.glPopMatrix();
@@ -367,7 +367,7 @@ public enum WorldLoadingRenderer {
 
         String detail = currentDetailLabel(label);
         if (!detail.isEmpty()) {
-            font.drawString(detail, margin, bottom + 2,
+            font.drawString(detail, margin, textBottom + 2,
                     scaledAlpha(0xFFB8C0CC, alpha), false);
         }
 
@@ -388,6 +388,7 @@ public enum WorldLoadingRenderer {
 
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
+        LoadingBlendMode.restoreMinecraftDefault();
         GL11.glDisable(GL11.GL_BLEND);
     }
 
@@ -435,27 +436,84 @@ public enum WorldLoadingRenderer {
 
     private static void drawVerticalGradient(int left, int top, int right, int bottom,
                                              int topColor, int bottomColor) {
-        float topA = (topColor >>> 24) / 255.0F;
-        float topR = (topColor >> 16 & 255) / 255.0F;
-        float topG = (topColor >> 8 & 255) / 255.0F;
-        float topB = (topColor & 255) / 255.0F;
-        float bottomA = (bottomColor >>> 24) / 255.0F;
-        float bottomR = (bottomColor >> 16 & 255) / 255.0F;
-        float bottomG = (bottomColor >> 8 & 255) / 255.0F;
-        float bottomB = (bottomColor & 255) / 255.0F;
+        float startA = (topColor >>> 24) / 255.0F;
+        float startR = (topColor >> 16 & 255) / 255.0F;
+        float startG = (topColor >> 8 & 255) / 255.0F;
+        float startB = (topColor & 255) / 255.0F;
+        float endA = (bottomColor >>> 24) / 255.0F;
+        float endR = (bottomColor >> 16 & 255) / 255.0F;
+        float endG = (bottomColor >> 8 & 255) / 255.0F;
+        float endB = (bottomColor & 255) / 255.0F;
+        // Alpha test normally rejects the transparent tail and exposes a horizontal edge.
+        GL11.glDisable(GL11.GL_ALPHA_TEST);
         GL11.glDisable(GL11.GL_TEXTURE_2D);
+        LoadingBlendMode.enableSourceOver();
         GL11.glShadeModel(GL11.GL_SMOOTH);
-        Tessellator tessellator = Tessellator.instance;
-        tessellator.startDrawingQuads();
-        tessellator.setColorRGBA_F(topR, topG, topB, topA);
-        tessellator.addVertex(right, top, 0.0D);
-        tessellator.addVertex(left, top, 0.0D);
-        tessellator.setColorRGBA_F(bottomR, bottomG, bottomB, bottomA);
-        tessellator.addVertex(left, bottom, 0.0D);
-        tessellator.addVertex(right, bottom, 0.0D);
-        tessellator.draw();
-        GL11.glShadeModel(GL11.GL_FLAT);
-        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        try {
+            Tessellator tessellator = Tessellator.instance;
+            tessellator.startDrawingQuads();
+            for (int segment = 0; segment < MATERIAL_GRADIENT_SEGMENTS; segment++) {
+                float firstPosition = segment / (float) MATERIAL_GRADIENT_SEGMENTS;
+                float secondPosition = (segment + 1) / (float) MATERIAL_GRADIENT_SEGMENTS;
+                float firstAmount = MATERIAL_GRADIENT_AMOUNTS[segment];
+                float secondAmount = MATERIAL_GRADIENT_AMOUNTS[segment + 1];
+                float firstY = top + (bottom - top) * firstPosition;
+                float secondY = top + (bottom - top) * secondPosition;
+
+                tessellator.setColorRGBA_F(
+                        lerp(startR, endR, firstAmount),
+                        lerp(startG, endG, firstAmount),
+                        lerp(startB, endB, firstAmount),
+                        lerp(startA, endA, firstAmount));
+                tessellator.addVertex(right, firstY, 0.0D);
+                tessellator.addVertex(left, firstY, 0.0D);
+                tessellator.setColorRGBA_F(
+                        lerp(startR, endR, secondAmount),
+                        lerp(startG, endG, secondAmount),
+                        lerp(startB, endB, secondAmount),
+                        lerp(startA, endA, secondAmount));
+                tessellator.addVertex(left, secondY, 0.0D);
+                tessellator.addVertex(right, secondY, 0.0D);
+            }
+            tessellator.draw();
+        } finally {
+            GL11.glShadeModel(GL11.GL_FLAT);
+            GL11.glEnable(GL11.GL_TEXTURE_2D);
+            GL11.glEnable(GL11.GL_ALPHA_TEST);
+        }
+    }
+
+    /** Material standard curve: cubic-bezier(0.4, 0.0, 0.2, 1.0). */
+    static float materialGradientCurve(float position) {
+        float target = Math.max(0.0F, Math.min(1.0F, position));
+        float low = 0.0F;
+        float high = 1.0F;
+        for (int iteration = 0; iteration < 10; iteration++) {
+            float parameter = (low + high) * 0.5F;
+            float x = cubicBezier(parameter, 0.4F, 0.2F);
+            if (x < target) low = parameter;
+            else high = parameter;
+        }
+        return cubicBezier((low + high) * 0.5F, 0.0F, 1.0F);
+    }
+
+    private static float[] createMaterialGradientAmounts() {
+        float[] amounts = new float[MATERIAL_GRADIENT_SEGMENTS + 1];
+        for (int index = 0; index <= MATERIAL_GRADIENT_SEGMENTS; index++) {
+            amounts[index] = materialGradientCurve(index / (float) MATERIAL_GRADIENT_SEGMENTS);
+        }
+        return amounts;
+    }
+
+    private static float cubicBezier(float parameter, float firstControl, float secondControl) {
+        float inverse = 1.0F - parameter;
+        return 3.0F * inverse * inverse * parameter * firstControl
+                + 3.0F * inverse * parameter * parameter * secondControl
+                + parameter * parameter * parameter;
+    }
+
+    private static float lerp(float start, float end, float amount) {
+        return start + (end - start) * amount;
     }
 
     /** Equivalent to GuiScreen.drawBackground(0), with alpha support for the loading fade. */
@@ -464,9 +522,7 @@ public enum WorldLoadingRenderer {
         GL11.glDisable(GL11.GL_LIGHTING);
         GL11.glDisable(GL11.GL_FOG);
         GL11.glEnable(GL11.GL_TEXTURE_2D);
-        GL11.glEnable(GL11.GL_BLEND);
-        OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
-                GL11.GL_ONE, GL11.GL_ZERO);
+        LoadingBlendMode.enableSourceOver();
         int alpha = Math.round(255.0F * Math.max(0.0F, Math.min(1.0F, opacity)));
         Tessellator tessellator = Tessellator.instance;
         tessellator.startDrawingQuads();

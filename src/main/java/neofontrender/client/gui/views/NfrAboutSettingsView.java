@@ -15,20 +15,20 @@ import java.util.List;
 
 /** About route. Its page-specific copy belongs here, not in the component library. */
 public final class NfrAboutSettingsView extends NfrContentView<NfrAboutSettingsView> {
-    public NfrAboutSettingsView(NfrSettingsDraft draft, boolean skiaAvailable) {
-        this(content(draft, skiaAvailable));
+    public NfrAboutSettingsView(NfrSettingsDraft draft) {
+        this(content(draft));
     }
 
     private NfrAboutSettingsView(NfrTextInfoPanel content) {
         super(section(content, width -> content.preferredHeight()));
     }
 
-    private static NfrTextInfoPanel content(NfrSettingsDraft draft, boolean skiaAvailable) {
+    private static NfrTextInfoPanel content(NfrSettingsDraft draft) {
         List<NfrTextInfoPanel.Line> lines = new ArrayList<>();
         lines.add(NfrTextInfoPanel.line(tr("neofontrender.gui.about.name"), 0xFFFFFF));
         lines.add(NfrTextInfoPanel.line(() -> tr("neofontrender.gui.about.version") + ": " + version(), 0xD8D8D8));
         lines.add(NfrTextInfoPanel.line(() -> tr("neofontrender.gui.option.engine") + ": "
-                + NfrSettingsControls.engineName(draft.engine, skiaAvailable), 0xD8D8D8));
+                + NfrSettingsControls.engineName(draft.engine), 0xD8D8D8));
         lines.add(NfrTextInfoPanel.spaced(tr("neofontrender.gui.about.description"), 0xBFC7D1));
         lines.add(NfrTextInfoPanel.line(tr("neofontrender.gui.about.license") + ": MIT License", 0xD8D8D8));
         lines.add(NfrTextInfoPanel.line("Copyright (c) 2026 AndreaFrederica", 0xD8D8D8));
