@@ -48,13 +48,11 @@ public final class FontRenderTuning {
             GL11.glGetFloat(GL11.GL_PROJECTION_MATRIX, buffer);
             buffer.get(PROJECTION);
 
-            float[] origin = projectToFramebuffer(0.0F, 0.0F, 0.0F, mc.displayWidth, mc.displayHeight);
-            float[] xAxis = projectToFramebuffer(1.0F, 0.0F, 0.0F, mc.displayWidth, mc.displayHeight);
-            float[] yAxis = projectToFramebuffer(0.0F, 1.0F, 0.0F, mc.displayWidth, mc.displayHeight);
-            float scaleX = distance(origin, xAxis);
-            float scaleY = distance(origin, yAxis);
-            float scale = (scaleX + scaleY) * 0.5F;
-            if (Float.isFinite(scale) && scale > 0.0F) {
+            float[] origin = projectToFramebuffer(
+                    MODELVIEW, PROJECTION, 0.0F, 0.0F, 0.0F, mc.displayWidth, mc.displayHeight);
+            float scale = measureProjectedPixelScale(
+                    MODELVIEW, PROJECTION, mc.displayWidth, mc.displayHeight);
+            if (origin != null && Float.isFinite(scale) && scale > 0.0F) {
                 boolean orthographic = Math.abs(PROJECTION[15]) > 0.5F;
                 boolean rotation = Math.abs(MODELVIEW[1]) > 0.0001F || Math.abs(MODELVIEW[4]) > 0.0001F;
                 boolean fractional = !isNearInteger(origin[0]) || !isNearInteger(origin[1]);
@@ -258,12 +256,31 @@ public final class FontRenderTuning {
         }
     }
 
-    private static float[] projectToFramebuffer(float x, float y, float z, int displayWidth, int displayHeight) {
-        float[] eye = transform(MODELVIEW, x, y, z, 1.0F);
-        float[] clip = transform(PROJECTION, eye[0], eye[1], eye[2], eye[3]);
-        if (clip[3] == 0.0F) {
-            return new float[] {0.0F, 0.0F};
+    static float measureProjectedPixelScale(float[] modelview, float[] projection,
+                                            int displayWidth, int displayHeight) {
+        if (modelview == null || projection == null || modelview.length < 16 || projection.length < 16
+                || displayWidth <= 0 || displayHeight <= 0) {
+            return Float.NaN;
         }
+        float[] origin = projectToFramebuffer(
+                modelview, projection, 0.0F, 0.0F, 0.0F, displayWidth, displayHeight);
+        float[] xAxis = projectToFramebuffer(
+                modelview, projection, 1.0F, 0.0F, 0.0F, displayWidth, displayHeight);
+        float[] yAxis = projectToFramebuffer(
+                modelview, projection, 0.0F, 1.0F, 0.0F, displayWidth, displayHeight);
+        if (origin == null || xAxis == null || yAxis == null) return Float.NaN;
+        float scaleX = distance(origin, xAxis);
+        float scaleY = distance(origin, yAxis);
+        float scale = (scaleX + scaleY) * 0.5F;
+        return Float.isFinite(scale) ? scale : Float.NaN;
+    }
+
+    private static float[] projectToFramebuffer(float[] modelview, float[] projection,
+                                                 float x, float y, float z,
+                                                 int displayWidth, int displayHeight) {
+        float[] eye = transform(modelview, x, y, z, 1.0F);
+        float[] clip = transform(projection, eye[0], eye[1], eye[2], eye[3]);
+        if (!Float.isFinite(clip[3]) || Math.abs(clip[3]) < 0.000001F) return null;
         float invW = 1.0F / clip[3];
         float ndcX = clip[0] * invW;
         float ndcY = clip[1] * invW;

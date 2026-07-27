@@ -1,6 +1,8 @@
 package neofontrender.addons.mixin;
 
 import net.minecraft.client.gui.GuiSlot;
+import net.minecraft.client.renderer.GlStateManager;
+import neofontrender.addons.language.LanguageListSearchAccess;
 import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
 import neofontrender.addons.scrolling.SmoothScrollController;
 import org.lwjgl.input.Mouse;
@@ -25,7 +27,26 @@ public abstract class MixinGuiSlotSmoothScroll {
             nfrUi$scroller.sync(amountScrolled);
             return;
         }
-        amountScrolled = nfrUi$scroller.update(amountScrolled, getMaxScroll());
+        amountScrolled = (Object) this instanceof LanguageListSearchAccess
+                ? nfrUi$scroller.updateContinuous(amountScrolled, getMaxScroll())
+                : nfrUi$scroller.update(amountScrolled, getMaxScroll());
+    }
+
+    @Inject(method = "drawScreen", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/GuiSlot;drawSelectionBox(IIIIF)V"))
+    private void nfrUi$beginSubpixelListTranslation(int mouseX, int mouseY, float partialTicks,
+                                                    CallbackInfo ci) {
+        GlStateManager.pushMatrix();
+        float fraction = amountScrolled - (float) Math.floor(amountScrolled);
+        GlStateManager.translate(0.0F, -fraction, 0.0F);
+    }
+
+    @Inject(method = "drawScreen", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/GuiSlot;drawSelectionBox(IIIIF)V",
+            shift = At.Shift.AFTER))
+    private void nfrUi$endSubpixelListTranslation(int mouseX, int mouseY, float partialTicks,
+                                                  CallbackInfo ci) {
+        GlStateManager.popMatrix();
     }
 
     @Redirect(method = "handleMouseInput", at = @At(value = "INVOKE", target = "Lorg/lwjgl/input/Mouse;getEventDWheel()I"))

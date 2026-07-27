@@ -202,6 +202,10 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
         return true;
     }
 
+    public boolean canDisplay(int codePoint) {
+        return font.canDisplay(codePoint);
+    }
+
     public float[] layoutPositions(String text, boolean bold) {
         LayoutKey key = new LayoutKey(text, bold);
         float[] cached = layoutCache.get(key);

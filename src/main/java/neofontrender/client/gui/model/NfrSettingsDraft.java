@@ -70,6 +70,7 @@ public final class NfrSettingsDraft {
     public final int originalShadowColor = NeofontrenderConfig.shadowColor();
     public final boolean originalFixImeInput = NeofontrenderConfig.fixImeInput();
     public final boolean originalFixUnicodeTextDeletion = NeofontrenderConfig.fixUnicodeTextDeletion();
+    public final boolean originalFixCjkLineBreak = NeofontrenderConfig.fixCjkLineBreak();
     public final boolean originalAllowSignPaste = NeofontrenderConfig.allowSignPaste();
     public final boolean originalLaboratoryHexChat = NeofontrenderConfig.laboratoryHexChat();
     public final boolean originalLaboratoryTextUndoRedo = NeofontrenderConfig.laboratoryTextUndoRedo();
@@ -109,6 +110,7 @@ public final class NfrSettingsDraft {
     public int shadowColor = originalShadowColor;
     public boolean fixImeInput = originalFixImeInput;
     public boolean fixUnicodeTextDeletion = originalFixUnicodeTextDeletion;
+    public boolean fixCjkLineBreak = originalFixCjkLineBreak;
     public boolean allowSignPaste = originalAllowSignPaste;
     public boolean laboratoryHexChat = originalLaboratoryHexChat;
     public boolean laboratoryTextUndoRedo = originalLaboratoryTextUndoRedo;
@@ -246,6 +248,7 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setShadowColor(shadowColor);
         NeofontrenderConfig.setFixImeInput(fixImeInput);
         NeofontrenderConfig.setFixUnicodeTextDeletion(fixUnicodeTextDeletion);
+        NeofontrenderConfig.setFixCjkLineBreak(fixCjkLineBreak);
         NeofontrenderConfig.setAllowSignPaste(allowSignPaste);
         NeofontrenderConfig.setLaboratoryHexChat(laboratoryHexChat);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(laboratoryTextUndoRedo);
@@ -309,6 +312,7 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setShadowColor(originalShadowColor);
         NeofontrenderConfig.setFixImeInput(originalFixImeInput);
         NeofontrenderConfig.setFixUnicodeTextDeletion(originalFixUnicodeTextDeletion);
+        NeofontrenderConfig.setFixCjkLineBreak(originalFixCjkLineBreak);
         NeofontrenderConfig.setAllowSignPaste(originalAllowSignPaste);
         NeofontrenderConfig.setLaboratoryHexChat(originalLaboratoryHexChat);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(originalLaboratoryTextUndoRedo);

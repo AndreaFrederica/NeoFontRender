@@ -4,6 +4,7 @@ import net.minecraft.client.LoadingScreenRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import neofontrender.addons.loading.WorldLoadingRenderer;
+import neofontrender.addons.loading.ResourceReloadRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -22,7 +23,8 @@ public abstract class MixinLoadingScreenRenderer {
      */
     @ModifyConstant(method = "setLoadingProgress", constant = @Constant(longValue = 100L))
     private long nfrUi$smoothIntegratedLoadingFrames(long original) {
-        return WorldLoadingRenderer.INSTANCE.isIntegratedLaunchActive() ? 16L : original;
+        return WorldLoadingRenderer.INSTANCE.isIntegratedLaunchActive()
+                || ResourceReloadRenderer.INSTANCE.isActive() ? 16L : original;
     }
 
     /**
@@ -37,5 +39,7 @@ public abstract class MixinLoadingScreenRenderer {
         WorldLoadingRenderer.INSTANCE.renderIntegratedServerLoading(
                 resolution.getScaledWidth(), resolution.getScaledHeight(), vanillaProgress,
                 currentlyDisplayedText, message);
+        ResourceReloadRenderer.INSTANCE.render(
+                resolution.getScaledWidth(), resolution.getScaledHeight());
     }
 }

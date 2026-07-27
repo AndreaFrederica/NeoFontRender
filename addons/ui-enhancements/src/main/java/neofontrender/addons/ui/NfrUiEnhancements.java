@@ -10,6 +10,10 @@ import neofontrender.addons.effects.ScreenEffectsModule;
 import neofontrender.addons.chat.EnhancedChatModule;
 import neofontrender.addons.hud.HudBarsModule;
 import neofontrender.addons.loading.WorldLoadingModule;
+import neofontrender.addons.loading.ResourceReloadModule;
+import neofontrender.addons.worldcreation.CreateWorldModule;
+import neofontrender.addons.mainmenu.MainMenuModule;
+import neofontrender.addons.zoom.ZoomModule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -34,6 +38,10 @@ public final class NfrUiEnhancements {
             new TextInputModule(),
             new ScreenEffectsModule(),
             new WorldLoadingModule(),
+            new ResourceReloadModule(),
+            new ZoomModule(),
+            new MainMenuModule(),
+            new CreateWorldModule(),
             new HudBarsModule(),
             new EnhancedChatModule(),
             new TooltipModule()

@@ -117,6 +117,19 @@ public class FontManager implements AutoCloseable {
             }
         }
 
+        if (ttfLoaded) {
+            try {
+                AwtTtfGlyphProvider systemFallback = loadAwtFont(resourceManager, null, rasterScale, true);
+                if (systemFallback != null) {
+                    providers.add(systemFallback);
+                    neofontrender.NeoFontRender.LOGGER.info(
+                            "Loaded Java SansSerif composite as the final adaptive system-font fallback");
+                }
+            } catch (Exception e) {
+                neofontrender.NeoFontRender.LOGGER.warn("Failed to load adaptive system-font fallback", e);
+            }
+        }
+
         if (!ttfLoaded) {
             try {
                 AwtTtfGlyphProvider ttf = loadAwtFont(resourceManager, null, rasterScale, true);

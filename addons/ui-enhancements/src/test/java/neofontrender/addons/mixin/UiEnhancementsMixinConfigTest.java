@@ -30,6 +30,24 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(obscure.contains("\"compat.MixinObscureTooltipState\""));
     }
 
+    @Test
+    void resourceReloadMixinsAreInTheRequiredEarlyConfig() {
+        String config = config("mixins.neofontrender_ui_enhancements.json");
+
+        assertTrue(config.contains("\"MixinGuiLanguageResourceReload\""));
+        assertTrue(config.contains("\"MixinGuiLanguageSearch\""));
+        assertTrue(config.contains("\"MixinGuiLanguageListFavorites\""));
+        assertTrue(config.contains("\"MixinGuiSlotLanguageFavorites\""));
+        assertTrue(config.contains("\"MixinGuiCreateWorldModernLayout\""));
+        assertTrue(config.contains("\"MixinGuiButtonCreateWorldStyle\""));
+        assertTrue(config.contains("\"GuiCreateWorldAccessor\""));
+        assertTrue(config.contains("\"MixinGuiMainMenuContinueGame\""));
+        assertTrue(config.contains("\"MixinEntityRendererZoomMouse\""));
+        assertTrue(config.contains("\"MixinGuiScreenResourcePacksProgress\""));
+        assertTrue(config.contains("\"MixinProgressBarResourceReload\""));
+        assertTrue(config.contains("\"MixinProgressManagerResourceReload\""));
+    }
+
     private static String config(String name) {
         InputStream stream = UiEnhancementsMixinConfigTest.class.getClassLoader().getResourceAsStream(name);
         assertNotNull(stream, name);
