@@ -114,6 +114,13 @@ test {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
 }
 
+tasks.register('prepareCombinedClientRun', Copy) {
+    dependsOn tasks.named('jar')
+    from(tasks.named('jar').flatMap { it.archiveFile })
+    into rootProject.layout.projectDirectory.dir('run/client/mods')
+    rename { 'neofontrender-ui-enhancements-dev.jar' }
+}
+
 jar {
     from('NOTICE.md') {
         into 'META-INF'

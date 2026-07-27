@@ -44,6 +44,7 @@ unimined.minecraft {
             accessTransformer "${rootProject.projectDir}/src/main/resources/$access_transformer_locations"
         }
         loader '0.6.1-alpha'
+        runs.preLaunch('client', ':addons:ui-enhancements:prepareCombinedClientRun')
         runs.all {
             args += ['--username', minecraft_username]
             // ModularUI's early Minecraft mixin is required for its key-binding accessors,
@@ -68,7 +69,6 @@ unimined.minecraft {
 }
 
 dependencies {
-    runtimeOnly project(':addons:ui-enhancements')
     if (use_asset_mover.toBoolean()) implementation "com.cleanroommc:assetmover:${asset_mover_version}"
     if (enable_junit_testing.toBoolean()) {
         testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
