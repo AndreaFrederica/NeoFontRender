@@ -13,7 +13,7 @@ Rust 并不天然比 Skia 快。当前统计已经表明 Paragraph/测量缓存�
 ## Rust 后端候选架构
 
 第一版不让 Rust 持有 Minecraft 的 OpenGL 上下文。Rust 只负责文字布局、字形缓存和 atlas
-更新，Java/LWJGL2 继续负责纹理上传和绘制，以降低与 Cleanroom、Celeritas、OptiFine、
+更新，Java/LWJGL2 继续负责纹理上传和绘制，以降低与 lwjgl3ify、Celeritas、OptiFine、
 shader 和不同 OpenGL 上下文实现冲突的风险。
 
 建议依赖：
