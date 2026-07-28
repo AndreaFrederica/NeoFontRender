@@ -8,6 +8,9 @@
   "mixins": [],
   "server": [],
   "client": [
+    "compat.MixinJeiIngredientRendererHover",
+    "compat.MixinHeiCollapsedGroupHover",
+    "compat.MixinJeiIngredientGridHover",
     "compat.MixinHeiCollapsedGroupTooltip",
     "compat.MixinHeiTooltipRenderer"
   ]
