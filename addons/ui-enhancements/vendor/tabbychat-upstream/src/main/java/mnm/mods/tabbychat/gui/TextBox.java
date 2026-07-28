@@ -8,10 +8,12 @@ import mnm.mods.tabbychat.core.GuiNewChatTC;
 import mnm.mods.tabbychat.extra.spell.Spellcheck;
 import mnm.mods.tabbychat.extra.spell.SpellingFormatter;
 import mnm.mods.util.Color;
+import mnm.mods.util.ILocation;
 import mnm.mods.util.TexturedModal;
 import mnm.mods.util.gui.GuiComponent;
 import mnm.mods.util.gui.GuiText;
 import mnm.mods.util.gui.events.GuiMouseEvent;
+import mnm.mods.util.gui.events.GuiMouseEvent.MouseEvent;
 import mnm.mods.util.text.FancyFontRenderer;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiTextField;
@@ -25,6 +27,7 @@ import org.lwjgl.opengl.GL11;
 import neofontrender.addons.chat.ChatStyleConfig;
 import neofontrender.addons.chat.ChatStyleRenderer;
 import neofontrender.addons.chat.ChatAnimationController;
+import neofontrender.addons.chat.ChatContextMenu;
 
 import java.awt.Dimension;
 import java.awt.Rectangle;
@@ -275,32 +278,37 @@ public class TextBox extends GuiComponent implements ChatInput {
 
     @Subscribe
     public void onMouseClick(GuiMouseEvent event) {
-        mouseClicked(event.getMouseX(), event.getMouseY(), event.getButton());
+        if (event.getType() == MouseEvent.CLICK && event.getButton() == 0) {
+            setMousePosition(event.getMouseX(), event.getMouseY(), false);
+        } else if (event.getType() == MouseEvent.DRAG && event.getButton() == 0) {
+            setMousePosition(event.getMouseX(), event.getMouseY(), true);
+        } else if (event.getType() == MouseEvent.CLICK && event.getButton() == 1) {
+            ILocation actual = getActualLocation();
+            float scale = getActualScale();
+            ChatContextMenu.INSTANCE.openInput(textField.getTextField(),
+                    actual.getXPos() + Math.round(event.getMouseX() * scale),
+                    actual.getYPos() + Math.round(event.getMouseY() * scale));
+        }
     }
 
+    private void setMousePosition(int x, int y, boolean extendSelection) {
+        Rectangle bounds = this.getBounds();
+        int width = bounds.width - 1;
+        int visualY = y - Math.round(ChatAnimationController.inputOffset());
+        int row = visualY / (fr.FONT_HEIGHT + 2);
 
-    private void mouseClicked(int x, int y, int mouseButton) {
-        if (mouseButton == 0) {
-            Rectangle bounds = this.getBounds();
-
-            int width = bounds.width - 1;
-            int row = y / (fr.FONT_HEIGHT + 2);
-
-            List<String> lines = getWrappedLines();
-            if (row < 0 || row >= lines.size() || x < 0 || x > width) {
-                return;
-            }
-            int index = 0;
-            for (int i = 0; i < row; i++) {
-                index += lines.get(i).length();
-                // check for spaces because trailing spaces are trimmed
-                if (getText().charAt(index)==' ') {
-                    index++;
-                }
-            }
-            index += fr.trimStringToWidth(lines.get(row), x - 3).length();
-            textField.getTextField().setCursorPosition(index);
+        List<String> lines = getWrappedLines();
+        if (row < 0 || row >= lines.size() || x < 0 || x > width) return;
+        int index = 0;
+        for (int i = 0; i < row; i++) {
+            index += lines.get(i).length();
+            // listFormattedStringToWidth trims the wrapping space from the visual line.
+            if (index < getText().length() && getText().charAt(index) == ' ') index++;
         }
+        index += fr.trimStringToWidth(lines.get(row), Math.max(0, x - 3)).length();
+        index = Math.max(0, Math.min(index, getText().length()));
+        if (extendSelection) textField.getTextField().setSelectionPos(index);
+        else textField.getTextField().setCursorPosition(index);
     }
 
     @Override

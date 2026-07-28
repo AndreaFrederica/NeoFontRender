@@ -22,6 +22,8 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import neofontrender.addons.chat.EnhancedChatConfigAccess;
 import neofontrender.addons.chat.ExternalChatCompat;
+import neofontrender.addons.chat.ChatAnimationController;
+import neofontrender.addons.chat.ChatKeyBindings;
 import neofontrender.addons.input.TextCursorManager;
 
 import java.io.IOException;
@@ -100,17 +102,24 @@ public abstract class MixinGuiChat extends GuiScreen implements ITabCompleter {
         ILocation bounds = this.chat.getChatBox().getChatInput().getActualLocation();
         TextCursorManager.textFieldDrawn(bounds.getXPos(), bounds.getYPos(),
                 bounds.getWidth(), bounds.getHeight(), true, true);
+        ExternalChatCompat.updateSalutationInput(this.inputField,
+                bounds.getXPos(), bounds.getYPos() + Math.round(ChatAnimationController.inputOffset()),
+                bounds.getWidth(), bounds.getHeight(),
+                bounds.getWidth()
+                        / (float) this.chat.getChatBox().getChatInput().getLocation().getWidth());
     }
 
     @Inject(method = "onGuiClosed()V", at = @At("RETURN"))
     private void onChatClosed(CallbackInfo ci) {
         this.historyBuffer = "";
+        ExternalChatCompat.removeSalutationInput(this.inputField);
         this.componentList.forEach(GuiComponent::onClosed);
     }
 
     @Override
     public void handleKeyboardInput() throws IOException {
         super.handleKeyboardInput();
+        if (ChatKeyBindings.handledCurrentEvent()) return;
         // Salutation's ChatScreen already writes this event into our substituted inputField and
         // immediately requests Brigadier completions for that value. Sending the same LWJGL event
         // through TabbyChat's GuiText afterwards types it a second time and makes the completion

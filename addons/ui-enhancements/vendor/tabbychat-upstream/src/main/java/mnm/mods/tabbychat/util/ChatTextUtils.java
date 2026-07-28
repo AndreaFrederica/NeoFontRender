@@ -11,12 +11,15 @@ import net.minecraft.util.text.TextComponentString;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
+import neofontrender.addons.chat.ChatHeadResolver;
+import neofontrender.addons.chat.ChatItemIconRenderer;
 
 public class ChatTextUtils {
 
     public static List<ITextComponent> split(ITextComponent chat, int width) {
         FontRenderer fr = Minecraft.getMinecraft().fontRenderer;
-        return GuiUtilRenderComponents.splitText(chat, width, fr, false, false);
+        return GuiUtilRenderComponents.splitText(ChatItemIconRenderer.decorate(chat), width, fr, false, false);
     }
 
     public static List<Message> split(List<Message> list, int width) {
@@ -29,9 +32,12 @@ public class ChatTextUtils {
             while (iter.hasNext() && result.size() <= 100) {
                 Message line = iter.next();
                 List<ITextComponent> chatlist = split(line.getMessageWithOptionalTimestamp(), width);
+                UUID senderId = line instanceof ChatMessage
+                        ? ((ChatMessage) line).nfrUi$getSenderId() : ChatHeadResolver.detect(line.getMessage());
                 for (int i = chatlist.size() - 1; i >= 0; i--) {
                     ITextComponent chat = chatlist.get(i);
-                    result.add(new ChatMessage(line.getCounter(), chat, line.getID(), false));
+                    result.add(new ChatMessage(line.getCounter(), chat, line.getID(), false,
+                            senderId, i == 0));
                 }
             }
             return result;

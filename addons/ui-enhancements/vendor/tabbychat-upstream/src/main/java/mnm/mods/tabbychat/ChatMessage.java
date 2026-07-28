@@ -13,6 +13,9 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
+import neofontrender.addons.chat.ChatHeadResolver;
+
+import java.util.UUID;
 
 public class ChatMessage implements Message {
 
@@ -21,14 +24,30 @@ public class ChatMessage implements Message {
     @Expose
     private int id;
     private transient int counter;
+    private transient UUID nfrUi$senderId;
+    private transient boolean nfrUi$senderResolved;
+    private transient boolean nfrUi$firstFragment = true;
     @Expose
     private Date date;
 
     public ChatMessage(int updatedCounter, ITextComponent chat, int id, boolean isNew) {
+        this(updatedCounter, chat, id, isNew, null, true, false);
+    }
+
+    public ChatMessage(int updatedCounter, ITextComponent chat, int id, boolean isNew,
+                       UUID senderId, boolean firstFragment) {
+        this(updatedCounter, chat, id, isNew, senderId, firstFragment, true);
+    }
+
+    private ChatMessage(int updatedCounter, ITextComponent chat, int id, boolean isNew,
+                        UUID senderId, boolean firstFragment, boolean senderResolved) {
         // super(updatedCounter, chat, id);
         this.message = chat;
         this.id = id;
         this.counter = updatedCounter;
+        this.nfrUi$senderId = senderId;
+        this.nfrUi$senderResolved = senderResolved;
+        this.nfrUi$firstFragment = firstFragment;
         if (isNew) {
             this.date = Calendar.getInstance().getTime();
         }
@@ -72,6 +91,18 @@ public class ChatMessage implements Message {
     @Override
     public Date getDate() {
         return this.date;
+    }
+
+    public UUID nfrUi$getSenderId() {
+        if (!nfrUi$senderResolved) {
+            nfrUi$senderId = ChatHeadResolver.detect(getMessage());
+            nfrUi$senderResolved = true;
+        }
+        return nfrUi$senderId;
+    }
+
+    public boolean nfrUi$isFirstFragment() {
+        return nfrUi$firstFragment;
     }
 
 }
