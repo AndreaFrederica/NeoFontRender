@@ -21,13 +21,22 @@ class UiEnhancementsMixinConfigTest {
     void optionalCompatMixinsAreLateAndNonRequired() {
         String hei = config("mixins.neofontrender_ui_enhancements_hei.json");
         String obscure = config("mixins.neofontrender_ui_enhancements_obscure_tooltips.json");
+        String salutation = config("mixins.neofontrender_ui_enhancements_salutation.json");
+        String quark = config("mixins.neofontrender_ui_enhancements_quark.json");
 
         assertTrue(hei.contains("\"required\": false"));
+        assertTrue(hei.contains("\"compat.MixinJeiIngredientRendererHover\""));
+        assertTrue(hei.contains("\"compat.MixinHeiCollapsedGroupHover\""));
+        assertTrue(hei.contains("\"compat.MixinJeiIngredientGridHover\""));
         assertTrue(hei.contains("\"compat.MixinHeiTooltipRenderer\""));
         assertTrue(hei.contains("\"compat.MixinHeiCollapsedGroupTooltip\""));
         assertTrue(obscure.contains("\"required\": false"));
         assertTrue(obscure.contains("\"compat.MixinObscureHeaderComponent\""));
         assertTrue(obscure.contains("\"compat.MixinObscureTooltipState\""));
+        assertTrue(salutation.contains("\"required\": false"));
+        assertTrue(salutation.contains("\"compat.MixinSalutationAdvancedTabCompleter\""));
+        assertTrue(quark.contains("\"required\": false"));
+        assertTrue(quark.contains("\"compat.MixinQuarkMapTooltip\""));
     }
 
     @Test
@@ -43,6 +52,15 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"GuiCreateWorldAccessor\""));
         assertTrue(config.contains("\"MixinGuiMainMenuContinueGame\""));
         assertTrue(config.contains("\"MixinEntityRendererZoomMouse\""));
+        assertTrue(config.contains("\"AccessorGuiChatFeatures\""));
+        assertTrue(config.contains("\"AccessorGuiNewChatFeatures\""));
+        assertTrue(config.contains("\"MixinChatLineMetadata\""));
+        assertTrue(config.contains("\"MixinGuiNewChatFeatures\""));
+        assertTrue(config.contains("\"MixinGuiButtonHover\""));
+        assertTrue(config.contains("\"MixinGuiButtonExtHover\""));
+        assertTrue(config.contains("\"MixinForgeGuiUtilsButtonAlpha\""));
+        assertTrue(config.contains("\"MixinGuiContainerSlotHover\""));
+        assertTrue(config.contains("\"MixinModularItemSlotHover\""));
         assertTrue(config.contains("\"MixinGuiScreenResourcePacksProgress\""));
         assertTrue(config.contains("\"MixinProgressBarResourceReload\""));
         assertTrue(config.contains("\"MixinProgressManagerResourceReload\""));
