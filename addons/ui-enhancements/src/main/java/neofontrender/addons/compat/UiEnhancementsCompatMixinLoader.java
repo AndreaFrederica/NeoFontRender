@@ -15,10 +15,14 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
     static final String HEI_CONFIG = "mixins.neofontrender_ui_enhancements_hei.json";
     static final String OBSCURE_TOOLTIPS_CONFIG =
             "mixins.neofontrender_ui_enhancements_obscure_tooltips.json";
+    static final String SALUTATION_CONFIG =
+            "mixins.neofontrender_ui_enhancements_salutation.json";
+    static final String QUARK_CONFIG =
+            "mixins.neofontrender_ui_enhancements_quark.json";
 
     @Override
     public List<String> getMixinConfigs() {
-        return Arrays.asList(HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG);
+        return Arrays.asList(HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG);
     }
 
     @Override
@@ -27,11 +31,21 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
         if (HEI_CONFIG.equals(config)) {
             return context.isModPresent("jei")
                     && classResourcePresent("mezz/jei/gui/TooltipRenderer.class")
-                    && classResourcePresent("mezz/jei/render/CollapsedGroupRenderer.class");
+                    && classResourcePresent("mezz/jei/gui/overlay/IngredientGrid.class")
+                    && classResourcePresent("mezz/jei/render/IngredientRenderer.class");
         }
         if (OBSCURE_TOOLTIPS_CONFIG.equals(config)) {
             return classResourcePresent("dev/obscuria/tooltips/client/TooltipState.class")
                     && classResourcePresent("dev/obscuria/tooltips/client/component/HeaderComponent.class");
+        }
+        if (SALUTATION_CONFIG.equals(config)) {
+            return context.isModPresent("salutation")
+                    && classResourcePresent(
+                            "speiger/src/salutation/client/gui/chat/AdvancedTabCompleter.class");
+        }
+        if (QUARK_CONFIG.equals(config)) {
+            return context.isModPresent("quark")
+                    && classResourcePresent("vazkii/quark/client/feature/MapTooltip.class");
         }
         return false;
     }
