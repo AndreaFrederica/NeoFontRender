@@ -37,6 +37,9 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             () -> TooltipConfig.yieldToObscureTooltips, value -> TooltipConfig.yieldToObscureTooltips = value))
                     .add(c.toggleText(() -> tr("gui.hei_custom"), () -> tr("tooltip.hei_custom"),
                             () -> TooltipConfig.heiCustomTooltips, value -> TooltipConfig.heiCustomTooltips = value))
+                    .add(c.toggleText(() -> tr("gui.quark_map"), () -> tr("tooltip.quark_map"),
+                            () -> TooltipConfig.quarkModernMapTooltip,
+                            value -> TooltipConfig.quarkModernMapTooltip = value))
                     .add(c.toggleText(() -> tr("gui.mod_name"), () -> tr("tooltip.mod_name"),
                             () -> TooltipConfig.modNameEnabled, value -> TooltipConfig.modNameEnabled = value))
                     .add(c.dropdownText("tooltip_mod_name_format", () -> tr("gui.mod_name_format"),

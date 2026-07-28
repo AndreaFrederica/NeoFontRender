@@ -52,14 +52,34 @@ final class ModernTooltipRenderer {
         }
 
         drawBackground(layout, fill, border, spectrum);
-        MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostBackground(
-                event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
-                layout.width, layout.height));
-        drawText(layout, event.getFontRenderer());
-        MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostText(
-                event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
-                layout.width, layout.height));
+        beginTooltipExtensions();
+        try {
+            MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostBackground(
+                    event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
+                    layout.width, layout.height));
+            drawText(layout, event.getFontRenderer());
+            MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostText(
+                    event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
+                    layout.width, layout.height));
+        } finally {
+            endTooltipExtensions();
+        }
         return true;
+    }
+
+    /** Matches Forge GuiUtils' GL contract while PostBackground/PostText subscribers render. */
+    private static void beginTooltipExtensions() {
+        GlStateManager.disableRescaleNormal();
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+    }
+
+    private static void endTooltipExtensions() {
+        GlStateManager.enableLighting();
+        GlStateManager.enableDepth();
+        RenderHelper.enableGUIStandardItemLighting();
+        GlStateManager.enableRescaleNormal();
     }
 
     private static void drawBackground(TooltipLayout layout, int[] fill, int[] border, boolean spectrum) {
@@ -222,9 +242,6 @@ final class ModernTooltipRenderer {
     }
 
     private static void drawText(TooltipLayout layout, FontRenderer font) {
-        GlStateManager.disableLighting();
-        GlStateManager.disableDepth();
-        RenderHelper.disableStandardItemLighting();
         int y = layout.y;
         for (int i = 0; i < layout.lines.size(); i++) {
             String line = layout.lines.get(i);
@@ -240,9 +257,6 @@ final class ModernTooltipRenderer {
             }
             y += TooltipConfig.lineHeight;
         }
-        GlStateManager.enableDepth();
-        GlStateManager.enableLighting();
-        RenderHelper.enableGUIStandardItemLighting();
     }
 
     private static void applyBorderShading(int[] colors, String mode) {

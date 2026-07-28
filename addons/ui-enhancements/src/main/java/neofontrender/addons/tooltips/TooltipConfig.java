@@ -16,6 +16,7 @@ final class TooltipConfig {
     static boolean yieldToLegendaryTooltips = true;
     static boolean yieldToObscureTooltips = false;
     static boolean heiCustomTooltips = true;
+    static boolean quarkModernMapTooltip = false;
     static boolean modNameEnabled = true;
     static String modNameFormat = "blue italic";
     static boolean rounded = true;
@@ -57,6 +58,7 @@ final class TooltipConfig {
         yieldToLegendaryTooltips = config.getBoolean("tooltip.yieldToLegendaryTooltips", true);
         yieldToObscureTooltips = config.getBoolean("tooltip.yieldToObscureTooltips", false);
         heiCustomTooltips = config.getBoolean("tooltip.heiCustomTooltips", true);
+        quarkModernMapTooltip = config.getBoolean("tooltip.quarkModernMapTooltip", false);
         modNameEnabled = config.getBoolean("tooltip.modName.enabled", true);
         modNameFormat = config.getString("tooltip.modName.format", "blue italic");
         rounded = config.getBoolean("tooltip.rounded", true);
@@ -96,6 +98,7 @@ final class TooltipConfig {
                 .set("tooltip.yieldToLegendaryTooltips", yieldToLegendaryTooltips)
                 .set("tooltip.yieldToObscureTooltips", yieldToObscureTooltips)
                 .set("tooltip.heiCustomTooltips", heiCustomTooltips)
+                .set("tooltip.quarkModernMapTooltip", quarkModernMapTooltip)
                 .set("tooltip.modName.enabled", modNameEnabled)
                 .set("tooltip.modName.format", modNameFormat)
                 .set("tooltip.rounded", rounded)
@@ -137,6 +140,7 @@ final class TooltipConfig {
                 .define("tooltip.yieldToLegendaryTooltips", true, "Yield when LegendaryTooltips is installed.")
                 .define("tooltip.yieldToObscureTooltips", false, "Let Obscure Tooltips draw its own panel and frame instead of combining its effects with NFR's modern panel.")
                 .define("tooltip.heiCustomTooltips", true, "Apply NFR's panel and frame to HEI tooltips that contain custom-rendered ingredient grids.")
+                .define("tooltip.quarkModernMapTooltip", false, "Replace Quark's parchment map preview with a compact NFR modern panel.")
                 .define("tooltip.modName.enabled", true, "Append the owning mod's display name to item tooltips.")
                 .define("tooltip.modName.format", "blue italic", "Space-separated TextFormatting friendly names; empty means unformatted.")
                 .define("tooltip.rounded", true, "Draw rounded antialiased corners.")
@@ -232,6 +236,7 @@ final class TooltipConfig {
         private final boolean originalYield = yieldToLegendaryTooltips;
         private final boolean originalYieldObscure = yieldToObscureTooltips;
         private final boolean originalHeiCustomTooltips = heiCustomTooltips;
+        private final boolean originalQuarkModernMapTooltip = quarkModernMapTooltip;
         private final boolean originalModNameEnabled = modNameEnabled;
         private final String originalModNameFormat = modNameFormat;
         private final boolean originalRounded = rounded;
@@ -268,6 +273,7 @@ final class TooltipConfig {
             yieldToLegendaryTooltips = originalYield; rounded = originalRounded;
             yieldToObscureTooltips = originalYieldObscure;
             heiCustomTooltips = originalHeiCustomTooltips;
+            quarkModernMapTooltip = originalQuarkModernMapTooltip;
             modNameEnabled = originalModNameEnabled; modNameFormat = originalModNameFormat;
             centerTitle = originalCenterTitle; titleBreak = originalTitleBreak; adaptiveBorder = originalAdaptive;
             borderShading = originalBorderShading; borderCycleMillis = originalBorderCycleMillis;
