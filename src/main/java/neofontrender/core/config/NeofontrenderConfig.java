@@ -25,6 +25,7 @@ public final class NeofontrenderConfig {
     private static final String CONFIG_NAME = "neofontrender.toml";
     private static final String DEFAULT_FONT_NAME = "Noto Sans SC";
     private static final String DEFAULT_FONT = "neofontrender:fonts/noto_sans_sc-regular.otf";
+    private static final String ENCHANTMENT_FONT = "neofontrender:fonts/sric_minecraft_words.ttf";
     private static Path configPath;
     private static CommentedFileConfig config;
     private static volatile Snapshot cached = Snapshot.defaults();
@@ -415,6 +416,23 @@ public final class NeofontrenderConfig {
         return cached.compatTinkersAntique;
     }
 
+    /** vanilla, auto, awt, or cosmic. Only the enchanting-table magic text consumes this. */
+    public static String enchantmentFontBackend() {
+        String value = config.getOrElse("enchantment.backend", "awt");
+        value = value == null ? "awt" : value.trim().toLowerCase(Locale.ROOT);
+        return Arrays.asList("vanilla", "auto", "awt", "cosmic").contains(value) ? value : "awt";
+    }
+
+    public static List<String> enchantmentFonts() {
+        Set<String> fonts = new LinkedHashSet<>();
+        Object value = config.get("enchantment.fonts");
+        if (value instanceof List) for (Object entry : (List<?>) value) {
+            if (entry != null) addFontNames(fonts, entry.toString());
+        } else if (value != null) addFontNames(fonts, value.toString());
+        if (fonts.isEmpty()) fonts.add(ENCHANTMENT_FONT);
+        return Collections.unmodifiableList(new ArrayList<>(fonts));
+    }
+
     public static boolean splashFontOverrideEnabled() {
         return cached.splashFontOverrideEnabled;
     }
@@ -573,6 +591,18 @@ public final class NeofontrenderConfig {
 
     public static void setCompatTinkersAntique(boolean value) {
         setValue("compat.tinkersantique.enabled", value);
+    }
+
+    public static void setEnchantmentFontBackend(String value) {
+        String backend = value == null ? "vanilla" : value.trim().toLowerCase(Locale.ROOT);
+        setValue("enchantment.backend", Arrays.asList("vanilla", "auto", "awt", "cosmic").contains(backend)
+                ? backend : "vanilla");
+    }
+
+    public static void setEnchantmentFonts(List<String> value) {
+        List<String> fonts = value == null ? new ArrayList<>() : new ArrayList<>(normalizeFontValues(value));
+        if (fonts.isEmpty()) fonts.add(ENCHANTMENT_FONT);
+        setValue("enchantment.fonts", fonts);
     }
 
     public static void setSplashFontOverrideEnabled(boolean value) {
@@ -941,6 +971,10 @@ public final class NeofontrenderConfig {
             w.write("modernsplash.enabled = true\n");
             w.write("tinkersantique.enabled = true\n");
             w.write("\n");
+            w.write("[enchantment]\n");
+            w.write("backend = \"awt\"\n");
+            w.write("fonts = [\"" + ENCHANTMENT_FONT + "\"]\n");
+            w.write("\n");
             w.write("[splash]\n");
             w.write("enabled = true\n");
             w.write("\n");
@@ -974,6 +1008,9 @@ public final class NeofontrenderConfig {
         config.setComment("font.cosmic.italic", "Cosmic italic face override: system face name, local font path, or resource location.");
         config.setComment("font.cosmic.boldItalic", "Cosmic bold-italic face override: system face name, local font path, or resource location.");
         config.setComment("font.cosmic.variantOverridesOnlySwitchFont", "For non-regular overrides, select the configured font without additionally requesting bold or italic styling. Empty overrides still use automatic family style matching.");
+        config.setComment("enchantment", "Scoped rendering for the three magic-name lines in the enchanting table only.");
+        config.setComment("enchantment.backend", "Backend for enchanting-table magic names: vanilla, auto, awt, or cosmic.");
+        config.setComment("enchantment.fonts", "Editable ordered font list used only by non-vanilla enchanting-table magic names.");
         config.setComment("shadow", "Text shadow rendering options.");
         config.setComment("shadow.length", "Shadow offset distance in pixels.");
         config.setComment("shadow.modern", "Bake a colored soft shadow into the modern backend texture for a single foreground submission.");

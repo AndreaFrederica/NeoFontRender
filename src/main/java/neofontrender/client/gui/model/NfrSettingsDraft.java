@@ -76,6 +76,8 @@ public final class NfrSettingsDraft {
     public final boolean originalLaboratoryTextUndoRedo = NeofontrenderConfig.laboratoryTextUndoRedo();
     public final boolean originalCompatModernSplash = NeofontrenderConfig.compatModernSplash();
     public final boolean originalCompatTinkersAntique = NeofontrenderConfig.compatTinkersAntique();
+    public final String originalEnchantmentBackend = NeofontrenderConfig.enchantmentFontBackend();
+    public final String originalEnchantmentFonts = joinFontList(NeofontrenderConfig.enchantmentFonts());
     public final boolean originalSplashFontOverride = NeofontrenderConfig.splashFontOverrideEnabled();
     public final String originalTextCacheMin = Integer.toString(NeofontrenderConfig.textCacheMinEntries());
     public final String originalTextCacheMax = Integer.toString(NeofontrenderConfig.textCacheMaxEntries());
@@ -116,6 +118,8 @@ public final class NfrSettingsDraft {
     public boolean laboratoryTextUndoRedo = originalLaboratoryTextUndoRedo;
     public boolean compatModernSplash = originalCompatModernSplash;
     public boolean compatTinkersAntique = originalCompatTinkersAntique;
+    public String enchantmentBackend = originalEnchantmentBackend;
+    public String enchantmentFonts = originalEnchantmentFonts;
     public boolean splashFontOverride = originalSplashFontOverride;
     public int categoryScroll;
     public String fontName = originalFontName;
@@ -254,6 +258,8 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryTextUndoRedo(laboratoryTextUndoRedo);
         NeofontrenderConfig.setCompatModernSplash(compatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(compatTinkersAntique);
+        NeofontrenderConfig.setEnchantmentFontBackend(enchantmentBackend);
+        NeofontrenderConfig.setEnchantmentFonts(parseFontList(enchantmentFonts));
         NeofontrenderConfig.setSplashFontOverrideEnabled(splashFontOverride);
         NeofontrenderConfig.setFontName(fontName == null || fontName.trim().isEmpty()
                 ? "Noto Sans SC" : fontName.trim());
@@ -318,6 +324,8 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryTextUndoRedo(originalLaboratoryTextUndoRedo);
         NeofontrenderConfig.setCompatModernSplash(originalCompatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(originalCompatTinkersAntique);
+        NeofontrenderConfig.setEnchantmentFontBackend(originalEnchantmentBackend);
+        NeofontrenderConfig.setEnchantmentFonts(parseFontList(originalEnchantmentFonts));
         NeofontrenderConfig.setSplashFontOverrideEnabled(originalSplashFontOverride);
         NeofontrenderConfig.setFontName(originalFontName);
         NeofontrenderConfig.setFontPath(originalFontPath);

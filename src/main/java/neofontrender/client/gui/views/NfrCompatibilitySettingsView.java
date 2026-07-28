@@ -1,8 +1,13 @@
 package neofontrender.client.gui.views;
 
+import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
+import neofontrender.client.gui.component.base.NfrLabeledTextField;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
+import neofontrender.client.gui.component.base.NfrStringValue;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
 import neofontrender.client.gui.model.NfrSettingsDraft;
+
+import java.util.Arrays;
 
 /** Compatibility fixes for third-party mods. */
 public final class NfrCompatibilitySettingsView extends NfrContentView<NfrCompatibilitySettingsView> {
@@ -16,6 +21,16 @@ public final class NfrCompatibilitySettingsView extends NfrContentView<NfrCompat
         return c.grid()
                 .add(c.toggle("neofontrender.gui.option.compat_tinkers_antique",
                         "neofontrender.tooltip.compat_tinkers_antique",
-                        () -> d.compatTinkersAntique, value -> d.compatTinkersAntique = value));
+                        () -> d.compatTinkersAntique, value -> d.compatTinkersAntique = value))
+                .add(c.dropdown("enchantment_backend", "neofontrender.gui.option.enchantment_backend",
+                        () -> d.enchantmentBackend, value -> d.enchantmentBackend = value,
+                        Arrays.asList("awt", "cosmic", "auto", "vanilla"),
+                        value -> net.minecraft.client.resources.I18n.format(
+                                "neofontrender.gui.enchantment_backend." + value)).size(260, 24))
+                .add(new NfrLabeledTextField(
+                        net.minecraft.client.resources.I18n.format("neofontrender.gui.option.enchantment_fonts"),
+                        new TextFieldWidget().setMaxLength(1024)
+                                .value(new NfrStringValue(() -> d.enchantmentFonts,
+                                        value -> d.enchantmentFonts = value))));
     }
 }

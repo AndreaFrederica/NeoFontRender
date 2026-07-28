@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import neofontrender.api.text.ModernTextApi;
 import neofontrender.api.text.ModernTextLayout;
+import neofontrender.core.font.support.ScopedFontRenderBypass;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.BakedGlyph;
 import neofontrender.core.font.awt.FontSet;
@@ -747,6 +748,7 @@ public class MixinFontRenderer {
     }
 
     private boolean sfr$shouldHook() {
+        if (ScopedFontRenderBypass.isActive()) return false;
         String className = ((Object) this).getClass().getName();
         return !className.equals("net.minecraftforge.fml.client.SplashProgress$SplashFontRenderer")
                 && !className.endsWith("SimpleModelFontRenderer");
