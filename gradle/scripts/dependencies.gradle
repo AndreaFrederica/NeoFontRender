@@ -10,8 +10,10 @@ dependencies {
     compileOnly 'com.cleanroommc:sponge-mixin:0.20.13+mixin.0.8.7'
     if (enable_lwjglx.toBoolean()) compileOnly 'com.cleanroommc:lwjglx:1.0.0'
 
-    contain 'com.electronwill.night-config:core:3.8.3'
-    contain 'com.electronwill.night-config:toml:3.8.3'
+    // NightConfig must be private: LibraryEx/Reagenchant embeds 3.6.0 under the upstream package,
+    // and Cleanroom rejects the duplicate core modules before JsonFormat can load.
+    relocate 'com.electronwill.night-config:core:3.8.3'
+    relocate 'com.electronwill.night-config:toml:3.8.3'
     // Shared LGPL component. Keep the upstream icyllis.arc3d packages intact and expose the
     // integration boundary as neofontrender.api.arc3d rather than relocating its identity.
     contain('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }

@@ -25,7 +25,9 @@ java {
 
 configurations {
     contain
+    relocate
     implementation.extendsFrom(contain)
+    implementation.extendsFrom(relocate)
     modCompileOnly
     compileOnly.extendsFrom(modCompileOnly)
     modRuntimeOnly
@@ -110,14 +112,11 @@ if (!enable_shadow.toBoolean()) shadowJar.enabled = false
 
 compileJava { sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25 }
 
-jar {
-    archiveClassifier = 'dev'
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    if (configurations.contain.size() > 0) from(configurations.contain) { into '/' }
-    doFirst {
+def configureModManifest = { archiveTask ->
+    archiveTask.doFirst {
         def manifestAttributes = ['ModType': 'CRL']
-        if (configurations.contain.size() > 0) {
-            manifestAttributes['ContainedDeps'] = configurations.contain.collect { it.name }.join(' ')
+        if (project.configurations.contain.size() > 0) {
+            manifestAttributes['ContainedDeps'] = project.configurations.contain.collect { it.name }.join(' ')
             manifestAttributes['NonModDeps'] = true
         }
         if (is_coremod.toBoolean()) {
@@ -125,12 +124,27 @@ jar {
             if (coremod_includes_mod.toBoolean()) manifestAttributes['FMLCorePluginContainsFMLMod'] = true
         }
         if (use_access_transformer.toBoolean()) manifestAttributes['FMLAT'] = access_transformer_locations
-        manifest.attributes(manifestAttributes)
+        archiveTask.manifest.attributes(manifestAttributes)
     }
+}
+
+jar {
+    archiveClassifier = 'dev'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    if (configurations.contain.size() > 0) from(configurations.contain) { into '/' }
     finalizedBy tasks.named(remapTaskName)
 }
 
-shadowJar { configurations = [project.configurations.shadow]; archiveClassifier = 'shadow' }
+shadowJar {
+    configurations = [project.configurations.relocate]
+    archiveClassifier = 'shadow'
+    relocate 'com.electronwill.nightconfig', 'neofontrender.internal.nightconfig'
+    if (project.configurations.contain.size() > 0) {
+        from(project.configurations.contain) { into '/' }
+    }
+}
+configureModManifest(tasks.named('jar').get())
+configureModManifest(tasks.named('shadowJar').get())
 tasks.named(remapTaskName).configure { doFirst { logging.captureStandardOutput LogLevel.INFO }; doLast { logging.captureStandardOutput LogLevel.QUIET } }
 
 compileTestJava { sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25 }

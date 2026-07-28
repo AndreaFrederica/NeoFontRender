@@ -9,6 +9,8 @@
 - Remove the public `RenderingEngine.SKIA` value and raise the integration API version to 4.
 - Replace the bundled Sarasa primary font with Noto Sans SC and make split-package font exclusion
   cover every bundled font format rather than only TTF files.
+- Relocate the bundled NightConfig core/TOML implementation into Neo Font Render's private
+  namespace to avoid Cleanroom class-loader conflicts with LibraryEx and Reagenchant.
 
 ## [0.3.6]
 

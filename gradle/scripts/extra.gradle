@@ -91,6 +91,40 @@ tasks.register('verifyPackageVariants') {
         } finally {
             core.close()
         }
+        [fullFile, coreFile].each { archive ->
+            def jar = new java.util.jar.JarFile(archive)
+            try {
+                def entries = jar.entries().toList()*.name
+                def manifest = jar.manifest?.mainAttributes
+                if (manifest?.getValue('FMLCorePlugin') != coremod_plugin_class_name) {
+                    throw new GradleException("${archive.name} is missing the NeoFontRender coremod manifest entry")
+                }
+                def loaderEntry = coremod_plugin_class_name.replace('.', '/') + '.class'
+                if (!entries.contains(loaderEntry)) {
+                    throw new GradleException("${archive.name} is missing the coremod loader class: ${loaderEntry}")
+                }
+                if (!entries.contains('mixins.neofontrender.json')) {
+                    throw new GradleException("${archive.name} is missing mixins.neofontrender.json")
+                }
+                def declared = (jar.manifest.mainAttributes.getValue('ContainedDeps') ?: '')
+                        .split('\\s+').findAll { !it.isEmpty() }
+                def missing = declared.findAll { !entries.contains(it) }
+                if (!missing.isEmpty()) {
+                    throw new GradleException("${archive.name} is missing declared contained dependencies: ${missing}")
+                }
+                if (entries.any { it.startsWith('com/electronwill/nightconfig/') }) {
+                    throw new GradleException("${archive.name} exposes the upstream NightConfig package")
+                }
+                if (!entries.any { it.startsWith('neofontrender/internal/nightconfig/') }) {
+                    throw new GradleException("${archive.name} is missing relocated NightConfig classes")
+                }
+                if (entries.any { it ==~ /(?i)(core|toml)-[0-9].*\.jar/ }) {
+                    throw new GradleException("${archive.name} contains a nested NightConfig JAR")
+                }
+            } finally {
+                jar.close()
+            }
+        }
     }
 }
 tasks.register('packageVariants') { group = 'build'; dependsOn 'fullJar', 'resourcesJar', 'verifyPackageVariants' }
