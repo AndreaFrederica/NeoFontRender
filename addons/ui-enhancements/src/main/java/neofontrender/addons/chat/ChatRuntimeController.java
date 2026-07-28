@@ -27,6 +27,20 @@ final class ChatRuntimeController {
         replacement.getSentMessages().clear();
         replacement.getSentMessages().addAll(sent);
         ((IGuiIngame) mc.ingameGUI).setPersistantChatGUI(replacement);
-        if (wantTabbed) ChatHistoryManager.INSTANCE.scheduleRestore();
+        // Both directions create or re-activate a different chat backend. Restore persisted
+        // received and sent history whether TabbyChat is being enabled or disabled.
+        ChatHistoryManager.INSTANCE.scheduleRestore();
+    }
+
+    static void refreshLayout() {
+        if (ExternalChatCompat.tabbyChatLoaded()) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.ingameGUI == null) return;
+        GuiNewChat current = mc.ingameGUI.getChatGUI();
+        if (current instanceof GuiNewChatTC) {
+            ((GuiNewChatTC) current).getChatManager().getChatBox().getChatArea().markDirty();
+        } else {
+            current.refreshChat();
+        }
     }
 }

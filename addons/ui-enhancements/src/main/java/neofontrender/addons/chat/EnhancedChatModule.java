@@ -20,6 +20,8 @@ public final class EnhancedChatModule implements UiEnhancementModule {
         if (!ExternalChatCompat.tabbyChatLoaded()) NfrSettingsPageRegistry.register(new TabbedChatSettingsPage());
         if (!ExternalChatCompat.tabbyChatLoaded()) NfrSettingsPageRegistry.register(new ChatStyleSettingsPage());
         MinecraftForge.EVENT_BUS.register(ChatHistoryManager.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(ChatCopyController.INSTANCE);
+        ChatKeyBindings.register();
         if (!ExternalChatCompat.tabbyChatLoaded()) TabbyChat.getInstance().postInit();
     }
 }
