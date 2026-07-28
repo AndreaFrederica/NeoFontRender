@@ -5,6 +5,7 @@ import net.minecraft.client.renderer.texture.ITextureObject;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.core.font.support.VanillaFontTexturePolicy;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -30,7 +31,8 @@ public class MixinTextureManager {
         }
         String path = resourceLoc.getPath();
         if (path.startsWith("textures/font/") || path.startsWith("font/")) {
-            if (NeofontrenderConfig.useVanillaEngine()) {
+            if (VanillaFontTexturePolicy.forceNearest(path)
+                    || NeofontrenderConfig.useVanillaEngine()) {
                 ((AbstractTexture) textureObj).setBlurMipmap(false, false);
                 return;
             }
