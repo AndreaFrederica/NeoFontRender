@@ -3,6 +3,7 @@ package neofontrender.addons.tooltips;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.client.event.GuiOpenEvent;
 import net.minecraftforge.client.event.GuiScreenEvent;
+import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.ui.NfrUiEnhancements;
@@ -28,16 +29,28 @@ public final class TooltipModule implements UiEnhancementModule {
         MinecraftForge.EVENT_BUS.register(new ModernTooltipHandler());
     }
 
-    /** Preserve the scene before GuiScreen draws its background, panels, widgets or tooltips. */
+    /** Preserve the original Mica source immediately before the current GuiScreen is drawn. */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void captureMicaScene(GuiScreenEvent.DrawScreenEvent.Pre event) {
-        if (TooltipConfig.enabled && "mica".equals(TooltipConfig.renderStyle)) {
+    public void captureOriginalMicaScene(GuiScreenEvent.DrawScreenEvent.Pre event) {
+        if (!TooltipConfig.lowBrightnessMicaEnhancement && isMicaEnabled()) {
             MicaBackdrop.captureScene();
         }
+    }
+
+    /** Preserve world and HUD before UIE's screen gradient for low-brightness enhancement. */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void captureMicaSceneAfterHud(RenderGameOverlayEvent.Post event) {
+        if (!TooltipConfig.lowBrightnessMicaEnhancement) return;
+        if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
+        if (isMicaEnabled()) MicaBackdrop.captureScene();
     }
 
     @SubscribeEvent
     public void screenChanged(GuiOpenEvent event) {
         MicaBackdrop.invalidateScene();
+    }
+
+    private static boolean isMicaEnabled() {
+        return TooltipConfig.enabled && "mica".equals(TooltipConfig.renderStyle);
     }
 }

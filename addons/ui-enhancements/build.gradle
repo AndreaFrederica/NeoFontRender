@@ -35,7 +35,10 @@ sourceSets {
 unimined.minecraft {
     version '1.12.2'
     mappings { mcp('stable', '39-1.12') }
-    cleanroom { loader '0.6.1-alpha' }
+    cleanroom {
+        loader '0.6.1-alpha'
+        runs.off = true
+    }
     defaultRemapJar = false
     remap(tasks.named('jar').get())
 }
@@ -109,6 +112,13 @@ tasks.withType(JavaCompile).configureEach {
 test {
     useJUnitPlatform()
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+}
+
+tasks.register('prepareCombinedClientRun', Copy) {
+    dependsOn tasks.named('jar')
+    from(tasks.named('jar').flatMap { it.archiveFile })
+    into rootProject.layout.projectDirectory.dir('run/client/mods')
+    rename { 'neofontrender-ui-enhancements-dev.jar' }
 }
 
 jar {

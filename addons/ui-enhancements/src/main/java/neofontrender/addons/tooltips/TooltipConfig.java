@@ -5,6 +5,7 @@ import neofontrender.addons.ui.UiEnhancementsConfig;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 final class TooltipConfig {
     private static final int[] DEFAULT_FILL = defaults(0xE6101018);
@@ -13,6 +14,7 @@ final class TooltipConfig {
 
     static boolean enabled = true;
     static String renderStyle = "modernui";
+    static boolean lowBrightnessMicaEnhancement = false;
     static boolean yieldToLegendaryTooltips = true;
     static boolean yieldToObscureTooltips = false;
     static boolean heiCustomTooltips = true;
@@ -55,6 +57,8 @@ final class TooltipConfig {
         defineDefaults();
         enabled = config.getBoolean("tooltip.enabled", true);
         renderStyle = normalizeStyle(config.getString("tooltip.style", "modernui"));
+        lowBrightnessMicaEnhancement = config.getBoolean(
+                "tooltip.lowBrightnessMicaEnhancement", false);
         yieldToLegendaryTooltips = config.getBoolean("tooltip.yieldToLegendaryTooltips", true);
         yieldToObscureTooltips = config.getBoolean("tooltip.yieldToObscureTooltips", false);
         heiCustomTooltips = config.getBoolean("tooltip.heiCustomTooltips", true);
@@ -95,6 +99,7 @@ final class TooltipConfig {
     static void save() {
         config.set("tooltip.enabled", enabled)
                 .set("tooltip.style", renderStyle)
+                .set("tooltip.lowBrightnessMicaEnhancement", lowBrightnessMicaEnhancement)
                 .set("tooltip.yieldToLegendaryTooltips", yieldToLegendaryTooltips)
                 .set("tooltip.yieldToObscureTooltips", yieldToObscureTooltips)
                 .set("tooltip.heiCustomTooltips", heiCustomTooltips)
@@ -137,6 +142,8 @@ final class TooltipConfig {
     private static void defineDefaults() {
         config.define("tooltip.enabled", true, "Replace Forge 1.12.2 tooltip layout and background.")
                 .define("tooltip.style", "modernui", "Renderer style: modernui, mica or legacy.")
+                .define("tooltip.lowBrightnessMicaEnhancement", false,
+                        "Use alternate Mica capture and compositing for better legibility in low-brightness scenes.")
                 .define("tooltip.yieldToLegendaryTooltips", true, "Yield when LegendaryTooltips is installed.")
                 .define("tooltip.yieldToObscureTooltips", false, "Let Obscure Tooltips draw its own panel and frame instead of combining its effects with NFR's modern panel.")
                 .define("tooltip.heiCustomTooltips", true, "Apply NFR's panel and frame to HEI tooltips that contain custom-rendered ingredient grids.")
@@ -219,7 +226,7 @@ final class TooltipConfig {
 
     static String normalizeBorderShading(String value) {
         if (value != null) {
-            String normalized = value.trim().toLowerCase(java.util.Locale.ROOT);
+            String normalized = value.trim().toLowerCase(Locale.ROOT);
             if ("solid".equals(normalized) || "horizontal".equals(normalized)
                     || "vertical".equals(normalized) || "spectrum".equals(normalized)) {
                 return normalized;
@@ -233,6 +240,7 @@ final class TooltipConfig {
     static final class Snapshot {
         private final boolean originalEnabled = enabled;
         private final String originalRenderStyle = renderStyle;
+        private final boolean originalLowBrightnessMicaEnhancement = lowBrightnessMicaEnhancement;
         private final boolean originalYield = yieldToLegendaryTooltips;
         private final boolean originalYieldObscure = yieldToObscureTooltips;
         private final boolean originalHeiCustomTooltips = heiCustomTooltips;
@@ -270,6 +278,7 @@ final class TooltipConfig {
 
         void restore() {
             enabled = originalEnabled; renderStyle = originalRenderStyle;
+            lowBrightnessMicaEnhancement = originalLowBrightnessMicaEnhancement;
             yieldToLegendaryTooltips = originalYield; rounded = originalRounded;
             yieldToObscureTooltips = originalYieldObscure;
             heiCustomTooltips = originalHeiCustomTooltips;

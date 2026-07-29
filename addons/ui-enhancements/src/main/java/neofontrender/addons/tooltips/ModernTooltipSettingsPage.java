@@ -11,6 +11,8 @@ import neofontrender.addons.ui.NfrUiEnhancements;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 
 final class ModernTooltipSettingsPage implements NfrSettingsPage {
     @Override public String id() { return NfrUiEnhancements.MOD_ID + ":tooltips"; }
@@ -31,6 +33,10 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             value -> TooltipConfig.renderStyle = TooltipConfig.normalizeStyle(value),
                             Arrays.asList("modernui", "mica", "legacy"),
                             value -> tr("gui.style." + value)).size(260, 24))
+                    .add(c.toggleText(() -> tr("gui.low_brightness_mica_enhancement"),
+                            () -> tr("tooltip.low_brightness_mica_enhancement"),
+                            () -> TooltipConfig.lowBrightnessMicaEnhancement,
+                            value -> TooltipConfig.lowBrightnessMicaEnhancement = value))
                     .add(c.toggleText(() -> tr("gui.legendary"), () -> tr("tooltip.legendary"),
                             () -> TooltipConfig.yieldToLegendaryTooltips, value -> TooltipConfig.yieldToLegendaryTooltips = value))
                     .add(c.toggleText(() -> tr("gui.obscure_yield"), () -> tr("tooltip.obscure_yield"),
@@ -152,8 +158,7 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
         }
 
         private static IWidget colorPicker(NfrSettingsControls controls, String name, String label,
-                                           java.util.function.IntSupplier getter,
-                                           java.util.function.IntConsumer setter) {
+                                           IntSupplier getter, IntConsumer setter) {
             return controls.colorText(name, () -> tr(label), getter, setter, true).size(260, 24);
         }
 

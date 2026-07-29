@@ -59,6 +59,8 @@ final class ModernUiTooltipShader {
             uniform1(shader, "uSpectrumOffset", spectrumOffset);
             uniform1(shader, "uSpectrumAlpha", Color.alpha(border[0]) / 255.0F);
             uniform1(shader, "uMaterialMode", mica ? 1.0F : 0.0F);
+            uniform1(shader, "uLowBrightnessMicaEnhancement",
+                    TooltipConfig.lowBrightnessMicaEnhancement ? 1.0F : 0.0F);
             uniform1(shader, "uBackdropEnabled", backdrop == null ? 0.0F : 1.0F);
             if (backdrop != null) {
                 GL11.glBindTexture(GL11.GL_TEXTURE_2D, backdrop.texture);

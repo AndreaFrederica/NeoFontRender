@@ -46,6 +46,7 @@ unimined.minecraft {
             accessTransformer "${rootProject.projectDir}/src/main/resources/$access_transformer_locations"
         }
         loader '0.6.1-alpha'
+        runs.preLaunch('client', ':addons:ui-enhancements:prepareCombinedClientRun')
         runs.all {
             args += ['--username', minecraft_username]
             // ModularUI's early Minecraft mixin is required for its key-binding accessors,
@@ -101,8 +102,8 @@ idea {
     project.settings {
         runConfigurations {
             '1. Build'(Gradle) { taskNames = ['build'] }
-            '2. Run Client'(Gradle) { taskNames = ['runClient'] }
-            '3. Run Server'(Gradle) { taskNames = ['runServer'] }
+            '2. Run Client'(Gradle) { taskNames = [':runClient'] }
+            '3. Run Server'(Gradle) { taskNames = [':runServer'] }
         }
         taskTriggers { afterSync tasks.named('genSources') }
     }
