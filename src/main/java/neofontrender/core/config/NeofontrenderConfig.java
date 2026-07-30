@@ -25,6 +25,7 @@ public final class NeofontrenderConfig {
     private static final String CONFIG_NAME = "neofontrender.toml";
     private static final String DEFAULT_FONT_NAME = "Noto Sans SC";
     private static final String DEFAULT_FONT = "neofontrender:fonts/noto_sans_sc-regular.otf";
+    private static final String ENCHANTMENT_FONT = "neofontrender:fonts/sric_minecraft_words.ttf";
     private static Path configPath;
     private static CommentedFileConfig config;
     private static volatile Snapshot cached = Snapshot.defaults();
@@ -392,6 +393,10 @@ public final class NeofontrenderConfig {
         return cached.fixUnicodeTextDeletion;
     }
 
+    public static boolean fixCjkLineBreak() {
+        return cached.fixCjkLineBreak;
+    }
+
     public static boolean laboratoryHexChat() {
         return cached.laboratoryHexChat;
     }
@@ -406,6 +411,23 @@ public final class NeofontrenderConfig {
 
     public static boolean compatTinkersConstruct() {
         return cached.compatTinkersConstruct;
+    }
+
+    /** vanilla, auto, awt, or cosmic. Only the enchanting-table magic text consumes this. */
+    public static String enchantmentFontBackend() {
+        String value = config.getOrElse("enchantment.backend", "awt");
+        value = value == null ? "awt" : value.trim().toLowerCase(Locale.ROOT);
+        return Arrays.asList("vanilla", "auto", "awt", "cosmic").contains(value) ? value : "awt";
+    }
+
+    public static List<String> enchantmentFonts() {
+        Set<String> fonts = new LinkedHashSet<>();
+        Object value = config.get("enchantment.fonts");
+        if (value instanceof List) for (Object entry : (List<?>) value) {
+            if (entry != null) addFontNames(fonts, entry.toString());
+        } else if (value != null) addFontNames(fonts, value.toString());
+        if (fonts.isEmpty()) fonts.add(ENCHANTMENT_FONT);
+        return Collections.unmodifiableList(new ArrayList<>(fonts));
     }
 
     public static boolean splashFontOverrideEnabled() {
@@ -548,6 +570,10 @@ public final class NeofontrenderConfig {
         setValue("input.fixUnicodeTextDeletion", value);
     }
 
+    public static void setFixCjkLineBreak(boolean value) {
+        setValue("fix.cjkLineBreak", value);
+    }
+
     public static void setLaboratoryHexChat(boolean value) {
         setValue("laboratory.hexChat", value);
     }
@@ -562,6 +588,18 @@ public final class NeofontrenderConfig {
 
     public static void setCompatTinkersConstruct(boolean value) {
         setValue("compat.tinkersconstruct.enabled", value);
+    }
+
+    public static void setEnchantmentFontBackend(String value) {
+        String backend = value == null ? "vanilla" : value.trim().toLowerCase(Locale.ROOT);
+        setValue("enchantment.backend", Arrays.asList("vanilla", "auto", "awt", "cosmic").contains(backend)
+                ? backend : "vanilla");
+    }
+
+    public static void setEnchantmentFonts(List<String> value) {
+        List<String> fonts = value == null ? new ArrayList<>() : new ArrayList<>(normalizeFontValues(value));
+        if (fonts.isEmpty()) fonts.add(ENCHANTMENT_FONT);
+        setValue("enchantment.fonts", fonts);
     }
 
     public static void setSplashFontOverrideEnabled(boolean value) {
@@ -920,6 +958,9 @@ public final class NeofontrenderConfig {
             w.write("allowSignPaste = true\n");
             w.write("fixUnicodeTextDeletion = true\n");
             w.write("\n");
+            w.write("[fix]\n");
+            w.write("cjkLineBreak = true\n");
+            w.write("\n");
             w.write("[laboratory]\n");
             w.write("hexChat = false\n");
             w.write("textUndoRedo = false\n");
@@ -927,6 +968,10 @@ public final class NeofontrenderConfig {
             w.write("[compat]\n");
             w.write("modernsplash.enabled = true\n");
             w.write("tinkersconstruct.enabled = true\n");
+            w.write("\n");
+            w.write("[enchantment]\n");
+            w.write("backend = \"awt\"\n");
+            w.write("fonts = [\"" + ENCHANTMENT_FONT + "\"]\n");
             w.write("\n");
             w.write("[splash]\n");
             w.write("enabled = true\n");
@@ -961,6 +1006,9 @@ public final class NeofontrenderConfig {
         config.setComment("font.cosmic.italic", "Cosmic italic face override: system face name, local font path, or resource location.");
         config.setComment("font.cosmic.boldItalic", "Cosmic bold-italic face override: system face name, local font path, or resource location.");
         config.setComment("font.cosmic.variantOverridesOnlySwitchFont", "For non-regular overrides, select the configured font without additionally requesting bold or italic styling. Empty overrides still use automatic family style matching.");
+        config.setComment("enchantment", "Scoped rendering for the three magic-name lines in the enchanting table only.");
+        config.setComment("enchantment.backend", "Backend for enchanting-table magic names: vanilla, auto, awt, or cosmic.");
+        config.setComment("enchantment.fonts", "Editable ordered font list used only by non-vanilla enchanting-table magic names.");
         config.setComment("shadow", "Text shadow rendering options.");
         config.setComment("shadow.length", "Shadow offset distance in pixels.");
         config.setComment("shadow.modern", "Bake a colored soft shadow into the modern backend texture for a single foreground submission.");
@@ -973,6 +1021,8 @@ public final class NeofontrenderConfig {
         config.setComment("shadow.maskFonts", "Comma-separated font families whose displayable code points skip shadows in mask mode.");
         config.setComment("shadow.maskCodepoints", "Comma-separated Unicode code points/ranges whose shadows are skipped, e.g. 1F300-1FAFF,2600-27BF.");
         config.setComment("input.fixUnicodeTextDeletion", "Delete a whole Unicode code point in text fields instead of half of an emoji surrogate pair.");
+        config.setComment("fix", "Compatibility and text-behavior fixes.");
+        config.setComment("fix.cjkLineBreak", "Allow CJK wrapping opportunities while enforcing basic line-start and line-end punctuation rules.");
         config.setComment("laboratory.textUndoRedo", "Enable per-field undo/redo history in vanilla and ModularUI text inputs (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z).");
         config.setComment("laboratory.hexChat", "Experimental #RRGGBB chat rendering for the Cosmic text backend.");
         config.setComment("compat", "Compatibility options for third-party mods.");
@@ -1067,6 +1117,7 @@ public final class NeofontrenderConfig {
         private final boolean debugRenderStats;
         private final boolean allowSignPaste;
         private final boolean fixUnicodeTextDeletion;
+        private final boolean fixCjkLineBreak;
         private final boolean laboratoryHexChat;
         private final boolean laboratoryTextUndoRedo;
         private final boolean compatModernSplash;
@@ -1144,6 +1195,7 @@ public final class NeofontrenderConfig {
             debugRenderStats = false;
             allowSignPaste = true;
             fixUnicodeTextDeletion = true;
+            fixCjkLineBreak = true;
             laboratoryHexChat = false;
             laboratoryTextUndoRedo = false;
             compatModernSplash = true;
@@ -1222,6 +1274,7 @@ public final class NeofontrenderConfig {
             debugRenderStats = config.getOrElse("debug.renderStats", false);
             allowSignPaste = config.getOrElse("input.allowSignPaste", true);
             fixUnicodeTextDeletion = config.getOrElse("input.fixUnicodeTextDeletion", true);
+            fixCjkLineBreak = config.getOrElse("fix.cjkLineBreak", true);
             laboratoryHexChat = config.getOrElse("laboratory.hexChat", false);
             laboratoryTextUndoRedo = config.getOrElse("laboratory.textUndoRedo", false);
             compatModernSplash = config.getOrElse("compat.modernsplash.enabled", true);

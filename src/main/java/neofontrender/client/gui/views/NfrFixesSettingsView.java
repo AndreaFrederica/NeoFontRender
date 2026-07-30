@@ -18,6 +18,8 @@ public final class NfrFixesSettingsView extends NfrContentView<NfrFixesSettingsV
                         () -> d.fixImeInput, value -> d.fixImeInput = value))
                 .add(c.toggle("neofontrender.gui.option.fix_unicode_delete", "neofontrender.tooltip.fix_unicode_delete",
                         () -> d.fixUnicodeTextDeletion, value -> d.fixUnicodeTextDeletion = value))
+                .add(c.toggle("neofontrender.gui.option.fix_cjk_line_break", "neofontrender.tooltip.fix_cjk_line_break",
+                        () -> d.fixCjkLineBreak, value -> d.fixCjkLineBreak = value))
                 .add(c.toggle("neofontrender.gui.option.sign_paste", "neofontrender.tooltip.sign_paste",
                         () -> d.allowSignPaste, value -> d.allowSignPaste = value));
     }

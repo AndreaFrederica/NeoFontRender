@@ -1,8 +1,10 @@
 package neofontrender.addons.mixin;
 
 import net.minecraft.client.gui.GuiSlot;
+import neofontrender.addons.language.LanguageListSearchAccess;
 import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
 import neofontrender.addons.scrolling.SmoothScrollController;
+import org.lwjgl.opengl.GL11;
 import org.lwjglx.input.Mouse;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -27,7 +29,33 @@ public abstract class MixinGuiSlotSmoothScroll {
             nfrUi$scroller.sync(amountScrolled);
             return;
         }
-        amountScrolled = nfrUi$scroller.update(amountScrolled, func_148135_f());
+        // 1.7.10 handles scrollbar drags and trough paging inside drawScreen polling, before
+        // bindAmountScrolled. While the mouse drives the list, mirror vanilla's position
+        // directly instead of easing toward a stale target that swallows the movement.
+        if (Mouse.isButtonDown(0) && initialClickY != -1.0F) {
+            nfrUi$scroller.sync(amountScrolled);
+            return;
+        }
+        amountScrolled = (Object) this instanceof LanguageListSearchAccess
+                ? nfrUi$scroller.updateContinuous(amountScrolled, func_148135_f())
+                : nfrUi$scroller.update(amountScrolled, func_148135_f());
+    }
+
+    @Inject(method = "drawScreen", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/GuiSlot;drawSelectionBox(IIII)V"))
+    private void nfrUi$beginSubpixelListTranslation(int mouseX, int mouseY, float partialTicks,
+                                                    CallbackInfo callback) {
+        GL11.glPushMatrix();
+        float fraction = amountScrolled - (float) Math.floor(amountScrolled);
+        GL11.glTranslatef(0.0F, -fraction, 0.0F);
+    }
+
+    @Inject(method = "drawScreen", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/GuiSlot;drawSelectionBox(IIII)V",
+            shift = At.Shift.AFTER))
+    private void nfrUi$endSubpixelListTranslation(int mouseX, int mouseY, float partialTicks,
+                                                  CallbackInfo callback) {
+        GL11.glPopMatrix();
     }
 
     @Redirect(

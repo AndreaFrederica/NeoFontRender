@@ -28,6 +28,12 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
         private final boolean originalPersistence = EnhancedChatConfig.persistence;
         private final boolean originalReceived = EnhancedChatConfig.persistReceived;
         private final boolean originalSent = EnhancedChatConfig.persistSent;
+        private final boolean originalPlayerHeads = EnhancedChatConfig.playerHeads;
+        private final boolean originalHeadShadow = EnhancedChatConfig.headShadow;
+        private final boolean originalItemIcons = EnhancedChatConfig.itemIcons;
+        private final boolean originalCopySelection = EnhancedChatConfig.copySelection;
+        private final boolean originalCopyFormattingCodes = EnhancedChatConfig.copyFormattingCodes;
+        private final boolean originalAmpersandFormatting = EnhancedChatConfig.ampersandFormatting;
         private final boolean originalTabbed = EnhancedChatConfig.tabbedChat;
         private final boolean originalSmooth = SmoothScrollConfigAccess.chatConfigured();
         private final boolean originalAnimateMessages = EnhancedChatConfig.animateMessages;
@@ -85,6 +91,36 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
                             () -> tr("tooltip.chat.persist_sent"),
                             () -> EnhancedChatConfig.persistSent,
                             value -> EnhancedChatConfig.persistSent = value))
+                    .add(controls.toggleText(
+                            () -> tr("gui.chat.player_heads"),
+                            () -> tr("tooltip.chat.player_heads"),
+                            () -> EnhancedChatConfig.playerHeads,
+                            value -> EnhancedChatConfig.playerHeads = value))
+                    .add(controls.toggleText(
+                            () -> tr("gui.chat.head_shadow"),
+                            () -> "",
+                            () -> EnhancedChatConfig.headShadow,
+                            value -> EnhancedChatConfig.headShadow = value))
+                    .add(controls.toggleText(
+                            () -> tr("gui.chat.item_icons"),
+                            () -> tr("tooltip.chat.item_icons"),
+                            () -> EnhancedChatConfig.itemIcons,
+                            value -> EnhancedChatConfig.itemIcons = value))
+                    .add(controls.toggleText(
+                            () -> tr("gui.chat.copy_selection"),
+                            () -> tr("tooltip.chat.copy_selection"),
+                            () -> EnhancedChatConfig.copySelection,
+                            value -> EnhancedChatConfig.copySelection = value))
+                    .add(controls.toggleText(
+                            () -> tr("gui.chat.copy_formatting"),
+                            () -> "",
+                            () -> EnhancedChatConfig.copyFormattingCodes,
+                            value -> EnhancedChatConfig.copyFormattingCodes = value))
+                    .add(controls.toggleText(
+                            () -> tr("gui.chat.copy_ampersand"),
+                            () -> "",
+                            () -> EnhancedChatConfig.ampersandFormatting,
+                            value -> EnhancedChatConfig.ampersandFormatting = value))
                     .add(controls.toggleText(
                             () -> tr("gui.chat.animate_messages"),
                             () -> tr("tooltip.chat.animate_messages"),
@@ -164,6 +200,12 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
             EnhancedChatConfig.persistence = originalPersistence;
             EnhancedChatConfig.persistReceived = originalReceived;
             EnhancedChatConfig.persistSent = originalSent;
+            EnhancedChatConfig.playerHeads = originalPlayerHeads;
+            EnhancedChatConfig.headShadow = originalHeadShadow;
+            EnhancedChatConfig.itemIcons = originalItemIcons;
+            EnhancedChatConfig.copySelection = originalCopySelection;
+            EnhancedChatConfig.copyFormattingCodes = originalCopyFormattingCodes;
+            EnhancedChatConfig.ampersandFormatting = originalAmpersandFormatting;
             EnhancedChatConfig.tabbedChat = originalTabbed;
             EnhancedChatConfig.animateMessages = originalAnimateMessages;
             EnhancedChatConfig.messageAnimationDuration = originalMessageDuration;

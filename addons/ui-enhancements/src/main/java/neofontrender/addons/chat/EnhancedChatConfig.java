@@ -11,6 +11,12 @@ final class EnhancedChatConfig {
     static boolean persistence = true;
     static boolean persistReceived = true;
     static boolean persistSent = true;
+    static boolean playerHeads = true;
+    static boolean headShadow = true;
+    static boolean itemIcons = true;
+    static boolean copySelection = true;
+    static boolean copyFormattingCodes = false;
+    static boolean ampersandFormatting = false;
     static boolean tabbedChat = true;
     static boolean animateMessages = true;
     static int messageAnimationDuration = 150;
@@ -28,9 +34,15 @@ final class EnhancedChatConfig {
         file.define("chat.enabled", true, "Master switch for vanilla chat enhancements.")
                 .define("chat.extendedHistory", true, "Increase vanilla's 100-message history limit.")
                 .define("chat.maxMessages", 16384, "Maximum retained received and sent messages (100-32767).")
-                .define("chat.persistence", true, "Restore chat across worlds, servers, and game restarts.")
+                .define("chat.persistence", true, "Restore chat for the same world or server across reconnects and game restarts.")
                 .define("chat.persistReceived", true, "Persist received components with formatting and events.")
                 .define("chat.persistSent", true, "Persist sent-message and command history.")
+                .define("chat.playerHeads", true, "Display cached player heads next to chat messages.")
+                .define("chat.playerHeadShadow", true, "Draw a one-pixel shadow behind chat heads.")
+                .define("chat.itemIcons", true, "Display item icons beside SHOW_ITEM chat components.")
+                .define("chat.copySelection", true, "Copy chat text by dragging over it while chat is open.")
+                .define("chat.copyFormattingCodes", false, "Include Minecraft formatting codes in copied text.")
+                .define("chat.copyAmpersandFormatting", false, "Write copied formatting codes with & instead of section signs.")
                 .define("chat.tabbedChat", true, "Use the embedded TabbyChat interface when no external TabbyChat is loaded.")
                 .define("chat.animation.messages", true, "Animate newly received messages.")
                 .define("chat.animation.messageDuration", 150, "Message entrance duration in milliseconds.")
@@ -46,6 +58,12 @@ final class EnhancedChatConfig {
         persistence = file.getBoolean("chat.persistence", true);
         persistReceived = file.getBoolean("chat.persistReceived", true);
         persistSent = file.getBoolean("chat.persistSent", true);
+        playerHeads = file.getBoolean("chat.playerHeads", true);
+        headShadow = file.getBoolean("chat.playerHeadShadow", true);
+        itemIcons = file.getBoolean("chat.itemIcons", true);
+        copySelection = file.getBoolean("chat.copySelection", true);
+        copyFormattingCodes = file.getBoolean("chat.copyFormattingCodes", false);
+        ampersandFormatting = file.getBoolean("chat.copyAmpersandFormatting", false);
         tabbedChat = file.getBoolean("chat.tabbedChat", true);
         animateMessages = file.getBoolean("chat.animation.messages", true);
         messageAnimationDuration = file.getInt("chat.animation.messageDuration", 150, 10, 1000);
@@ -66,6 +84,12 @@ final class EnhancedChatConfig {
                 .set("chat.persistence", persistence)
                 .set("chat.persistReceived", persistReceived)
                 .set("chat.persistSent", persistSent)
+                .set("chat.playerHeads", playerHeads)
+                .set("chat.playerHeadShadow", headShadow)
+                .set("chat.itemIcons", itemIcons)
+                .set("chat.copySelection", copySelection)
+                .set("chat.copyFormattingCodes", copyFormattingCodes)
+                .set("chat.copyAmpersandFormatting", ampersandFormatting)
                 .set("chat.tabbedChat", tabbedChat)
                 .set("chat.animation.messages", animateMessages)
                 .set("chat.animation.messageDuration", messageAnimationDuration)
@@ -77,5 +101,7 @@ final class EnhancedChatConfig {
                 .set("chat.animation.inputEasing", inputAnimationEasing)
                 .save();
         ChatHistoryManager.INSTANCE.configChanged();
+        ChatRuntimeController.sync();
+        ChatRuntimeController.refreshLayout();
     }
 }

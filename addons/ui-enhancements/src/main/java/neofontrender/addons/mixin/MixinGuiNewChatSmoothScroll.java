@@ -4,6 +4,9 @@ import net.minecraft.client.gui.ChatLine;
 import net.minecraft.client.gui.GuiNewChat;
 import net.minecraft.util.IChatComponent;
 import neofontrender.addons.chat.ChatAnimationController;
+import neofontrender.addons.chat.ChatHeadRenderer;
+import neofontrender.addons.chat.ChatItemIconRenderer;
+import neofontrender.addons.chat.VanillaChatRenderState;
 import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
 import neofontrender.addons.scrolling.SmoothScrollController;
 import org.lwjgl.opengl.GL11;
@@ -19,7 +22,7 @@ import java.util.List;
 
 /** Animates GuiNewChat's integer line scroll position with a fractional render offset. */
 @Mixin(GuiNewChat.class)
-public abstract class MixinGuiNewChatSmoothScroll {
+public abstract class MixinGuiNewChatSmoothScroll implements VanillaChatRenderState {
     @Shadow private List<ChatLine> field_146253_i;
     @Shadow private int field_146250_j;
     @Shadow private boolean field_146251_k;
@@ -29,6 +32,7 @@ public abstract class MixinGuiNewChatSmoothScroll {
     @Unique private final SmoothScrollController nfrUi$chatScroller = new SmoothScrollController();
     @Unique private boolean nfrUi$translated;
     @Unique private float nfrUi$fraction;
+    @Unique private float nfrUi$visualOffset;
 
     @Inject(method = "printChatMessageWithOptionalDeletion", at = @At("HEAD"))
     private void nfrUi$messageAdded(IChatComponent component, int id, CallbackInfo callback) {
@@ -52,6 +56,7 @@ public abstract class MixinGuiNewChatSmoothScroll {
     private void nfrUi$beforeDraw(int updateCounter, CallbackInfo callback) {
         nfrUi$translated = false;
         nfrUi$fraction = 0.0F;
+        nfrUi$visualOffset = 0.0F;
         if (!SmoothScrollConfigAccess.chatEnabled()) {
             nfrUi$chatScroller.sync(field_146250_j);
             return;
@@ -62,6 +67,7 @@ public abstract class MixinGuiNewChatSmoothScroll {
         nfrUi$fraction = position - field_146250_j;
         float messageOffset = ChatAnimationController.messageOffset(field_146250_j != 0) * func_146244_h();
         float totalOffset = nfrUi$fraction * 9.0F * func_146244_h() + messageOffset;
+        nfrUi$visualOffset = totalOffset;
         if (Math.abs(totalOffset) > 0.001F) {
             GL11.glPushMatrix();
             GL11.glTranslatef(0.0F, totalOffset, 0.0F);
@@ -80,6 +86,10 @@ public abstract class MixinGuiNewChatSmoothScroll {
 
     @Inject(method = "drawChat", at = @At("RETURN"))
     private void nfrUi$afterDraw(int updateCounter, CallbackInfo callback) {
+        ChatHeadRenderer.renderVanilla(field_146253_i, field_146250_j, updateCounter,
+                func_146232_i(), func_146244_h());
+        ChatItemIconRenderer.renderVanilla(field_146253_i, field_146250_j, updateCounter,
+                func_146232_i(), func_146244_h());
         if (nfrUi$translated) GL11.glPopMatrix();
         nfrUi$translated = false;
     }
@@ -87,5 +97,10 @@ public abstract class MixinGuiNewChatSmoothScroll {
     @Unique
     private float nfrUi$maxScroll() {
         return Math.max(0, field_146253_i.size() - func_146232_i());
+    }
+
+    @Override
+    public float nfrUi$getVisualOffset() {
+        return nfrUi$visualOffset;
     }
 }

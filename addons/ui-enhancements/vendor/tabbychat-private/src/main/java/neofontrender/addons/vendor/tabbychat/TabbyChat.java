@@ -64,6 +64,10 @@ public class TabbyChat {
         return instance;
     }
 
+    public static boolean isStarted() {
+        return instance != null;
+    }
+
     public static Logger getLogger() {
         return LOGGER;
     }

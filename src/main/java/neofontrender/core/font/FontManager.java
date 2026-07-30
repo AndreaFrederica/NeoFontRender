@@ -21,6 +21,8 @@ import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 /**
  * Top-level manager for the replacement font system.
@@ -37,6 +39,7 @@ public class FontManager implements AutoCloseable {
     private FontSet defaultFontSet;
     private TextRenderBackend textRenderBackend;
     private AwtModernTextRenderer modernAwtTextRenderer;
+    private final Map<String, TextRenderBackend> scopedBackends = new LinkedHashMap<>();
     private boolean active = false;
     private boolean cosmicActive = false;
     private String backendVersion = "vanilla Minecraft font renderer";
@@ -118,6 +121,19 @@ public class FontManager implements AutoCloseable {
             }
         }
 
+        if (ttfLoaded) {
+            try {
+                AwtTtfGlyphProvider systemFallback = loadAwtFont(resourceManager, null, rasterScale, true);
+                if (systemFallback != null) {
+                    providers.add(systemFallback);
+                    NeoFontRender.LOGGER.info(
+                            "Loaded Java SansSerif composite as the final adaptive system-font fallback");
+                }
+            } catch (Exception e) {
+                NeoFontRender.LOGGER.warn("Failed to load adaptive system-font fallback", e);
+            }
+        }
+
         if (!ttfLoaded) {
             try {
                 AwtTtfGlyphProvider ttf = loadAwtFont(resourceManager, null, rasterScale, true);
@@ -180,6 +196,7 @@ public class FontManager implements AutoCloseable {
 
     private void resetVanillaFontTextureFiltering() {
         resetTextureFiltering(new ResourceLocation("textures/font/ascii.png"));
+        resetTextureFiltering(new ResourceLocation("textures/font/ascii_sga.png"));
         for (int page = 0; page < 256; page++) {
             resetTextureFiltering(new ResourceLocation(String.format("textures/font/unicode_page_%02x.png", page)));
         }
@@ -250,6 +267,34 @@ public class FontManager implements AutoCloseable {
         return textRenderBackend instanceof CosmicTextRenderer ? (CosmicTextRenderer) textRenderBackend : null;
     }
 
+    /** Returns a cached backend for a scoped font request. Custom font lists use the AWT adapter;
+     * COSMIC/AUTO use the active native backend when the request does not override the family. */
+    public synchronized TextRenderBackend getScopedTextBackend(neofontrender.api.text.FontRenderSpec spec) {
+        if (spec == null || spec.backend() == neofontrender.api.text.FontRenderBackend.VANILLA) return null;
+        boolean requestCosmic = spec.backend() == neofontrender.api.text.FontRenderBackend.COSMIC
+                || spec.backend() == neofontrender.api.text.FontRenderBackend.AUTO && isCosmicActive();
+        if (requestCosmic && spec.fonts().isEmpty() && textRenderBackend != null && textRenderBackend.isReady()) {
+            return textRenderBackend;
+        }
+        String key = spec.backend() + "|" + spec.size() + "|" + spec.fonts();
+        TextRenderBackend cached = scopedBackends.get(key);
+        if (cached != null && cached.isReady()) return cached;
+        if (textureManager == null || resourceManager == null) return null;
+        TextRenderBackend created = null;
+        if (requestCosmic && CosmicRuntimeSupport.ensureLoaded().isSupported()) {
+            try {
+                created = new CosmicTextRenderer(textureManager, resourceManager, spec);
+            } catch (Exception error) {
+                NeoFontRender.LOGGER.warn(
+                        "Scoped Cosmic renderer failed; falling back to AWT", error);
+            }
+        }
+        if (created == null) created = new AwtModernTextRenderer(textureManager, resourceManager,
+                spec.fonts().isEmpty() ? NeofontrenderConfig.fontFamily() : spec.fonts());
+        scopedBackends.put(key, created);
+        return created;
+    }
+
     @Override
     public synchronized void close() {
         if (modernAwtTextRenderer != null) {
@@ -264,6 +309,10 @@ public class FontManager implements AutoCloseable {
             textRenderBackend.close();
             textRenderBackend = null;
         }
+        for (TextRenderBackend backend : scopedBackends.values()) {
+            if (backend != textRenderBackend) backend.close();
+        }
+        scopedBackends.clear();
         active = false;
         cosmicActive = false;
     }

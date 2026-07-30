@@ -35,6 +35,7 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
 
     private final TextureManager textureManager;
     private final IResourceManager resourceManager;
+    private final List<String> selectors;
     private final LinkedHashMap<SizeKey, FontSet> fontSets =
             new LinkedHashMap<>(8, 0.75F, true);
     private final LinkedHashMap<LayoutKey, TextRenderResult> layouts =
@@ -42,8 +43,15 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
     private int nextAtlasId;
 
     public AwtModernTextRenderer(TextureManager textureManager, IResourceManager resourceManager) {
+        this(textureManager, resourceManager, NeofontrenderConfig.fontFamily());
+    }
+
+    public AwtModernTextRenderer(TextureManager textureManager, IResourceManager resourceManager,
+                                 List<String> selectors) {
         this.textureManager = textureManager;
         this.resourceManager = resourceManager;
+        this.selectors = selectors == null || selectors.isEmpty()
+                ? NeofontrenderConfig.fontFamily() : new ArrayList<>(selectors);
     }
 
     @Override
@@ -132,7 +140,7 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
 
         List<GlyphProvider> providers = new ArrayList<>();
         float ratio = fontSize / Math.max(1.0F, NeofontrenderConfig.fontSize());
-        for (String selector : NeofontrenderConfig.fontFamily()) {
+        for (String selector : selectors) {
             try {
                 AwtTtfGlyphProvider provider = AwtTtfGlyphProvider.load(
                         resourceManager, selector, fontSize, rasterScale, 0.0F, 0.0F,

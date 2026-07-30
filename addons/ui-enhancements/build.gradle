@@ -114,7 +114,9 @@ processResources {
 jar {
     archiveClassifier = 'dev'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(configurations.contain) { into '/' }
+    // Unpack contained dependencies flat into the jar. The ContainedDeps nested-jar mechanism
+    // does not come online for this dev-launched coremod on 1.7.10, leaving classes unreadable.
+    from(provider { configurations.contain.collect { it.isDirectory() ? it : zipTree(it) } })
     from(mixinRefMap)
     from('NOTICE.md') {
         into 'META-INF'
@@ -122,9 +124,7 @@ jar {
     }
     manifest.attributes(
             'FMLCorePlugin': 'neofontrender.addons.mixin.UiEnhancementsMixinLoader',
-            'FMLCorePluginContainsFMLMod': 'true',
-            'ContainedDeps': configurations.contain.collect { it.name }.join(' '),
-            'NonModDeps': true)
+            'FMLCorePluginContainsFMLMod': 'true')
 }
 
 tasks.register('reobfJar', reobfuscatedJarType) {

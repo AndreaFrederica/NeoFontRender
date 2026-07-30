@@ -93,10 +93,43 @@ class AddonI18nTest {
         add(keys, "neofontrender_ui_enhancements.gui.hud.",
                 "category enabled yield_classic health absorption armor food air mount numbers smooth rounded width height gap "
                         + "background border health_low health_high absorption_color armor_color food_color saturation_color "
-                        + "theme theme.modern theme.flat theme.glass theme.segmented theme.minimal theme.classic air_color mount_color");
+                        + "theme theme.modern theme.flat theme.glass theme.segmented theme.minimal theme.classic air_color mount_color "
+                        + "icons text_position text_position.center text_position.classic text_scale toughness toughness_color");
         add(keys, "neofontrender_ui_enhancements.tooltip.hud.",
-                "enabled yield_classic health absorption armor food air mount numbers smooth rounded");
+                "enabled yield_classic health absorption armor food air mount numbers smooth rounded icons toughness");
         add(keys, "neofontrender_ui_enhancements.gui.unit.", "pixels milliseconds");
+        add(keys, "neofontrender_ui_enhancements.gui.chat.",
+                "context.cut context.copy context.copy_plain context.copy_formatted context.copy_ampersand "
+                        + "context.paste context.select_all player_heads head_shadow item_icons copy_selection "
+                        + "copy_formatting copy_ampersand");
+        add(keys, "neofontrender_ui_enhancements.tooltip.chat.",
+                "player_heads item_icons copy_selection");
+        add(keys, "neofontrender_ui_enhancements.gui.main_menu.", "category continue_game");
+        add(keys, "neofontrender_ui_enhancements.main_menu.",
+                "continue_game singleplayer server folder address");
+        add(keys, "neofontrender_ui_enhancements.tooltip.main_menu.", "continue_game");
+        add(keys, "neofontrender_ui_enhancements.gui.create_world.",
+                "category theme theme.vanilla theme.modernui theme.tabbed");
+        add(keys, "neofontrender_ui_enhancements.create_world.", "game world");
+        add(keys, "neofontrender_ui_enhancements.tooltip.create_world.", "theme");
+        add(keys, "neofontrender_ui_enhancements.gui.zoom.",
+                "category enabled magnification mouse_sensitivity smooth_camera smooth_transition transition_duration");
+        add(keys, "neofontrender_ui_enhancements.tooltip.zoom.",
+                "enabled mouse_sensitivity smooth_camera smooth_transition");
+        add(keys, "neofontrender_ui_enhancements.gui.resource_reload.",
+                "category enabled accent_color language percentage progress_bar resource_packs spinner text_color");
+        add(keys, "neofontrender_ui_enhancements.loading.resource_reload.",
+                "finalizing language languages listeners packs preparing renderers resource_packs");
+        add(keys, "neofontrender_ui_enhancements.tooltip.resource_reload.", "enabled percentage");
+        add(keys, "neofontrender_ui_enhancements.gui.hover.",
+                "category enabled buttons enter exit slots slot_enter slot_exit slot_color "
+                        + "jei_ingredient_grid modularui_slots modularui_theme_color instant");
+        add(keys, "neofontrender_ui_enhancements.tooltip.hover.",
+                "enabled buttons slots jei_ingredient_grid modularui_slots modularui_theme_color");
+        add(keys, "neofontrender_ui_enhancements.language.", "search");
+        add(keys, "key.categories.", "neofontrender_ui_enhancements neofontrender_ui_enhancements.chat");
+        add(keys, "key.neofontrender_ui_enhancements.",
+                "zoom chat.copy chat.cut chat.paste chat.select_all");
         return keys;
     }
 

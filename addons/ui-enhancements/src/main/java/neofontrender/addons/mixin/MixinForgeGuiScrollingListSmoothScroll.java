@@ -29,6 +29,12 @@ public abstract class MixinForgeGuiScrollingListSmoothScroll {
             nfrUi$scroller.sync(scrollDistance);
             return;
         }
+        // Mirror vanilla immediately while the mouse drives the scrollbar (1.7.10 polls drags
+        // inside drawScreen); easing here would pin the list at the drag's starting position.
+        if (Mouse.isButtonDown(0) && initialMouseClickY >= 0.0F) {
+            nfrUi$scroller.sync(scrollDistance);
+            return;
+        }
         scrollDistance = nfrUi$scroller.update(scrollDistance, nfrUi$getMaxScroll());
     }
 

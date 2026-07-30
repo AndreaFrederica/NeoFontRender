@@ -1,6 +1,8 @@
 package neofontrender.addons.vendor.tabbychat.util;
 
 import com.google.common.collect.Lists;
+import neofontrender.addons.chat.ChatHeadResolver;
+import neofontrender.addons.chat.ChatItemIconRenderer;
 import neofontrender.addons.vendor.tabbychat.ChatMessage;
 import neofontrender.addons.vendor.tabbychat.api.Message;
 import net.minecraft.client.Minecraft;
@@ -22,7 +24,7 @@ public class ChatTextUtils {
             throw new IllegalArgumentException("width must be positive");
         }
         FontRenderer fr = Minecraft.getMinecraft().fontRenderer;
-        List<IChatComponent> pending = Lists.newArrayList(chat);
+        List<IChatComponent> pending = Lists.newArrayList(ChatItemIconRenderer.decorate(chat));
         List<IChatComponent> lines = Lists.newArrayList();
         ChatComponentText current = new ChatComponentText("");
         int currentWidth = 0;
@@ -93,9 +95,12 @@ public class ChatTextUtils {
             while (iter.hasNext() && result.size() <= 100) {
                 Message line = iter.next();
                 List<IChatComponent> chatlist = split(line.getMessageWithOptionalTimestamp(), width);
+                String senderName = line instanceof ChatMessage
+                        ? ((ChatMessage) line).nfrUi$getSenderName() : ChatHeadResolver.detect(line.getMessage());
                 for (int i = chatlist.size() - 1; i >= 0; i--) {
                     IChatComponent chat = chatlist.get(i);
-                    result.add(new ChatMessage(line.getCounter(), chat, line.getID(), false));
+                    result.add(new ChatMessage(line.getCounter(), chat, line.getID(), false,
+                            senderName, i == 0));
                 }
             }
             return result;

@@ -1,6 +1,7 @@
 package neofontrender.addons.vendor.tabbychat.host;
 
 import neofontrender.addons.mixin.tabbychat.IGuiIngame;
+import cpw.mods.fml.common.FMLCommonHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiNewChat;
 import net.minecraft.client.gui.GuiScreen;
@@ -29,7 +30,11 @@ public final class MinecraftTabbyChatHost implements TabbyChatHost {
 
     @Override
     public void registerEventHandler(Object listener) {
+        // TabbyChat's listeners mix Forge events (ClientChatReceivedEvent) with FML-bus events
+        // (FMLNetworkEvent join/quit). 1.7.10 delivers each family on its own bus only, and a
+        // listener never sees the other family's types, so registering both is safe.
         MinecraftForge.EVENT_BUS.register(listener);
+        FMLCommonHandler.instance().bus().register(listener);
     }
 
     @Override

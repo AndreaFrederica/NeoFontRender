@@ -26,6 +26,7 @@ public class FontSet implements AutoCloseable {
     private final List<GlyphProvider> providers;
     private final FontTexture atlas;
     private final AwtTtfGlyphProvider layoutProvider;
+    private final List<AwtTtfGlyphProvider> layoutProviders = new ArrayList<>();
     private final Map<Integer, GlyphInfo> glyphInfos = new HashMap<>();
     private final Map<Integer, BakedGlyph> bakedGlyphs = new HashMap<>();
     private final Map<Integer, List<Integer>> glyphsByWidth = new HashMap<>();
@@ -40,8 +41,8 @@ public class FontSet implements AutoCloseable {
         AwtTtfGlyphProvider awtProvider = null;
         for (GlyphProvider provider : providers) {
             if (provider instanceof AwtTtfGlyphProvider) {
-                awtProvider = (AwtTtfGlyphProvider) provider;
-                break;
+                layoutProviders.add((AwtTtfGlyphProvider) provider);
+                if (awtProvider == null) awtProvider = (AwtTtfGlyphProvider) provider;
             }
         }
         this.layoutProvider = awtProvider;
@@ -68,18 +69,45 @@ public class FontSet implements AutoCloseable {
             return layoutProvider.layoutPositions(text, bold);
         }
         float[] positions = new float[text.length() + 1];
-        float current = 0.0F;
-        for (int i = 0; i < text.length(); ) {
-            int cp = text.codePointAt(i);
-            GlyphInfo info = getGlyphInfo(cp);
-            current += info == null ? 0.0F : info.getAdvance(bold);
-            int next = i + Character.charCount(cp);
-            for (int pos = i + 1; pos <= next && pos < positions.length; pos++) {
-                positions[pos] = current;
+        float advance = 0.0F;
+        int runStart = 0;
+        while (runStart < text.length()) {
+            int firstCodePoint = text.codePointAt(runStart);
+            AwtTtfGlyphProvider provider = layoutProvider(firstCodePoint);
+            int runEnd = runStart + Character.charCount(firstCodePoint);
+            while (runEnd < text.length() && layoutProvider(text.codePointAt(runEnd)) == provider) {
+                runEnd += Character.charCount(text.codePointAt(runEnd));
             }
-            i = next;
+
+            if (provider != null) {
+                float[] runPositions = provider.layoutPositions(text.substring(runStart, runEnd), bold);
+                for (int index = 1; index < runPositions.length; index++) {
+                    positions[runStart + index] = advance + runPositions[index];
+                }
+                advance += runPositions[runPositions.length - 1];
+            } else {
+                for (int index = runStart; index < runEnd; ) {
+                    int codePoint = text.codePointAt(index);
+                    GlyphInfo info = getGlyphInfo(codePoint);
+                    advance += info == null ? 0.0F : info.getAdvance(bold);
+                    int next = index + Character.charCount(codePoint);
+                    for (int position = index + 1; position <= next; position++) {
+                        positions[position] = advance;
+                    }
+                    index = next;
+                }
+            }
+            runStart = runEnd;
         }
         return positions;
+    }
+
+    @Nullable
+    private AwtTtfGlyphProvider layoutProvider(int codePoint) {
+        for (AwtTtfGlyphProvider provider : layoutProviders) {
+            if (provider.canDisplay(codePoint)) return provider;
+        }
+        return null;
     }
 
     private void addGlyphWidthBucket(int codePoint, @Nullable GlyphInfo info) {

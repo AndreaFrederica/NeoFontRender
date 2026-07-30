@@ -1,6 +1,9 @@
 package neofontrender.addons.mixin.tabbychat;
 
 import com.google.common.collect.Lists;
+import neofontrender.addons.chat.ChatAnimationController;
+import neofontrender.addons.chat.ChatKeyBindings;
+import neofontrender.addons.chat.EnhancedChatConfigAccess;
 import neofontrender.addons.chat.ExternalChatCompat;
 import neofontrender.addons.vendor.tabbychat.ChatManager;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
@@ -47,11 +50,15 @@ public abstract class MixinGuiChat extends GuiScreen {
 
     private boolean opened;
 
-    private TabbyChat tc = TabbyChat.getInstance();
+    // Resolved lazily inside the tabbed-chat gate: the vendored TabbyChat is only started when
+    // the embedded backend is active, and getInstance() throws before that.
+    private TabbyChat tc;
 
     @Inject(method = "<init>*", at = @At("RETURN"))
     private void onInitialization(CallbackInfo ci) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled()) return;
 
+        this.tc = TabbyChat.getInstance();
         this.chatGui = tc.getChatGui();
         this.sentHistoryCursor = chatGui.getSentMessages().size();
         this.chat = chatGui.getChatManager();
@@ -69,8 +76,15 @@ public abstract class MixinGuiChat extends GuiScreen {
 
     @Inject(method = "initGui()V", at = @At("RETURN"))
     private void onInitGui(CallbackInfo ci) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled()) return;
         if (this.textBox == null) this.onInitialization(null);
         this.inputField = this.textBox.getTextField();
+        // Re-point lwjgl3ify's TextFieldHandler at the substituted field: vanilla initGui
+        // registered the short-lived vanilla field as the IME focus, and replacing it here
+        // leaves only a WeakReference that GC collects, starving textBuffer and silently
+        // discarding every writeText call. setFocused(true) is a no-op state-wise but still
+        // re-registers this long-lived dummy as the focused input.
+        this.inputField.setFocused(true);
         chatGui.getBus().post(new ChatInitEvent(that));
         if (!opened) {
             textBox.setValue("");
@@ -91,17 +105,24 @@ public abstract class MixinGuiChat extends GuiScreen {
         ILocation bounds = this.chat.getChatBox().getChatInput().getActualLocation();
         TextCursorManager.textFieldDrawn(bounds.getXPos(), bounds.getYPos(),
                 bounds.getWidth(), bounds.getHeight(), true, true);
+        ExternalChatCompat.updateSalutationInput(this.inputField,
+                bounds.getXPos(), bounds.getYPos() + Math.round(ChatAnimationController.inputOffset()),
+                bounds.getWidth(), bounds.getHeight(),
+                bounds.getWidth()
+                        / (float) this.chat.getChatBox().getChatInput().getLocation().getWidth());
     }
 
     @Inject(method = "onGuiClosed()V", at = @At("RETURN"))
     private void onChatClosed(CallbackInfo ci) {
         this.field_146410_g = "";
+        ExternalChatCompat.removeSalutationInput(this.inputField);
         this.componentList.forEach(GuiComponent::onClosed);
     }
 
     @Override
     public void handleKeyboardInput() {
         super.handleKeyboardInput();
+        if (ChatKeyBindings.handledCurrentEvent()) return;
         // Salutation's ChatScreen already writes this event into our substituted inputField and
         // immediately requests Brigadier completions for that value. Sending the same LWJGL event
         // through TabbyChat's GuiText afterwards types it a second time and makes the completion
@@ -118,6 +139,7 @@ public abstract class MixinGuiChat extends GuiScreen {
 
     @Inject(method = "func_146406_a", at = @At("HEAD"), cancellable = true)
     private void limitCompletionFlood(String[] completions, CallbackInfo ci) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled() || this.chatGui == null) return;
         if (completions.length <= 20) {
             return;
         }
@@ -136,6 +158,7 @@ public abstract class MixinGuiChat extends GuiScreen {
                     target = "Lnet/minecraft/client/Minecraft;displayGuiScreen(Lnet/minecraft/client/gui/GuiScreen;)V",
                     ordinal = 1))
     private void keepChatOpen(char key, int code, CallbackInfo ci) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled()) return;
         this.chatGui.resetScroll();
         this.textBox.setValue(this.defaultInputFieldText);
         this.inputField.setText(this.defaultInputFieldText);
@@ -151,7 +174,7 @@ public abstract class MixinGuiChat extends GuiScreen {
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/GuiChat;drawRect(IIIII)V"))
     private void onDrawScreen(int x1, int y1, int x2, int y2, int color) {
-        // noop
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled()) drawRect(x1, y1, x2, y2, color);
     }
 
 }

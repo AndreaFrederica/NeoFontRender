@@ -8,6 +8,7 @@ import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.NeoFontRender;
+import neofontrender.api.text.FontRenderSpec;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
@@ -56,8 +57,15 @@ public final class CosmicTextRenderer implements TextRenderBackend {
     private long cacheOperations;
 
     public CosmicTextRenderer(TextureManager textureManager, IResourceManager resourceManager) throws IOException {
+        this(textureManager, resourceManager, null);
+    }
+
+    public CosmicTextRenderer(TextureManager textureManager, IResourceManager resourceManager,
+                              FontRenderSpec scopedSpec) throws IOException {
         this.textureManager = textureManager;
-        List<LoadedFont> loadedFonts = loadConfiguredFonts(resourceManager);
+        List<LoadedFont> loadedFonts = scopedSpec == null
+                ? loadConfiguredFonts(resourceManager)
+                : loadScopedFonts(resourceManager, scopedSpec.fonts());
         byte[][] fonts = new byte[loadedFonts.size()][];
         String[] aliases = new String[loadedFonts.size()];
         for (int i = 0; i < loadedFonts.size(); i++) {
@@ -70,17 +78,24 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         // Keep the configured family name separate from byte-backed fallback fonts. Native backends can
         // resolve a system family such as "JetBrains Mono" directly, while an older bridge
         // silently skipped it and promoted the first bundled fallback to primary.
-        List<String> fallbackFamilies = NeofontrenderConfig.fontFamily();
-        if (!fallbackFamilies.isEmpty() && fallbackFamilies.get(0).equals(NeofontrenderConfig.primaryFontLocation())) {
+        List<String> configuredFamilies = scopedSpec == null
+                ? NeofontrenderConfig.fontFamily() : scopedSpec.fonts();
+        String primary = scopedSpec == null ? NeofontrenderConfig.fontName()
+                : (configuredFamilies.isEmpty() ? NeofontrenderConfig.fontName() : configuredFamilies.get(0));
+        List<String> fallbackFamilies = new ArrayList<>(configuredFamilies);
+        if (!fallbackFamilies.isEmpty()) {
             fallbackFamilies = fallbackFamilies.subList(1, fallbackFamilies.size());
         }
-        engine = CosmicNative.createEngine(fonts, aliases, NeofontrenderConfig.fontName(),
+        engine = CosmicNative.createEngine(fonts, aliases, primary,
                 fallbackFamilies.toArray(new String[0]),
-                NeofontrenderConfig.cosmicRegularFont(), NeofontrenderConfig.cosmicBoldFont(),
-                NeofontrenderConfig.cosmicItalicFont(), NeofontrenderConfig.cosmicBoldItalicFont(),
-                NeofontrenderConfig.cosmicVariantOverridesOnlySwitchFont(),
+                scopedSpec == null ? NeofontrenderConfig.cosmicRegularFont() : "",
+                scopedSpec == null ? NeofontrenderConfig.cosmicBoldFont() : "",
+                scopedSpec == null ? NeofontrenderConfig.cosmicItalicFont() : "",
+                scopedSpec == null ? NeofontrenderConfig.cosmicBoldItalicFont() : "",
+                scopedSpec == null && NeofontrenderConfig.cosmicVariantOverridesOnlySwitchFont(),
                 NeofontrenderConfig.fontVariableWeight(),
-                NeofontrenderConfig.fontSize(), Locale.getDefault().toLanguageTag());
+                scopedSpec == null ? NeofontrenderConfig.fontSize() : scopedSpec.size(),
+                Locale.getDefault().toLanguageTag());
         if (engine == 0L) {
             throw new IOException("cosmic-text returned a null engine");
         }
@@ -414,6 +429,29 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                 // the full/resources package must not make Cosmic fail completely: the native
                 // engine can resolve the configured family and emoji through the OS font DB.
                 NeoFontRender.LOGGER.warn("Skipped unavailable Cosmic font resource '{}'", source);
+            }
+        }
+        return fonts;
+    }
+
+    private List<LoadedFont> loadScopedFonts(IResourceManager resourceManager,
+                                             List<String> selectors) throws IOException {
+        List<LoadedFont> fonts = new ArrayList<>();
+        for (String selector : selectors) {
+            try {
+                File file = NeofontrenderConfig.resolveFontFile(selector);
+                if (file.isFile()) {
+                    try (InputStream input = new FileInputStream(file)) {
+                        fonts.add(new LoadedFont(selector, readAllBytes(input)));
+                    }
+                } else if (selector.indexOf(':') >= 0) {
+                    IResource resource = resourceManager.getResource(new ResourceLocation(selector));
+                    try (InputStream input = resource.getInputStream()) {
+                        fonts.add(new LoadedFont(selector, readAllBytes(input)));
+                    }
+                }
+            } catch (IOException error) {
+                NeoFontRender.LOGGER.warn("Scoped Cosmic renderer skipped unavailable font '{}'", selector);
             }
         }
         return fonts;

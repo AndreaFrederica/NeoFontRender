@@ -2,6 +2,7 @@ package neofontrender.addons.vendor.tabbychat.gui;
 
 import com.google.common.eventbus.Subscribe;
 import neofontrender.addons.chat.ChatAnimationController;
+import neofontrender.addons.chat.ChatContextMenu;
 import neofontrender.addons.vendor.tabbychat.ChatManager;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import neofontrender.addons.vendor.tabbychat.api.gui.ChatInput;
@@ -9,10 +10,12 @@ import neofontrender.addons.vendor.tabbychat.core.GuiNewChatTC;
 import neofontrender.addons.vendor.tabbychat.extra.spell.Spellcheck;
 import neofontrender.addons.vendor.tabbychat.extra.spell.SpellingFormatter;
 import neofontrender.addons.vendor.tabbychat.foundation.Color;
+import neofontrender.addons.vendor.tabbychat.foundation.ILocation;
 import neofontrender.addons.vendor.tabbychat.foundation.TexturedModal;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.GuiComponent;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.GuiText;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.events.GuiMouseEvent;
+import neofontrender.addons.vendor.tabbychat.foundation.gui.events.GuiMouseEvent.MouseEvent;
 import neofontrender.addons.vendor.tabbychat.foundation.text.FancyFontRenderer;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiTextField;
@@ -261,32 +264,37 @@ public class TextBox extends GuiComponent implements ChatInput {
 
     @Subscribe
     public void onMouseClick(GuiMouseEvent event) {
-        mouseClicked(event.getMouseX(), event.getMouseY(), event.getButton());
+        if (event.getType() == MouseEvent.CLICK && event.getButton() == 0) {
+            setMousePosition(event.getMouseX(), event.getMouseY(), false);
+        } else if (event.getType() == MouseEvent.DRAG && event.getButton() == 0) {
+            setMousePosition(event.getMouseX(), event.getMouseY(), true);
+        } else if (event.getType() == MouseEvent.CLICK && event.getButton() == 1) {
+            ILocation actual = getActualLocation();
+            float scale = getActualScale();
+            ChatContextMenu.INSTANCE.openInput(textField.getTextField(),
+                    actual.getXPos() + Math.round(event.getMouseX() * scale),
+                    actual.getYPos() + Math.round(event.getMouseY() * scale));
+        }
     }
 
+    private void setMousePosition(int x, int y, boolean extendSelection) {
+        Rectangle bounds = this.getBounds();
+        int width = bounds.width - 1;
+        int visualY = y - Math.round(ChatAnimationController.inputOffset());
+        int row = visualY / (fr.FONT_HEIGHT + 2);
 
-    private void mouseClicked(int x, int y, int mouseButton) {
-        if (mouseButton == 0) {
-            Rectangle bounds = this.getBounds();
-
-            int width = bounds.width - 1;
-            int row = y / (fr.FONT_HEIGHT + 2);
-
-            List<String> lines = getWrappedLines();
-            if (row < 0 || row >= lines.size() || x < 0 || x > width) {
-                return;
-            }
-            int index = 0;
-            for (int i = 0; i < row; i++) {
-                index += lines.get(i).length();
-                // check for spaces because trailing spaces are trimmed
-                if (getText().charAt(index)==' ') {
-                    index++;
-                }
-            }
-            index += fr.trimStringToWidth(lines.get(row), x - 3).length();
-            textField.getTextField().setCursorPosition(index);
+        List<String> lines = getWrappedLines();
+        if (row < 0 || row >= lines.size() || x < 0 || x > width) return;
+        int index = 0;
+        for (int i = 0; i < row; i++) {
+            index += lines.get(i).length();
+            // listFormattedStringToWidth trims the wrapping space from the visual line.
+            if (index < getText().length() && getText().charAt(index) == ' ') index++;
         }
+        index += fr.trimStringToWidth(lines.get(row), Math.max(0, x - 3)).length();
+        index = Math.max(0, Math.min(index, getText().length()));
+        if (extendSelection) textField.getTextField().setSelectionPos(index);
+        else textField.getTextField().setCursorPosition(index);
     }
 
     @Override

@@ -5,18 +5,30 @@ import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.common.network.FMLNetworkEvent;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiNewChat;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.IChatComponent;
 import neofontrender.addons.ui.NfrUiEnhancements;
 
-/** Coordinates persistence, connection lifecycle, and live GuiNewChat restoration. */
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * Coordinates per-scope persistence, connection lifecycle, and live GuiNewChat restoration.
+ * Histories are isolated by server address or singleplayer world folder; the active scope
+ * follows connect/disconnect and world load.
+ */
 public enum ChatHistoryManager {
     INSTANCE;
 
     private static final long SAVE_INTERVAL_MILLIS = 5000L;
 
-    private final ChatHistoryBuffer history = new ChatHistoryBuffer();
+    private final Map<String, ChatHistoryBuffer> histories = new LinkedHashMap<>();
     private ChatHistoryStorage storage;
+    private String activeScope;
+    private ChatHistoryBuffer activeHistory;
     private boolean restoring;
+    private boolean pendingScopeSelection;
     private boolean pendingRestore;
     private boolean dirty;
     private long lastSaveMillis;
@@ -26,14 +38,22 @@ public enum ChatHistoryManager {
                 Minecraft.getMinecraft().mcDataDir.toPath()
                         .resolve("config")
                         .resolve("neofontrender-ui-chat-history.json"));
-        history.replace(storage.load(), EnhancedChatConfig.maxMessages);
+        histories.clear();
+        for (Map.Entry<String, ChatHistoryData> entry : storage.load().entrySet()) {
+            ChatHistoryBuffer buffer = new ChatHistoryBuffer();
+            buffer.replace(entry.getValue(), EnhancedChatConfig.maxMessages);
+            histories.put(entry.getKey(), buffer);
+        }
+        activeScope = null;
+        activeHistory = null;
         dirty = false;
     }
 
     public void recordReceived(IChatComponent component, int id) {
-        if (restoring || !persistenceEnabled() || !EnhancedChatConfig.persistReceived || component == null) return;
+        if (restoring || !persistenceEnabled() || !EnhancedChatConfig.persistReceived
+                || component == null || !ensureActiveScope()) return;
         try {
-            history.recordReceived(
+            activeHistory.recordReceived(
                     id, IChatComponent.Serializer.func_150696_a(component), EnhancedChatConfig.maxMessages);
             dirty = true;
         } catch (RuntimeException exception) {
@@ -42,41 +62,53 @@ public enum ChatHistoryManager {
     }
 
     public void recordSent(String message) {
-        if (restoring || !persistenceEnabled() || !EnhancedChatConfig.persistSent || message == null) return;
-        history.recordSent(message, EnhancedChatConfig.maxMessages);
+        if (restoring || !persistenceEnabled() || !EnhancedChatConfig.persistSent
+                || message == null || !ensureActiveScope()) return;
+        activeHistory.recordSent(message, EnhancedChatConfig.maxMessages);
         dirty = true;
     }
 
     public void configChanged() {
-        history.trim(EnhancedChatConfig.maxMessages);
+        for (ChatHistoryBuffer buffer : histories.values()) {
+            buffer.trim(EnhancedChatConfig.maxMessages);
+        }
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft.ingameGUI != null) {
             GuiNewChat chat = minecraft.ingameGUI.getChatGUI();
             ((ChatHistoryRuntimeAccess) chat).nfrUi$trimHistoryToConfiguredLimit();
         }
-        dirty = true;
-        saveIfEnabled();
+        if (persistenceEnabled()) {
+            ensureActiveScope();
+            dirty = true;
+            saveIfEnabled();
+        }
     }
 
     public void scheduleRestore() {
-        pendingRestore = persistenceEnabled();
+        pendingRestore = persistenceEnabled() && ensureActiveScope();
     }
 
     @SubscribeEvent
     public void connected(FMLNetworkEvent.ClientConnectedToServerEvent event) {
-        pendingRestore = persistenceEnabled();
+        saveIfEnabled();
+        deactivateScope();
+        pendingScopeSelection = persistenceEnabled();
     }
 
     @SubscribeEvent
     public void disconnected(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
         saveIfEnabled();
-        pendingRestore = false;
+        deactivateScope();
     }
 
     @SubscribeEvent
     public void clientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft minecraft = Minecraft.getMinecraft();
+        if (pendingScopeSelection && minecraft.theWorld != null && ensureActiveScope()) {
+            pendingScopeSelection = false;
+            pendingRestore = true;
+        }
         if (pendingRestore && minecraft.theWorld != null && minecraft.ingameGUI != null) {
             restore(minecraft.ingameGUI.getChatGUI());
         }
@@ -85,9 +117,10 @@ public enum ChatHistoryManager {
 
     private void restore(GuiNewChat chat) {
         pendingRestore = false;
+        if (activeHistory == null) return;
         restoring = true;
         try {
-            ChatHistoryData snapshot = history.snapshot(
+            ChatHistoryData snapshot = activeHistory.snapshot(
                     EnhancedChatConfig.persistReceived, EnhancedChatConfig.persistSent);
             if (EnhancedChatConfig.persistReceived) {
                 chat.clearChatMessages();
@@ -116,12 +149,44 @@ public enum ChatHistoryManager {
     private void saveIfEnabled() {
         if (!persistenceEnabled() || !dirty || storage == null) return;
         lastSaveMillis = System.currentTimeMillis();
-        ChatHistoryData snapshot = history.snapshot(
-                EnhancedChatConfig.persistReceived, EnhancedChatConfig.persistSent);
+        Map<String, ChatHistoryData> snapshot = new LinkedHashMap<>();
+        for (Map.Entry<String, ChatHistoryBuffer> entry : histories.entrySet()) {
+            snapshot.put(entry.getKey(), entry.getValue().snapshot(
+                    EnhancedChatConfig.persistReceived, EnhancedChatConfig.persistSent));
+        }
         if (storage.save(snapshot)) dirty = false;
     }
 
+    private boolean ensureActiveScope() {
+        String scope = currentScope(Minecraft.getMinecraft());
+        if (scope == null) return false;
+        if (activeHistory != null && scope.equals(activeScope)) return true;
+        activeScope = scope;
+        activeHistory = histories.get(scope);
+        if (activeHistory == null) {
+            activeHistory = new ChatHistoryBuffer();
+            histories.put(scope, activeHistory);
+        }
+        return true;
+    }
+
+    private void deactivateScope() {
+        activeScope = null;
+        activeHistory = null;
+        pendingScopeSelection = false;
+        pendingRestore = false;
+    }
+
+    private static String currentScope(Minecraft minecraft) {
+        if (minecraft.isSingleplayer()) {
+            IntegratedServer server = minecraft.getIntegratedServer();
+            return server == null ? null : ChatHistoryScope.singleplayer(server.getFolderName());
+        }
+        ServerData server = minecraft.func_147104_D();
+        return server == null ? null : ChatHistoryScope.server(server.serverIP);
+    }
+
     private static boolean persistenceEnabled() {
-        return EnhancedChatConfig.enabled && EnhancedChatConfig.persistence;
+        return EnhancedChatConfigAccess.persistenceEnabled();
     }
 }

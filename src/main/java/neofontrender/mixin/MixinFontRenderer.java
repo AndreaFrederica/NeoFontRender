@@ -22,7 +22,9 @@ import neofontrender.core.font.backend.BackendTextSegmenter;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.preprocess.PreprocessedText;
 import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
+import neofontrender.core.font.linebreak.CjkLineBreakRules;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.ScopedFontRenderBypass;
 import neofontrender.core.font.support.StringErrorCorrector;
 
 import java.util.List;
@@ -595,11 +597,15 @@ public class MixinFontRenderer {
             cir.setReturnValue(sfr$sizePreprocessedTextToWidth(preprocessed, wrapWidth));
             return;
         }
-        if (!sfr$isAnyActive()) return;
+        boolean rendererActive = sfr$isAnyActive();
+        boolean cjkLineBreak = NeofontrenderConfig.fixCjkLineBreak();
+        if (!rendererActive && !cjkLineBreak) return;
 
         int len = str.length();
         int pos;
         int breakPos = -1;
+        int previousCodePoint = -1;
+        int boundaryAfterPrevious = 0;
         float width = 0.0F;
         boolean bold = false;
 
@@ -613,8 +619,10 @@ public class MixinFontRenderer {
                     return;
                 case ' ':
                     breakPos = pos;
-                    width += sfr$getCharWidthFloat(codePoint, bold);
+                    width += sfr$getWrappingCharWidth(codePoint, bold, rendererActive);
                     pos++;
+                    previousCodePoint = codePoint;
+                    boundaryAfterPrevious = pos;
                     break;
                 case 167:
                     if (pos < len - 1) {
@@ -628,8 +636,14 @@ public class MixinFontRenderer {
                     pos++;
                     break;
                 default:
-                    width += sfr$getCharWidthFloat(codePoint, bold);
+                    if (cjkLineBreak && previousCodePoint >= 0
+                            && CjkLineBreakRules.canBreakBetween(previousCodePoint, codePoint)) {
+                        breakPos = boundaryAfterPrevious;
+                    }
+                    width += sfr$getWrappingCharWidth(codePoint, bold, rendererActive);
                     pos += Character.charCount(codePoint);
+                    previousCodePoint = codePoint;
+                    boundaryAfterPrevious = pos;
                     break;
             }
 
@@ -639,6 +653,20 @@ public class MixinFontRenderer {
         }
 
         cir.setReturnValue(pos != len && breakPos != -1 && breakPos < pos ? breakPos : pos);
+    }
+
+    private float sfr$getWrappingCharWidth(int codePoint, boolean bold, boolean rendererActive) {
+        if (rendererActive) {
+            return sfr$getCharWidthFloat(codePoint, bold);
+        }
+        FontRenderer self = (FontRenderer) (Object) this;
+        float width;
+        if (codePoint <= Character.MAX_VALUE) {
+            width = self.getCharWidth((char) codePoint);
+        } else {
+            width = self.getStringWidth(new String(Character.toChars(codePoint)));
+        }
+        return bold && width > 0.0F ? width + 1.0F : width;
     }
 
     private float sfr$getStringWidthFloat(String text) {
@@ -722,6 +750,7 @@ public class MixinFontRenderer {
     }
 
     private boolean sfr$shouldHook() {
+        if (ScopedFontRenderBypass.isActive()) return false;
         String className = ((Object) this).getClass().getName();
         return !className.equals("cpw.mods.fml.client.SplashProgress$SplashFontRenderer")
                 && !className.endsWith("SimpleModelFontRenderer");
@@ -835,6 +864,9 @@ public class MixinFontRenderer {
         String raw = text.rawText();
         String visible = text.visibleText();
         int breakRaw = -1;
+        int previousCodePoint = -1;
+        int boundaryAfterPrevious = 0;
+        boolean cjkLineBreak = NeofontrenderConfig.fixCjkLineBreak();
 
         for (int index = 0; index < visible.length();) {
             char ch = visible.charAt(index);
@@ -846,14 +878,20 @@ public class MixinFontRenderer {
                 continue;
             }
 
-            int next = index + Character.charCount(visible.codePointAt(index));
+            int codePoint = visible.codePointAt(index);
+            int next = index + Character.charCount(codePoint);
             if (ch == ' ') {
                 breakRaw = text.rawStartForVisibleBoundary(index);
+            } else if (cjkLineBreak && previousCodePoint >= 0
+                    && CjkLineBreakRules.canBreakBetween(previousCodePoint, codePoint)) {
+                breakRaw = text.rawStartForVisibleBoundary(boundaryAfterPrevious);
             }
             int rawEnd = text.rawEndForVisibleBoundary(next);
             if (sfr$measurePreprocessedRaw(raw.substring(0, rawEnd)) > wrapWidth) {
                 return breakRaw != -1 && breakRaw < rawEnd ? breakRaw : rawEnd;
             }
+            previousCodePoint = codePoint;
+            boundaryAfterPrevious = next;
             index = next;
         }
         return raw.length();
