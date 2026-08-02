@@ -13,14 +13,25 @@
 
 Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统位图字体路径。
 
-- 默认使用 Cosmic Text，提供原生的文本整形与栅格化。
-- 保留 SFR/AWT 兼容渲染器，便于兼容与排障。
+- **Cosmic Text** — 默认渲染器，提供原生文本整形与栅格化。
+- **SFR/AWT** — 内置兼容渲染器，便于排障。
 - 支持系统字体、本地 TTF/OTF、内置 Noto Sans SC、Noto Color Emoji 与 fallback 字体链。
-- 包含 Unicode/IME 输入修复、告示牌粘贴与换行、可配置的告示牌优化、游戏内设置界面和诊断命令。
+- Unicode/IME 输入修复、告示牌粘贴与换行、可配置的告示牌优化。
+- 游戏内模块化标签页设置界面与诊断命令。
 
 <p align="center">
   <img src="docs/screenshot.png" alt="Neo Font Render 设置界面" width="800">
 </p>
+
+## 支持版本
+
+| Minecraft | 分支 | 主要维护者 | 运行环境 |
+| --- | --- | --- | --- |
+| 1.12.2 | [`main`](https://github.com/AndreaFrederica/NeoFontRender) | [AndreaFrederica](https://github.com/AndreaFrederica) | Cleanroom + Java 25 |
+| 1.7.10 | [`1.7.10`](https://github.com/AndreaFrederica/NeoFontRender/tree/1.7.10) | [DHJComical](https://github.com/DHJComical) | Forge + lwjgl3ify |
+
+1.7.10 移植版共享核心渲染引擎与 API 接口，但目标运行环境为 Forge + lwjgl3ify 而非 Cleanroom。
+详见 [`1.7.10` 分支](https://github.com/AndreaFrederica/NeoFontRender/tree/1.7.10)的版本专属文档和发行包。
 
 ## 环境与安装
 
@@ -38,14 +49,32 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 
 不要将 `full` 与拆分的 `core` 或 `resources` 包同时安装。
 
-### 可选 UI Enhancements 附属模组
+## UI Enhancements 附属模组
 
-[NeoFontRender UI Enhancements](addons/ui-enhancements/README.md) 是配套的可选附属模组，提供
-现代工具提示、可配置 HUD 状态条、增强聊天、平滑滚动、文本框光标与界面过渡效果。附属使用
-独立配置文件，但设置页面会直接嵌入 NeoFontRender 设置界面。
+[NFR UI Enhancements](addons/ui-enhancements/README.md) 是可选的配套附属模组，在字体渲染核心之外添加视觉与交互功能。设置页面直接嵌入 NFR 设置界面。
 
+### 功能模块
+
+| 模块 | 说明 |
+| --- | --- |
+| **聊天** | 增强聊天，包含 TabbyChat 2 Reforged 频道/过滤器、Salutation 命令系统、搜索、@提及补全、玩家链接、消息来源分类、规则引擎、HUD 窗口、按服持久化历史记录，以及结巴中文拼写检查。TabbyChat 和 Salutation 均已内嵌，无需单独安装。 |
+| **工具提示** | 现代工具提示布局、着色、稀有度颜色，以及 LegendaryTooltips 互操作。 |
+| **HUD 状态条** | Arc3D 驱动的生命值、护甲、饥饿等状态条，支持 Forge 高度栈协调。 |
+| **平滑滚动** | 原版 `GuiSlot` 和 Forge `GuiScrollingList` 的平滑滚轮滚动。 |
+| **文本输入** | 原版和 ModularUI 文本框的原生 GLFW I 型光标。 |
+| **屏幕效果** | 背景渐变、四角渐变和可配置的两遍高斯模糊。 |
+| **悬停动画** | 按钮和物品槽的平滑悬停动画。 |
+| **世界加载** | 可自定义的加载界面，支持按存档截图和出生点准备进度。 |
+| **缩放** | 按住缩放，可配置按键和灵敏度。 |
+
+### 服务端伴侣
+
+[ui-enhancements-server](addons/ui-enhancements-server/) 为聊天模块提供服务端自身消息网络支持。可选，仅在独立服务器上需要。
+
+### 下载
+
+- [UI Enhancements Release 下载](https://github.com/AndreaFrederica/NeoFontRender/releases?q=ui-enhancements)
 - [附属说明与构建方法](addons/ui-enhancements/README.md)
-- [下载 UI Enhancements Release](https://github.com/AndreaFrederica/NeoFontRender/releases?q=ui-enhancements)
 
 ## 快速开始
 
@@ -129,4 +158,6 @@ regular、bold、italic 与 bold-italic 字体文件时，可组合使用 `prima
 
 - 许可证：[MIT](LICENSE)
 - 贡献者：[AndreaFrederica](https://github.com/AndreaFrederica)、[baka-gourd](https://github.com/baka-gourd)、[DHJComical](https://github.com/DHJComical)
+- CurseForge：[Neo Font Render](https://www.curseforge.com/minecraft/mc-mods/neofontrender) · [UI Enhancements](https://www.curseforge.com/minecraft/mc-mods/neo-font-render-ui-enhancements)
+- MCMOD：[Neo Font Render](https://www.mcmod.cn/class/27362.html)
 - 设计文档：[docs](docs/)

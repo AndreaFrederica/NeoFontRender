@@ -13,14 +13,26 @@
 
 Neo Font Render replaces Minecraft 1.12.2's bitmap-font path with configurable modern renderers.
 
-- Cosmic Text is the default renderer, with native text shaping and rasterization.
-- The built-in SFR/AWT renderer remains available for compatibility and troubleshooting.
-- System fonts, local TTF/OTF files, bundled Noto Sans SC, Noto Color Emoji, and fallback chains are supported.
-- Includes Unicode/IME input fixes, sign-editor paste and wrapping, configurable sign optimizations, an in-game settings screen, and diagnostic commands.
+- **Cosmic Text** — default renderer with native text shaping and rasterization.
+- **SFR/AWT** — built-in compatibility renderer for troubleshooting.
+- System fonts, local TTF/OTF files, bundled Noto Sans SC, Noto Color Emoji, and fallback chains.
+- Unicode/IME input fixes, sign-editor paste and wrapping, configurable sign optimizations.
+- In-game settings screen with modular tabbed UI and diagnostic commands.
 
 <p align="center">
   <img src="docs/screenshot.png" alt="Neo Font Render configuration screen" width="800">
 </p>
+
+## Supported versions
+
+| Minecraft | Branch | Primary maintainer | Runtime |
+| --- | --- | --- | --- |
+| 1.12.2 | [`main`](https://github.com/AndreaFrederica/NeoFontRender) | [AndreaFrederica](https://github.com/AndreaFrederica) | Cleanroom + Java 25 |
+| 1.7.10 | [`1.7.10`](https://github.com/AndreaFrederica/NeoFontRender/tree/1.7.10) | [DHJComical](https://github.com/DHJComical) | Forge + lwjgl3ify |
+
+The 1.7.10 port shares the core rendering engine and API surface but targets Forge with lwjgl3ify
+instead of Cleanroom. See the [`1.7.10` branch](https://github.com/AndreaFrederica/NeoFontRender/tree/1.7.10)
+for version-specific documentation and releases.
 
 ## Requirements and installation
 
@@ -38,15 +50,32 @@ Download the distribution that fits your installation and put it in the `mods` f
 
 Do not install `full` together with the split `core` or `resources` packages.
 
-### Optional UI Enhancements addon
+## UI Enhancements addon
 
-[NeoFontRender UI Enhancements](addons/ui-enhancements/README.md) is the optional companion mod for
-modern tooltips, configurable HUD bars, enhanced chat, smooth scrolling, text-field cursors, and
-screen transitions. It keeps its own configuration file while embedding its settings pages in the
-NeoFontRender settings screen.
+[NFR UI Enhancements](addons/ui-enhancements/README.md) is the optional companion mod that adds visual and interactive features beyond the font-rendering core. It embeds its settings pages directly into the NFR settings screen.
 
+### Feature modules
+
+| Module | Description |
+| --- | --- |
+| **Chat** | Enhanced chat with TabbyChat 2 Reforged channels/filters, Salutation command system, search, @mention completion, player links, message source classification, rules engine, HUD window, persistent per-server history, and Jieba Chinese spellcheck. Both TabbyChat and Salutation are embedded — standalone JARs are not required. |
+| **Tooltips** | Modern tooltip layout, shading, rarity colors, and LegendaryTooltips interop. |
+| **HUD bars** | Arc3D-powered health, absorption, armor, toughness, hunger, saturation, exhaustion, air, and mount-health bars with Forge height-stack coordination. |
+| **Scrolling** | Smooth wheel scrolling for vanilla `GuiSlot` and Forge `GuiScrollingList`. |
+| **Text input** | Native GLFW I-beam cursors over vanilla and ModularUI text fields. |
+| **Screen effects** | Background fade, four-corner gradient, and configurable two-pass Gaussian blur. |
+| **Hover** | Smooth hover animation for buttons and slots. |
+| **World loading** | Customizable loading screen with per-save screenshot and spawn-preparation progress. |
+| **Zoom** | Hold-to-zoom with configurable key and sensitivity. |
+
+### Server companion
+
+[ui-enhancements-server](addons/ui-enhancements-server/) provides server-side self-message network support for the chat module. It is optional and only needed on dedicated servers.
+
+### Download
+
+- [UI Enhancements releases](https://github.com/AndreaFrederica/NeoFontRender/releases?q=ui-enhancements)
 - [Addon documentation and build instructions](addons/ui-enhancements/README.md)
-- [Download UI Enhancements releases](https://github.com/AndreaFrederica/NeoFontRender/releases?q=ui-enhancements)
 
 ## Getting started
 
@@ -130,4 +159,6 @@ The project uses the current [CleanroomModTemplate](https://github.com/Cleanroom
 
 - License: [MIT](LICENSE)
 - Contributors: [AndreaFrederica](https://github.com/AndreaFrederica), [baka-gourd](https://github.com/baka-gourd), [DHJComical](https://github.com/DHJComical)
+- CurseForge: [Neo Font Render](https://www.curseforge.com/minecraft/mc-mods/neofontrender) · [UI Enhancements](https://www.curseforge.com/minecraft/mc-mods/neo-font-render-ui-enhancements)
+- MCMOD: [Neo Font Render](https://www.mcmod.cn/class/27362.html)
 - Design notes: [docs](docs/)
