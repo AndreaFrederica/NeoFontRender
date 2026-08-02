@@ -1,0 +1,18 @@
+[
+  {
+    "modid": "neofontrender_ui_enhancements_server",
+    "name": "NFR UI Enhancements Server Companion",
+    "description": "Optional server support for NFR UI Enhancements chat features.",
+    "version": "${version}",
+    "mcversion": "1.12.2",
+    "url": "https://sirrus.cc",
+    "authorList": ["AndreaFrederica"],
+    "credits": "Server-side support for UIE self-private-message capability negotiation.",
+    "logoFile": "assets/neofontrender_ui_enhancements/logo.png",
+    "modProperties": {"issueTrackerUrl": "${issueTracker}"},
+    "screenshots": [],
+    "serverSideOnly": true,
+    "requiredMods": [],
+    "dependencies": ["neofontrender_ui_enhancements"]
+  }
+]

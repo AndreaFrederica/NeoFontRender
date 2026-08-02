@@ -1,0 +1,62 @@
+plugins {
+    id 'java'
+    id 'xyz.wagyourtail.unimined' version '1.4.26-kappa'
+}
+
+group = 'neofontrender.addons'
+version = providers.gradleProperty('ui_enhancements_server_version').get()
+
+base { archivesName = 'neofontrender-ui-enhancements-server' }
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.cleanroommc.com/releases' }
+    maven { url = 'https://maven.minecraftforge.net/' }
+}
+
+sourceSets {
+    main {
+        java.srcDir '../ui-enhancements-common/src/main/java'
+    }
+}
+
+unimined.minecraft {
+    version '1.12.2'
+    mappings { mcp('stable', '39-1.12') }
+    cleanroom { loader '0.6.1-alpha' }
+    defaultRemapJar = false
+    remap(tasks.named('jar').get())
+}
+
+processResources {
+    inputs.property('version', project.version)
+    inputs.property('issueTracker', rootProject.mod_issue_tracker)
+    filesMatching('mcmod.info') {
+        expand(version: project.version, issueTracker: rootProject.mod_issue_tracker)
+    }
+    from(rootProject.file('addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png')) {
+        into 'assets/neofontrender_ui_enhancements'
+    }
+}
+
+jar {
+    archiveClassifier = 'dev'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    doFirst {
+        manifest.attributes(
+                'ModType': 'CRL',
+                'FMLCorePlugin': 'neofontrender.addons.server.UiEnhancementsServerMixinLoader',
+                'FMLCorePluginContainsFMLMod': true
+        )
+    }
+    finalizedBy tasks.named('remapJar')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
+}
