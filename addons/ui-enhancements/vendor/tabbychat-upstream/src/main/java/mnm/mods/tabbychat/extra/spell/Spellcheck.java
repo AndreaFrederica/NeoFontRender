@@ -10,6 +10,7 @@ import com.swabunga.spell.engine.SpellDictionaryHashMap;
 import com.swabunga.spell.event.SpellCheckEvent;
 import com.swabunga.spell.event.SpellChecker;
 import com.swabunga.spell.event.StringWordTokenizer;
+import com.swabunga.spell.event.WordTokenizer;
 import mnm.mods.tabbychat.TabbyChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.IResourceManager;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -47,16 +49,36 @@ public class Spellcheck implements Iterable<SpellCheckEvent>, IResourceManagerRe
         InputStream in = null;
         Reader read = null;
         try {
-            try {
-                in = lang.openStream();
-            } catch (FileNotFoundException e) {
-                TabbyChat.getLogger().warn(e + " Falling back to English.");
-                lang = LangDict.ENGLISH;
-                in = lang.openStream();
+            SpellDictionary dictionary;
+            if (lang.isChinese()) {
+                try {
+                    dictionary = new JiebaSpellDictionary();
+                } catch (RuntimeException | LinkageError e) {
+                    TabbyChat.getLogger().warn(
+                            "Unable to initialize the Chinese dictionary. Falling back to English.", e);
+                    lang = LangDict.ENGLISH;
+                    in = lang.openStream();
+                    read = new InputStreamReader(in, StandardCharsets.UTF_8);
+                    dictionary = new SpellDictionaryHashMap(read);
+                }
+            } else {
+                try {
+                    in = lang.openStream();
+                } catch (FileNotFoundException e) {
+                    TabbyChat.getLogger().warn(e + " Falling back to English.");
+                    lang = LangDict.ENGLISH;
+                    in = lang.openStream();
+                }
+                read = new InputStreamReader(in, StandardCharsets.UTF_8);
+                dictionary = new SpellDictionaryHashMap(read);
             }
-            read = new InputStreamReader(in);
-            SpellDictionary dictionary = new SpellDictionaryHashMap(read);
             spellCheck = new SpellChecker(dictionary);
+            if (lang.isChinese()) {
+                try (InputStream english = LangDict.ENGLISH.openStream();
+                     Reader englishReader = new InputStreamReader(english, StandardCharsets.UTF_8)) {
+                    spellCheck.addDictionary(new SpellDictionaryHashMap(englishReader));
+                }
+            }
             spellCheck.setUserDictionary(userDict);
             spellCheck.addSpellCheckListener(errors::add);
             this.language = lang;
@@ -95,7 +117,9 @@ public class Spellcheck implements Iterable<SpellCheckEvent>, IResourceManagerRe
     public void checkSpelling(String string) {
         if (spellCheck != null) {
             this.errors.clear();
-            this.spellCheck.checkSpelling(new StringWordTokenizer(string));
+            WordTokenizer tokenizer = language != null && language.isChinese()
+                    ? new JiebaWordTokenizer(string) : new StringWordTokenizer(string);
+            this.spellCheck.checkSpelling(tokenizer);
         }
     }
 

@@ -6,4 +6,5 @@ import java.util.UUID;
 public interface ChatHeadLineMetadata {
     UUID nfrUi$getSenderId();
     boolean nfrUi$isFirstFragment();
+    ChatMessageMetadata nfrUi$getMessageMetadata();
 }

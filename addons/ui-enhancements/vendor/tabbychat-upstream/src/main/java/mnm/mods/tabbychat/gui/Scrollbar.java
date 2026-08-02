@@ -1,6 +1,7 @@
 package mnm.mods.tabbychat.gui;
 
 import mnm.mods.tabbychat.core.GuiNewChatTC;
+import neofontrender.addons.chat.ChatHudWindowController;
 import mnm.mods.util.gui.GuiComponent;
 import net.minecraft.client.gui.Gui;
 import neofontrender.addons.chat.ChatStyleConfig;
@@ -16,10 +17,10 @@ public class Scrollbar extends GuiComponent {
 
     @Override
     public void drawComponent(int mouseX, int mouseY) {
-        if (GuiNewChatTC.getInstance().getChatOpen()) {
+        if (ChatHudWindowController.isChatExpanded()) {
             int scroll = chat.getScrollPos();
             int max = chat.getBounds().height;
-            int lines = max / mc.fontRenderer.FONT_HEIGHT;
+            int lines = chat.getVisibleLineCapacity();
             int total = chat.getChat().size();
             if (total <= lines) {
                 return;

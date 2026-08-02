@@ -18,6 +18,9 @@ Current feature modules:
 - Arc3D-powered health, absorption, armor, toughness, hunger, saturation,
   exhaustion, air, and mount-health bars with Forge height-stack coordination.
 - Integrated TabbyChat channels/filters plus extended and persistent chat history.
+- Embedded TabbyChat 2 Reforged and Salutation 1.12.2 sources. The installable UIE JAR
+  supplies both original mod ids in ModList as built-in entries, so the standalone
+  `TabbyChat` and `Salutation` JARs are not required.
 
 ## Runtime design
 
@@ -26,6 +29,9 @@ Current feature modules:
 - Uses Cleanroom's host LWJGL 3.4.1 and never bundles LWJGL or native files.
 - Yields to LegendaryTooltips by default when that mod is present.
 - Uses NFR visual glyph bounds for wrapping and screen-edge placement.
+- Retains Salutation's original command tree, argument parsers, multiline chat backend,
+  sleep-chat screen, and advanced completion behavior under the original `speiger.src.salutation`
+  package names. Only its CarbonConfig/standalone Forge entry point is replaced by UIE's config bridge.
 - Status bars subscribe at Forge's lowest overlay priority, respect elements already
   canceled by other mods, and yield to Classic Bar by default.
 

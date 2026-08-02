@@ -31,7 +31,7 @@ import java.util.Map;
 public enum ChatHistoryManager {
     INSTANCE;
 
-    private static final int DATA_VERSION = 2;
+    private static final int DATA_VERSION = 3;
 
     private final Map<String, HistoryBucket> histories = new LinkedHashMap<>();
     private Path dataFile;
@@ -57,7 +57,8 @@ public enum ChatHistoryManager {
                 if (iterator.next().id == id) iterator.remove();
             }
         }
-        activeHistory.received.add(new MessageEntry(id, ITextComponent.Serializer.componentToJson(component)));
+        activeHistory.received.add(new MessageEntry(id, ITextComponent.Serializer.componentToJson(component),
+                ChatMessageMetadataRegistry.get(component)));
         trim(activeHistory);
         dirty = true;
     }
@@ -119,7 +120,10 @@ public enum ChatHistoryManager {
                 for (MessageEntry entry : activeHistory.received) {
                     try {
                         ITextComponent component = ITextComponent.Serializer.jsonToComponent(entry.json);
-                        if (component != null) chat.printChatMessageWithOptionalDeletion(component, entry.id);
+                        if (component != null) {
+                            ChatMessageMetadataRegistry.put(component, entry.metadata());
+                            chat.printChatMessageWithOptionalDeletion(component, entry.id);
+                        }
                     } catch (RuntimeException exception) {
                         NfrUiEnhancements.LOGGER.warn("Skipping an invalid persisted chat component", exception);
                     }
@@ -192,7 +196,7 @@ public enum ChatHistoryManager {
             JsonObject message = element.getAsJsonObject();
             if (!message.has("text") || !message.get("text").isJsonPrimitive()) continue;
             bucket.received.add(new MessageEntry(message.has("id") ? message.get("id").getAsInt() : 0,
-                    message.get("text").getAsString()));
+                    message.get("text").getAsString(), readMetadata(message)));
         }
         JsonArray sentArray = object.has("sent") && object.get("sent").isJsonArray()
                 ? object.getAsJsonArray("sent") : new JsonArray();
@@ -210,6 +214,19 @@ public enum ChatHistoryManager {
                 JsonObject message = new JsonObject();
                 message.addProperty("id", entry.id);
                 message.addProperty("text", entry.json);
+                if (entry.metadata != null) {
+                    message.addProperty("timestamp", entry.metadata.timestamp);
+                    message.addProperty("source", entry.metadata.source.name());
+                    if (!entry.metadata.playerName.isEmpty()) message.addProperty("player", entry.metadata.playerName);
+                    if (entry.metadata.playerId != null) message.addProperty("playerId", entry.metadata.playerId.toString());
+                    if (!entry.metadata.privatePeer.isEmpty()) {
+                        message.addProperty("privatePeer", entry.metadata.privatePeer);
+                    }
+                    if (entry.metadata.outgoing) message.addProperty("outgoing", true);
+                    if (!entry.metadata.privateBody.isEmpty()) {
+                        message.addProperty("privateBody", entry.metadata.privateBody);
+                    }
+                }
                 receivedArray.add(message);
             }
         }
@@ -271,10 +288,40 @@ public enum ChatHistoryManager {
     private static final class MessageEntry {
         private final int id;
         private final String json;
+        private final ChatMessageMetadata metadata;
 
-        private MessageEntry(int id, String json) {
+        private MessageEntry(int id, String json, ChatMessageMetadata metadata) {
             this.id = id;
             this.json = json;
+            this.metadata = metadata;
         }
+
+        private ChatMessageMetadata metadata() {
+            return metadata == null ? new ChatMessageMetadata(
+                    System.currentTimeMillis(), ChatSource.SERVER, "", null) : metadata;
+        }
+    }
+
+    private static ChatMessageMetadata readMetadata(JsonObject message) {
+        if (!message.has("timestamp")) return null;
+        long timestamp = message.get("timestamp").getAsLong();
+        ChatSource source = ChatSource.SERVER;
+        if (message.has("source")) {
+            try { source = ChatSource.valueOf(message.get("source").getAsString()); }
+            catch (IllegalArgumentException ignored) {}
+        }
+        String player = message.has("player") ? message.get("player").getAsString() : "";
+        java.util.UUID playerId = null;
+        if (message.has("playerId")) {
+            try { playerId = java.util.UUID.fromString(message.get("playerId").getAsString()); }
+            catch (IllegalArgumentException ignored) {}
+        }
+        String privatePeer = message.has("privatePeer")
+                ? message.get("privatePeer").getAsString() : "";
+        boolean outgoing = message.has("outgoing") && message.get("outgoing").getAsBoolean();
+        String privateBody = message.has("privateBody")
+                ? message.get("privateBody").getAsString() : "";
+        return new ChatMessageMetadata(timestamp, source, player, playerId, privatePeer,
+                outgoing, privateBody);
     }
 }

@@ -16,6 +16,7 @@ import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.MathHelper;
 import org.lwjgl.input.Mouse;
+import neofontrender.addons.chat.ChatHudWindowController;
 
 import java.awt.*;
 
@@ -50,7 +51,8 @@ public class ChatBox extends GuiPanel implements ChatGui {
         int y = bounds.getYPos() + event.getMouseY();
 
         if (event.getType() == MouseEvent.CLICK) {
-            if (Mouse.isButtonDown(0) && (pnlTray.isHovered() || (GuiScreen.isAltKeyDown() && isHovered()))) {
+            if (Mouse.isButtonDown(0) && (pnlTray.isHovered()
+                    || (!ChatHudWindowController.isHudInteractive() && GuiScreen.isAltKeyDown() && isHovered()))) {
                 dragMode = !pnlTray.isHandleHovered();
                 drag = new Point(x, y);
                 tempbox = bounds.copy();

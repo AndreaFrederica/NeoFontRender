@@ -9,6 +9,7 @@ import net.minecraft.util.text.ITextComponent;
 import neofontrender.addons.chat.ChatHeadRenderer;
 import neofontrender.addons.chat.ChatHeadResolver;
 import neofontrender.addons.chat.ChatItemIconRenderer;
+import neofontrender.addons.chat.ChatTimestampDecorator;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,6 +22,11 @@ import java.util.List;
 
 @Mixin(GuiNewChat.class)
 public abstract class MixinGuiNewChatFeatures {
+    @ModifyVariable(method = "setChatLine", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    private ITextComponent nfrUi$addTimestamp(ITextComponent component) {
+        return ChatTimestampDecorator.decorate(component);
+    }
+
     @Inject(method = "setChatLine", at = @At("HEAD"))
     private void nfrUi$beginSenderCapture(ITextComponent component, int id, int updateCounter,
                                           boolean displayOnly, CallbackInfo ci) {

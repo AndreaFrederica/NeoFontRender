@@ -8,6 +8,8 @@
   "mixins": [],
   "server": [],
   "client": [
-    "compat.MixinSalutationAdvancedTabCompleter"
+    "compat.MixinSalutationClientHandler",
+    "compat.MixinSalutationAdvancedTabCompleter",
+    "compat.MixinSalutationChatScreen"
   ]
 }

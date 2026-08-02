@@ -1,6 +1,7 @@
 package mnm.mods.tabbychat.gui;
 
 import mnm.mods.tabbychat.core.GuiNewChatTC;
+import neofontrender.addons.chat.ChatHudWindowController;
 import mnm.mods.util.gui.GuiPanel;
 import mnm.mods.util.gui.ILayout;
 
@@ -16,6 +17,6 @@ public class ChatPanel extends GuiPanel {
 
     @Override
     public boolean isVisible() {
-        return super.isVisible() && GuiNewChatTC.getInstance().getChatOpen();
+        return super.isVisible() && ChatHudWindowController.isChatExpanded();
     }
 }

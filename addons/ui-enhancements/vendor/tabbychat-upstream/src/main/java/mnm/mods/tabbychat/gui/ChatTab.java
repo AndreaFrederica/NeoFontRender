@@ -16,6 +16,8 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 import neofontrender.addons.chat.ChatStyleConfig;
 import neofontrender.addons.chat.ChatStyleRenderer;
+import neofontrender.addons.chat.ChatSourceChannels;
+import neofontrender.addons.chat.ChatHudWindowController;
 
 import java.awt.Dimension;
 import javax.annotation.Nonnull;
@@ -59,9 +61,12 @@ public class ChatTab extends GuiButton {
     @Override
     public void drawComponent(int mouseX, int mouseY) {
         ChannelStatus status = channel.getStatus();
-        if (GuiNewChatTC.getInstance().getChatOpen()
+        boolean chatOpen = ChatHudWindowController.isChatExpanded();
+        boolean sourceHudHidden = ChatSourceChannels.isSourceChannel(channel) && !chatOpen
+                && TabbyChat.getInstance().settings.advanced.visibility.get() != ChatVisibility.ALWAYS;
+        if (!sourceHudHidden && (chatOpen
                 || (status != null && (status.compareTo(ChannelStatus.PINGED) > 0) && (TabbyChat.getInstance().settings.general.unreadFlashing.get() == true))
-                || TabbyChat.getInstance().settings.advanced.visibility.get() == ChatVisibility.ALWAYS) {
+                || TabbyChat.getInstance().settings.advanced.visibility.get() == ChatVisibility.ALWAYS)) {
             ILocation loc = getLocation();
             GlStateManager.enableBlend();
             GlStateManager.color(1, 1, 1, mc.gameSettings.chatOpacity);

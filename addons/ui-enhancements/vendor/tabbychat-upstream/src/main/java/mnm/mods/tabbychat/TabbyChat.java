@@ -19,6 +19,7 @@ import net.minecraft.client.resources.IReloadableResourceManager;
 import net.minecraftforge.common.MinecraftForge;
 import neofontrender.client.gui.NeofontrenderConfigScreen;
 import neofontrender.addons.chat.EnhancedChatConfigAccess;
+import neofontrender.addons.chat.ChatSourceChannels;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -144,6 +145,7 @@ public class TabbyChat {
         } catch (Exception e) {
             LOGGER.warn("Unable to load chat data.", e);
         }
+        ChatSourceChannels.sync();
 
         if (settings.general.checkUpdates.get() && !updateChecked) {
             //UpdateChecker.runUpdateCheck(TabbedChatProxy.INSTANCE, TabbyRef.getVersionData());

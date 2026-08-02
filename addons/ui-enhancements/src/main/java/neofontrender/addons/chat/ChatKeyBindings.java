@@ -1,5 +1,7 @@
 package neofontrender.addons.chat;
 
+import mnm.mods.tabbychat.ChatManager;
+import mnm.mods.tabbychat.TabbyChat;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.settings.KeyBinding;
@@ -20,6 +22,10 @@ public final class ChatKeyBindings {
     private static final KeyBinding CUT = binding("cut", KeyModifier.CONTROL, Keyboard.KEY_X);
     private static final KeyBinding PASTE = binding("paste", KeyModifier.CONTROL, Keyboard.KEY_V);
     private static final KeyBinding SELECT_ALL = binding("select_all", KeyModifier.CONTROL, Keyboard.KEY_A);
+    private static final KeyBinding SEARCH = binding("search", KeyModifier.CONTROL, Keyboard.KEY_F);
+    private static final KeyBinding HUD_INTERACT = new KeyBinding(
+            "key.neofontrender_ui_enhancements.chat.hud_interact", KeyConflictContext.IN_GAME,
+            Keyboard.KEY_LMENU, CATEGORY);
 
     private static boolean registered;
     private static boolean handledCurrentEvent;
@@ -33,17 +39,40 @@ public final class ChatKeyBindings {
         ClientRegistry.registerKeyBinding(CUT);
         ClientRegistry.registerKeyBinding(PASTE);
         ClientRegistry.registerKeyBinding(SELECT_ALL);
+        ClientRegistry.registerKeyBinding(SEARCH);
+        ClientRegistry.registerKeyBinding(HUD_INTERACT);
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(INSTANCE);
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onKeyboardInput(GuiScreenEvent.KeyboardInputEvent.Pre event) {
         handledCurrentEvent = false;
-        if (!EnhancedChatFeatures.copySelection() || !(event.getGui() instanceof GuiChat)
-                || !Keyboard.getEventKeyState()) return;
+        if (!(event.getGui() instanceof GuiChat) || !Keyboard.getEventKeyState()) return;
         int keyCode = Keyboard.getEventKey();
+        if (ChatSearchController.INSTANCE.isOpen()) {
+            handledCurrentEvent = ChatSearchController.INSTANCE.handleKeyboard();
+            if (handledCurrentEvent) event.setCanceled(true);
+            return;
+        }
+        if (SEARCH.isActiveAndMatches(keyCode) && EnhancedChatConfig.messageSearch) {
+            ChatSearchController.INSTANCE.open((GuiChat) event.getGui());
+            handledCurrentEvent = true;
+            event.setCanceled(true);
+            return;
+        }
         GuiTextField input = ((AccessorGuiChatFeatures) event.getGui()).nfrUi$getInputField();
         boolean focusedInput = input != null && input.isFocused();
+        if (MentionCompletionController.handleKey(input, keyCode)) {
+            handledCurrentEvent = true;
+            event.setCanceled(true);
+            return;
+        }
+        if (ChatCommandCompletionController.handleKey(input, keyCode)) {
+            handledCurrentEvent = true;
+            event.setCanceled(true);
+            return;
+        }
+        if (!EnhancedChatFeatures.copySelection()) return;
 
         if (COPY.isActiveAndMatches(keyCode)) {
             if (focusedInput && ChatContextMenu.hasSelection(input)) {
@@ -78,6 +107,23 @@ public final class ChatKeyBindings {
     public static String cutDisplayName() { return CUT.getDisplayName(); }
     public static String pasteDisplayName() { return PASTE.getDisplayName(); }
     public static String selectAllDisplayName() { return SELECT_ALL.getDisplayName(); }
+    public static String searchDisplayName() { return SEARCH.getDisplayName(); }
+
+    public static boolean hudInteractionDown() { return HUD_INTERACT.isKeyDown(); }
+
+    public static boolean removePrivateCommandBlock(GuiTextField input) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled()) return false;
+        ChatManager manager = TabbyChat.getInstance().getChat();
+        return manager != null && input != null && manager.removeActivePrivateCommandBlock();
+    }
+
+    /** Clears the PM draft only after GuiChat has copied and sent its text. */
+    public static void resetPrivateInputAfterSend(GuiTextField input) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled() || input == null) return;
+        ChatManager manager = TabbyChat.getInstance().getChat();
+        if (manager == null || !manager.getActiveChannel().isPm()) return;
+        manager.clearActiveDraft();
+    }
 
     private static KeyBinding binding(String id, KeyModifier modifier, int keyCode) {
         return new KeyBinding("key.neofontrender_ui_enhancements.chat." + id,

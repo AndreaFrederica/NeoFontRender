@@ -15,6 +15,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiNewChat;
 import neofontrender.addons.chat.ChatHistoryManager;
 import neofontrender.addons.chat.ChatAnimationController;
+import neofontrender.addons.chat.ChatMessageMetadataRegistry;
+import neofontrender.addons.chat.ChatSourceChannels;
+import neofontrender.addons.chat.ChatHudWindowController;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraftforge.common.MinecraftForge;
@@ -69,6 +72,10 @@ public class GuiNewChatTC extends GuiNewChat implements ChatScreen {
 
     @Override
     public void drawChat(int i) {
+        ChatHudWindowController.INSTANCE.queue(this, i);
+    }
+
+    public void nfrUi$drawChatSurface(int i) {
         if (prevScreenHeight != mc.displayHeight || prevScreenWidth != mc.displayWidth) {
 
             chat.getChatBox().onScreenHeightResize(prevScreenWidth, prevScreenHeight, mc.displayWidth, mc.displayHeight);
@@ -106,12 +113,15 @@ public class GuiNewChatTC extends GuiNewChat implements ChatScreen {
     }
 
     public void addMessage(ITextComponent ichat, int id) {
+        ITextComponent received = ichat;
         // chat listeners
         ChatReceivedEvent chatevent = new ChatReceivedEvent(ichat, id);
         chatevent.channels.add(ChatChannel.DEFAULT_CHANNEL);
         MinecraftForge.EVENT_BUS.post(chatevent);
         // chat filters
         ichat = chatevent.text;
+        ChatMessageMetadataRegistry.copy(received, ichat);
+        ChatSourceChannels.route(chatevent, ichat);
         id = chatevent.id;
         if (ichat != null && !ichat.getUnformattedText().isEmpty()) {
             ChatAnimationController.messageAdded();

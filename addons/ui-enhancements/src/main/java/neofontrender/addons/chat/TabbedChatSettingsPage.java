@@ -39,6 +39,13 @@ final class TabbedChatSettingsPage implements NfrSettingsPage {
         private final boolean unreadFlashing = general.unreadFlashing.get();
         private final boolean spelling = advanced.spelling.get();
         private final boolean keepOpen = advanced.keepChatOpen.get();
+        private final boolean keepOpenPublic = EnhancedChatConfig.keepOpenPublic;
+        private final boolean keepOpenPlayer = EnhancedChatConfig.keepOpenPlayer;
+        private final boolean keepOpenServer = EnhancedChatConfig.keepOpenServer;
+        private final boolean keepOpenPrivate = EnhancedChatConfig.keepOpenPrivate;
+        private final boolean keepOpenCustom = EnhancedChatConfig.keepOpenCustom;
+        private final boolean persistentChatHud = EnhancedChatConfig.persistentChatHud;
+        private final boolean closeChatOnDetach = EnhancedChatConfig.closeChatOnDetach;
         private final boolean hideTag = advanced.hideTag.get();
         private final float unfocusedHeight = advanced.unfocHeight.get();
         private final int fadeTime = advanced.fadeTime.get();
@@ -62,7 +69,18 @@ final class TabbedChatSettingsPage implements NfrSettingsPage {
                             Arrays.asList("0.0", "0.1", "0.25", "0.5", "0.75", "1.0"), value -> value).size(260, 24))
                     .add(toggle(c, "unread_flashing", general.unreadFlashing::get, general.unreadFlashing::set))
                     .add(toggle(c, "spelling", advanced.spelling::get, advanced.spelling::set))
-                    .add(toggle(c, "keep_open", advanced.keepChatOpen::get, advanced.keepChatOpen::set))
+                    .add(toggle(c, "keep_open_public", () -> EnhancedChatConfig.keepOpenPublic,
+                            value -> EnhancedChatConfig.keepOpenPublic = value))
+                    .add(toggle(c, "keep_open_player", () -> EnhancedChatConfig.keepOpenPlayer,
+                            value -> EnhancedChatConfig.keepOpenPlayer = value))
+                    .add(toggle(c, "keep_open_server", () -> EnhancedChatConfig.keepOpenServer,
+                            value -> EnhancedChatConfig.keepOpenServer = value))
+                    .add(toggle(c, "keep_open_private", () -> EnhancedChatConfig.keepOpenPrivate,
+                            value -> EnhancedChatConfig.keepOpenPrivate = value))
+                    .add(toggle(c, "keep_open_custom", () -> EnhancedChatConfig.keepOpenCustom,
+                            value -> EnhancedChatConfig.keepOpenCustom = value))
+                    .add(toggle(c, "close_on_detach", () -> EnhancedChatConfig.closeChatOnDetach,
+                            value -> EnhancedChatConfig.closeChatOnDetach = value))
                     .add(toggle(c, "hide_tag", advanced.hideTag::get, advanced.hideTag::set))
                     .add(c.dropdownText("tabby_unfocused_height", () -> tr("unfocused_height"),
                             () -> Float.toString(advanced.unfocHeight.get()),
@@ -82,10 +100,16 @@ final class TabbedChatSettingsPage implements NfrSettingsPage {
         private IWidget toggle(NfrSettingsControls c, String key,
                                java.util.function.Supplier<Boolean> getter,
                                java.util.function.Consumer<Boolean> setter) {
-            return c.toggleText(() -> tr(key), () -> "", getter, setter);
+            return c.toggleText(() -> tr(key),
+                    () -> key.startsWith("keep_open_") || "close_on_detach".equals(key)
+                            ? tr("tooltip." + key) : "",
+                    getter, setter);
         }
 
-        @Override public void apply() { settings.saveConfig(); }
+        @Override public void apply() {
+            settings.saveConfig();
+            EnhancedChatConfig.save();
+        }
 
         @Override public void cancel() {
             general.logChat.set(logChat);
@@ -97,6 +121,13 @@ final class TabbedChatSettingsPage implements NfrSettingsPage {
             general.unreadFlashing.set(unreadFlashing);
             advanced.spelling.set(spelling);
             advanced.keepChatOpen.set(keepOpen);
+            EnhancedChatConfig.keepOpenPublic = keepOpenPublic;
+            EnhancedChatConfig.keepOpenPlayer = keepOpenPlayer;
+            EnhancedChatConfig.keepOpenServer = keepOpenServer;
+            EnhancedChatConfig.keepOpenPrivate = keepOpenPrivate;
+            EnhancedChatConfig.keepOpenCustom = keepOpenCustom;
+            EnhancedChatConfig.persistentChatHud = persistentChatHud;
+            EnhancedChatConfig.closeChatOnDetach = closeChatOnDetach;
             advanced.hideTag.set(hideTag);
             advanced.unfocHeight.set(unfocusedHeight);
             advanced.fadeTime.set(fadeTime);

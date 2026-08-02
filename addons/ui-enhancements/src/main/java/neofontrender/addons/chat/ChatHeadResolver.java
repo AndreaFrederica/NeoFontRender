@@ -17,7 +17,11 @@ public final class ChatHeadResolver {
     private ChatHeadResolver() {}
 
     public static UUID detect(ITextComponent message) {
-        if (!EnhancedChatFeatures.playerHeads() || message == null) return null;
+        return EnhancedChatFeatures.playerHeads() ? detectSender(message) : null;
+    }
+
+    public static UUID detectSender(ITextComponent message) {
+        if (message == null) return null;
         Minecraft minecraft = Minecraft.getMinecraft();
         NetHandlerPlayClient connection = minecraft.getConnection();
         if (connection == null) return null;
@@ -38,13 +42,15 @@ public final class ChatHeadResolver {
     }
 
     public static void beginVanillaLine(ITextComponent message) {
-        PENDING.set(new Pending(detect(message)));
+        ChatMessageMetadata metadata = ChatMessageMetadataRegistry.get(message);
+        UUID sender = metadata != null && metadata.playerId != null ? metadata.playerId : detect(message);
+        PENDING.set(new Pending(sender, metadata));
     }
 
     public static Capture captureVanillaLine() {
         Pending pending = PENDING.get();
         if (pending == null) return Capture.EMPTY;
-        Capture capture = new Capture(pending.senderId, pending.firstFragment);
+        Capture capture = new Capture(pending.senderId, pending.firstFragment, pending.metadata);
         pending.firstFragment = false;
         return capture;
     }
@@ -75,21 +81,25 @@ public final class ChatHeadResolver {
 
     private static final class Pending {
         private final UUID senderId;
+        private final ChatMessageMetadata metadata;
         private boolean firstFragment = true;
 
-        private Pending(UUID senderId) {
+        private Pending(UUID senderId, ChatMessageMetadata metadata) {
             this.senderId = senderId;
+            this.metadata = metadata;
         }
     }
 
     public static final class Capture {
-        private static final Capture EMPTY = new Capture(null, false);
+        private static final Capture EMPTY = new Capture(null, false, null);
         public final UUID senderId;
         public final boolean firstFragment;
+        public final ChatMessageMetadata metadata;
 
-        private Capture(UUID senderId, boolean firstFragment) {
+        private Capture(UUID senderId, boolean firstFragment, ChatMessageMetadata metadata) {
             this.senderId = senderId;
             this.firstFragment = firstFragment;
+            this.metadata = metadata;
         }
     }
 }

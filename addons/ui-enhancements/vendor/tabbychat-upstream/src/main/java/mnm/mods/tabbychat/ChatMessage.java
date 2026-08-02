@@ -14,10 +14,13 @@ import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 import neofontrender.addons.chat.ChatHeadResolver;
+import neofontrender.addons.chat.ChatMessageMetadata;
+import neofontrender.addons.chat.ChatMessageMetadataCarrier;
+import neofontrender.addons.chat.ChatMessageMetadataRegistry;
 
 import java.util.UUID;
 
-public class ChatMessage implements Message {
+public class ChatMessage implements Message, ChatMessageMetadataCarrier {
 
     @Expose
     private ITextComponent message;
@@ -27,6 +30,7 @@ public class ChatMessage implements Message {
     private transient UUID nfrUi$senderId;
     private transient boolean nfrUi$senderResolved;
     private transient boolean nfrUi$firstFragment = true;
+    private transient ChatMessageMetadata nfrUi$messageMetadata;
     @Expose
     private Date date;
 
@@ -48,8 +52,10 @@ public class ChatMessage implements Message {
         this.nfrUi$senderId = senderId;
         this.nfrUi$senderResolved = senderResolved;
         this.nfrUi$firstFragment = firstFragment;
+        this.nfrUi$messageMetadata = ChatMessageMetadataRegistry.get(chat);
         if (isNew) {
-            this.date = Calendar.getInstance().getTime();
+            this.date = nfrUi$messageMetadata == null ? Calendar.getInstance().getTime()
+                    : new Date(nfrUi$messageMetadata.timestamp);
         }
     }
 
@@ -103,6 +109,11 @@ public class ChatMessage implements Message {
 
     public boolean nfrUi$isFirstFragment() {
         return nfrUi$firstFragment;
+    }
+
+    @Override
+    public ChatMessageMetadata nfrUi$getMessageMetadata() {
+        return nfrUi$messageMetadata;
     }
 
 }

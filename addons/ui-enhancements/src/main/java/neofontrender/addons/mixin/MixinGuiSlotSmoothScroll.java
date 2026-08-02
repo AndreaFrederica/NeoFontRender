@@ -20,6 +20,7 @@ public abstract class MixinGuiSlotSmoothScroll {
     @Shadow protected int initialClickY;
     @Shadow public abstract int getMaxScroll();
     @Unique private final SmoothScrollController nfrUi$scroller = new SmoothScrollController();
+    @Unique private Boolean nfrUi$continuousInterpolation;
 
     @Inject(method = "drawScreen", at = @At("HEAD"))
     private void nfrUi$update(int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
@@ -27,7 +28,7 @@ public abstract class MixinGuiSlotSmoothScroll {
             nfrUi$scroller.sync(amountScrolled);
             return;
         }
-        amountScrolled = (Object) this instanceof LanguageListSearchAccess
+        amountScrolled = nfrUi$usesContinuousInterpolation()
                 ? nfrUi$scroller.updateContinuous(amountScrolled, getMaxScroll())
                 : nfrUi$scroller.update(amountScrolled, getMaxScroll());
     }
@@ -63,5 +64,15 @@ public abstract class MixinGuiSlotSmoothScroll {
     @Inject(method = "handleMouseInput", at = @At("RETURN"))
     private void nfrUi$syncDrag(CallbackInfo ci) {
         if (Mouse.isButtonDown(0) && initialClickY >= 0) nfrUi$scroller.sync(amountScrolled);
+    }
+
+    @Unique
+    private boolean nfrUi$usesContinuousInterpolation() {
+        if (nfrUi$continuousInterpolation == null) {
+            String className = getClass().getName();
+            nfrUi$continuousInterpolation = (Object) this instanceof LanguageListSearchAccess
+                    || className.startsWith("com.cleanroommc.client.modlist.");
+        }
+        return nfrUi$continuousInterpolation;
     }
 }

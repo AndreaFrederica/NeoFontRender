@@ -1,0 +1,16 @@
+[
+	{
+	"modid": "salutation",
+	"name": "Salutation",
+	"description": "Chunk Pregenerators backport of the Command System made Open Source",
+	"version": "${version}",
+	"mcversion": "${mcversion}",
+	"url": "",
+	"updateUrl": "",
+	"authorList": ["Speiger"],
+	"credits": "Thanks to Speiger for open sourcing this",
+	"logoFile": "",
+	"screenshots": [],
+	"dependencies": []
+	}
+]

@@ -35,6 +35,8 @@ public final class SmoothScrollController {
             sync(clamp(actual, max));
             return current;
         }
+        actual = clamp(actual, max);
+        if (Math.abs(actual - current) > 0.05F) sync(actual);
         target = clamp(target, max);
         if (current == target) return current;
         float p = Math.min((System.nanoTime() - startNanos) / (SmoothScrollConfig.durationMillis * 1_000_000.0F), 1.0F);
@@ -54,6 +56,8 @@ public final class SmoothScrollController {
             sync(clamp(actual, max));
             return current;
         }
+        actual = clamp(actual, max);
+        if (Math.abs(actual - current) > 0.05F) sync(actual);
         long now = System.nanoTime();
         long elapsed = Math.max(0L, Math.min(50_000_000L, now - lastUpdateNanos));
         lastUpdateNanos = now;

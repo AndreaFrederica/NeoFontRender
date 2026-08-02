@@ -41,7 +41,7 @@ public final class ChatCopyController {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onMouseInputBefore(GuiScreenEvent.MouseInputEvent.Pre event) {
-        if (!EnhancedChatFeatures.copySelection() || !(event.getGui() instanceof GuiChat)) return;
+        if (!(event.getGui() instanceof GuiChat)) return;
         int button = Mouse.getEventButton();
         if (button < 0 || !Mouse.getEventButtonState()) return;
         int mouseX = mouseX();
@@ -55,16 +55,27 @@ public final class ChatCopyController {
             ChatContextMenu.INSTANCE.close();
         }
 
-        if (button != 1 || EnhancedChatConfigAccess.tabbedChatEnabled()) return;
+        if (EnhancedChatConfigAccess.tabbedChatEnabled()) return;
         GuiTextField input = ((AccessorGuiChatFeatures) event.getGui()).nfrUi$getInputField();
-        if (inside(input, mouseX, mouseY)) {
+        if (button == 1 && EnhancedChatFeatures.copySelection() && inside(input, mouseX, mouseY)) {
             ChatContextMenu.INSTANCE.openInput(input, mouseX, mouseY);
             event.setCanceled(true);
             return;
         }
-        if (selection.hasSelection()) {
-            GuiNewChat chat = Minecraft.getMinecraft().ingameGUI.getChatGUI();
-            Hit hit = hit(chat, false);
+        GuiNewChat chat = Minecraft.getMinecraft().ingameGUI.getChatGUI();
+        Hit hit = hit(chat, false);
+        String player = playerAt(chat, hit);
+        if (button == 1 && player != null) {
+            ChatContextMenu.INSTANCE.openPlayer(player, mouseX, mouseY);
+            event.setCanceled(true);
+            return;
+        }
+        if (button == 0 && hit != null && hit.head && player != null
+                && ChatPlayerLinks.activate(player)) {
+            event.setCanceled(true);
+            return;
+        }
+        if (button == 1 && EnhancedChatFeatures.copySelection() && selection.hasSelection()) {
             ChatSelectionModel.Range range = hit == null ? null
                     : selection.ranges(lines(chat), ChatCopyController::text).get(hit.line);
             if (range == null || hit.position < range.start || hit.position > range.end) return;
@@ -105,8 +116,17 @@ public final class ChatCopyController {
     @SubscribeEvent
     public void onDrawChatScreen(GuiScreenEvent.DrawScreenEvent.Post event) {
         if (!(event.getGui() instanceof GuiChat)) return;
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled()) {
+            GuiNewChat chat = Minecraft.getMinecraft().ingameGUI.getChatGUI();
+            Hit hover = hit(chat, false);
+            String player = playerAt(chat, hover);
+            if (hover != null && hover.head && player != null) {
+                ChatPlayerLinks.hoverAvatar(player, event.getMouseX(), event.getMouseY());
+            }
+        }
+        ChatPlayerLinks.drawAvatarTooltip();
         if (!EnhancedChatFeatures.copySelection()) {
-            ChatContextMenu.INSTANCE.close();
+            ChatContextMenu.INSTANCE.draw(event.getMouseX(), event.getMouseY());
             return;
         }
         if (EnhancedChatConfigAccess.tabbedChatEnabled() || !selection.hasSelection()) {
@@ -208,7 +228,21 @@ public final class ChatCopyController {
         String value = text(line);
         int textX = Math.max(0, panelX - ChatHeadRenderer.textOffset());
         int position = minecraft.fontRenderer.trimStringToWidth(value, textX).length();
-        return new Hit(line, Math.max(0, Math.min(value.length(), position)));
+        boolean head = EnhancedChatFeatures.playerHeads()
+                && panelX >= 0 && panelX < ChatHeadRenderer.HEAD_SIZE
+                && line instanceof ChatHeadLineMetadata
+                && ((ChatHeadLineMetadata) line).nfrUi$isFirstFragment();
+        return new Hit(line, Math.max(0, Math.min(value.length(), position)), head);
+    }
+
+    private static String playerAt(GuiNewChat chat, Hit hit) {
+        if (hit == null) return null;
+        if (hit.head && hit.line instanceof ChatHeadLineMetadata) {
+            ChatMessageMetadata metadata =
+                    ((ChatHeadLineMetadata) hit.line).nfrUi$getMessageMetadata();
+            if (metadata != null && !metadata.playerName.isEmpty()) return metadata.playerName;
+        }
+        return ChatPlayerLinks.playerFrom(chat.getChatComponent(Mouse.getX(), Mouse.getY()));
     }
 
     private static List<ChatLine> lines(GuiNewChat chat) {
@@ -222,10 +256,12 @@ public final class ChatCopyController {
     private static final class Hit {
         private final ChatLine line;
         private final int position;
+        private final boolean head;
 
-        private Hit(ChatLine line, int position) {
+        private Hit(ChatLine line, int position, boolean head) {
             this.line = line;
             this.position = position;
+            this.head = head;
         }
     }
 }

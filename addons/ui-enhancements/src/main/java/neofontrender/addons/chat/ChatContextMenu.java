@@ -31,6 +31,11 @@ public final class ChatContextMenu {
     public void openHistory(String selectedText, int mouseX, int mouseY) {
         if (selectedText == null || selectedText.isEmpty()) return;
         List<Item> next = new ArrayList<>();
+        String player = ChatPlayerActions.findPlayer(selectedText);
+        if (player != null) {
+            next.add(item("private_message", () -> ChatPlayerActions.startPrivateMessage(player)));
+            next.add(item("mute_player", () -> ChatPlayerActions.mute(player)));
+        }
         next.add(item("copy", ChatKeyBindings.copyDisplayName(),
                 () -> ChatCopyController.copyToClipboard(selectedText)));
         next.add(item("copy_plain", () -> ChatCopyController.copyPlainToClipboard(selectedText)));
@@ -48,6 +53,16 @@ public final class ChatContextMenu {
         }
         next.add(item("paste", ChatKeyBindings.pasteDisplayName(), () -> pasteInput(field)));
         next.add(item("select_all", ChatKeyBindings.selectAllDisplayName(), () -> selectAllInput(field)));
+        open(next, mouseX, mouseY);
+    }
+
+    public void openPlayer(String player, int mouseX, int mouseY) {
+        if (player == null || player.isEmpty()) return;
+        List<Item> next = new ArrayList<>();
+        next.add(item("private_message", () -> ChatPlayerActions.startPrivateMessage(player)));
+        next.add(item("mention_player", () -> ChatPlayerActions.mention(player)));
+        next.add(item("copy_player", () -> ChatPlayerActions.copyName(player)));
+        next.add(item("mute_player", () -> ChatPlayerActions.mute(player)));
         open(next, mouseX, mouseY);
     }
 

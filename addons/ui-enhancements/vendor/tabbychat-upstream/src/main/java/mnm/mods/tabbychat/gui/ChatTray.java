@@ -19,8 +19,12 @@ import mnm.mods.util.gui.ILayout;
 import mnm.mods.util.gui.events.ActionPerformedEvent;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.resources.I18n;
 import neofontrender.addons.chat.ChatStyleConfig;
 import neofontrender.addons.chat.ChatStyleRenderer;
+import neofontrender.addons.chat.ChatKeepOpenPolicy;
+import neofontrender.addons.chat.ChatHudWindowController;
+import neofontrender.addons.chat.EnhancedChatConfigAccess;
 
 import java.awt.Dimension;
 import java.awt.Rectangle;
@@ -42,6 +46,7 @@ public class ChatTray extends GuiPanel implements IGui {
         this.addComponent(tabList, BorderLayout.Position.CENTER);
         ChatPanel controls = new ChatPanel(new FlowLayout());
         controls.addComponent(new ToggleButton());
+        controls.addComponent(new DetachButton());
         controls.addComponent(handle);
         this.addComponent(controls, BorderLayout.Position.EAST);
 
@@ -50,7 +55,7 @@ public class ChatTray extends GuiPanel implements IGui {
     @Override
     public void drawComponent(int mouseX, int mouseY) {
         GlStateManager.color(1, 1, 1, mc.gameSettings.chatOpacity);
-        if (GuiNewChatTC.getInstance().getChatOpen()) {
+        if (ChatHudWindowController.isChatExpanded()) {
             if (ChatStyleConfig.enabled) {
                 ChatStyleRenderer.panel(getBounds().width, getBounds().height,
                         ChatStyleConfig.trayBackground, ChatStyleConfig.border, mc.gameSettings.chatOpacity);
@@ -108,31 +113,71 @@ public class ChatTray extends GuiPanel implements IGui {
 
     private class ToggleButton extends GuiComponent {
 
-        private Value<Boolean> value;
-
-        ToggleButton() {
-            this.value = TabbyChat.getInstance().settings.advanced.keepChatOpen;
-        }
-
         @Override
         public void drawComponent(int mouseX, int mouseY) {
             GlStateManager.enableBlend();
             int opac = (int)(mc.gameSettings.chatOpacity * 255) << 24;
             drawBorders(4, 4, 8, 8, 0x999999 | opac);
-            if (value.get()) {
+            if (ChatKeepOpenPolicy.shouldKeepOpen(TabbyChat.getInstance().getChat().getActiveChannel())) {
                 Gui.drawRect(5, 5, 7, 7, 0xaaaaaa | opac);
             }
         }
 
         @Subscribe
         public void action(ActionPerformedEvent event) {
-            value.set(!value.get());
+            Channel active = TabbyChat.getInstance().getChat().getActiveChannel();
+            ChatKeepOpenPolicy.set(active, !ChatKeepOpenPolicy.shouldKeepOpen(active));
         }
 
         @Override
         @Nonnull
         public Dimension getMinimumSize() {
             return new Dimension(8, 8);
+        }
+    }
+
+    /** Pops the expanded chat out of GuiChat into the persistent HUD compositor. */
+    private class DetachButton extends GuiComponent {
+        @Override
+        public void drawComponent(int mouseX, int mouseY) {
+            GlStateManager.enableBlend();
+            int alpha = (int) (mc.gameSettings.chatOpacity * 255) << 24;
+            int color = (isHovered() ? 0xffffa0 : 0xffffff) | alpha;
+            if (EnhancedChatConfigAccess.persistentChatHudEnabled()) {
+                // Arrow points back into the window while the chat is detached.
+                drawHorizontalLine(2, 8, 4, color);
+                drawVerticalLine(2, 4, 9, color);
+                drawHorizontalLine(2, 5, 9, color);
+                drawVerticalLine(8, 5, 9, color);
+                drawHorizontalLine(2, 5, 8, color);
+                drawVerticalLine(5, 2, 5, color);
+            } else {
+                // A window with an arrow leaving through its upper-right corner.
+                drawHorizontalLine(2, 8, 9, color);
+                drawVerticalLine(2, 4, 9, color);
+                drawVerticalLine(8, 7, 9, color);
+                drawHorizontalLine(5, 10, 2, color);
+                drawVerticalLine(10, 2, 7, color);
+                drawHorizontalLine(7, 10, 5, color);
+                drawVerticalLine(7, 2, 5, color);
+            }
+            if (isHovered()) {
+                String label = I18n.format(EnhancedChatConfigAccess.persistentChatHudEnabled()
+                        ? "neofontrender_ui_enhancements.chat.hud.attach"
+                        : "neofontrender_ui_enhancements.chat.hud.detach");
+                drawCaption(label, -mc.fontRenderer.getStringWidth(label) - 6, 12);
+            }
+        }
+
+        @Subscribe
+        public void action(ActionPerformedEvent event) {
+            ChatHudWindowController.toggleDetached();
+        }
+
+        @Override
+        @Nonnull
+        public Dimension getMinimumSize() {
+            return new Dimension(12, 12);
         }
     }
 

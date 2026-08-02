@@ -1,0 +1,12 @@
+commands.salutation.error.parse.int=Couldn't parse [%1$s] to an Integer (Cause: %2$s)
+commands.salutation.error.parse.long=Couldn't parse [%s] to an Long (Cause: %2$s)
+commands.salutation.error.parse.double=Couldn't parse [%s] to an Double (Cause: %2$s)
+commands.salutation.error.parse.boolean=Couldn't parse [%s] to an Boolean
+commands.salutation.error.parse.missing.args=Missing Argument
+commands.salutation.error.parse.to_small=Number [%1$s] is smaller then the allowed minimum [%2$s]
+commands.salutation.error.parse.to_big=Number [%1$s] is bigger then the allowed maximum [%2$s]
+commands.salutation.error.parse.dimension_missing=Dimension [%s] doesn't exist
+commands.salutation.error.parse.enum=Couldn't parse [%s] to Enum
+commands.salutation.error.commands.notfound=Command [%s] couldn't be found.
+commands.salutation.error.commands.missingargs=Command is missing arguments
+commands.salutation.error.commands.argument_failed=Argument [%1$s] couldn't be parsed: %2$s

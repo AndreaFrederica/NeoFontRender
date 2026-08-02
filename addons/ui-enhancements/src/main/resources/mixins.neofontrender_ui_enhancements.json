@@ -5,7 +5,9 @@
   "refmap": "mixins.neofontrender_ui_enhancements-refmap.json",
   "compatibilityLevel": "JAVA_8",
   "target": "@env(DEFAULT)",
-  "mixins": [],
+  "mixins": [
+    "MixinCommandMessageSelfTarget"
+  ],
   "server": [],
   "client": [
     "AccessorShaderGroup",
@@ -19,6 +21,7 @@
     "MixinEntityRendererZoomMouse",
     "MixinForgeGuiUtilsButtonAlpha",
     "MixinGuiChatAnimation",
+    "MixinGuiChatCommandCompletion",
     "MixinGuiButtonCreateWorldStyle",
     "MixinGuiButtonExtHover",
     "MixinGuiButtonHover",
@@ -34,6 +37,7 @@
     "MixinGuiNewChatHistory",
     "MixinForgeGuiScrollingListSmoothScroll",
     "MixinGuiScreenBackground",
+    "MixinGuiScreenPlayerLinks",
     "MixinGuiScreenResourcePacksProgress",
     "MixinGuiSlotSmoothScroll",
     "MixinGuiSlotLanguageFavorites",

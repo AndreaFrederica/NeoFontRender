@@ -5,10 +5,40 @@
     "version": "${version}",
     "mcversion": "1.12.2",
     "description": "Optional UI improvements powered by Neo Font Render, including modern tooltips.",
-    "authorList": ["AndreaFrederica", "baka-gourd"],
+    "authorList": ["AndreaFrederica", "baka-gourd", "DHJComical"],
     "url": "https://github.com/AndreaFrederica/NeoFontRender-UIEnhancements",
     "logoFile": "assets/neofontrender_ui_enhancements/logo.png",
+    "modProperties": {"issueTrackerUrl": "${issueTracker}"},
     "clientSideOnly": true,
-    "requiredMods": ["neofontrender"]
+    "requiredMods": ["neofontrender@[${nfrVersion},)", "modularui@[3.1.6,)"],
+    "dependencies": ["applecore", "chunkpregenerator", "classicbar", "jei", "legendarytooltips", "obscure_tooltips", "optifine", "quark"]
+  },
+  {
+    "modid": "tabbychat2",
+    "name": "TabbyChat 2 Reforged (UIE Embedded)",
+    "version": "2.0.0-uie",
+    "mcversion": "1.12.2",
+    "description": "Organises chat messages into separate channel columns with filters and manageable history. Bundled from TabbyChat 2 Reforged.",
+    "authorList": ["MNM", "UIE"],
+    "credits": "Embedded by NFR UI Enhancements; original TabbyChat 2 Reforged sources are Apache-2.0.",
+    "logoFile": "assets/neofontrender_ui_enhancements/logo.png",
+    "modProperties": {"issueTrackerUrl": "${issueTracker}"},
+    "clientSideOnly": true,
+    "requiredMods": ["neofontrender_ui_enhancements@[${version},)"],
+    "dependencies": []
+  },
+  {
+    "modid": "salutation",
+    "name": "Salutation (UIE Embedded)",
+    "version": "1.0.0-uie",
+    "mcversion": "1.12.2",
+    "description": "Chunk Pregenerators backport of the Command System made open source. Bundled from Salutation 1.12.2.",
+    "authorList": ["Speiger", "UIE"],
+    "credits": "Embedded by NFR UI Enhancements; original Salutation sources are Apache-2.0.",
+    "logoFile": "assets/salutation/logo.png",
+    "modProperties": {"issueTrackerUrl": "${issueTracker}"},
+    "clientSideOnly": true,
+    "requiredMods": ["neofontrender_ui_enhancements@[${version},)"],
+    "dependencies": []
   }
 ]

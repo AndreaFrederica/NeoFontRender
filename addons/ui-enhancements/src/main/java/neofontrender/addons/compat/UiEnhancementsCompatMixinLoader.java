@@ -41,7 +41,11 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
         if (SALUTATION_CONFIG.equals(config)) {
             return context.isModPresent("salutation")
                     && classResourcePresent(
-                            "speiger/src/salutation/client/gui/chat/AdvancedTabCompleter.class");
+                            "speiger/src/salutation/client/ClientHandler.class")
+                    && classResourcePresent(
+                            "speiger/src/salutation/client/gui/chat/AdvancedTabCompleter.class")
+                    && classResourcePresent(
+                            "speiger/src/salutation/client/gui/chat/ChatScreen.class");
         }
         if (QUARK_CONFIG.equals(config)) {
             return context.isModPresent("quark")

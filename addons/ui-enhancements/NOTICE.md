@@ -33,3 +33,16 @@ bundled image resources are incorporated in this addon.
 The singleplayer spawn-preparation progress design is independently implemented after
 reviewing Loading Progress Bar's public behavior. It uses a targeted Mixin and does not
 incorporate that mod's ASM transformer or resources.
+
+Salutation 1.12.2 by Speiger is embedded as an integrated source component, including its
+chat screens, multiline chat backend, advanced completer, command tree and argument types.
+The small UIE configuration facade replaces only the original CarbonConfig/Forge mod entry
+point; the Salutation behavior and public package names are retained. Salutation is Copyright
+2025 Speiger and is distributed under the Apache License 2.0. The complete license is included
+in META-INF/LICENSE-Salutation-1.12.2.txt and the original source is available at
+https://github.com/Speiger/Salutation/tree/1.12.2.
+
+Chinese chat segmentation and dictionary lookup use jieba-analysis 1.0.2 by Huaban,
+distributed under the Apache License 2.0. The unmodified library is carried as an embedded
+dependency. The complete license is included in META-INF/LICENSE-Jieba-Analysis.txt and its
+upstream source is available at https://github.com/huaban/jieba-analysis.

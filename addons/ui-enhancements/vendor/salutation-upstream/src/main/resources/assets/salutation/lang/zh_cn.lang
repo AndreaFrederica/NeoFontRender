@@ -1,0 +1,15 @@
+commands.salutation.error.parse.int=无法将 [%1$s] 解析为整数（原因：%2$s）
+commands.salutation.error.parse.long=无法将 [%1$s] 解析为长整数（原因：%2$s）
+commands.salutation.error.parse.double=无法将 [%1$s] 解析为小数（原因：%2$s）
+commands.salutation.error.parse.boolean=无法将 [%s] 解析为布尔值
+commands.salutation.error.parse.missing.args=缺少参数
+commands.salutation.error.parse.to_small=数字 [%1$s] 小于允许的最小值 [%2$s]
+commands.salutation.error.parse.to_big=数字 [%1$s] 大于允许的最大值 [%2$s]
+commands.salutation.error.parse.dimension_missing=维度 [%s] 不存在
+commands.salutation.error.parse.enum=无法将 [%s] 解析为枚举值
+commands.salutation.error.command.notfound=找不到命令 [%s]。
+commands.salutation.error.command.missingargs=命令缺少参数
+commands.salutation.error.command.argument_failed=无法解析参数 [%1$s]：%2$s
+commands.salutation.error.commands.notfound=找不到命令 [%s]。
+commands.salutation.error.commands.missingargs=命令缺少参数
+commands.salutation.error.commands.argument_failed=无法解析参数 [%1$s]：%2$s

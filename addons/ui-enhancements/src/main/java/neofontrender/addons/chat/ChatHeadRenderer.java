@@ -27,6 +27,20 @@ public final class ChatHeadRenderer {
         if (minecraft.getConnection() == null) return;
         NetworkPlayerInfo player = minecraft.getConnection().getPlayerInfo(senderId);
         if (player == null) return;
+        render(player, x, y, opacity);
+    }
+
+    /** Draws a completion-list face independently of the message-head visibility setting. */
+    public static void renderCandidate(String candidate, int x, int y, float opacity) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (candidate == null || minecraft.getConnection() == null || opacity <= 0.0F) return;
+        String playerName = candidate.startsWith("@") ? candidate.substring(1) : candidate;
+        NetworkPlayerInfo player = minecraft.getConnection().getPlayerInfo(playerName);
+        if (player != null) render(player, x, y, opacity);
+    }
+
+    private static void render(NetworkPlayerInfo player, int x, int y, float opacity) {
+        Minecraft minecraft = Minecraft.getMinecraft();
         ResourceLocation skin = player.getLocationSkin();
 
         GlStateManager.enableTexture2D();

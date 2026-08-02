@@ -26,8 +26,11 @@ configurations {
 
 sourceSets {
     main {
+        java.srcDir '../ui-enhancements-common/src/main/java'
         java.srcDir 'vendor/tabbychat-upstream/src/main/java'
+        java.srcDir 'vendor/salutation-upstream/src/main/java'
         resources.srcDir 'vendor/tabbychat-upstream/src/main/resources'
+        resources.srcDir 'vendor/salutation-upstream/src/main/resources'
         java.exclude 'mnm/mods/tabbychat/TabbyChatLoadingPlugin.java'
     }
 }
@@ -58,6 +61,9 @@ dependencies {
 
     // Embedded TabbyChat spell-check engine. FML extracts this nested jar at launch.
     contain 'net.sf.jazzy:jazzy:0.5.2-rtext-1.4.1-2'
+    // Chinese segmentation and dictionary used by TabbyChat spell checking.
+    // Cleanroom already supplies a compatible commons-lang3, so avoid embedding 3.3.1.
+    contain('com.huaban:jieba-analysis:1.0.2') { transitive = false }
 
     // Arc3D Core is distributed by the required NFR main mod. Compile against the same public
     // upstream packages without embedding a duplicate copy in this addon.
@@ -73,8 +79,15 @@ dependencies {
 processResources {
     exclude 'mixin.tabbychat2.json'
     exclude 'litemod.json'
+    // Upstream used 1.7-era en_US casing. Minecraft 1.12 only discovers en_us.
+    exclude 'assets/salutation/lang/en_US.lang'
     inputs.property('version', project.version)
-    filesMatching('mcmod.info') { expand(version: project.version) }
+    inputs.property('nfrVersion', rootProject.version)
+    inputs.property('issueTracker', rootProject.mod_issue_tracker)
+    filesMatching('mcmod.info') {
+        expand(version: project.version, nfrVersion: rootProject.version,
+                issueTracker: rootProject.mod_issue_tracker)
+    }
     from(rootProject.file('src/main/resources/META-INF/LICENSE-Arc3D.txt')) {
         into 'META-INF'
         rename { 'LICENSE-ModernUI.txt' }
@@ -82,6 +95,21 @@ processResources {
     from('vendor/tabbychat-upstream/LICENCE') {
         into 'META-INF'
         rename { 'LICENSE-TabbyChat-2-Reforged.txt' }
+    }
+    from('vendor/salutation-upstream/LICENSE') {
+        into 'META-INF'
+        rename { 'LICENSE-Salutation-1.12.2.txt' }
+    }
+    from('vendor/salutation-upstream/LICENSE') {
+        into 'META-INF'
+        rename { 'LICENSE-Jieba-Analysis.txt' }
+    }
+    from('vendor/salutation-upstream/CFImage.png') {
+        into ''
+    }
+    from('vendor/salutation-upstream/CFImage.png') {
+        into 'assets/salutation'
+        rename { 'logo.png' }
     }
 }
 
@@ -113,6 +141,10 @@ test {
     useJUnitPlatform()
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
 }
+
+// Unimined wires Minecraft and Forge to main after source-set creation.
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
 
 tasks.register('prepareCombinedClientRun', Copy) {
     dependsOn tasks.named('jar')
