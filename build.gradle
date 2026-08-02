@@ -91,6 +91,7 @@ processResources {
             mod_credits: mod_credits,
             mod_url: mod_url,
             mod_update_json: mod_update_json,
+            mod_issue_tracker: mod_issue_tracker,
             mod_logo_path: mod_logo_path
     ]
     inputs.properties(metadata)

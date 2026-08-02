@@ -8,6 +8,7 @@ import com.cleanroommc.modularui.screen.ModularScreen;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.widgets.TextWidget;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.resources.I18n;
 import net.minecraftforge.fml.relauncher.Side;
@@ -49,7 +50,7 @@ import java.util.Map;
 /** Settings entry point and route controller. Page content lives under {@code gui.views}. */
 @SideOnly(Side.CLIENT)
 public final class NeofontrenderConfigScreen {
-    private static net.minecraft.client.gui.GuiScreen returnScreen;
+    private static GuiScreen returnScreen;
 
     private NeofontrenderConfigScreen() {}
 
@@ -57,10 +58,45 @@ public final class NeofontrenderConfigScreen {
         open(null);
     }
 
-    public static void open(net.minecraft.client.gui.GuiScreen parent) {
+    public static void open(GuiScreen parent) {
+        ClientGUI.open(createConfigScreen(parent, Route.builtin(NfrSettingsRoute.FONT)));
+    }
+
+    public static GuiScreen createConfigGui(GuiScreen parent, NfrSettingsRoute initialRoute) {
+        return new ForgeConfigBridge(parent, createConfigScreen(parent,
+                Route.builtin(initialRoute == null ? NfrSettingsRoute.FONT : initialRoute)));
+    }
+
+    public static GuiScreen createConfigGui(GuiScreen parent, String extensionPageId) {
+        return new ForgeConfigBridge(parent, createConfigScreen(parent, extensionPageId, null));
+    }
+
+    public static GuiScreen createConfigGuiForNamespace(GuiScreen parent, String extensionNamespace) {
+        return new ForgeConfigBridge(parent, createConfigScreen(parent, null, extensionNamespace));
+    }
+
+    private static ModularScreen createConfigScreen(GuiScreen parent, Route initialRoute) {
         returnScreen = parent;
         ScreenSession session = new ScreenSession(new NfrSettingsDraft());
-        openRoute(session, Route.builtin(NfrSettingsRoute.FONT));
+        return createScreen(buildPanel(session, initialRoute)).openParentOnClose(parent != null);
+    }
+
+    private static ModularScreen createConfigScreen(GuiScreen parent, String extensionPageId,
+                                                     String extensionNamespace) {
+        returnScreen = parent;
+        ScreenSession session = new ScreenSession(new NfrSettingsDraft());
+        return createScreen(buildPanel(session, initialExtensionRoute(session, extensionPageId, extensionNamespace)))
+                .openParentOnClose(parent != null);
+    }
+
+    private static Route initialExtensionRoute(ScreenSession session, String pageId, String namespace) {
+        for (neofontrender.api.client.settings.NfrSettingsPage page : session.extensionPages) {
+            if (pageId != null && pageId.equals(page.id())) return Route.extension(page);
+            if (pageId == null && namespace != null && page.id().startsWith(namespace + ":")) {
+                return Route.extension(page);
+            }
+        }
+        return Route.builtin(NfrSettingsRoute.FONT);
     }
 
     private static void openRoute(ScreenSession session, Route route) {
@@ -285,6 +321,33 @@ public final class NeofontrenderConfigScreen {
             if (returnScreen.width != width || returnScreen.height != height) {
                 returnScreen.setWorldAndResolution(minecraft, width, height);
             }
+        }
+    }
+
+    /** Forge requires a vanilla GuiScreen even though ModularUI owns the real settings screen. */
+    private static final class ForgeConfigBridge extends GuiScreen {
+        private final GuiScreen parent;
+        private final ModularScreen target;
+        private boolean opened;
+
+        private ForgeConfigBridge(GuiScreen parent, ModularScreen target) {
+            this.parent = parent;
+            this.target = target;
+        }
+
+        @Override
+        public void initGui() {
+            if (opened) {
+                mc.displayGuiScreen(parent);
+                return;
+            }
+            opened = true;
+            ClientGUI.open(target);
+        }
+
+        @Override
+        public boolean doesGuiPauseGame() {
+            return false;
         }
     }
 }

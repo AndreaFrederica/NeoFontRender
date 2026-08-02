@@ -14,6 +14,7 @@ import neofontrender.Tags;
         modid = NeoFontRenderResources.MOD_ID,
         name = "Neo Font Render Resources",
         version = Tags.VERSION,
+        dependencies = "required-after:" + Tags.MOD_ID + "@[" + Tags.VERSION + ",)",
         clientSideOnly = true,
         acceptedMinecraftVersions = "[1.12,1.13)"
 )

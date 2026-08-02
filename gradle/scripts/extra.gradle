@@ -43,10 +43,11 @@ tasks.register('coreJar', Jar) {
     archiveBaseName = mod_id; archiveVersion = mod_version; archiveClassifier = 'core'; archiveExtension = 'jar'
     destinationDirectory = layout.buildDirectory.dir('libs')
     from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
-        exclude 'META-INF/MANIFEST.MF', 'mcmod.info', 'assets/neofontrender/fonts/**'
+        exclude 'META-INF/MANIFEST.MF', 'mcmod.info', 'assets/neofontrender/fonts/**',
+                'neofontrender/resources/**'
     }
     from('src/corePack/resources') {
-        expand(mod_id: mod_id, mod_name: mod_name, mod_version: mod_version, mod_description: mod_description, mod_authors: mod_authors, mod_credits: mod_credits, mod_url: mod_url, mod_update_json: mod_update_json, mod_logo_path: mod_logo_path)
+        expand(mod_id: mod_id, mod_name: mod_name, mod_version: mod_version, mod_description: mod_description, mod_authors: mod_authors, mod_credits: mod_credits, mod_url: mod_url, mod_update_json: mod_update_json, mod_issue_tracker: mod_issue_tracker, mod_logo_path: mod_logo_path)
     }
     doFirst {
         def contained = coreContainedJars.get()
@@ -65,13 +66,17 @@ tasks.register('coreJar', Jar) {
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
-tasks.register('resourcesJar', Zip) {
+tasks.register('resourcesJar', Jar) {
     group = 'build'; description = 'Packages bundled fonts as a standalone resource mod.'
     dependsOn packagedJar
     archiveBaseName = "${mod_id}-resources"; archiveVersion = mod_version; archiveExtension = 'jar'
     destinationDirectory = layout.buildDirectory.dir('libs')
-    from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) { include 'assets/neofontrender/fonts/**', 'neofontrender/resources/NeoFontRenderResources.class' }
-    from('src/resourcePack/resources') { expand(mod_version: mod_version, mod_authors: mod_authors, mod_url: mod_url) }
+    from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
+        include 'assets/neofontrender/fonts/**', 'assets/neofontrender/logo.png',
+                'neofontrender/resources/NeoFontRenderResources.class'
+    }
+    from('src/resourcePack/resources') { expand(mod_version: mod_version, mod_authors: mod_authors, mod_url: mod_url, mod_issue_tracker: mod_issue_tracker) }
+    manifest.attributes('ModType': 'CRL')
 }
 tasks.register('verifyPackageVariants') {
     group = 'verification'
@@ -88,8 +93,25 @@ tasks.register('verifyPackageVariants') {
             if (core.entries().toList().any { it.name.startsWith('assets/neofontrender/fonts/') }) {
                 throw new GradleException('Core JAR contains bundled font resources')
             }
+            if (core.getEntry('neofontrender/resources/NeoFontRenderResources.class') != null) {
+                throw new GradleException('Core JAR registers the standalone resources mod container')
+            }
         } finally {
             core.close()
+        }
+        def resources = new java.util.jar.JarFile(resourcesFile)
+        try {
+            ['mcmod.info', 'assets/neofontrender/logo.png',
+             'neofontrender/resources/NeoFontRenderResources.class'].each { entry ->
+                if (resources.getEntry(entry) == null) {
+                    throw new GradleException("${resourcesFile.name} is missing ${entry}")
+                }
+            }
+            if (resources.manifest?.mainAttributes?.getValue('ModType') != 'CRL') {
+                throw new GradleException("${resourcesFile.name} is missing the CRL manifest type")
+            }
+        } finally {
+            resources.close()
         }
         [fullFile, coreFile].each { archive ->
             def jar = new java.util.jar.JarFile(archive)

@@ -19,3 +19,4 @@ plugins {
 rootProject.name = rootProject.projectDir.getName()
 
 include 'addons:ui-enhancements'
+include 'addons:ui-enhancements-server'

@@ -9,7 +9,10 @@
 	"url": "${mod_url}",
 	"updateJSON": "${mod_update_json}",
 	"logoFile": "${mod_logo_path}",
-	"clientSideOnly": true
+	"modProperties": {"issueTrackerUrl": "${mod_issue_tracker}"},
+	"clientSideOnly": true,
+	"requiredMods": ["modularui@[3.1.6,)"],
+	"dependencies": []
 }, {
 	"modid": "neofontrender_resources",
 	"name": "Neo Font Render Resources",
@@ -17,6 +20,11 @@
 	"mcversion": "1.12.2",
 	"description": "Optional bundled fonts included by the full distribution.",
 	"authorList": ["${mod_authors}"],
+	"credits": "Bundled font resources for Neo Font Render.",
 	"url": "${mod_url}",
-	"clientSideOnly": true
+	"logoFile": "${mod_logo_path}",
+	"modProperties": {"issueTrackerUrl": "${mod_issue_tracker}"},
+	"clientSideOnly": true,
+	"requiredMods": ["${mod_id}@[${mod_version},)"],
+	"dependencies": []
 }]
