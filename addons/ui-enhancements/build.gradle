@@ -145,7 +145,37 @@ tasks.named('assemble') {
     dependsOn tasks.named('reobfJar')
 }
 
+def sealedLwjgl2ForTests = provider {
+    sourceSets.test.runtimeClasspath.files.find { file ->
+        file.name == 'lwjgl-2.9.4-nightly-20150209.jar' &&
+                file.absolutePath.contains('org.lwjgl.lwjgl')
+    }
+}
+
+def unsealedLwjgl2ForTests = tasks.register('unsealLwjgl2ForTests', Jar) {
+    archiveFileName = 'lwjgl-2.9.4-nightly-20150209-unsealed.jar'
+    destinationDirectory = layout.buildDirectory.dir('tmp/lwjgl2-unsealed')
+    from(provider {
+        def sealedJar = sealedLwjgl2ForTests.get()
+        if (sealedJar == null) {
+            throw new GradleException('Cannot find the LWJGL2 jar in the ui-enhancements test runtime classpath.')
+        }
+        zipTree(sealedJar)
+    }) {
+        exclude 'META-INF/MANIFEST.MF'
+    }
+    manifest {
+        attributes 'Manifest-Version': '1.0'
+    }
+}
+
 test {
+    // The 1.7.10 dev classpath ships a sealed LWJGL2 jar. Keep its API classes for Minecraft
+    // tests via an unsealed copy so the addon's LWJGL3 Version can load without a conflict.
+    classpath = sourceSets.test.runtimeClasspath.filter { file ->
+        !(file.absolutePath.contains('org.lwjgl.lwjgl') &&
+                file.name == 'lwjgl-2.9.4-nightly-20150209.jar')
+    } + files(unsealedLwjgl2ForTests.flatMap { it.archiveFile })
     useJUnitPlatform()
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
 }
