@@ -94,8 +94,12 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.theWorld == null) return false;
         ScreenProfile profile = profileFor(screen);
-        return profile.overlay
+        return usesOverlay(screen)
                 || (profile.blur && OpenGlHelper.shadersSupported && !shaderCreationFailed);
+    }
+
+    static boolean usesOverlay(GuiScreen screen) {
+        return profileFor(screen).overlay;
     }
 
     public void configChanged() {
@@ -197,8 +201,10 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
         if (screen instanceof GuiDownloadTerrain) return ScreenProfile.NONE;
 
         if (screen instanceof GuiChat) {
+            // 1.7.10 aligns with the old 1.12.2 behavior: GuiChat has its own background, so it
+            // must not receive a full-screen dark gradient.
             return new ScreenProfile(
-                    ScreenEffectsConfig.gradient && ScreenEffectsConfig.gradientChat,
+                    false,
                     ScreenEffectsConfig.blur && ScreenEffectsConfig.blurChat,
                     ScreenEffectsConfig.fade && ScreenEffectsConfig.fadeChat);
         }
