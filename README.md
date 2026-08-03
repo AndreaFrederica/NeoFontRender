@@ -30,9 +30,10 @@ Neo Font Render replaces Minecraft 1.12.2's bitmap-font path with configurable m
 
 The project ships as a main mod and several optional modules. All UIE modules share a single settings screen.
 
-> **License note:** The main mod is MIT. UI Enhancements and its source code are also MIT, but it
-> bundles third-party components under Apache-2.0 (TabbyChat, Salutation, jieba-analysis) and
-> LGPL-2.1 (Jazzy). See [NOTICE.md](addons/ui-enhancements/NOTICE.md) and the bundled
+> **License note:** The main mod is MIT. UI Enhancements source code is MIT, but the distributed
+> JAR links against LGPL-3.0 libraries (Arc3D Core, ModularUI) and embeds LGPL-2.1 (Jazzy) and
+> Apache-2.0 (TabbyChat, Salutation, jieba-analysis) components, so the combined work is
+> effectively LGPL-3.0. See [NOTICE.md](addons/ui-enhancements/NOTICE.md) and the bundled
 > `META-INF/LICENSE-*` files for full details.
 
 <table>
@@ -57,7 +58,7 @@ The project ships as a main mod and several optional modules. All UIE modules sh
   <td><img src="addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png" width="32"></td>
   <td><b>NFR UI Enhancements</b></td>
   <td><code>neofontrender_ui_enhancements</code></td>
-  <td>MIT</td>
+  <td>LGPL-3.0</td>
   <td>Visual and interactive addons: chat (TabbyChat + Salutation embedded), tooltips, HUD bars, smooth scrolling, text input, screen effects, hover animation, world loading, zoom.</td>
 </tr>
 <tr>

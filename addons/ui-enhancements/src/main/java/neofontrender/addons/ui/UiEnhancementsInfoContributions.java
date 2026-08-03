@@ -31,7 +31,9 @@ final class UiEnhancementsInfoContributions {
             @Override public NfrInfoPage page() { return NfrInfoPage.LICENSES; }
             @Override public List<NfrInfoLine> lines() {
                 return Arrays.asList(
-                        NfrInfoLine.spaced("NFR UI Enhancements - MIT", 0xD8D8D8),
+                        NfrInfoLine.spaced("NFR UI Enhancements - LGPL-3.0", 0xD8D8D8),
+                        NfrInfoLine.line("Arc3D Core - LGPL-3.0-or-later", 0xD8D8D8),
+                        NfrInfoLine.line("ModularUI - LGPL-3.0", 0xD8D8D8),
                         NfrInfoLine.line("TabbyChat 2 Reforged - Apache-2.0", 0xD8D8D8),
                         NfrInfoLine.line("Salutation 1.12.2 - Apache-2.0", 0xD8D8D8),
                         NfrInfoLine.line("jieba-analysis - Apache-2.0", 0xD8D8D8),

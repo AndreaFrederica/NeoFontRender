@@ -30,9 +30,10 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 
 项目由本体和若干可选模块组成，所有 UIE 模块共享同一个设置界面。
 
-> **许可证说明：** 本体为 MIT。UI Enhancements 源码同样为 MIT，但内嵌了 Apache-2.0 许可的
-> 第三方组件（TabbyChat、Salutation、jieba-analysis）和 LGPL-2.1 许可的 Jazzy。详见
-> [NOTICE.md](addons/ui-enhancements/NOTICE.md) 及打包在 `META-INF/LICENSE-*` 中的完整许可证文本。
+> **许可证说明：** 本体为 MIT。UI Enhancements 源码同样为 MIT，但发行 JAR 链接了 LGPL-3.0
+> 库（Arc3D Core、ModularUI）并内嵌了 LGPL-2.1（Jazzy）和 Apache-2.0（TabbyChat、Salutation、
+> jieba-analysis）组件，因此组合作品实际为 LGPL-3.0。详见 [NOTICE.md](addons/ui-enhancements/NOTICE.md)
+> 及打包在 `META-INF/LICENSE-*` 中的完整许可证文本。
 
 <table>
 <thead>
@@ -56,7 +57,7 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
   <td><img src="addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png" width="32"></td>
   <td><b>NFR UI Enhancements</b></td>
   <td><code>neofontrender_ui_enhancements</code></td>
-  <td>MIT</td>
+  <td>LGPL-3.0</td>
   <td>视觉与交互增强：聊天（内嵌 TabbyChat + Salutation）、工具提示、HUD 状态条、平滑滚动、文本输入、屏幕效果、悬停动画、世界加载、缩放。</td>
 </tr>
 <tr>
