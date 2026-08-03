@@ -32,7 +32,8 @@ final class ZoomHandler {
         int duration = ZoomConfig.smoothTransition ? ZoomConfig.transitionDurationMillis : 0;
         float amount = transition.update(requested, System.nanoTime(), duration);
         boolean active = amount > 0.0F;
-        updateState(minecraft, active);
+        boolean settled = amount >= 0.99F;
+        updateState(minecraft, active, settled);
         if (active) {
             float baseFov = event.getFOV();
             float zoomedFov = ZoomMath.zoomedFov(baseFov, ZoomConfig.magnification, amount);
@@ -75,7 +76,7 @@ final class ZoomHandler {
                 && ZOOM_KEY.isKeyDown();
     }
 
-    private void updateState(Minecraft minecraft, boolean active) {
+    private void updateState(Minecraft minecraft, boolean active, boolean settled) {
         if (minecraft == null || minecraft.gameSettings == null) return;
         if (active) {
             if (!zooming) {
@@ -83,7 +84,9 @@ final class ZoomHandler {
                 managedSmoothCamera = ZoomConfig.smoothCamera;
                 smoothCameraBeforeZoom = minecraft.gameSettings.smoothCamera;
             }
-            if (managedSmoothCamera) minecraft.gameSettings.smoothCamera = true;
+            // Only enable smooth camera after the FOV transition completes to avoid
+            // double-smoothing (vanilla cinematic + smoothstep) during the animation.
+            if (managedSmoothCamera && settled) minecraft.gameSettings.smoothCamera = true;
         } else if (zooming) {
             if (managedSmoothCamera) minecraft.gameSettings.smoothCamera = smoothCameraBeforeZoom;
             zooming = false;
@@ -94,6 +97,6 @@ final class ZoomHandler {
     private void resetState(Minecraft minecraft) {
         transition.reset();
         ZoomMouseScaling.reset();
-        updateState(minecraft, false);
+        updateState(minecraft, false, false);
     }
 }
