@@ -4,6 +4,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import neofontrender.Tags;
+import neofontrender.addons.tips.TipsModule;
 import neofontrender.addons.tooltips.TooltipModule;
 import neofontrender.addons.scrolling.SmoothScrollingModule;
 import neofontrender.addons.input.TextInputModule;
@@ -53,7 +54,8 @@ public final class NfrUiEnhancements {
             new CreateWorldModule(),
             new HudBarsModule(),
             new EnhancedChatModule(),
-            new TooltipModule()
+            new TooltipModule(),
+            new TipsModule()
     );
 
     @Mod.EventHandler

@@ -23,6 +23,9 @@ import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import neofontrender.addons.tips.TipManager;
+import neofontrender.addons.tips.TipRenderer;
+import neofontrender.addons.tips.TipsConfig;
 import neofontrender.addons.mixin.AccessorChunkProviderClient;
 import neofontrender.api.text.ModernTextApi;
 import org.lwjgl.opengl.GL11;
@@ -291,6 +294,7 @@ public enum WorldLoadingRenderer {
                 : 0.02F;
         progress.reset(now);
         if (!continuingIntegratedLaunch) arc3dBar.reset(now);
+        TipManager.INSTANCE.reset();
     }
 
     private void finish(long now) {
@@ -372,6 +376,14 @@ public enum WorldLoadingRenderer {
         if (!detail.isEmpty()) {
             font.drawString(detail, margin, textBottom + 2,
                     scaledAlpha(0xFFB8C0CC, alpha), false);
+        }
+
+        // Tips above the title
+        if (TipsConfig.enabled && TipsConfig.showOnWorldLoading) {
+            TipManager.INSTANCE.update(now, TipsConfig.cycleTimeMillis);
+            float titleFontSize = Math.max(1.0F, font.FONT_HEIGHT * titleScale);
+            int titleTop = (int) (textBottom - titleFontSize);
+            TipRenderer.draw(width, height, margin, titleTop, alpha, WorldLoadingConfig.textColor);
         }
 
         int spinnerX = width - margin - 10;

@@ -1,0 +1,24 @@
+{
+  "tips": [
+    {"text": {"translate": "tip.uie.1"}, "category": "gameplay"},
+    {"text": {"translate": "tip.uie.2"}, "category": "gameplay"},
+    {"text": {"translate": "tip.uie.3"}, "category": "gameplay"},
+    {"text": {"translate": "tip.uie.4"}, "category": "gameplay"},
+    {"text": {"translate": "tip.uie.5"}, "category": "gameplay"},
+    {"text": {"translate": "tip.uie.6"}, "category": "gameplay"},
+    {"text": {"translate": "tip.uie.7"}, "category": "building"},
+    {"text": {"translate": "tip.uie.8"}, "category": "building"},
+    {"text": {"translate": "tip.uie.9"}, "category": "survival"},
+    {"text": {"translate": "tip.uie.10"}, "category": "survival"},
+    {"text": {"translate": "tip.uie.11"}, "category": "survival"},
+    {"text": {"translate": "tip.uie.12"}, "category": "redstone"},
+    {"text": {"translate": "tip.uie.13"}, "category": "redstone"},
+    {"text": {"translate": "tip.uie.14"}, "category": "combat"},
+    {"text": {"translate": "tip.uie.15"}, "category": "combat"},
+    {"text": {"translate": "tip.uie.16"}, "category": "combat"},
+    {"text": {"translate": "tip.uie.17"}, "category": "exploration"},
+    {"text": {"translate": "tip.uie.18"}, "category": "exploration"},
+    {"text": {"translate": "tip.uie.19"}, "category": "gameplay"},
+    {"text": {"translate": "tip.uie.20"}, "category": "gameplay"}
+  ]
+}
