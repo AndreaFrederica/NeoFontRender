@@ -2,14 +2,23 @@ package neofontrender.addons.zoom;
 
 public final class ZoomMouseScaling {
     private static volatile float movementScale = 1.0F;
+    private static float rawScale = 1.0F;
+    private static float smoothedScale = 1.0F;
+
+    // Smoothing factor: 0.0 = no change, 1.0 = instant. 0.15 is responsive but stable.
+    private static final float SMOOTHING_FACTOR = 0.15F;
 
     private ZoomMouseScaling() {}
 
     static void update(float baseFov, float zoomedFov, float adjustment) {
-        movementScale = ZoomMath.mouseMovementScale(baseFov, zoomedFov, adjustment);
+        rawScale = ZoomMath.mouseMovementScale(baseFov, zoomedFov, adjustment);
+        smoothedScale += (rawScale - smoothedScale) * SMOOTHING_FACTOR;
+        movementScale = smoothedScale;
     }
 
     static void reset() {
+        rawScale = 1.0F;
+        smoothedScale = 1.0F;
         movementScale = 1.0F;
     }
 
