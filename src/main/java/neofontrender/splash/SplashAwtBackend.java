@@ -155,6 +155,20 @@ public final class SplashAwtBackend {
         try (TextGlState ignored = new TextGlState()) {
             GL11.glEnable(GL11.GL_TEXTURE_2D);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, rendered.textureId);
+            // Forge's splash texture can leave REPLACE enabled.  In that mode the white AWT
+            // bitmap ignores the current color and becomes invisible on Forge's white canvas.
+            GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL11.GL_MODULATE);
+
+            int argb = color;
+            float red = ((argb >>> 16) & 0xFF) / 255.0F;
+            float green = ((argb >>> 8) & 0xFF) / 255.0F;
+            float blue = (argb & 0xFF) / 255.0F;
+            float alpha = ((argb >>> 24) & 0xFF) / 255.0F;
+            // A zero color is the legacy placeholder used by the splash font API.  Keep the
+            // caller's theme color in that case (ModernSplash sets it before invoking us).
+            if ((argb & 0x00FFFFFF) != 0 || (argb & 0xFF000000) != 0) {
+                GL11.glColor4f(red, green, blue, alpha);
+            }
 
             // ModernSplash sets its configured theme color and fade alpha before calling the
             // renderer. The method's black color argument is only a bitmap-font placeholder.
@@ -356,6 +370,9 @@ public final class SplashAwtBackend {
     private static final class TextGlState implements AutoCloseable {
         private final boolean blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
         private final boolean alphaTestEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
+        private final boolean depthTestEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        private final boolean cullEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        private final boolean lightingEnabled = GL11.glIsEnabled(GL11.GL_LIGHTING);
         private final int srcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
         private final int dstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
         private final int srcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
@@ -366,6 +383,9 @@ public final class SplashAwtBackend {
             GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
                     GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
             GL11.glDisable(GL11.GL_ALPHA_TEST);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glDisable(GL11.GL_CULL_FACE);
+            GL11.glDisable(GL11.GL_LIGHTING);
         }
 
         @Override
@@ -380,6 +400,21 @@ public final class SplashAwtBackend {
                 GL11.glEnable(GL11.GL_BLEND);
             } else {
                 GL11.glDisable(GL11.GL_BLEND);
+            }
+            if (depthTestEnabled) {
+                GL11.glEnable(GL11.GL_DEPTH_TEST);
+            } else {
+                GL11.glDisable(GL11.GL_DEPTH_TEST);
+            }
+            if (cullEnabled) {
+                GL11.glEnable(GL11.GL_CULL_FACE);
+            } else {
+                GL11.glDisable(GL11.GL_CULL_FACE);
+            }
+            if (lightingEnabled) {
+                GL11.glEnable(GL11.GL_LIGHTING);
+            } else {
+                GL11.glDisable(GL11.GL_LIGHTING);
             }
         }
     }

@@ -19,6 +19,7 @@ import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.BakedGlyph;
 import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.awt.GlyphInfo;
+import neofontrender.core.font.awt.TextRunBatcher;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.backend.BackendTextSegmenter;
@@ -52,6 +53,8 @@ public class MixinFontRenderer {
     @Shadow private boolean italicStyle;
     @Shadow private boolean underlineStyle;
     @Shadow private boolean strikethroughStyle;
+
+    private final TextRunBatcher sfr$batcher = new TextRunBatcher();
 
     // ================================================================== //
     //  Render hook
@@ -264,8 +267,12 @@ public class MixinFontRenderer {
         }
 
         FontSet fontSet = FontManager.INSTANCE.getDefaultFontSet();
+        fontSet.flushAtlas();
         float startX = this.posX;
         float[] positions = fontSet.layoutPositions(run, this.boldStyle);
+
+        GlStateManager.enableTexture2D();
+        GlStateManager.enableAlpha();
 
         for (int i = 0; i < run.length(); ) {
             int codePoint = run.codePointAt(i);
@@ -288,15 +295,16 @@ public class MixinFontRenderer {
             }
 
             float x = startX + positions[i];
-            Minecraft.getMinecraft().getTextureManager().bindTexture(glyph.getTextureLocation());
-            GlStateManager.enableTexture2D();
-            GlStateManager.enableAlpha();
-            glyph.render(this.italicStyle, x, this.posY, this.red, this.blue, this.green, this.alpha);
+            sfr$batcher.addGlyph(glyph, this.italicStyle, x, this.posY,
+                    this.red, this.blue, this.green, this.alpha);
             if (this.boldStyle) {
-                glyph.render(this.italicStyle, x + 1.0F, this.posY, this.red, this.blue, this.green, this.alpha);
+                sfr$batcher.addGlyph(glyph, this.italicStyle, x + 1.0F, this.posY,
+                        this.red, this.blue, this.green, this.alpha);
             }
             i = next;
         }
+
+        sfr$batcher.flush();
 
         float width = positions[positions.length - 1];
         if (this.strikethroughStyle) {

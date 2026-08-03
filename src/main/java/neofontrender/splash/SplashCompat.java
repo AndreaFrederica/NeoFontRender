@@ -86,4 +86,5 @@ public final class SplashCompat {
     public static boolean isInstalled() {
         return installed;
     }
+
 }

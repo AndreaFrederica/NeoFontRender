@@ -52,7 +52,12 @@ public final class SplashProgressTransformer implements IClassTransformer {
 
         // Patch rendering thread (SplashProgress$2)
         if (RENDER_THREAD_TARGET.equals(name) || RENDER_THREAD_TARGET.equals(transformedName)) {
-            return patchRenderThread(basicClass);
+            if (ModernSplashDetector.isInstalled()) {
+                LOGGER.info("Found ModernSplash rendering thread: name={} transformedName={}", name, transformedName);
+                return patchRenderThread(basicClass);
+            }
+            LOGGER.info("Found Forge vanilla splash rendering thread: name={} transformedName={}", name, transformedName);
+            return patchForgeRenderThread(basicClass);
         }
 
         return basicClass;
@@ -84,6 +89,19 @@ public final class SplashProgressTransformer implements IClassTransformer {
             return transformed;
         } catch (Throwable t) {
             LOGGER.error("Failed to patch ModernSplash rendering thread", t);
+            return basicClass;
+        }
+    }
+
+    private byte[] patchForgeRenderThread(byte[] basicClass) {
+        try {
+            ClassReader reader = new ClassReader(basicClass);
+            ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+            reader.accept(new ForgeRenderThreadVisitor(writer), ClassReader.EXPAND_FRAMES);
+            LOGGER.info("Patched Forge vanilla rendering thread for tip display");
+            return writer.toByteArray();
+        } catch (Throwable t) {
+            LOGGER.error("Failed to patch Forge vanilla rendering thread", t);
             return basicClass;
         }
     }
@@ -200,7 +218,45 @@ public final class SplashProgressTransformer implements IClassTransformer {
                                          String signature, String[] exceptions) {
             MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
             if ("run".equals(name) && "()V".equals(descriptor)) {
-                return new RunMethodVisitor(mv);
+                return new RunMethodVisitor(mv, className);
+            }
+            return mv;
+        }
+    }
+
+    private static final class ForgeRenderThreadVisitor extends ClassVisitor {
+        ForgeRenderThreadVisitor(ClassVisitor delegate) {
+            super(Opcodes.ASM9, delegate);
+        }
+
+        @Override
+        public MethodVisitor visitMethod(int access, String name, String descriptor,
+                                         String signature, String[] exceptions) {
+            MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
+            if ("run".equals(name) && "()V".equals(descriptor)) {
+                return new MethodVisitor(Opcodes.ASM9, mv) {
+                    @Override
+                    public void visitMethodInsn(int opcode, String owner, String calledName,
+                                                String calledDescriptor, boolean isInterface) {
+                        if (opcode == Opcodes.INVOKESTATIC
+                                && "org/lwjgl/opengl/Display".equals(owner)
+                                && "update".equals(calledName)
+                                && "()V".equals(calledDescriptor)) {
+                            mv.visitFieldInsn(Opcodes.GETSTATIC, SPLASH_PROGRESS_INTERNAL,
+                                    "fontRenderer", "Lnet/minecraftforge/fml/client/SplashProgress$SplashFontRenderer;");
+                            // Forge builds its ortho projection from the current framebuffer
+                            // dimensions.  Pass the same values so the tip baseline follows
+                            // that projection on non-640x480 windows.
+                            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "org/lwjgl/opengl/Display",
+                                    "getWidth", "()I", false);
+                            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "org/lwjgl/opengl/Display",
+                                    "getHeight", "()I", false);
+                            mv.visitMethodInsn(Opcodes.INVOKESTATIC, TIPS_RENDERER_INTERNAL,
+                                    "renderForge", "(Ljava/lang/Object;II)V", false);
+                        }
+                        super.visitMethodInsn(opcode, owner, calledName, calledDescriptor, isInterface);
+                    }
+                };
             }
             return mv;
         }
@@ -210,30 +266,38 @@ public final class SplashProgressTransformer implements IClassTransformer {
      * Intercepts the run() method to inject tip rendering before Display.update().
      */
     private static final class RunMethodVisitor extends MethodVisitor {
-        private boolean injected;
+        private int methodInsnCount;
+        private final String ownerClass;
 
-        RunMethodVisitor(MethodVisitor delegate) {
+        RunMethodVisitor(MethodVisitor delegate, String ownerClass) {
             super(Opcodes.ASM9, delegate);
+            this.ownerClass = ownerClass;
         }
 
         @Override
         public void visitMethodInsn(int opcode, String owner, String name, String descriptor, boolean isInterface) {
+            methodInsnCount++;
             // Inject tip rendering before Display.update() calls
-            if (!injected
-                    && opcode == Opcodes.INVOKESTATIC
+            if (opcode == Opcodes.INVOKESTATIC
                     && "org/lwjgl/opengl/Display".equals(owner)
                     && "update".equals(name)
                     && "()V".equals(descriptor)) {
-                // Push SplashProgress.fontRenderer (static field)
+                LOGGER.info("Injecting tip render before Display.update() at instruction #{}", methodInsnCount);
+                // Reuse ModernSplash's own startup string, display bounds, color and fade alpha.
+                mv.visitVarInsn(Opcodes.ALOAD, 0);
+                mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, ownerClass,
+                        "getString", "()Ljava/lang/String;", false);
                 mv.visitFieldInsn(Opcodes.GETSTATIC, SPLASH_PROGRESS_INTERNAL,
                         "fontRenderer", "Lnet/minecraftforge/fml/client/SplashProgress$SplashFontRenderer;");
-                // Push screen dimensions (ModernSplash uses 640x480 ortho)
-                mv.visitIntInsn(Opcodes.SIPUSH, 640);
-                mv.visitIntInsn(Opcodes.SIPUSH, 480);
-                // Call SplashTipsRenderer.render(Object, int, int)
+                mv.visitMethodInsn(Opcodes.INVOKESTATIC, "org/lwjgl/opengl/Display",
+                        "getWidth", "()I", false);
+                mv.visitMethodInsn(Opcodes.INVOKESTATIC, "org/lwjgl/opengl/Display",
+                        "getHeight", "()I", false);
+                mv.visitFieldInsn(Opcodes.GETSTATIC, SPLASH_PROGRESS_INTERNAL,
+                        "fontColor", "I");
+                mv.visitVarInsn(Opcodes.FLOAD, 3);
                 mv.visitMethodInsn(Opcodes.INVOKESTATIC, TIPS_RENDERER_INTERNAL,
-                        "render", "(Ljava/lang/Object;II)V", false);
-                injected = true;
+                        "render", "(Ljava/lang/String;Ljava/lang/Object;IIIF)V", false);
             }
             super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
         }

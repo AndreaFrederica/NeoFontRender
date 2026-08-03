@@ -22,6 +22,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Top-level manager for the replacement font system.
@@ -33,15 +37,25 @@ public class FontManager implements AutoCloseable {
 
     public static final FontManager INSTANCE = new FontManager();
 
+    private static final ExecutorService BACKGROUND_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "NFR-FontLoader");
+        t.setDaemon(true);
+        return t;
+    });
+
     private TextureManager textureManager;
     private IResourceManager resourceManager;
     private FontSet defaultFontSet;
     private TextRenderBackend textRenderBackend;
     private AwtModernTextRenderer modernAwtTextRenderer;
     private final Map<String, TextRenderBackend> scopedBackends = new LinkedHashMap<>();
-    private boolean active = false;
-    private boolean cosmicActive = false;
+    private volatile boolean active = false;
+    private volatile boolean cosmicActive = false;
     private String backendVersion = "vanilla Minecraft font renderer";
+
+    // Async loading state
+    private final AtomicReference<CompletableFuture<Void>> pendingReload = new AtomicReference<>();
+    private volatile boolean asyncLoading = false;
 
     private FontManager() {
     }
@@ -56,11 +70,79 @@ public class FontManager implements AutoCloseable {
 
     /**
      * Load or reload fonts from resources.
+     * If asyncInit is enabled, font loading happens on a background thread.
      */
-    public synchronized void reload(IResourceManager resourceManager) {
-        close(); // dispose old atlas & providers
-        this.resourceManager = resourceManager;
+    public void reload(IResourceManager resourceManager) {
+        if (NeofontrenderConfig.performanceAsyncInit() && NeofontrenderConfig.useAwtEngine()) {
+            reloadAsync(resourceManager);
+        } else {
+            reloadSync(resourceManager);
+        }
+    }
 
+    /**
+     * Synchronous font loading. Blocks the calling thread.
+     */
+    public synchronized void reloadSync(IResourceManager resourceManager) {
+        closeInternal();
+        this.resourceManager = resourceManager;
+        reloadInternal(resourceManager);
+    }
+
+    /**
+     * Asynchronous font loading. Returns immediately, loading happens on background thread.
+     * Call {@link #tick()} from the render thread to check completion.
+     */
+    public void reloadAsync(IResourceManager resourceManager) {
+        // Cancel any pending reload
+        CompletableFuture<Void> pending = pendingReload.getAndSet(null);
+        if (pending != null) {
+            pending.cancel(false);
+        }
+
+        this.resourceManager = resourceManager;
+        this.asyncLoading = true;
+
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+            try {
+                // Phase 1: Load font files and compute metrics (background thread)
+                // This is the expensive part - file I/O and AWT font loading
+                neofontrender.NeoFontRender.LOGGER.info("Starting async font loading...");
+                reloadSync(resourceManager);
+                neofontrender.NeoFontRender.LOGGER.info("Async font loading complete");
+            } catch (Exception e) {
+                neofontrender.NeoFontRender.LOGGER.error("Async font loading failed", e);
+                // Fall back to vanilla
+                synchronized (this) {
+                    active = false;
+                    cosmicActive = false;
+                    backendVersion = "vanilla Minecraft font renderer";
+                }
+            } finally {
+                asyncLoading = false;
+            }
+        }, BACKGROUND_EXECUTOR);
+
+        pendingReload.set(future);
+    }
+
+    /**
+     * Check if async loading is in progress.
+     */
+    public boolean isAsyncLoading() {
+        return asyncLoading;
+    }
+
+    /**
+     * Called from the render thread to handle async loading completion.
+     * No-op if async loading is not in progress.
+     */
+    public void tick() {
+        // Nothing to do - the async future handles completion
+        // This method exists for future use if we need render-thread finalization
+    }
+
+    private void reloadInternal(IResourceManager resourceManager) {
         if (NeofontrenderConfig.useVanillaEngine()) {
             this.active = false;
             this.cosmicActive = false;
@@ -103,6 +185,7 @@ public class FontManager implements AutoCloseable {
 
         boolean ttfLoaded = false;
         float rasterScale = FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample());
+        float effectiveFontSize = NeofontrenderConfig.adaptiveFontSize();
         for (String fontName : NeofontrenderConfig.fontFamily()) {
             try {
                 AwtTtfGlyphProvider ttf = loadAwtFont(resourceManager, fontName, rasterScale, false);
@@ -112,8 +195,8 @@ public class FontManager implements AutoCloseable {
                 }
                 providers.add(ttf);
                 ttfLoaded = true;
-                neofontrender.NeoFontRender.LOGGER.info("Loaded AWT font '{}' (size={}, oversample={} effective={}, autoBaseline={}, baselineShift={})",
-                        fontName, NeofontrenderConfig.fontSize(), NeofontrenderConfig.fontOversample(), rasterScale,
+                neofontrender.NeoFontRender.LOGGER.info("Loaded AWT font '{}' (size={}, adaptive={}, oversample={} effective={}, autoBaseline={}, baselineShift={})",
+                        fontName, effectiveFontSize, NeofontrenderConfig.fontOversample(), rasterScale,
                         NeofontrenderConfig.fontAutoBaseline(), NeofontrenderConfig.fontBaselineShift());
             } catch (Exception e) {
                 neofontrender.NeoFontRender.LOGGER.error("Failed to load font '{}'", fontName, e);
@@ -176,7 +259,7 @@ public class FontManager implements AutoCloseable {
         return AwtTtfGlyphProvider.load(
                 resourceManager,
                 fontName,
-                NeofontrenderConfig.fontSize(),
+                NeofontrenderConfig.adaptiveFontSize(),
                 rasterScale,
                 0.0F, 0.0F,
                 NeofontrenderConfig.fontBaselineShift(),
@@ -297,6 +380,10 @@ public class FontManager implements AutoCloseable {
 
     @Override
     public synchronized void close() {
+        closeInternal();
+    }
+
+    private void closeInternal() {
         if (modernAwtTextRenderer != null) {
             modernAwtTextRenderer.close();
             modernAwtTextRenderer = null;

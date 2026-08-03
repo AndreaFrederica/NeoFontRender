@@ -29,6 +29,7 @@ import java.util.Map;
 public final class AwtModernTextRenderer implements TextRenderBackend {
     private static final int MAX_SIZE_ATLASES = 16;
     private static final int MAX_LAYOUTS = 2048;
+    private static final long LAYOUT_TTL_MS = 300_000L; // 5 minutes
     private static final int[] COLOR_CODES = createColorCodes();
 
     private final TextureManager textureManager;
@@ -36,9 +37,10 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
     private final List<String> selectors;
     private final LinkedHashMap<SizeKey, FontSet> fontSets =
             new LinkedHashMap<>(8, 0.75F, true);
-    private final LinkedHashMap<LayoutKey, TextRenderResult> layouts =
+    private final LinkedHashMap<LayoutKey, CachedLayout> layouts =
             new LinkedHashMap<>(128, 0.75F, true);
     private int nextAtlasId;
+    private long lastCleanupMs = System.currentTimeMillis();
 
     public AwtModernTextRenderer(TextureManager textureManager, IResourceManager resourceManager) {
         this(textureManager, resourceManager, NeofontrenderConfig.fontFamily());
@@ -105,18 +107,29 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         if (text == null || text.isEmpty()) return TextRenderResult.EMPTY;
         float fontSize = Math.max(1.0F, requestedFontSize);
         float rasterScale = currentRasterScale();
+        FontSet fs = fontSet(fontSize, rasterScale);
+        fs.flushAtlas();
         LayoutKey key = new LayoutKey(text, baseArgb, shadow, fontSize, rasterScale);
-        TextRenderResult cached = layouts.get(key);
-        if (cached != null) return cached;
-        TextRenderResult rendered = build(fontSet(fontSize, rasterScale),
-                parseFormatted(text, baseArgb, shadow), fontSize);
-        layouts.put(key, rendered);
-        while (layouts.size() > MAX_LAYOUTS) {
-            Iterator<LayoutKey> iterator = layouts.keySet().iterator();
-            iterator.next();
-            iterator.remove();
+        CachedLayout cached = layouts.get(key);
+        if (cached != null) {
+            cached.lastAccessMs = System.currentTimeMillis();
+            return cached.result;
         }
+        TextRenderResult rendered = build(fs,
+                parseFormatted(text, baseArgb, shadow), fontSize);
+        layouts.put(key, new CachedLayout(rendered));
+        evictOldEntries();
         return rendered;
+    }
+
+    private void evictOldEntries() {
+        long now = System.currentTimeMillis();
+        if (now - lastCleanupMs < 10_000L) return; // cleanup at most every 10 seconds
+        lastCleanupMs = now;
+        layouts.entrySet().removeIf(entry -> {
+            if (layouts.size() <= MAX_LAYOUTS / 2) return false;
+            return (now - entry.getValue().lastAccessMs) > LAYOUT_TTL_MS;
+        });
     }
 
     private float measurePlainAtSize(String text, boolean bold, boolean italic, float fontSize) {
@@ -437,6 +450,16 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             this.right = right;
             this.bottom = bottom;
             this.argb = argb;
+        }
+    }
+
+    private static final class CachedLayout {
+        final TextRenderResult result;
+        volatile long lastAccessMs;
+
+        CachedLayout(TextRenderResult result) {
+            this.result = result;
+            this.lastAccessMs = System.currentTimeMillis();
         }
     }
 

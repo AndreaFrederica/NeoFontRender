@@ -23,6 +23,7 @@ public final class TipsSettingsPage implements NfrSettingsPage {
         private final boolean enabled = TipsConfig.enabled;
         private final int cycleTime = TipsConfig.cycleTimeMillis;
         private final boolean worldLoading = TipsConfig.showOnWorldLoading;
+        private final boolean modernSplash = TipsConfig.showOnModernSplash;
         private final boolean resourceReload = TipsConfig.showOnResourceReload;
         private final boolean forgeLoading = TipsConfig.showOnForgeLoading;
 
@@ -33,6 +34,8 @@ public final class TipsSettingsPage implements NfrSettingsPage {
                             () -> TipsConfig.enabled, value -> TipsConfig.enabled = value))
                     .add(c.toggleText(() -> tr("gui.tips.world_loading"), () -> tr("tooltip.tips.world_loading"),
                             () -> TipsConfig.showOnWorldLoading, value -> TipsConfig.showOnWorldLoading = value))
+                    .add(c.toggleText(() -> tr("gui.tips.modern_splash"), () -> tr("tooltip.tips.modern_splash"),
+                            () -> TipsConfig.showOnModernSplash, value -> TipsConfig.showOnModernSplash = value))
                     .add(c.toggleText(() -> tr("gui.tips.forge_loading"), () -> tr("tooltip.tips.forge_loading"),
                             () -> TipsConfig.showOnForgeLoading, value -> TipsConfig.showOnForgeLoading = value))
                     .add(c.toggleText(() -> tr("gui.tips.resource_reload"), () -> tr("tooltip.tips.resource_reload"),
@@ -51,6 +54,7 @@ public final class TipsSettingsPage implements NfrSettingsPage {
             TipsConfig.enabled = enabled;
             TipsConfig.cycleTimeMillis = cycleTime;
             TipsConfig.showOnWorldLoading = worldLoading;
+            TipsConfig.showOnModernSplash = modernSplash;
             TipsConfig.showOnResourceReload = resourceReload;
             TipsConfig.showOnForgeLoading = forgeLoading;
         }

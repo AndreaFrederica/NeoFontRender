@@ -70,6 +70,16 @@ public class FontTexture implements AutoCloseable {
         return page.add(pixels, pw, ph, left, right, up, down, oversample);
     }
 
+    /**
+     * Flush any dirty pages to the GPU. Call this before rendering to ensure
+     * all recently added glyphs are visible.
+     */
+    public void flushIfDirty() {
+        for (Page page : pages) {
+            page.flushIfDirty();
+        }
+    }
+
     @Override
     public void close() {
         for (Page page : pages) {
@@ -86,6 +96,7 @@ public class FontTexture implements AutoCloseable {
         final float rasterScale;
         final List<Shelf> shelves = new ArrayList<>();
         int usedHeight = 0;
+        boolean dirty = false;
 
         Page(TextureManager textureManager, ResourceLocation location, int width, int height, float rasterScale) {
             this.texture = new DynamicTexture(width, height);
@@ -144,7 +155,7 @@ public class FontTexture implements AutoCloseable {
                 int srcRow = row;
                 System.arraycopy(pixels, srcRow * pw, dest, destRow * width + x, pw);
             }
-            this.texture.updateDynamicTexture();
+            dirty = true;
 
             float u0 = (float) x / (float) width;
             float v0 = (float) y / (float) height;
@@ -157,6 +168,13 @@ public class FontTexture implements AutoCloseable {
                     left, right, up, down,
                     this.rasterScale
             );
+        }
+
+        void flushIfDirty() {
+            if (dirty) {
+                this.texture.updateDynamicTexture();
+                dirty = false;
+            }
         }
 
         @Override

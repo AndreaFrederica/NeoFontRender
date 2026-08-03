@@ -126,6 +126,38 @@ public final class NeofontrenderConfig {
         return cached.fontSize;
     }
 
+    public static boolean adaptiveFontSizeEnabled() {
+        return cached.adaptiveFontSize;
+    }
+
+    /**
+     * Compute the effective font size considering the current GUI scale.
+     * When adaptiveFontSize is enabled, the font size is multiplied by the GUI scale factor
+     * to ensure consistent visual size across different GUI scale settings.
+     *
+     * @return the effective font size in pixels
+     */
+    public static float adaptiveFontSize() {
+        float baseSize = cached.fontSize;
+        if (!cached.adaptiveFontSize) {
+            return baseSize;
+        }
+        try {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+            if (mc != null && mc.gameSettings != null) {
+                int guiScale = mc.gameSettings.guiScale;
+                if (guiScale <= 0) {
+                    guiScale = 2; // default when auto
+                }
+                // Scale factor: guiScale 1 = 1x, guiScale 2 = 1.5x, guiScale 3 = 2x, guiScale 4 = 2.5x
+                float scaleFactor = 1.0F + (guiScale - 1) * 0.5F;
+                return baseSize * scaleFactor;
+            }
+        } catch (Exception ignored) {
+        }
+        return baseSize;
+    }
+
     public static float fontOversample() {
         return cached.fontOversample;
     }
@@ -196,6 +228,10 @@ public final class NeofontrenderConfig {
 
     public static boolean useSfrEngine() {
         return enabled() && "sfr".equals(renderingEngine());
+    }
+
+    public static boolean useAwtEngine() {
+        return enabled() && ("sfr".equals(renderingEngine()) || "awt".equals(renderingEngine()));
     }
 
     public static boolean useCosmicEngine() {
@@ -498,6 +534,10 @@ public final class NeofontrenderConfig {
 
     public static void setFontSize(float value) {
         setValue("font.size", value);
+    }
+
+    public static void setAdaptiveFontSize(boolean value) {
+        setValue("font.adaptiveSize", value);
     }
 
     public static void setFontOversample(float value) {
@@ -993,6 +1033,7 @@ public final class NeofontrenderConfig {
         config.setComment("font.style", "Font style: 0=Plain, 1=Bold, 2=Italic, 3=Bold+Italic.");
         config.setComment("font.variableWeight", "Variable font wght axis for regular text. 0=auto, otherwise 1-1000.");
         config.setComment("font.size", "Font size in pixels. 8.5 is the default.");
+        config.setComment("font.adaptiveSize", "Scale font size with GUI scale factor for consistent visual size across different GUI scale settings.");
         config.setComment("font.oversample", "Rasterization oversampling factor. Raster resolution is size * oversample; 8.0 at size 8.0 is a 64px glyph raster.");
         config.setComment("font.autoBaseline", "Align each font's measured AWT baseline to the Minecraft reference baseline before manual shift.");
         config.setComment("font.baselineShift", "Additional vertical glyph shift in Minecraft pixels after automatic baseline alignment. Positive moves glyphs down.");
@@ -1129,6 +1170,7 @@ public final class NeofontrenderConfig {
         private final int fontVariableWeight;
         private final boolean cosmicVariantOverridesOnlySwitchFont;
         private final float fontSize;
+        private final boolean adaptiveFontSize;
         private final float fontOversample;
         private final boolean fontAutoBaseline;
         private final float fontBaselineShift;
@@ -1207,6 +1249,7 @@ public final class NeofontrenderConfig {
             fontVariableWeight = 0;
             cosmicVariantOverridesOnlySwitchFont = false;
             fontSize = 8.5F;
+            adaptiveFontSize = false;
             fontOversample = 12.0F;
             fontAutoBaseline = true;
             fontBaselineShift = 0.0F;
@@ -1286,6 +1329,7 @@ public final class NeofontrenderConfig {
             fontVariableWeight = Math.max(0, Math.min(1000, getInt(config, "font.variableWeight", 0)));
             cosmicVariantOverridesOnlySwitchFont = config.getOrElse("font.cosmic.variantOverridesOnlySwitchFont", false);
             fontSize = getFloat(config, "font.size", 8.5F);
+            adaptiveFontSize = config.getOrElse("font.adaptiveSize", false);
             fontOversample = getFloat(config, "font.oversample", 12.0F);
             fontAutoBaseline = config.getOrElse("font.autoBaseline", true);
             fontBaselineShift = getFloat(config, "font.baselineShift", 0.0F);

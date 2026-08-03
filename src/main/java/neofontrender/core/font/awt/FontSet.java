@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -13,7 +14,7 @@ import java.util.Set;
 
 /**
  * A collection of {@link GlyphProvider}s that together form a single font.
- * Caches {@link GlyphInfo} and {@link BakedGlyph} on demand.
+ * Caches {@link GlyphInfo} and {@link BakedGlyph} on demand with LRU eviction.
  *
  * <p>Equivalent to 1.20.1 {@code net.minecraft.client.gui.font.FontSet}.</p>
  */
@@ -22,13 +23,15 @@ public class FontSet implements AutoCloseable {
     private static final Random RANDOM = new Random();
     private static final String OBFUSCATED_CANDIDATES =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    private static final int MAX_BAKED_GLYPHS = 4096;
+    private static final int MAX_GLYPH_INFOS = 4096;
 
     private final List<GlyphProvider> providers;
     private final FontTexture atlas;
     private final AwtTtfGlyphProvider layoutProvider;
     private final List<AwtTtfGlyphProvider> layoutProviders = new ArrayList<>();
-    private final Map<Integer, GlyphInfo> glyphInfos = new HashMap<>();
-    private final Map<Integer, BakedGlyph> bakedGlyphs = new HashMap<>();
+    private final Map<Integer, GlyphInfo> glyphInfos;
+    private final Map<Integer, BakedGlyph> bakedGlyphs;
     private final Map<Integer, List<Integer>> glyphsByWidth = new HashMap<>();
     private long glyphInfoHits;
     private long glyphInfoMisses;
@@ -38,6 +41,18 @@ public class FontSet implements AutoCloseable {
     public FontSet(List<GlyphProvider> providers, FontTexture atlas) {
         this.providers = providers;
         this.atlas = atlas;
+        this.glyphInfos = new LinkedHashMap<Integer, GlyphInfo>(64, 0.75F, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Integer, GlyphInfo> eldest) {
+                return size() > MAX_GLYPH_INFOS;
+            }
+        };
+        this.bakedGlyphs = new LinkedHashMap<Integer, BakedGlyph>(64, 0.75F, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Integer, BakedGlyph> eldest) {
+                return size() > MAX_BAKED_GLYPHS;
+            }
+        };
         AwtTtfGlyphProvider awtProvider = null;
         for (GlyphProvider provider : providers) {
             if (provider instanceof AwtTtfGlyphProvider) {
@@ -148,9 +163,30 @@ public class FontSet implements AutoCloseable {
             return cached;
         }
         bakedGlyphMisses++;
-        BakedGlyph loaded = bakeGlyph(codePoint);
-        bakedGlyphs.put(codePoint, loaded);
-        return loaded;
+        GlyphInfo info = getGlyphInfo(codePoint);
+        if (info == null) {
+            bakedGlyphs.put(codePoint, null);
+            return null;
+        }
+        // Create a lazy proxy that defers baking until first render
+        BakedGlyph lazy = new LazyBakedGlyph(info, atlas, this, codePoint);
+        bakedGlyphs.put(codePoint, lazy);
+        return lazy;
+    }
+
+    /**
+     * Replace a glyph in the cache. Used by {@link LazyBakedGlyph} after baking.
+     */
+    void replaceGlyph(int codePoint, BakedGlyph baked) {
+        bakedGlyphs.put(codePoint, baked);
+    }
+
+    /**
+     * Flush any pending GPU uploads for this font set's atlas.
+     * Should be called before rendering to ensure all recently baked glyphs are visible.
+     */
+    public void flushAtlas() {
+        atlas.flushIfDirty();
     }
 
     public void prewarmBasicLatin() {
@@ -165,7 +201,12 @@ public class FontSet implements AutoCloseable {
     private void prewarmGlyph(int codePoint) {
         getGlyphInfo(codePoint);
         if (codePoint != ' ' && codePoint != 160) {
-            getGlyph(codePoint);
+            // For prewarm, bake eagerly to avoid lazy overhead during first render
+            GlyphInfo info = getGlyphInfo(codePoint);
+            if (info != null) {
+                BakedGlyph baked = info.bake(atlas);
+                bakedGlyphs.put(codePoint, baked);
+            }
         }
     }
 

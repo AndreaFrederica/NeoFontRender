@@ -46,6 +46,10 @@ public class BakedGlyph {
         return textureLocation;
     }
 
+    public float getRasterScale() {
+        return rasterScale;
+    }
+
     public float visualLeft() {
         return left;
     }
@@ -112,6 +116,48 @@ public class BakedGlyph {
 
             tessellator.draw();
         }
+    }
+
+    /**
+     * Write this glyph's vertices to the given buffer without drawing.
+     * Used for batched rendering where multiple glyphs share the same texture.
+     *
+     * @param buffer  the buffer builder to write vertices to
+     * @param italic  whether to apply italic slant
+     * @param x      base X position
+     * @param y      base Y position
+     * @param red    color red component [0,1]
+     * @param green  color green component [0,1]
+     * @param blue   color blue component [0,1]
+     * @param alpha  color alpha component [0,1]
+     */
+    public void writeVertices(BufferBuilder buffer, boolean italic, float x, float y,
+                              float red, float green, float blue, float alpha) {
+        float f = FontRenderTuning.alignToPixel(x + this.left);
+        float f1 = FontRenderTuning.alignToPixel(x + this.right);
+        float f2 = this.up;
+        float f3 = this.down;
+        float f4 = FontRenderTuning.alignToPixel(y + f2);
+        float f5 = FontRenderTuning.alignToPixel(y + f3);
+        float slant0 = italic ? 1.0F - 0.25F * f2 : 0.0F;
+        float slant1 = italic ? 1.0F - 0.25F * f3 : 0.0F;
+
+        buffer.pos(f + slant0, f4, 0.0D)
+              .tex(this.u0, this.v0)
+              .color(red, green, blue, alpha)
+              .endVertex();
+        buffer.pos(f + slant1, f5, 0.0D)
+              .tex(this.u0, this.v1)
+              .color(red, green, blue, alpha)
+              .endVertex();
+        buffer.pos(f1 + slant1, f5, 0.0D)
+              .tex(this.u1, this.v1)
+              .color(red, green, blue, alpha)
+              .endVertex();
+        buffer.pos(f1 + slant0, f4, 0.0D)
+              .tex(this.u1, this.v0)
+              .color(red, green, blue, alpha)
+              .endVertex();
     }
 
     /**

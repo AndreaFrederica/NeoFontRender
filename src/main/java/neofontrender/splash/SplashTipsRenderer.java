@@ -27,11 +27,26 @@ public final class SplashTipsRenderer {
     private static boolean loaded;
     private static int index;
     private static long lastCycle;
+    private static int lastLoggedIndex = -1;
+    private static boolean renderFailureLogged;
+    private static volatile boolean addonConfigLoaded;
 
     private SplashTipsRenderer() {}
 
     @SuppressWarnings("unused")
-    public static void render(Object fontRenderer, int screenWidth, int screenHeight) {
+    public static void render(String startupText, Object fontRenderer, int displayWidth, int displayHeight,
+                              int fontColor, float alpha) {
+        renderInternal(startupText, fontRenderer, displayWidth, displayHeight, fontColor, alpha, true);
+    }
+
+    private static void renderInternal(String startupText, Object fontRenderer, int displayWidth,
+                                       int displayHeight, int fontColor, float alpha,
+                                       boolean modernSplash) {
+        ensureAddonConfigLoaded();
+        if (!addonConfigFlag("enabled", true)
+                || !addonConfigFlag(modernSplash ? "showOnModernSplash" : "showOnForgeLoading", true)) {
+            return;
+        }
         if (fontRenderer == null) return;
 
         try {
@@ -50,32 +65,102 @@ public final class SplashTipsRenderer {
             String text = tips.get(index);
             if (text == null || text.isEmpty()) return;
 
-            int maxWidth = (int) (screenWidth * 0.55F);
-            int margin = 20;
+            // ModernSplash's fontColor is RGB-only. Carry its frame fade alpha through the
+            // color integer as well, because the AWT texture backend resolves its final GL
+            // color from this argument.
+            int packedColor = (fontColor & 0x00FFFFFF)
+                    | (Math.max(0, Math.min(255, Math.round(alpha * 255.0F))) << 24);
+
+            float leftEdge = 320.0F - displayWidth / 2.0F + 4.0F;
+            float rightEdge = 320.0F + displayWidth / 2.0F - 4.0F;
+            float startupRight = leftEdge + getTextWidth(fontRenderer, startupText) * 2.0F;
+            float safeLeft = startupRight + 12.0F;
+
+            int maxWidth = Math.min(280, Math.max(80, (int) ((rightEdge - safeLeft) / 2.0F)));
             String[] lines = wrapText(fontRenderer, text, maxWidth);
 
-            int lineHeight = 12;
-            int startY = screenHeight - 20 - lines.length * lineHeight - 16;
+            // Match the startup-time baseline. Keep the text centered unless that would overlap
+            // the startup timer, in which case reserve the timer's measured width and shift right.
+            int lineHeight = 10;
+            float baselineY = 240.0F + displayHeight / 2.0F - 20.0F;
+            int localY = -(lines.length - 1) * lineHeight;
+            int textWidth = maxLineWidth(fontRenderer, lines);
+            float centeredX = 320.0F - textWidth;
+            float drawX = Math.max(centeredX, safeLeft);
 
-            // Ensure GL state is correct for text rendering
-            org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_BLEND);
-            org.lwjgl.opengl.GL11.glBlendFunc(org.lwjgl.opengl.GL11.GL_SRC_ALPHA, org.lwjgl.opengl.GL11.GL_ONE_MINUS_SRC_ALPHA);
-            org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_LIGHTING);
-            org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
-            org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_TEXTURE_2D);
-            org.lwjgl.opengl.GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+            org.lwjgl.opengl.GL11.glPushMatrix();
+            if (!modernSplash) {
+                // Forge leaves the Mojang-logo translation/rotation active after drawing the
+                // logo. Start tips from the splash projection's screen-space origin instead of
+                // inheriting that transform.
+                org.lwjgl.opengl.GL11.glMatrixMode(org.lwjgl.opengl.GL11.GL_MODELVIEW);
+                org.lwjgl.opengl.GL11.glLoadIdentity();
+            }
+            org.lwjgl.opengl.GL11.glTranslatef(drawX, baselineY, 0.0F);
+            try {
+                org.lwjgl.opengl.GL11.glScalef(2.0F, 2.0F, 1.0F);
+                org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_TEXTURE_2D);
 
-            int color = 0xFFDDDDDD; // fully opaque light gray
-            for (String line : lines) {
-                drawText(fontRenderer, line, margin, startY, color);
-                startY += lineHeight;
+                float red = ((fontColor >> 16) & 0xFF) / 255.0F;
+                float green = ((fontColor >> 8) & 0xFF) / 255.0F;
+                float blue = (fontColor & 0xFF) / 255.0F;
+                org.lwjgl.opengl.GL11.glColor4f(red, green, blue, alpha);
+
+                for (String line : lines) {
+                    // Pass the resolved splash color through the same font path used by Forge.
+                    // The AWT backend uses this value explicitly, so its output does not depend
+                    // on whatever texture/color state the previous splash element left behind.
+                    if (modernSplash) {
+                    drawText(fontRenderer, line, 0, localY, packedColor);
+                    } else {
+                        // Forge's SplashFontRenderer is already backed by this same AWT
+                        // backend. Call it directly here to avoid another reflective dispatch
+                        // while Forge is in its dedicated splash thread.
+                        SplashCompat.drawString(line, 0, localY, packedColor);
+                    }
+                    localY += lineHeight;
+                }
+            } finally {
+                org.lwjgl.opengl.GL11.glPopMatrix();
             }
 
-            if (index == 0 && lastCycle == 0) {
-                LOGGER.info("Rendering tip: {}", text);
+            renderFailureLogged = false;
+            if (lastLoggedIndex != index) {
+                LOGGER.info("Rendered tip #{}: '{}' at y={}", index, text,
+                        Math.round(baselineY));
+                lastLoggedIndex = index;
             }
         } catch (Exception e) {
-            LOGGER.debug("Failed to render splash tip", e);
+            if (!renderFailureLogged) {
+                LOGGER.warn("Failed to render splash tip; further failures will be suppressed", e);
+                renderFailureLogged = true;
+            }
+        }
+    }
+
+    /** Forge's vanilla splash has no ModernSplash alpha/local-variable contract. */
+    public static void renderForge(Object fontRenderer, int displayWidth, int displayHeight) {
+        // Forge's vanilla splash uses black text on its light background.
+        renderInternal(null, fontRenderer, displayWidth, displayHeight, 0xFF000000, 1.0F, false);
+    }
+
+    private static synchronized void ensureAddonConfigLoaded() {
+        if (addonConfigLoaded) return;
+        addonConfigLoaded = true;
+        try {
+            Class<?> config = Class.forName("neofontrender.addons.tips.TipsConfig");
+            config.getMethod("load").invoke(null);
+        } catch (Throwable ignored) {
+            // UI Enhancements is optional; core splash rendering keeps its defaults.
+        }
+    }
+
+    private static boolean addonConfigFlag(String field, boolean fallback) {
+        try {
+            Class<?> config = Class.forName("neofontrender.addons.tips.TipsConfig");
+            return config.getField(field).getBoolean(null);
+        } catch (Throwable ignored) {
+            return fallback;
         }
     }
 
@@ -149,18 +234,19 @@ public final class SplashTipsRenderer {
         return null;
     }
 
-    private static void drawText(Object fontRenderer, String text, int x, int y, int color) {
-        try {
-            java.lang.reflect.Method m = fontRenderer.getClass().getMethod(
-                    "func_78276_b", String.class, int.class, int.class, int.class);
-            m.invoke(fontRenderer, text, x, y, color);
-        } catch (Exception ignored) {}
+    private static void drawText(Object fontRenderer, String text, int x, int y, int color)
+            throws ReflectiveOperationException {
+        java.lang.reflect.Method m = fontRenderer.getClass().getDeclaredMethod(
+                "func_78276_b", String.class, int.class, int.class, int.class);
+        m.setAccessible(true);
+        m.invoke(fontRenderer, text, x, y, color);
     }
 
     private static int getTextWidth(Object fontRenderer, String text) {
         try {
-            java.lang.reflect.Method m = fontRenderer.getClass().getMethod(
+            java.lang.reflect.Method m = fontRenderer.getClass().getDeclaredMethod(
                     "func_78256_a", String.class);
+            m.setAccessible(true);
             return (int) m.invoke(fontRenderer, text);
         } catch (Exception e) {
             return text.length() * 6;
@@ -183,5 +269,13 @@ public final class SplashTipsRenderer {
         if (current.length() > 0) lines.add(current.toString());
         if (lines.isEmpty()) lines.add("");
         return lines.toArray(new String[0]);
+    }
+
+    private static int maxLineWidth(Object fontRenderer, String[] lines) {
+        int max = 0;
+        for (String line : lines) {
+            max = Math.max(max, getTextWidth(fontRenderer, line));
+        }
+        return max;
     }
 }

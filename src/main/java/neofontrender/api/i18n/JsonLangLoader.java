@@ -85,7 +85,9 @@ public enum JsonLangLoader implements IResourceManagerReloadListener {
     private void ensureLanguageLoaded() {
         Minecraft mc = Minecraft.getMinecraft();
         String lang = mc.gameSettings != null ? mc.gameSettings.language : "en_us";
-        if (!lang.equals(loadedLanguage)) {
+        // Resource reloads can briefly expose no language files. Do not permanently cache
+        // that failed attempt; the next loading-screen frame will retry.
+        if (!lang.equals(loadedLanguage) || translations.isEmpty()) {
             loadedLanguage = lang;
             loadLanguage(lang);
         }
@@ -99,20 +101,14 @@ public enum JsonLangLoader implements IResourceManagerReloadListener {
         for (String namespace : namespaces) {
             ResourceLocation langFile = new ResourceLocation(
                     namespace, "lang/" + language + ".json");
-            loadJsonLang(mc.getResourceManager(), langFile);
-        }
-
-        // Fallback to en_us if current language produced no entries
-        if (translations.isEmpty() && !"en_us".equals(language)) {
-            for (String namespace : namespaces) {
-                ResourceLocation fallback = new ResourceLocation(
-                        namespace, "lang/en_us.json");
+            if (!loadJsonLang(mc.getResourceManager(), langFile) && !"en_us".equals(language)) {
+                ResourceLocation fallback = new ResourceLocation(namespace, "lang/en_us.json");
                 loadJsonLang(mc.getResourceManager(), fallback);
             }
         }
     }
 
-    private void loadJsonLang(IResourceManager rm, ResourceLocation file) {
+    private boolean loadJsonLang(IResourceManager rm, ResourceLocation file) {
         try {
             IResource resource = rm.getResource(file);
             try (InputStream is = resource.getInputStream()) {
@@ -126,8 +122,10 @@ public enum JsonLangLoader implements IResourceManagerReloadListener {
                     }
                 }
             }
+            return true;
         } catch (Exception ignored) {
             // File doesn't exist for this language, skip
+            return false;
         }
     }
 
