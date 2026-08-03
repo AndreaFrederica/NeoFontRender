@@ -10,19 +10,19 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Adds AWT-backed draw/measure overrides to Forge's loading-screen font renderer.
- *
- * <p>The same target also supports ModernSplash, which replaces Forge's {@code SplashProgress$*}
- * classes with remapped copies of
- * {@code CustomSplash$*}. Its {@code fontRenderer} field is deliberately typed as its own
- * {@code SplashFontRenderer}, so replacing the field with an unrelated {@code FontRenderer}
- * subclass is not type-safe. Patching the renderer subclass itself keeps ModernSplash's field
- * and construction code intact.</p>
+ * Patches ModernSplash/Forge loading screen classes:
+ * <ol>
+ *   <li>{@code SplashFontRenderer} — adds AWT-backed draw/measure overrides</li>
+ *   <li>{@code SplashProgress$2} (rendering thread) — injects tip rendering
+ *       before each {@code Display.update()} call</li>
+ * </ol>
  */
 public final class SplashProgressTransformer implements IClassTransformer {
 
     private static final Logger LOGGER = LogManager.getLogger("Neo Font Render");
-    private static final String TARGET =
+
+    // SplashFontRenderer targets
+    private static final String FONT_RENDERER_TARGET =
             "net.minecraftforge.fml.client.SplashProgress$SplashFontRenderer";
     private static final String SPLASH_COMPAT_INTERNAL =
             "neofontrender/splash/SplashCompat";
@@ -31,15 +31,34 @@ public final class SplashProgressTransformer implements IClassTransformer {
     private static final String DRAW_METHOD = "func_78276_b";
     private static final String DRAW_DESC = "(Ljava/lang/String;III)I";
 
+    // Rendering thread targets
+    private static final String RENDER_THREAD_TARGET =
+            "net.minecraftforge.fml.client.SplashProgress$2";
+    private static final String TIPS_RENDERER_INTERNAL =
+            "neofontrender/splash/SplashTipsRenderer";
+    private static final String SPLASH_PROGRESS_INTERNAL =
+            "net/minecraftforge/fml/client/SplashProgress";
+
     @Override
     public byte[] transform(String name, String transformedName, byte[] basicClass) {
         if (basicClass == null) {
             return null;
         }
-        if (!TARGET.equals(name) && !TARGET.equals(transformedName)) {
-            return basicClass;
+
+        // Patch SplashFontRenderer
+        if (FONT_RENDERER_TARGET.equals(name) || FONT_RENDERER_TARGET.equals(transformedName)) {
+            return patchFontRenderer(basicClass);
         }
 
+        // Patch rendering thread (SplashProgress$2)
+        if (RENDER_THREAD_TARGET.equals(name) || RENDER_THREAD_TARGET.equals(transformedName)) {
+            return patchRenderThread(basicClass);
+        }
+
+        return basicClass;
+    }
+
+    private byte[] patchFontRenderer(byte[] basicClass) {
         try {
             ClassReader reader = new ClassReader(basicClass);
             ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
@@ -49,12 +68,29 @@ public final class SplashProgressTransformer implements IClassTransformer {
             LOGGER.info("Patched loading-screen font renderer bytecode");
             return transformed;
         } catch (Throwable t) {
-            // Keep startup recoverable if ModernSplash changes its bytecode.
             LOGGER.error("Failed to patch loading-screen font renderer bytecode", t);
             return basicClass;
         }
     }
 
+    private byte[] patchRenderThread(byte[] basicClass) {
+        try {
+            ClassReader reader = new ClassReader(basicClass);
+            ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+            ClassVisitor visitor = new RenderThreadVisitor(writer);
+            reader.accept(visitor, ClassReader.EXPAND_FRAMES);
+            byte[] transformed = writer.toByteArray();
+            LOGGER.info("Patched ModernSplash rendering thread for tip display");
+            return transformed;
+        } catch (Throwable t) {
+            LOGGER.error("Failed to patch ModernSplash rendering thread", t);
+            return basicClass;
+        }
+    }
+
+    /**
+     * Patches SplashFontRenderer to add AWT-backed draw/measure overrides.
+     */
     private static final class SplashFontRendererVisitor extends ClassVisitor {
         private String superName;
         private boolean hasWidthOverride;
@@ -137,6 +173,69 @@ public final class SplashProgressTransformer implements IClassTransformer {
             mv.visitInsn(Opcodes.IRETURN);
             mv.visitMaxs(0, 0);
             mv.visitEnd();
+        }
+    }
+
+    /**
+     * Patches SplashProgress$2.run() to inject tip rendering before Display.update().
+     * Finds every INVOKESTATIC Display.update() and inserts a SplashTipsRenderer.render()
+     * call before it.
+     */
+    private static final class RenderThreadVisitor extends ClassVisitor {
+        private String className;
+
+        RenderThreadVisitor(ClassVisitor delegate) {
+            super(Opcodes.ASM9, delegate);
+        }
+
+        @Override
+        public void visit(int version, int access, String name, String signature,
+                          String superName, String[] interfaces) {
+            this.className = name;
+            super.visit(version, access, name, signature, superName, interfaces);
+        }
+
+        @Override
+        public MethodVisitor visitMethod(int access, String name, String descriptor,
+                                         String signature, String[] exceptions) {
+            MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
+            if ("run".equals(name) && "()V".equals(descriptor)) {
+                return new RunMethodVisitor(mv);
+            }
+            return mv;
+        }
+    }
+
+    /**
+     * Intercepts the run() method to inject tip rendering before Display.update().
+     */
+    private static final class RunMethodVisitor extends MethodVisitor {
+        private boolean injected;
+
+        RunMethodVisitor(MethodVisitor delegate) {
+            super(Opcodes.ASM9, delegate);
+        }
+
+        @Override
+        public void visitMethodInsn(int opcode, String owner, String name, String descriptor, boolean isInterface) {
+            // Inject tip rendering before Display.update() calls
+            if (!injected
+                    && opcode == Opcodes.INVOKESTATIC
+                    && "org/lwjgl/opengl/Display".equals(owner)
+                    && "update".equals(name)
+                    && "()V".equals(descriptor)) {
+                // Push SplashProgress.fontRenderer (static field)
+                mv.visitFieldInsn(Opcodes.GETSTATIC, SPLASH_PROGRESS_INTERNAL,
+                        "fontRenderer", "Lnet/minecraftforge/fml/client/SplashProgress$SplashFontRenderer;");
+                // Push screen dimensions (ModernSplash uses 640x480 ortho)
+                mv.visitIntInsn(Opcodes.SIPUSH, 640);
+                mv.visitIntInsn(Opcodes.SIPUSH, 480);
+                // Call SplashTipsRenderer.render(Object, int, int)
+                mv.visitMethodInsn(Opcodes.INVOKESTATIC, TIPS_RENDERER_INTERNAL,
+                        "render", "(Ljava/lang/Object;II)V", false);
+                injected = true;
+            }
+            super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
         }
     }
 }

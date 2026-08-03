@@ -36,6 +36,7 @@ public final class TipsModule implements UiEnhancementModule {
             ((IReloadableResourceManager) mc.getResourceManager())
                     .registerReloadListener(TipManager.INSTANCE);
         }
+        SplashTipsBridge.init();
         NfrSettingsPageRegistry.register(new TipsSettingsPage());
     }
 }
