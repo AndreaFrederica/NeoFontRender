@@ -225,9 +225,14 @@ Cosmic 在缺字时会查询已配置的系统字体和内置资源。若其不�
 
 ## 外部集成 API
 
-其他客户端 Mod 可以通过稳定 API 修改当前字体，无需直接操作 Neo Font Render 的内部配置或
-renderer 类。`apply()` 可以从任意线程调用：更新会被调度到客户端线程，默认保存配置，并只重载
-一次字体后端。
+所有 API 位于 `neofontrender.api` 包下，可作为可选依赖安全使用。引用前请先通过
+`Loader.isModLoaded("neofontrender")` 判断是否已安装。提供给其他 Mod 复用的 GUI 基础组件
+位于 `neofontrender.client.gui.component.base`。
+
+### 字体配置 (`NeoFontRenderApi`)
+
+通过稳定 API 修改当前字体，无需直接操作内部配置或 renderer 类。`apply()` 可从任意线程调用：
+更新会被调度到客户端线程，默认保存配置，并只重载一次字体后端。
 
 ```java
 import neofontrender.api.FontStyle;
@@ -243,14 +248,138 @@ NeoFontRenderApi.updateFont()
         .apply();
 ```
 
-使用 `.persist(false)` 可进行仅当前会话生效的修改。`NeoFontRenderApi.getFontState()` 会返回包含
-字体配置和当前后端的不可变快照。将本 Mod 作为可选依赖时，应先通过
-`Loader.isModLoaded("neofontrender")` 判断是否已安装，再引用 API。提供给其他 Mod 复用的 GUI
-基础组件位于 `neofontrender.client.gui.component.base`。
+使用 `.persist(false)` 可进行仅当前会话生效的修改。`font(...)` 会清除 Cosmic 的分字形覆盖，
+确保选中的字体族在各后端一致生效。需要分别指定 regular、bold、italic 与 bold-italic 字体文件
+时，可组合使用 `primaryFont(...)` 和 `cosmicFaceOverrides(...)`。
 
-`font(...)` 会清除 Cosmic 的分字形覆盖，确保选中的字体族在各后端一致生效。需要分别指定
-regular、bold、italic 与 bold-italic 字体文件时，可组合使用 `primaryFont(...)` 和
-`cosmicFaceOverrides(...)`。
+其他入口：
+
+| 方法 | 说明 |
+| --- | --- |
+| `NeoFontRenderApi.setPrimaryFont(String)` | 快捷方式：选择一个字体并持久化。 |
+| `NeoFontRenderApi.reload()` | 不修改配置，仅调度后端重载。 |
+| `NeoFontRenderApi.getFontState()` | 当前字体配置与活动后端的不可变快照。 |
+
+### 现代文本渲染 (`ModernTextApi`)
+
+引擎无关的文本渲染 API，以真实逻辑字号绘制文本。支持 Cosmic、SFR/AWT 和现代 AWT 适配器，
+调用方无需关心当前后端。所有创建或绘制布局的方法必须在客户端渲染线程调用。
+
+```java
+import neofontrender.api.text.ModernTextApi;
+
+if (ModernTextApi.isAvailable()) {
+    float advance = ModernTextApi.draw("Hello", x, y, 12.0F, 0xFFFFFFFF);
+}
+```
+
+| 方法 | 说明 |
+| --- | --- |
+| `isAvailable()` | 现代文本后端就绪时返回 `true`。 |
+| `layoutFormatted(text, fontSize, argb, shadow)` | 将 Minecraft 格式化文本整形为可绘制的 `ModernTextLayout`。 |
+| `layoutFormattedWithShadow(text, fontSize, argb)` | 前景 + 模糊现代阴影合一布局。 |
+| `measureFormatted(text, fontSize, argb, shadow)` | 水平推进量（GUI 像素）。 |
+| `drawFormatted(text, x, y, fontSize, argb, shadow)` | 快捷绘制并返回推进量。 |
+| `canRenderModernShadow(text)` | 检查当前后端是否支持所有字形的现代模糊阴影。 |
+
+### 高级文本渲染 (`AdvancedTextApi`)
+
+调用方通过 `FontRenderSpec` 指定后端和字体族的作用域变体。适用于需要明确控制渲染器的场景
+（如自定义 HUD 元素始终使用 Cosmic，不受用户全局设置影响）。
+
+```java
+import neofontrender.api.text.AdvancedTextApi;
+import neofontrender.api.text.FontRenderSpec;
+
+FontRenderSpec spec = FontRenderSpec.builder()
+        .backend(FontRenderBackend.COSMIC)
+        .family("Noto Sans SC")
+        .size(10.0F)
+        .build();
+
+if (AdvancedTextApi.isAvailable(spec)) {
+    AdvancedTextApi.drawFormatted(text, x, y, 0xFFFFFFFF, false, spec);
+}
+```
+
+`drawWrapped(text, x, y, width, color, spec)` 在像素宽度约束内自动换行渲染，后端可用时返回 `true`。
+
+### HUD 状态条 (`HudBarRegistry` — UIE)
+
+其他客户端 Mod 可注册数据提供者，将自定义状态条添加到 NFR 的 Arc3D HUD。提供者选择
+Forge 元素槽位和方向，返回 `HudBarValue`，默认保留空间而不取消原版渲染。仅当提供者显式
+返回 `true` 时才会替代原版元素。命名空间 ID 和确定性排序允许多个集成共享同一高度栈。
+
+```java
+import neofontrender.addons.hud.api.*;
+
+HudBarRegistry.register(new HudBarProvider() {
+    @Override public String id() { return "mymod:mana"; }
+    @Override public HudBarElement element() { return HudBarElement.FOOD; }
+    @Override public HudBarSide side() { return HudBarSide.LEFT; }
+    @Override public HudBarValue currentValue() {
+        return new HudBarValue(getMana(), getMaxMana(), 0xFF4488FF);
+    }
+});
+```
+
+### 设置界面扩展
+
+依赖 Mod 可向 NFR 的模块化设置界面添加自定义标签页，或向"关于"和"开源许可"页面贡献内容。
+
+**设置标签页** — 实现 `NfrSettingsPage` 并注册：
+
+```java
+import neofontrender.api.client.settings.*;
+
+NfrSettingsPageRegistry.register(new NfrSettingsPage() {
+    @Override public String id() { return "mymod:settings"; }
+    @Override public String titleKey() { return "mymod.gui.settings"; }
+    @Override public int order() { return 100; }
+    @Override public IWidget buildWidget(NfrSettingsPageContext ctx) {
+        return new MySettingsPanel();
+    }
+});
+```
+
+**关于 / 开源许可贡献** — 向现有信息页面添加内容：
+
+```java
+NfrInfoPageRegistry.register(new NfrInfoPageContribution() {
+    @Override public String id() { return "mymod:about"; }
+    @Override public NfrInfoPage page() { return NfrInfoPage.ABOUT; }
+    @Override public List<NfrInfoLine> lines() {
+        return Arrays.asList(
+            NfrInfoLine.spaced("My Mod v1.0", 0xFFFFFF),
+            NfrInfoLine.line("github.com/example/mymod", 0x00DCE8));
+    }
+});
+```
+
+### 配置文件 (`NfrConfigApi`)
+
+遵循 NFR 约定的 TOML 配置文件工厂（自动保存、校验、默认值）。使用 `NfrConfigStorage.INDEPENDENT`
+创建独立文件，或 `APPEND_TO_NFR` 将键追加到 NFR 自身配置。
+
+```java
+import neofontrender.api.config.*;
+
+NfrConfigFile config = NfrConfigApi.builder("mymod").open();
+config.define("mymod.greeting", "Hello", "Greeting message.");
+String greeting = config.getString("mymod.greeting", "Hello");
+config.save();
+```
+
+### Arc3D 工具 (`Arc3DApi`)
+
+NFR 分发的 Arc3D Core 2026.2.0 的稳定访问入口。原始 `icyllis.arc3d.*` API 同样可用且不会被重定向。
+
+| 方法 | 说明 |
+| --- | --- |
+| `isAvailable()` | Arc3D Core 已加载且可用时返回 `true`。 |
+| `lerp(from, to, amount)` | 线性插值。 |
+| `hsv(h, s, v, alpha)` | HSV 转 ARGB 颜色。 |
+| `lerpArgb(from, to, amount)` | 逐通道 ARGB 插值。 |
 
 ## 开发
 

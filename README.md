@@ -227,9 +227,15 @@ Useful commands:
 
 ## Integration API
 
-Other client mods can update the active font without touching Neo Font Render's internal config or
-renderer classes. `apply()` is safe to call from any thread: it schedules the update on the client
-thread, saves it by default, and reloads the font backend once.
+All APIs live under `neofontrender.api` and are safe to use with an optional dependency. Check
+`Loader.isModLoaded("neofontrender")` before referencing any class. Reusable GUI controls intended
+for dependent mods are available under `neofontrender.client.gui.component.base`.
+
+### Font configuration (`NeoFontRenderApi`)
+
+Update the active font without touching NFR's internal config or renderer classes. `apply()` is safe
+from any thread: it schedules the update on the client thread, optionally persists it, and reloads
+the backend once.
 
 ```java
 import neofontrender.api.FontStyle;
@@ -245,14 +251,146 @@ NeoFontRenderApi.updateFont()
         .apply();
 ```
 
-Use `.persist(false)` for a session-only change. `NeoFontRenderApi.getFontState()` exposes an
-immutable snapshot of the configured font and active backend. Mods with an optional dependency
-should check `Loader.isModLoaded("neofontrender")` before referencing the API. Reusable GUI controls
-intended for dependent mods are available under `neofontrender.client.gui.component.base`.
+Use `.persist(false)` for a session-only change. `font(...)` clears Cosmic's per-style face overrides
+so the selected family applies consistently across backends. Use `primaryFont(...)` together with
+`cosmicFaceOverrides(...)` when a mod needs separate regular, bold, italic, and bold-italic font files.
 
-`font(...)` clears Cosmic's per-style face overrides so the selected family applies consistently
-across backends. Use `primaryFont(...)` together with `cosmicFaceOverrides(...)` when a mod needs
-separate regular, bold, italic, and bold-italic font files.
+Other entry points:
+
+| Method | Description |
+| --- | --- |
+| `NeoFontRenderApi.setPrimaryFont(String)` | Convenience: select one font across all backends and persist. |
+| `NeoFontRenderApi.reload()` | Schedule a backend reload without modifying config. |
+| `NeoFontRenderApi.getFontState()` | Immutable snapshot of the configured font and active backend. |
+
+### Modern text rendering (`ModernTextApi`)
+
+Engine-independent API for rendering text at a true logical font size. Works with Cosmic, SFR/AWT,
+and the modern AWT adapter — the caller does not need to know which backend is active. All methods
+that create or draw a layout must run on the client render thread.
+
+```java
+import neofontrender.api.text.ModernTextApi;
+
+if (ModernTextApi.isAvailable()) {
+    float advance = ModernTextApi.draw("Hello", x, y, 12.0F, 0xFFFFFFFF);
+}
+```
+
+| Method | Description |
+| --- | --- |
+| `isAvailable()` | Returns `true` when a modern text backend is ready. |
+| `layoutFormatted(text, fontSize, argb, shadow)` | Shape and rasterize Minecraft-formatted text into a draw-ready `ModernTextLayout`. |
+| `layoutFormattedWithShadow(text, fontSize, argb)` | Foreground + blurred modern shadow in one layout. |
+| `measureFormatted(text, fontSize, argb, shadow)` | Horizontal advance in GUI pixels. |
+| `drawFormatted(text, x, y, fontSize, argb, shadow)` | Convenience draw + advance return. |
+| `canRenderModernShadow(text)` | Check whether the current backend supports the modern blurred shadow for all glyphs. |
+
+### Advanced text rendering (`AdvancedTextApi`)
+
+Scoped variant where the caller chooses the backend and font family via `FontRenderSpec`. Use when
+the mod needs explicit control over which renderer is used (e.g. for a custom HUD element that
+should always use Cosmic regardless of the user's global setting).
+
+```java
+import neofontrender.api.text.AdvancedTextApi;
+import neofontrender.api.text.FontRenderSpec;
+
+FontRenderSpec spec = FontRenderSpec.builder()
+        .backend(FontRenderBackend.COSMIC)
+        .family("Noto Sans SC")
+        .size(10.0F)
+        .build();
+
+if (AdvancedTextApi.isAvailable(spec)) {
+    AdvancedTextApi.drawFormatted(text, x, y, 0xFFFFFFFF, false, spec);
+}
+```
+
+`drawWrapped(text, x, y, width, color, spec)` renders word-wrapped text within a pixel width
+constraint, returning `true` if the backend was available.
+
+### HUD status bars (`HudBarRegistry` — UIE)
+
+Other client mods can register a data provider that adds a bar to NFR's Arc3D-powered HUD. A
+provider selects a Forge element slot and side, returns a `HudBarValue`, and defaults to reserving
+space without canceling vanilla rendering. Only providers that explicitly return `true` from
+`replacesVanilla()` may replace that element. Namespaced ids and deterministic ordering allow
+multiple integrations to share one height stack.
+
+```java
+import neofontrender.addons.hud.api.*;
+
+HudBarRegistry.register(new HudBarProvider() {
+    @Override public String id() { return "mymod:mana"; }
+    @Override public HudBarElement element() { return HudBarElement.FOOD; }
+    @Override public HudBarSide side() { return HudBarSide.LEFT; }
+    @Override public HudBarValue currentValue() {
+        return new HudBarValue(getMana(), getMaxMana(), 0xFF4488FF);
+    }
+});
+```
+
+### Settings screen extensions
+
+Dependent mods can add custom tabs to NFR's modular settings screen and contribute lines to the
+About and Licenses pages.
+
+**Settings tab** — implement `NfrSettingsPage` and register it:
+
+```java
+import neofontrender.api.client.settings.*;
+
+NfrSettingsPageRegistry.register(new NfrSettingsPage() {
+    @Override public String id() { return "mymod:settings"; }
+    @Override public String titleKey() { return "mymod.gui.settings"; }
+    @Override public int order() { return 100; }
+    @Override public IWidget buildWidget(NfrSettingsPageContext ctx) {
+        return new MySettingsPanel();
+    }
+});
+```
+
+**About / Licenses contribution** — add lines to the existing info pages:
+
+```java
+NfrInfoPageRegistry.register(new NfrInfoPageContribution() {
+    @Override public String id() { return "mymod:about"; }
+    @Override public NfrInfoPage page() { return NfrInfoPage.ABOUT; }
+    @Override public List<NfrInfoLine> lines() {
+        return Arrays.asList(
+            NfrInfoLine.spaced("My Mod v1.0", 0xFFFFFF),
+            NfrInfoLine.line("github.com/example/mymod", 0x00DCE8));
+    }
+});
+```
+
+### Configuration files (`NfrConfigApi`)
+
+Factory for TOML configuration files that follow NFR's conventions (auto-save, validation, default
+values). Use `NfrConfigStorage.INDEPENDENT` for a standalone file, or `APPEND_TO_NFR` to add keys
+to NFR's own config.
+
+```java
+import neofontrender.api.config.*;
+
+NfrConfigFile config = NfrConfigApi.builder("mymod").open();
+config.define("mymod.greeting", "Hello", "Greeting message.");
+String greeting = config.getString("mymod.greeting", "Hello");
+config.save();
+```
+
+### Arc3D utilities (`Arc3DApi`)
+
+Stable access point for the Arc3D Core 2026.2.0 distributed by NFR. The original `icyllis.arc3d.*`
+API is also available and never relocated.
+
+| Method | Description |
+| --- | --- |
+| `isAvailable()` | Returns `true` when Arc3D Core is loaded and functional. |
+| `lerp(from, to, amount)` | Linear interpolation. |
+| `hsv(h, s, v, alpha)` | HSV to ARGB color conversion. |
+| `lerpArgb(from, to, amount)` | Per-channel ARGB interpolation. |
 
 ## Development
 
