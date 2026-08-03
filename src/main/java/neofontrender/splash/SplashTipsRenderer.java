@@ -57,10 +57,22 @@ public final class SplashTipsRenderer {
             int lineHeight = 12;
             int startY = screenHeight - 20 - lines.length * lineHeight - 16;
 
-            int color = 0xCCDDDDDD;
+            // Ensure GL state is correct for text rendering
+            org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_BLEND);
+            org.lwjgl.opengl.GL11.glBlendFunc(org.lwjgl.opengl.GL11.GL_SRC_ALPHA, org.lwjgl.opengl.GL11.GL_ONE_MINUS_SRC_ALPHA);
+            org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_LIGHTING);
+            org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
+            org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_TEXTURE_2D);
+            org.lwjgl.opengl.GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+
+            int color = 0xFFDDDDDD; // fully opaque light gray
             for (String line : lines) {
                 drawText(fontRenderer, line, margin, startY, color);
                 startY += lineHeight;
+            }
+
+            if (index == 0 && lastCycle == 0) {
+                LOGGER.info("Rendering tip: {}", text);
             }
         } catch (Exception e) {
             LOGGER.debug("Failed to render splash tip", e);
