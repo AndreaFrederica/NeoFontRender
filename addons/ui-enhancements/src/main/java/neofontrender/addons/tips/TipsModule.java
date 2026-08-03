@@ -26,13 +26,11 @@ public final class TipsModule implements UiEnhancementModule {
         TipsI18n.init();
         TipManager.INSTANCE.registerTipFile(BUILTIN_TIPS);
         TipManager.INSTANCE.registerTipFile(TIPSMOD_TIPS);
-        // Register resource reload listener early so tips load during ModernSplash
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.getResourceManager() instanceof IReloadableResourceManager) {
             ((IReloadableResourceManager) mc.getResourceManager())
                     .registerReloadListener(TipManager.INSTANCE);
         }
-        SplashTipsBridge.init();
     }
 
     @Override
