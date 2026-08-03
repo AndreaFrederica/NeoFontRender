@@ -24,19 +24,19 @@ public final class TipsModule implements UiEnhancementModule {
     public void preInit() {
         TipsConfig.load();
         TipsI18n.init();
-        // Register both paths so existing Tips mod resource packs work
         TipManager.INSTANCE.registerTipFile(BUILTIN_TIPS);
         TipManager.INSTANCE.registerTipFile(TIPSMOD_TIPS);
-    }
-
-    @Override
-    public void init() {
+        // Register resource reload listener early so tips load during ModernSplash
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.getResourceManager() instanceof IReloadableResourceManager) {
             ((IReloadableResourceManager) mc.getResourceManager())
                     .registerReloadListener(TipManager.INSTANCE);
         }
         SplashTipsBridge.init();
+    }
+
+    @Override
+    public void init() {
         NfrSettingsPageRegistry.register(new TipsSettingsPage());
     }
 }
