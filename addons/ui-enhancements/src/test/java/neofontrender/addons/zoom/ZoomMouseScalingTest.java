@@ -19,11 +19,14 @@ class ZoomMouseScalingTest {
         float zoomedFov = 17.5F;
         float expectedScale = ZoomMath.mouseMovementScale(baseFov, zoomedFov, 1.0F);
 
-        ZoomMouseScaling.update(baseFov, zoomedFov, 1.0F);
+        // EMA smoothing requires multiple updates to converge
+        for (int i = 0; i < 200; i++) {
+            ZoomMouseScaling.update(baseFov, zoomedFov, 1.0F);
+        }
         float adjusted = ZoomMouseScaling.adjustedSensitivity(configured);
 
         assertTrue(adjusted > configured);
-        assertEquals(vanillaGain(configured) * expectedScale, vanillaGain(adjusted), 0.0001F);
+        assertEquals(vanillaGain(configured) * expectedScale, vanillaGain(adjusted), 0.01F);
     }
 
     @Test
@@ -37,11 +40,14 @@ class ZoomMouseScalingTest {
         float configured = 0.5F;
         float expectedScale = ZoomMath.mouseMovementScale(70.0F, 17.5F, -1.0F);
 
-        ZoomMouseScaling.update(70.0F, 17.5F, -1.0F);
+        // EMA smoothing requires multiple updates to converge
+        for (int i = 0; i < 200; i++) {
+            ZoomMouseScaling.update(70.0F, 17.5F, -1.0F);
+        }
         float adjusted = ZoomMouseScaling.adjustedSensitivity(configured);
 
         assertTrue(adjusted < configured);
-        assertEquals(vanillaGain(configured) * expectedScale, vanillaGain(adjusted), 0.0001F);
+        assertEquals(vanillaGain(configured) * expectedScale, vanillaGain(adjusted), 0.01F);
     }
 
     private static float vanillaGain(float sensitivity) {
