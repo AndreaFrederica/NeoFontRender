@@ -1,6 +1,5 @@
 package neofontrender.addons.tips;
 
-import net.minecraft.client.resources.I18n;
 import net.minecraft.util.ResourceLocation;
 
 /**
@@ -43,12 +42,12 @@ public final class Tip {
 
     /** Returns the translated tip text, using the current game language. */
     public String text() {
-        return I18n.format(textKey);
+        return TipsI18n.translate(textKey);
     }
 
     /** Returns the translated title, or an empty string if none was defined. */
     public String title() {
-        return titleKey.isEmpty() ? "" : I18n.format(titleKey);
+        return titleKey.isEmpty() ? "" : TipsI18n.translate(titleKey);
     }
 
     public int cycleTimeMillis() { return cycleTimeMillis; }

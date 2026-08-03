@@ -23,6 +23,7 @@ public final class TipsModule implements UiEnhancementModule {
     @Override
     public void preInit() {
         TipsConfig.load();
+        TipsI18n.init();
         // Register both paths so existing Tips mod resource packs work
         TipManager.INSTANCE.registerTipFile(BUILTIN_TIPS);
         TipManager.INSTANCE.registerTipFile(TIPSMOD_TIPS);
