@@ -93,9 +93,7 @@ public final class ChatCommandCompletionController {
             return;
         }
         State state = states.computeIfAbsent(field, State::new);
-        state.requested = true;
-        state.values.clear();
-        state.layout = null;
+        state.beginRequest(wordStart(text, cursor));
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft.player == null || minecraft.player.connection == null) return;
         ClientCommandHandler.instance.autoComplete(prefix);
@@ -113,8 +111,7 @@ public final class ChatCommandCompletionController {
     private void acceptCompletions(GuiTextField field, String[] values) {
         if (!enabled(field)) return;
         State state = states.get(field);
-        if (state == null || !state.requested) return;
-        state.requested = false;
+        if (state == null || !state.acceptingResponses) return;
         state.values.clear();
         if (values != null) {
             for (String value : values) {
@@ -132,9 +129,14 @@ public final class ChatCommandCompletionController {
     private String currentWord(GuiTextField field) {
         String text = field.getText();
         int cursor = Math.max(0, Math.min(field.getCursorPosition(), text.length()));
-        int start = cursor;
+        return text.substring(wordStart(text, cursor), cursor);
+    }
+
+    static int wordStart(String text, int cursor) {
+        int start = Math.max(0, Math.min(cursor, text == null ? 0 : text.length()));
+        if (text == null) return start;
         while (start > 0 && !Character.isWhitespace(text.charAt(start - 1))) start--;
-        return text.substring(start, cursor);
+        return start;
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -185,8 +187,11 @@ public final class ChatCommandCompletionController {
         if (state != null) {
             state.values.clear();
             state.layout = null;
-            state.requested = false;
+            state.acceptingResponses = false;
             state.firstSelection = false;
+            state.selected = 0;
+            state.first = 0;
+            state.wordStart = -1;
         }
     }
 
@@ -206,11 +211,29 @@ public final class ChatCommandCompletionController {
         private int selected;
         private int first;
         private boolean firstSelection;
-        private boolean requested;
+        private boolean acceptingResponses;
+        private int wordStart = -1;
         private final GuiTextField owner;
 
         private State(GuiTextField owner) {
             this.owner = owner;
+        }
+
+        private void beginRequest(int nextWordStart) {
+            // A delimiter starts a distinct candidate set. Reset immediately instead of leaving
+            // the previous word selected until the network response arrives.
+            if (wordStart != nextWordStart) {
+                selected = 0;
+                first = 0;
+                firstSelection = true;
+                wordStart = nextWordStart;
+            }
+            values.clear();
+            layout = null;
+            // A single edit can produce both client-command and server responses, while older
+            // requests may still be in flight. Keep the session open so the newest ordered
+            // response can replace an earlier one instead of letting the first response close it.
+            acceptingResponses = true;
         }
 
         private void move(int delta) {
@@ -229,8 +252,7 @@ public final class ChatCommandCompletionController {
             GuiTextField field = owner;
             String text = field.getText();
             int cursor = Math.max(0, Math.min(field.getCursorPosition(), text.length()));
-            int start = cursor;
-            while (start > 0 && !Character.isWhitespace(text.charAt(start - 1))) start--;
+            int start = wordStart(text, cursor);
             field.setCursorPosition(start);
             field.setSelectionPos(cursor);
             field.writeText(values.get(index));
