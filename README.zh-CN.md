@@ -6,7 +6,10 @@
 
 <p align="center">
   面向 Cleanroom 的 Minecraft 1.12.2 现代文本整形与字体渲染模组。<br>
-  <a href="README.md">English</a> · <a href="https://github.com/AndreaFrederica/NeoFontRender">GitHub</a>
+  <a href="README.md">English</a> · <a href="https://github.com/AndreaFrederica/NeoFontRender">GitHub</a><br><br>
+  <a href="https://www.curseforge.com/minecraft/mc-mods/neofontrender"><img src="https://img.shields.io/badge/CurseForge-NFR-orange" alt="CurseForge"></a>
+  <a href="https://www.curseforge.com/minecraft/mc-mods/neo-font-render-ui-enhancements"><img src="https://img.shields.io/badge/CurseForge-UI%20Enhancements-orange" alt="CurseForge UIE"></a>
+  <a href="https://www.mcmod.cn/class/27362.html"><img src="https://img.shields.io/badge/MCMOD-Neo%20Font%20Render-blue" alt="MCMOD"></a>
 </p>
 
 ## 功能
@@ -22,6 +25,89 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 <p align="center">
   <img src="docs/screenshot.png" alt="Neo Font Render 设置界面" width="800">
 </p>
+
+## 模块列表
+
+项目由本体和若干可选模块组成，所有 UIE 模块共享同一个设置界面。
+
+> **许可证说明：** 本体为 MIT。UI Enhancements 源码同样为 MIT，但内嵌了 Apache-2.0 许可的
+> 第三方组件（TabbyChat、Salutation、jieba-analysis）和 LGPL-2.1 许可的 Jazzy。详见
+> [NOTICE.md](addons/ui-enhancements/NOTICE.md) 及打包在 `META-INF/LICENSE-*` 中的完整许可证文本。
+
+<table>
+<thead>
+<tr>
+  <th></th>
+  <th>模块</th>
+  <th>Mod ID</th>
+  <th>许可证</th>
+  <th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><img src="src/main/resources/assets/neofontrender/logo.png" width="32"></td>
+  <td><b>Neo Font Render</b></td>
+  <td><code>neofontrender</code></td>
+  <td>MIT</td>
+  <td>核心字体渲染器，包含 Cosmic Text 和 SFR/AWT 引擎、系统/内置字体支持、Unicode/IME 修复、告示牌优化及模块化设置界面。</td>
+</tr>
+<tr>
+  <td><img src="addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png" width="32"></td>
+  <td><b>NFR UI Enhancements</b></td>
+  <td><code>neofontrender_ui_enhancements</code></td>
+  <td>MIT</td>
+  <td>视觉与交互增强：聊天（内嵌 TabbyChat + Salutation）、工具提示、HUD 状态条、平滑滚动、文本输入、屏幕效果、悬停动画、世界加载、缩放。</td>
+</tr>
+<tr>
+  <td><img src="addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png" width="32"></td>
+  <td><b>UIE Server Companion</b></td>
+  <td><code>neofontrender_ui_enhancements_server</code></td>
+  <td>MIT</td>
+  <td>服务端自身消息网络支持，用于聊天模块。可选，仅在独立服务器上需要。</td>
+</tr>
+</tbody>
+</table>
+
+### 内置模组（打包在 UIE 内）
+
+<table>
+<thead>
+<tr>
+  <th>模组</th>
+  <th>Mod ID</th>
+  <th>许可证</th>
+  <th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><b>TabbyChat 2 Reforged</b></td>
+  <td><code>tabbychat2</code></td>
+  <td>Apache-2.0</td>
+  <td>聊天频道标签、过滤器、防刷屏、按频道历史记录与日志。无需单独安装。</td>
+</tr>
+<tr>
+  <td><b>Salutation 1.12.2</b></td>
+  <td><code>salutation</code></td>
+  <td>Apache-2.0</td>
+  <td>命令树、参数解析器、多行聊天后端、睡眠聊天界面和高级 Tab 补全。无需单独安装。</td>
+</tr>
+</tbody>
+</table>
+
+### 聊天功能模块（UIE 内部）
+
+| 模块 | 说明 |
+| --- | --- |
+| **搜索** | 聊天记录全文搜索，`Ctrl+F` 打开。 |
+| **规则** | 基于正则的消息过滤与来源分类。 |
+| **提及** | 从在线玩家列表补全 `@玩家名`，带提示音。 |
+| **玩家链接** | 可点击的玩家名，右键菜单（私聊、提及、复制、屏蔽）。 |
+| **命令补全** | 输入时显示可滚动的命令建议列表。 |
+| **HUD 窗口** | 支持合成器的浮动聊天窗口。 |
+| **持久化** | 按服务器/世界持久化收发消息历史。 |
+| **拼写检查** | Jazzy（英文）+ 结巴（中文）拼写检查。 |
 
 ## 支持版本
 
@@ -49,29 +135,9 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 
 不要将 `full` 与拆分的 `core` 或 `resources` 包同时安装。
 
-## UI Enhancements 附属模组
+### UI Enhancements
 
-[NFR UI Enhancements](addons/ui-enhancements/README.md) 是可选的配套附属模组，在字体渲染核心之外添加视觉与交互功能。设置页面直接嵌入 NFR 设置界面。
-
-### 功能模块
-
-| 模块 | 说明 |
-| --- | --- |
-| **聊天** | 增强聊天，包含 TabbyChat 2 Reforged 频道/过滤器、Salutation 命令系统、搜索、@提及补全、玩家链接、消息来源分类、规则引擎、HUD 窗口、按服持久化历史记录，以及结巴中文拼写检查。TabbyChat 和 Salutation 均已内嵌，无需单独安装。 |
-| **工具提示** | 现代工具提示布局、着色、稀有度颜色，以及 LegendaryTooltips 互操作。 |
-| **HUD 状态条** | Arc3D 驱动的生命值、护甲、饥饿等状态条，支持 Forge 高度栈协调。 |
-| **平滑滚动** | 原版 `GuiSlot` 和 Forge `GuiScrollingList` 的平滑滚轮滚动。 |
-| **文本输入** | 原版和 ModularUI 文本框的原生 GLFW I 型光标。 |
-| **屏幕效果** | 背景渐变、四角渐变和可配置的两遍高斯模糊。 |
-| **悬停动画** | 按钮和物品槽的平滑悬停动画。 |
-| **世界加载** | 可自定义的加载界面，支持按存档截图和出生点准备进度。 |
-| **缩放** | 按住缩放，可配置按键和灵敏度。 |
-
-### 服务端伴侣
-
-[ui-enhancements-server](addons/ui-enhancements-server/) 为聊天模块提供服务端自身消息网络支持。可选，仅在独立服务器上需要。
-
-### 下载
+将 `neofontrender-ui-enhancements-<version>.jar` 与本体一起放入 `mods`。服务端伴侣可选。
 
 - [UI Enhancements Release 下载](https://github.com/AndreaFrederica/NeoFontRender/releases?q=ui-enhancements)
 - [附属说明与构建方法](addons/ui-enhancements/README.md)
@@ -158,6 +224,4 @@ regular、bold、italic 与 bold-italic 字体文件时，可组合使用 `prima
 
 - 许可证：[MIT](LICENSE)
 - 贡献者：[AndreaFrederica](https://github.com/AndreaFrederica)、[baka-gourd](https://github.com/baka-gourd)、[DHJComical](https://github.com/DHJComical)
-- CurseForge：[Neo Font Render](https://www.curseforge.com/minecraft/mc-mods/neofontrender) · [UI Enhancements](https://www.curseforge.com/minecraft/mc-mods/neo-font-render-ui-enhancements)
-- MCMOD：[Neo Font Render](https://www.mcmod.cn/class/27362.html)
 - 设计文档：[docs](docs/)

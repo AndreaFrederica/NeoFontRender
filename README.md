@@ -6,7 +6,10 @@
 
 <p align="center">
   Modern text shaping and font rendering for Minecraft 1.12.2 on Cleanroom.<br>
-  <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/AndreaFrederica/NeoFontRender">GitHub</a>
+  <a href="README.zh-CN.md">简体中文</a> · <a href="https://github.com/AndreaFrederica/NeoFontRender">GitHub</a><br><br>
+  <a href="https://www.curseforge.com/minecraft/mc-mods/neofontrender"><img src="https://img.shields.io/badge/CurseForge-NFR-orange" alt="CurseForge"></a>
+  <a href="https://www.curseforge.com/minecraft/mc-mods/neo-font-render-ui-enhancements"><img src="https://img.shields.io/badge/CurseForge-UI%20Enhancements-orange" alt="CurseForge UIE"></a>
+  <a href="https://www.mcmod.cn/class/27362.html"><img src="https://img.shields.io/badge/MCMOD-Neo%20Font%20Render-blue" alt="MCMOD"></a>
 </p>
 
 ## What it does
@@ -22,6 +25,90 @@ Neo Font Render replaces Minecraft 1.12.2's bitmap-font path with configurable m
 <p align="center">
   <img src="docs/screenshot.png" alt="Neo Font Render configuration screen" width="800">
 </p>
+
+## Modules
+
+The project ships as a main mod and several optional modules. All UIE modules share a single settings screen.
+
+> **License note:** The main mod is MIT. UI Enhancements and its source code are also MIT, but it
+> bundles third-party components under Apache-2.0 (TabbyChat, Salutation, jieba-analysis) and
+> LGPL-2.1 (Jazzy). See [NOTICE.md](addons/ui-enhancements/NOTICE.md) and the bundled
+> `META-INF/LICENSE-*` files for full details.
+
+<table>
+<thead>
+<tr>
+  <th></th>
+  <th>Module</th>
+  <th>Mod ID</th>
+  <th>License</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><img src="src/main/resources/assets/neofontrender/logo.png" width="32"></td>
+  <td><b>Neo Font Render</b></td>
+  <td><code>neofontrender</code></td>
+  <td>MIT</td>
+  <td>Core font renderer with Cosmic Text and SFR/AWT engines, system/bundled font support, Unicode/IME fixes, sign optimizations, and the modular settings screen.</td>
+</tr>
+<tr>
+  <td><img src="addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png" width="32"></td>
+  <td><b>NFR UI Enhancements</b></td>
+  <td><code>neofontrender_ui_enhancements</code></td>
+  <td>MIT</td>
+  <td>Visual and interactive addons: chat (TabbyChat + Salutation embedded), tooltips, HUD bars, smooth scrolling, text input, screen effects, hover animation, world loading, zoom.</td>
+</tr>
+<tr>
+  <td><img src="addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png" width="32"></td>
+  <td><b>UIE Server Companion</b></td>
+  <td><code>neofontrender_ui_enhancements_server</code></td>
+  <td>MIT</td>
+  <td>Server-side self-message network support for the chat module. Optional, only needed on dedicated servers.</td>
+</tr>
+</tbody>
+</table>
+
+### Embedded mods (bundled inside UIE)
+
+<table>
+<thead>
+<tr>
+  <th>Mod</th>
+  <th>Mod ID</th>
+  <th>License</th>
+  <th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><b>TabbyChat 2 Reforged</b></td>
+  <td><code>tabbychat2</code></td>
+  <td>Apache-2.0</td>
+  <td>Chat channel tabs, filters, anti-spam, per-channel history and logging. Standalone JAR not required.</td>
+</tr>
+<tr>
+  <td><b>Salutation 1.12.2</b></td>
+  <td><code>salutation</code></td>
+  <td>Apache-2.0</td>
+  <td>Command tree, argument parsers, multiline chat backend, sleep-chat screen, and advanced tab completion. Standalone JAR not required.</td>
+</tr>
+</tbody>
+</table>
+
+### Chat feature modules (inside UIE)
+
+| Module | Description |
+| --- | --- |
+| **Search** | Full-text search across chat history with `Ctrl+F`. |
+| **Rules** | Regex-based message filtering and source classification. |
+| **Mentions** | `@player` completion from online player list with notification sound. |
+| **Player links** | Clickable player names with context menu (message, mention, copy, mute). |
+| **Command completion** | Scrollable command suggestions while typing. |
+| **HUD window** | Floating chat window with compositor support. |
+| **Persistence** | Per-server/world persistent received and sent message history. |
+| **Spellcheck** | Jazzy (English) + Jieba (Chinese) spell checking. |
 
 ## Supported versions
 
@@ -50,29 +137,9 @@ Download the distribution that fits your installation and put it in the `mods` f
 
 Do not install `full` together with the split `core` or `resources` packages.
 
-## UI Enhancements addon
+### UI Enhancements
 
-[NFR UI Enhancements](addons/ui-enhancements/README.md) is the optional companion mod that adds visual and interactive features beyond the font-rendering core. It embeds its settings pages directly into the NFR settings screen.
-
-### Feature modules
-
-| Module | Description |
-| --- | --- |
-| **Chat** | Enhanced chat with TabbyChat 2 Reforged channels/filters, Salutation command system, search, @mention completion, player links, message source classification, rules engine, HUD window, persistent per-server history, and Jieba Chinese spellcheck. Both TabbyChat and Salutation are embedded — standalone JARs are not required. |
-| **Tooltips** | Modern tooltip layout, shading, rarity colors, and LegendaryTooltips interop. |
-| **HUD bars** | Arc3D-powered health, absorption, armor, toughness, hunger, saturation, exhaustion, air, and mount-health bars with Forge height-stack coordination. |
-| **Scrolling** | Smooth wheel scrolling for vanilla `GuiSlot` and Forge `GuiScrollingList`. |
-| **Text input** | Native GLFW I-beam cursors over vanilla and ModularUI text fields. |
-| **Screen effects** | Background fade, four-corner gradient, and configurable two-pass Gaussian blur. |
-| **Hover** | Smooth hover animation for buttons and slots. |
-| **World loading** | Customizable loading screen with per-save screenshot and spawn-preparation progress. |
-| **Zoom** | Hold-to-zoom with configurable key and sensitivity. |
-
-### Server companion
-
-[ui-enhancements-server](addons/ui-enhancements-server/) provides server-side self-message network support for the chat module. It is optional and only needed on dedicated servers.
-
-### Download
+Install `neofontrender-ui-enhancements-<version>.jar` alongside the main mod. The server companion is optional.
 
 - [UI Enhancements releases](https://github.com/AndreaFrederica/NeoFontRender/releases?q=ui-enhancements)
 - [Addon documentation and build instructions](addons/ui-enhancements/README.md)
@@ -159,6 +226,4 @@ The project uses the current [CleanroomModTemplate](https://github.com/Cleanroom
 
 - License: [MIT](LICENSE)
 - Contributors: [AndreaFrederica](https://github.com/AndreaFrederica), [baka-gourd](https://github.com/baka-gourd), [DHJComical](https://github.com/DHJComical)
-- CurseForge: [Neo Font Render](https://www.curseforge.com/minecraft/mc-mods/neofontrender) · [UI Enhancements](https://www.curseforge.com/minecraft/mc-mods/neo-font-render-ui-enhancements)
-- MCMOD: [Neo Font Render](https://www.mcmod.cn/class/27362.html)
 - Design notes: [docs](docs/)
