@@ -46,3 +46,8 @@ Chinese chat segmentation and dictionary lookup use jieba-analysis 1.0.2 by Huab
 distributed under the Apache License 2.0. The unmodified library is carried as an embedded
 dependency. The complete license is included in META-INF/LICENSE-Jieba-Analysis.txt and its
 upstream source is available at https://github.com/huaban/jieba-analysis.
+
+Tip content (gameplay tips and translations) is derived from Tips by Darkhax,
+used with attribution. The original Tips mod is available at
+https://www.curseforge.com/minecraft/mc-mods/tips and its source at
+https://github.com/Darkhax-Minecraft/Tips.

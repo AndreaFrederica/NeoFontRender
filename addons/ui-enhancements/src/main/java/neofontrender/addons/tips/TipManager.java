@@ -1,12 +1,14 @@
 package neofontrender.addons.tips;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.client.resources.IResourceManagerReloadListener;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.addons.ui.NfrUiEnhancements;
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -16,9 +18,11 @@ import java.util.*;
 /**
  * Loads tips from registered resource locations and manages cycling.
  * <p>
- * Other mods register their tip file paths via {@link TipsApi#registerTipFile(ResourceLocation)}.
- * On resource reload, each registered file is loaded and parsed. The built-in tip set is
- * registered by {@link TipsModule}.
+ * Compatible with the original Tips mod format: {@code assets/<namespace>/tips/*.json}.
+ * Also supports {@code assets/<namespace>/tips/<name>.json} with {@code {"type":"tipsmod:simple", ...}}.
+ * <p>
+ * The built-in tip file and the Tips mod's default path are both registered
+ * so that existing resource packs continue to work.
  */
 public enum TipManager implements IResourceManagerReloadListener {
     INSTANCE;
@@ -94,8 +98,8 @@ public enum TipManager implements IResourceManagerReloadListener {
 
     private void loadTipFile(IResourceManager rm, ResourceLocation file) {
         try {
-            List<net.minecraft.client.resources.IResource> resources = rm.getAllResources(file);
-            for (net.minecraft.client.resources.IResource resource : resources) {
+            List<IResource> resources = rm.getAllResources(file);
+            for (IResource resource : resources) {
                 try (InputStream is = resource.getInputStream()) {
                     JsonObject root = GSON.fromJson(
                             new InputStreamReader(is, StandardCharsets.UTF_8), JsonObject.class);
@@ -108,20 +112,27 @@ public enum TipManager implements IResourceManagerReloadListener {
     }
 
     /**
-     * Parses a tip file. Supports two formats:
+     * Parses a tip file. Supports three formats:
      * <ul>
-     *   <li>Single tip: {@code {"text": {...}, "title": {...}}}</li>
-     *   <li>Array of tips: {@code [ {"text": {...}}, {"text": {...}} ]}</li>
+     *   <li>Single tip: {@code {"text": {"translate": "key"}}}</li>
+     *   <li>Array: {@code {"tips": [ {"text": {...}}, ... ]}}</li>
+     *   <li>Typed (Tips mod compat): {@code {"type": "tipsmod:simple", "text": {...}}}</li>
      * </ul>
      */
     private void parseTips(ResourceLocation file, JsonObject root) {
-        // Single tip object
-        if (root.has("text")) {
+        // Typed single tip (Tips mod format)
+        if (root.has("type") && root.has("text")) {
             Tip tip = parseSingleTip(file, root);
             if (tip != null) allTips.add(tip);
             return;
         }
-        // Array of tips under "tips" key
+        // Untyped single tip
+        if (root.has("text") && !root.has("tips")) {
+            Tip tip = parseSingleTip(file, root);
+            if (tip != null) allTips.add(tip);
+            return;
+        }
+        // Array of tips
         if (root.has("tips") && root.get("tips").isJsonArray()) {
             int index = 0;
             for (JsonElement elem : root.getAsJsonArray("tips")) {

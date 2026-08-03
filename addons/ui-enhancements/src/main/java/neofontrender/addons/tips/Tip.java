@@ -35,6 +35,12 @@ public final class Tip {
 
     public ResourceLocation id() { return id; }
 
+    /** The raw translation key for the tip text. */
+    public String textKey() { return textKey; }
+
+    /** The raw translation key for the title, or empty string. */
+    public String titleKey() { return titleKey; }
+
     /** Returns the translated tip text, using the current game language. */
     public String text() {
         return I18n.format(textKey);

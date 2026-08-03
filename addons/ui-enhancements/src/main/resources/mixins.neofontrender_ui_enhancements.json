@@ -43,6 +43,7 @@
     "MixinGuiSlotLanguageFavorites",
     "MixinGuiTextFieldCursor",
     "MixinLoadingScreenRenderer",
+    "MixinLoadingScreenRendererTips",
     "MixinMinecraftResourceReloadProgress",
     "MixinMinecraftServerSpawnProgress",
     "MixinMinecraftWorldLoadingSnapshot",
