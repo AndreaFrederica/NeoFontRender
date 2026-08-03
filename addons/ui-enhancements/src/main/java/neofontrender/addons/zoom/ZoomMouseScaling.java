@@ -5,14 +5,20 @@ public final class ZoomMouseScaling {
     private static float rawScale = 1.0F;
     private static float smoothedScale = 1.0F;
 
-    // Smoothing factor: 0.0 = no change, 1.0 = instant. 0.15 is responsive but stable.
-    private static final float SMOOTHING_FACTOR = 0.15F;
+    // Sensitivity smoothing
+    private static final float SENSITIVITY_SMOOTHING = 0.15F;
+
+    // Camera delta smoothing (exponential moving average)
+    private static float smoothedYaw;
+    private static float smoothedPitch;
+    private static boolean smoothCameraActive;
+    private static final float CAMERA_SMOOTHING = 0.15F;
 
     private ZoomMouseScaling() {}
 
     static void update(float baseFov, float zoomedFov, float adjustment) {
         rawScale = ZoomMath.mouseMovementScale(baseFov, zoomedFov, adjustment);
-        smoothedScale += (rawScale - smoothedScale) * SMOOTHING_FACTOR;
+        smoothedScale += (rawScale - smoothedScale) * SENSITIVITY_SMOOTHING;
         movementScale = smoothedScale;
     }
 
@@ -20,6 +26,43 @@ public final class ZoomMouseScaling {
         rawScale = 1.0F;
         smoothedScale = 1.0F;
         movementScale = 1.0F;
+        resetSmoothCamera();
+    }
+
+    static void resetSmoothCamera() {
+        smoothedYaw = 0.0F;
+        smoothedPitch = 0.0F;
+        smoothCameraActive = false;
+    }
+
+    static void enableSmoothCamera() {
+        if (!smoothCameraActive) {
+            smoothCameraActive = true;
+            smoothedYaw = 0.0F;
+            smoothedPitch = 0.0F;
+        }
+    }
+
+    static void disableSmoothCamera() {
+        smoothCameraActive = false;
+    }
+
+    public static boolean isSmoothCameraActive() {
+        return smoothCameraActive;
+    }
+
+    /**
+     * Smooth the camera deltas for a cinematic feel during zoom.
+     * Uses exponential moving average to avoid the MouseFilter cold-start
+     * problem that vanilla's smoothCamera has.
+     */
+    public static float[] smoothCameraDelta(float rawYaw, float rawPitch) {
+        if (!smoothCameraActive) {
+            return new float[]{rawYaw, rawPitch};
+        }
+        smoothedYaw += (rawYaw - smoothedYaw) * CAMERA_SMOOTHING;
+        smoothedPitch += (rawPitch - smoothedPitch) * CAMERA_SMOOTHING;
+        return new float[]{smoothedYaw, smoothedPitch};
     }
 
     public static float adjustedSensitivity(float configuredSensitivity) {
