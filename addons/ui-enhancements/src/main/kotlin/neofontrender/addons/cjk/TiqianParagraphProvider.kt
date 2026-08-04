@@ -10,6 +10,8 @@ import org.tiqian.clreq.HangingPunctuationStyle
 import org.tiqian.clreq.KinsokuLevel
 import org.tiqian.clreq.KinsokuMode
 import org.tiqian.core.Cluster
+import org.tiqian.core.DecorationKind
+import org.tiqian.core.DecorationSpan
 import org.tiqian.core.Glyph
 import org.tiqian.core.GlyphRun
 import org.tiqian.core.Ic
@@ -31,11 +33,15 @@ import org.tiqian.shaping.TextShaper
 import java.util.LinkedHashMap
 import java.util.Locale
 import java.util.TreeMap
+import kotlin.math.abs
 
 /** Tiqian-backed paragraph provider kept entirely inside the optional UIE addon. */
 object TiqianParagraphProvider : CjkParagraphLayoutProvider {
     private const val CACHE_LIMIT = 512
     private const val PROFILE_LOCALE = "zh-Hans"
+    private val chatSpeakerPrefix = Regex(
+        "^\\s*(?:\\[[^\\]\\r\\n]{1,32}]\\s*)*(<[^<>\\s]{1,64}>)",
+    )
 
     private val cache = object : LinkedHashMap<CacheKey, CjkParagraphLayoutProvider.Layout>(
         CACHE_LIMIT + 1, 0.75f, true,
@@ -214,6 +220,10 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
             LayoutInput(
                 content = content,
                 textStyle = baseStyle,
+                // Tiqian already gives Mourning spans the exact semantics chat needs here:
+                // keep the range whole when it fits, but permit emergency splitting when the
+                // range itself is wider than the viewport. UIE does not paint decorations.
+                decorations = chatSpeakerDecoration(parsed.visible, surface),
                 paragraphStyle = ParagraphStyle(
                     lineHeight = lineHeight.toFloat(),
                     firstLineIndent = Ic.Zero,
@@ -224,21 +234,51 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
         )
         val positionedByLine = result.positionedClusters().groupBy { it.lineIndex }
         val apiLines = result.lines.mapIndexed { lineIndex, line ->
-            val runs = positionedByLine[lineIndex].orEmpty().mapNotNull { positioned ->
+            val runs = mutableListOf<CjkParagraphLayoutProvider.Run>()
+            var pendingText = StringBuilder()
+            var pendingStart = -1
+            var pendingEnd = -1
+            var pendingX = 0f
+            var pendingRight = 0f
+            var pendingState: FormatState? = null
+
+            fun flushPending() {
+                if (pendingStart < 0) return
+                runs += CjkParagraphLayoutProvider.Run(
+                    parsed.formattedDisplay(pendingStart, pendingText.toString()),
+                    pendingX,
+                    parsed.rawBoundary(pendingStart),
+                    parsed.rawBoundary(pendingEnd),
+                )
+                pendingText = StringBuilder()
+                pendingStart = -1
+                pendingEnd = -1
+                pendingState = null
+            }
+
+            for (positioned in positionedByLine[lineIndex].orEmpty()) {
                 val cluster = result.clusters[positioned.clusterIndex]
                 if (cluster.displayText.isEmpty() || cluster.displayText == "\n" ||
                     cluster.displayText == "\r"
                 ) {
-                    null
-                } else {
-                    CjkParagraphLayoutProvider.Run(
-                        parsed.formattedDisplay(cluster.range.start, cluster.displayText),
-                        positioned.drawX,
-                        parsed.rawBoundary(cluster.range.start),
-                        parsed.rawBoundary(cluster.range.end),
-                    )
+                    flushPending()
+                    continue
                 }
-            }.toMutableList()
+                val state = parsed.stateAt(cluster.range.start)
+                val joinsPending = pendingStart >= 0 && pendingEnd == cluster.range.start &&
+                    pendingState == state && (state.underline || state.strike) &&
+                    abs(positioned.drawX - pendingRight) <= 0.01f
+                if (!joinsPending) {
+                    flushPending()
+                    pendingStart = cluster.range.start
+                    pendingX = positioned.drawX
+                    pendingState = state
+                }
+                pendingText.append(cluster.displayText)
+                pendingEnd = cluster.range.end
+                pendingRight = positioned.drawX + cluster.advance
+            }
+            flushPending()
             if (line.hyphenAdvance > 0f) {
                 val boundary = parsed.rawBoundary(line.range.end)
                 val styleOffset = (line.range.end - 1).coerceAtLeast(line.range.start)
@@ -271,6 +311,20 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
             result.lines.map { line ->
                 line.indent + line.visualWidth + line.hyphenAdvance
             },
+        )
+    }
+
+    private fun chatSpeakerDecoration(
+        text: String,
+        surface: CjkParagraphLayoutProvider.ComponentRequest.Surface,
+    ): List<DecorationSpan> {
+        if (surface != CjkParagraphLayoutProvider.ComponentRequest.Surface.CHAT) return emptyList()
+        val token = chatSpeakerPrefix.find(text)?.groups?.get(1) ?: return emptyList()
+        return listOf(
+            DecorationSpan(
+                TextRange(token.range.first, token.range.last + 1),
+                DecorationKind.Mourning,
+            ),
         )
     }
 

@@ -164,6 +164,33 @@ class TiqianParagraphProviderTest {
     }
 
     @Test
+    void chatKeepsAngleBracketPlayerNameWholeWhenItFits() {
+        assertChatTokenIsNotSplit("<Nullpinter> 中文消息", "<Nullpinter>", 65);
+    }
+
+    @Test
+    void chatKeepsPlayerNameWholeAfterTimestampPrefix() {
+        assertChatTokenIsNotSplit("[12:34] <Nullpinter> 中文消息", "<Nullpinter>", 65);
+    }
+
+    @Test
+    void chatDrawsAContinuousUnderlinedPlayerNameAsOneRun() {
+        List<ITextComponent> lines = TiqianParagraphProvider.INSTANCE.splitComponents(
+                new CjkParagraphLayoutProvider.ComponentRequest(
+                        new TextComponentString("\u00a7n<Nullpinter>\u00a7r 中文消息"),
+                        180, 9, "zh_cn", false, true,
+                        TiqianParagraphProviderTest::measure,
+                        CjkParagraphLayoutProvider.ComponentRequest.Surface.CHAT));
+
+        assertNotNull(lines);
+        PositionedTextLine first = (PositionedTextLine) lines.get(0);
+        assertTrue(first.nfrUi$runs().stream().anyMatch(run ->
+                run.formattedText().contains("\u00a7n")
+                        && "<Nullpinter>".equals(TextFormatting.getTextWithoutFormattingCodes(
+                                run.formattedText()))));
+    }
+
+    @Test
     void positionedLineMapsClicksAndSelectionToItsOriginalComponent() {
         TextComponentString child = new TextComponentString("测试");
         TiqianLineComponent line = new TiqianLineComponent(List.of(), 18.0F, 2);
@@ -192,6 +219,31 @@ class TiqianParagraphProviderTest {
             String text, int width, String language) {
         return new CjkParagraphLayoutProvider.Request(text, width, 9, language,
                 TiqianParagraphProviderTest::measure);
+    }
+
+    private static void assertChatTokenIsNotSplit(String text, String token, int width) {
+        List<ITextComponent> lines = TiqianParagraphProvider.INSTANCE.splitComponents(
+                new CjkParagraphLayoutProvider.ComponentRequest(
+                        new TextComponentString(text), width, 9, "zh_cn", false, true,
+                        TiqianParagraphProviderTest::measure,
+                        CjkParagraphLayoutProvider.ComponentRequest.Surface.CHAT));
+
+        assertNotNull(lines);
+        int tokenStart = text.indexOf(token);
+        int tokenEnd = tokenStart + token.length();
+        int boundary = 0;
+        boolean foundWholeToken = false;
+        StringBuilder copied = new StringBuilder();
+        for (ITextComponent line : lines) {
+            String clean = TextFormatting.getTextWithoutFormattingCodes(line.getUnformattedText());
+            copied.append(clean);
+            foundWholeToken |= clean.contains(token);
+            boundary += clean.length();
+            assertFalse(boundary > tokenStart && boundary < tokenEnd,
+                    "speaker token split at source offset " + boundary);
+        }
+        assertTrue(foundWholeToken);
+        assertEquals(text, copied.toString());
     }
 
     private static float measure(String formatted) {
