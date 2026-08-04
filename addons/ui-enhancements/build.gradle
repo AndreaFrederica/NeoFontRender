@@ -153,6 +153,14 @@ tasks.register('prepareCombinedClientRun', Copy) {
     rename { 'neofontrender-ui-enhancements-dev.jar' }
 }
 
+tasks.register('stageUiEnhancementsRelease', Sync) {
+    group = 'distribution'
+    description = 'Stages only the remapped, installable UI Enhancements JAR.'
+    dependsOn tasks.named('build')
+    from(layout.buildDirectory.file("libs/neofontrender-ui-enhancements-${project.version}.jar"))
+    into rootProject.layout.buildDirectory.dir('release/uie')
+}
+
 jar {
     from('NOTICE.md') {
         into 'META-INF'
