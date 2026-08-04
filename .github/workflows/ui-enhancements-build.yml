@@ -1,4 +1,4 @@
-name: UI Enhancements / Build
+name: Revo UI / Build
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ on:
       - 'gradlew'
       - 'gradlew.bat'
       - '.github/workflows/ui-enhancements-build.yml'
-      - '.github/workflows/ui-enhancements-release.yml'
+      - '.github/workflows/deploy.yml'
   push:
     branches:
       - '**'
@@ -31,7 +31,7 @@ on:
       - 'gradlew'
       - 'gradlew.bat'
       - '.github/workflows/ui-enhancements-build.yml'
-      - '.github/workflows/ui-enhancements-release.yml'
+      - '.github/workflows/deploy.yml'
 
 permissions:
   contents: read

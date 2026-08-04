@@ -151,6 +151,16 @@ tasks.register('verifyPackageVariants') {
 }
 tasks.register('packageVariants') { group = 'build'; dependsOn 'fullJar', 'resourcesJar', 'verifyPackageVariants' }
 
+tasks.register('stageMainRelease', Sync) {
+    group = 'distribution'
+    description = 'Stages only the supported main-mod release artifacts.'
+    dependsOn tasks.named('verifyPackageVariants')
+    into layout.buildDirectory.dir('release/main')
+    from(tasks.named('fullJar').flatMap { it.archiveFile })
+    from(tasks.named('coreJar').flatMap { it.archiveFile })
+    from(tasks.named('resourcesJar').flatMap { it.archiveFile })
+}
+
 tasks.register('cosmicSmokeTest', JavaExec) {
     group = 'verification'; dependsOn 'classes'
     classpath = sourceSets.main.runtimeClasspath

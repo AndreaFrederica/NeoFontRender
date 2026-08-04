@@ -6,12 +6,9 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import neofontrender.Tags;
 import org.lwjgl.opengl.GL11;
 
 public final class NeofontrenderMainMenuBranding {
-
-    private static final String BRANDING = Tags.MOD_NAME + " " + Tags.VERSION;
 
     @SubscribeEvent
     public void onDrawMainMenu(GuiScreenEvent.DrawScreenEvent.Post event) {
@@ -25,7 +22,9 @@ public final class NeofontrenderMainMenuBranding {
         GlStateManager.disableLighting();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         try {
-            event.getGui().drawString(mc.fontRenderer, BRANDING, 2, y, 0xFFFFFF);
+            event.getGui().drawString(mc.fontRenderer,
+                    NeofontrenderBranding.displayName() + " " + neofontrender.Tags.VERSION,
+                    2, y, 0xFFFFFF);
         } finally {
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
             if (lighting) GlStateManager.enableLighting();

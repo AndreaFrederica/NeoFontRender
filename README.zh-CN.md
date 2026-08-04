@@ -71,7 +71,7 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 </tr>
 <tr>
   <td><img src="addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png" width="32"></td>
-  <td><b>NFR UI Enhancements</b></td>
+  <td><b>焕新UI</b></td>
   <td><code>neofontrender_ui_enhancements</code></td>
   <td>LGPL-3.0</td>
   <td>视觉与交互增强：聊天（内嵌 TabbyChat + Salutation）、工具提示、HUD 状态条、平滑滚动、文本输入、屏幕效果、悬停动画、世界加载、缩放。</td>
@@ -113,7 +113,7 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 </tbody>
 </table>
 
-### UI Enhancements 功能模块
+### 焕新UI功能模块
 
 | 模块 | 说明 |
 | --- | --- |
@@ -179,11 +179,11 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 
 不要将 `full` 与拆分的 `core` 或 `resources` 包同时安装。
 
-### UI Enhancements
+### 焕新UI
 
 将 `neofontrender-ui-enhancements-<version>.jar` 与本体一起放入 `mods`。服务端伴侣可选。
 
-- [UI Enhancements Release 下载](https://github.com/AndreaFrederica/NeoFontRender/releases?q=ui-enhancements)
+- [焕新UI Release 下载](https://github.com/AndreaFrederica/NeoFontRender/releases?q=uie%2F)
 - [附属说明与构建方法](addons/ui-enhancements/README.md)
 
 ## 快速开始

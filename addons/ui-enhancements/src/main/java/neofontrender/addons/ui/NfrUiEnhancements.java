@@ -30,7 +30,7 @@ import java.util.List;
 
 @Mod(
         modid = NfrUiEnhancements.MOD_ID,
-        name = "NFR UI Enhancements",
+        name = NfrUiEnhancements.MOD_NAME,
         version = NfrUiEnhancements.VERSION,
         dependencies = NfrUiEnhancements.DEPENDENCIES,
         guiFactory = "neofontrender.addons.ui.UiEnhancementsGuiFactory",
@@ -39,13 +39,14 @@ import java.util.List;
 )
 public final class NfrUiEnhancements {
     public static final String MOD_ID = "neofontrender_ui_enhancements";
+    public static final String MOD_NAME = "Revo UI";
     public static final String VERSION = "0.2.3";
     public static final String DEPENDENCIES =
             "required-after:" + Tags.MOD_ID + "@[" + Tags.VERSION + ",);"
                     + "required-after:modularui@[3.1.6,);"
                     + "after:applecore;after:chunkpregenerator;after:classicbar;after:jei;"
                     + "after:legendarytooltips;after:obscure_tooltips;after:optifine;after:quark";
-    public static final Logger LOGGER = LogManager.getLogger("NFR UI Enhancements");
+    public static final Logger LOGGER = LogManager.getLogger(MOD_NAME);
 
     private static final List<UiEnhancementModule> MODULES = Arrays.asList(
             new SmoothScrollingModule(),

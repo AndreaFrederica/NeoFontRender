@@ -12,7 +12,7 @@ import neofontrender.Tags;
  */
 @Mod(
         modid = NeoFontRenderResources.MOD_ID,
-        name = "Neo Font Render Resources",
+        name = "Revo Font Resources",
         version = Tags.VERSION,
         dependencies = "required-after:" + Tags.MOD_ID + "@[" + Tags.VERSION + ",)",
         clientSideOnly = true,

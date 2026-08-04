@@ -71,7 +71,7 @@
 	"tip.tipsmod.weather_sleep.text": "睡觉可以使天空放晴并停止雷雨或下雨。",
 
 	"tip.uie.1": "按住 C 键可以缩放视野，鼠标灵敏度会自动适配。",
-	"tip.uie.2": "按 O 键打开 Neo Font Render 设置界面，支持实时预览。",
+	"tip.uie.2": "按 O 键打开字体与界面设置，支持实时预览。",
 	"tip.uie.3": "自定义字体可以 TTF 或 OTF 格式放入 .minecraft/neofontrender/fonts/ 目录。",
 	"tip.uie.4": "Cosmic Text 引擎支持系统字体和 fallback 链，缺字时自动查询备选字体。",
 	"tip.uie.5": "启用增强聊天后可以使用 Ctrl+F 搜索聊天记录。",

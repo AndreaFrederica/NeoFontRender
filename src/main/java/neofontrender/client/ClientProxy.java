@@ -33,6 +33,7 @@ public class ClientProxy extends CommonProxy {
                         "This usually means ModernSplash changed its internal structure; splash screen will use the default bitmap font.");
             }
         }
+        NeofontrenderBranding.applyModMetadata();
         NeofontrenderKeyHandler.init();
         MinecraftForge.EVENT_BUS.register(new NeofontrenderMainMenuBranding());
         MinecraftForge.EVENT_BUS.register(new NeofontrenderOptionsButtonHandler());

@@ -1,6 +1,6 @@
 package mnm.mods.tabbychat;
 
-/** Build constants for the Apache-2.0 TabbyChat sources embedded in NFR UI Enhancements. */
+/** Build constants for the Apache-2.0 TabbyChat sources embedded in Revo UI. */
 public final class Reference {
     public static final String MOD_NAME = "TabbyChat 2 Reforged (NFR Embedded)";
     public static final String MOD_ID = "tabbychat2";

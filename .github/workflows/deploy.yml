@@ -3,28 +3,129 @@ name: Build and Deploy
 on:
   workflow_dispatch:
     inputs:
+      target:
+        description: Artifact target used when Publish is disabled
+        required: true
+        default: main
+        type: choice
+        options:
+          - main
+          - uie
       publish:
-        description: Publish after a successful build
-        required: false
-        type: boolean
+        description: Publish to GitHub Releases and CurseForge
+        required: true
         default: false
-      github_release_only:
-        description: Publish distributions only to GitHub Releases
-        required: false
         type: boolean
-        default: false
+      release_tag:
+        description: Existing release tag; required only when Publish is enabled
+        required: false
+        type: string
   pull_request:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
+      - 'uie/[0-9]+.[0-9]+.[0-9]+'
 
 permissions:
-  # workflow_dispatch can optionally create a release and upload its distributions.
   contents: write
 
+concurrency:
+  group: build-deploy-${{ inputs.release_tag || github.ref }}-${{ inputs.target || 'auto' }}
+  cancel-in-progress: false
+
 jobs:
+  release-meta:
+    name: Resolve release target
+    runs-on: ubuntu-latest
+    outputs:
+      kind: ${{ steps.release.outputs.kind }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      ref: ${{ steps.release.outputs.ref }}
+      publish: ${{ steps.release.outputs.publish }}
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && inputs.release_tag || github.ref }}
+
+      - name: Validate tag and configured version
+        id: release
+        shell: bash
+        env:
+          MANUAL_TAG: ${{ inputs.release_tag }}
+          MANUAL_TARGET: ${{ inputs.target }}
+          MANUAL_PUBLISH: ${{ inputs.publish }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            echo "kind=ci" >> "$GITHUB_OUTPUT"
+            echo "version=" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          main_version="$(sed -n 's/^mod_version[[:space:]]*=[[:space:]]*//p' gradle.properties | tr -d '\r' | xargs)"
+          uie_version="$(sed -n 's/^ui_enhancements_version[[:space:]]*=[[:space:]]*//p' gradle.properties | tr -d '\r' | xargs)"
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$MANUAL_PUBLISH" != "true" ]]; then
+            if [[ "$MANUAL_TARGET" == "main" ]]; then
+              version="$main_version"
+            elif [[ "$MANUAL_TARGET" == "uie" ]]; then
+              version="$uie_version"
+            else
+              echo "Unsupported artifact target '$MANUAL_TARGET'." >&2
+              exit 1
+            fi
+            echo "kind=$MANUAL_TARGET" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ -z "$MANUAL_TAG" ]]; then
+              echo "release_tag is required when Publish is enabled." >&2
+              exit 1
+            fi
+            tag="$MANUAL_TAG"
+          else
+            tag="$GITHUB_REF_NAME"
+          fi
+
+          if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            kind="main"
+            version="$tag"
+            configured="$main_version"
+          elif [[ "$tag" =~ ^uie/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            kind="uie"
+            version="${BASH_REMATCH[1]}"
+            configured="$uie_version"
+          else
+            echo "Unsupported release tag '$tag'. Expected X.Y.Z or uie/X.Y.Z." >&2
+            exit 1
+          fi
+
+          if [[ "$version" != "$configured" ]]; then
+            echo "Tag version '$version' does not match configured $kind version '$configured'." >&2
+            exit 1
+          fi
+
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "ref=$tag" >> "$GITHUB_OUTPUT"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
   cosmic-native:
     name: Cosmic ${{ matrix.resource }}
+    needs: release-meta
+    if: needs.release-meta.outputs.kind != 'uie'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -80,6 +181,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-meta.outputs.ref }}
 
       - name: Install Rust 1.91.1
         uses: dtolnay/rust-toolchain@1.91.1
@@ -108,17 +211,9 @@ jobs:
             if [[ "${{ matrix.libc }}" == "musl" ]]; then
               export RUSTFLAGS="-C target-feature=-crt-static"
             fi
-            cross build \
-              --manifest-path native/cosmic-text/Cargo.toml \
-              --release \
-              --locked \
-              --target "${{ matrix.target }}"
+            cross build --manifest-path native/cosmic-text/Cargo.toml --release --locked --target "${{ matrix.target }}"
           else
-            cargo build \
-              --manifest-path native/cosmic-text/Cargo.toml \
-              --release \
-              --locked \
-              --target "${{ matrix.target }}"
+            cargo build --manifest-path native/cosmic-text/Cargo.toml --release --locked --target "${{ matrix.target }}"
           fi
           mkdir -p "dist/${{ matrix.resource }}"
           cp "native/cosmic-text/target/${{ matrix.target }}/release/${{ matrix.library }}" \
@@ -140,39 +235,31 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cosmic-${{ matrix.resource }}
-          # Upload the directory rather than the single file so merge-multiple retains the
-          # resource path and same-named Linux/macOS libraries cannot overwrite each other.
           path: dist
           if-no-files-found: error
           retention-days: 7
 
-  package:
-    name: Package universal distributions
-    needs: cosmic-native
+  package-main:
+    name: Package and publish main mod
+    needs: [release-meta, cosmic-native]
+    if: needs.release-meta.outputs.kind != 'uie'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-meta.outputs.ref }}
 
       - name: Grant execute permission for Gradle wrapper
         run: |
           sed -i 's/\r$//' gradlew
           chmod +x gradlew
 
-      - name: Read gradle.properties
-        uses: BrycensRanch/read-properties-action@v1
-        id: properties
-        with:
-          file: gradle.properties
-          all: true
-
-      - name: Setup Java
+      - name: Setup Java 25
         uses: actions/setup-java@v4
         with:
-          # RetroFuturaGradle 2.0.2 is built for class-file version 69. The project toolchain still
-          # compiles the mod for Java 8; this JDK only runs Gradle itself on the CI packaging host.
           java-version: '25'
-          distribution: 'zulu'
+          distribution: zulu
           cache: gradle
 
       - name: Setup Gradle
@@ -202,27 +289,39 @@ jobs:
             macos-aarch64/libneofontrender_cosmic.dylib
           )
           for library in "${expected[@]}"; do
-            test -s "cosmic-natives/${library}" || {
-              echo "Missing Cosmic native: ${library}" >&2
-              exit 1
-            }
+            test -s "cosmic-natives/$library" || { echo "Missing Cosmic native: $library" >&2; exit 1; }
           done
 
-      - name: Build distribution variants
+      - name: Build and stage main distributions
         run: >-
-          ./gradlew packageVariants
+          ./gradlew stageMainRelease
           -PcosmicNativeBundleDir="${{ github.workspace }}/cosmic-natives"
+          --no-daemon
 
-      - name: Verify distribution contents
+      - name: Verify staged main distributions
         shell: bash
         run: |
           set -euo pipefail
-          full="build/libs/neofontrender-${{ steps.properties.outputs.mod_version }}-full.jar"
-          core="build/libs/neofontrender-${{ steps.properties.outputs.mod_version }}-core.jar"
-          resources="build/libs/neofontrender-resources-${{ steps.properties.outputs.mod_version }}.jar"
-          for archive in "$full" "$core" "$resources"; do
-            test -s "$archive" || { echo "Missing distribution: $archive" >&2; exit 1; }
+          directory="build/release/main"
+          shopt -s nullglob
+          archives=("$directory"/*.jar)
+          cores=("$directory"/*-core.jar)
+          resources=("$directory"/neofontrender-resources-*.jar)
+          [[ ${#archives[@]} -eq 3 ]] || { echo "Expected exactly 3 main release JARs" >&2; exit 1; }
+          [[ ${#cores[@]} -eq 1 ]] || { echo "Expected exactly one core JAR" >&2; exit 1; }
+          [[ ${#resources[@]} -eq 1 ]] || { echo "Expected exactly one resources JAR" >&2; exit 1; }
+
+          core="${cores[0]}"
+          resource="${resources[0]}"
+          full=""
+          for archive in "${archives[@]}"; do
+            test -s "$archive"
+            if [[ "$archive" != "$core" && "$archive" != "$resource" ]]; then
+              [[ -z "$full" ]] || { echo "Found more than one full distribution candidate" >&2; exit 1; }
+              full="$archive"
+            fi
           done
+          [[ -n "$full" ]] || { echo "Missing full distribution" >&2; exit 1; }
 
           full_entries="$(jar tf "$full")"
           core_entries="$(jar tf "$core")"
@@ -237,97 +336,112 @@ jobs:
             assets/neofontrender/natives/linux-loongarch64-musl/libneofontrender_cosmic.so \
             assets/neofontrender/natives/macos-x86_64/libneofontrender_cosmic.dylib \
             assets/neofontrender/natives/macos-aarch64/libneofontrender_cosmic.dylib; do
-            grep -Fxq "$entry" <<<"$full_entries" || {
-              echo "Full JAR is missing $entry" >&2
-              exit 1
-            }
-            grep -Fxq "$entry" <<<"$core_entries" || {
-              echo "Core JAR is missing $entry" >&2
-              exit 1
-            }
+            grep -Fxq "$entry" <<<"$full_entries" || { echo "Full JAR is missing $entry" >&2; exit 1; }
+            grep -Fxq "$entry" <<<"$core_entries" || { echo "Core JAR is missing $entry" >&2; exit 1; }
           done
           if grep -Eq '^assets/neofontrender/fonts/' <<<"$core_entries"; then
             echo "Core JAR contains bundled font content" >&2
             exit 1
           fi
 
-      - name: Upload distributions
+      - name: Upload main workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: neofontrender-${{ steps.properties.outputs.mod_version }}
-          path: |
-            build/libs/neofontrender-${{ steps.properties.outputs.mod_version }}-full.jar
-            build/libs/neofontrender-${{ steps.properties.outputs.mod_version }}-core.jar
-            build/libs/neofontrender-resources-${{ steps.properties.outputs.mod_version }}.jar
+          name: neofontrender-${{ needs.release-meta.outputs.version || 'ci' }}
+          path: build/release/main/*.jar
           if-no-files-found: error
+          retention-days: 14
 
-      - name: Publish to Maven
-        if: >-
-          (github.event_name == 'push' || inputs.publish == true) &&
-          inputs.github_release_only != true &&
-          steps.properties.outputs.publish_to_maven == 'true' &&
-          steps.properties.outputs.publish_to_local_maven == 'true'
-        run: >-
-          ./gradlew publish
-          -PcosmicNativeBundleDir="${{ github.workspace }}/cosmic-natives"
-          -P${{ steps.properties.outputs.maven_name }}Username=${{ secrets.MAVEN_USER }}
-          -P${{ steps.properties.outputs.maven_name }}Password=${{ secrets.MAVEN_PASS }}
+      - name: Publish main release to GitHub and CurseForge
+        if: needs.release-meta.outputs.kind == 'main' && needs.release-meta.outputs.publish == 'true'
+        uses: Kira-NT/mc-publish@v3
+        with:
+          files: build/release/main/*.jar
+          name: Revo Font ${{ needs.release-meta.outputs.version }}
+          version: ${{ needs.release-meta.outputs.version }}
+          version-type: release
+          loaders: forge
+          game-versions: 1.12.2
+          game-version-filter: none
+          environment: client
+          curseforge-id: 1617673
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          github-tag: ${{ needs.release-meta.outputs.tag }}
+          github-generate-changelog: true
+          github-token: ${{ github.token }}
+          retry-attempts: 2
+          retry-delay: 10000
+          fail-mode: fail
 
-      - name: Publish full package to CurseForge
-        if: >-
-          (github.event_name == 'push' || inputs.publish == true) &&
-          inputs.github_release_only != true &&
-          steps.properties.outputs.publish_to_curseforge == 'true'
-        env:
-          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-        run: ./gradlew curseforge -PcosmicNativeBundleDir="${{ github.workspace }}/cosmic-natives"
+  package-uie:
+    name: Package and publish Revo UI
+    needs: release-meta
+    if: needs.release-meta.outputs.kind == 'uie'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-meta.outputs.ref }}
 
-      - name: Publish full package to Modrinth
-        if: >-
-          (github.event_name == 'push' || inputs.publish == true) &&
-          inputs.github_release_only != true &&
-          steps.properties.outputs.publish_to_modrinth == 'true'
-        env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-        run: ./gradlew modrinth -PcosmicNativeBundleDir="${{ github.workspace }}/cosmic-natives"
+      - name: Grant execute permission for Gradle wrapper
+        run: |
+          sed -i 's/\r$//' gradlew
+          chmod +x gradlew
 
-      - name: Publish distributions to GitHub Release only
-        if: github.event_name == 'workflow_dispatch' && inputs.github_release_only == true
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '25'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and stage Revo UI
+        run: ./gradlew :addons:ui-enhancements:stageUiEnhancementsRelease --no-daemon
+
+      - name: Verify staged Revo UI JAR
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.properties.outputs.mod_version }}
         run: |
           set -euo pipefail
-          tag="${VERSION}"
-          archives=(
-            "build/libs/neofontrender-${VERSION}-full.jar"
-            "build/libs/neofontrender-${VERSION}-core.jar"
-            "build/libs/neofontrender-resources-${VERSION}.jar"
-          )
-          notes="${RUNNER_TEMP}/neofontrender-release-notes.md"
-          cat > "$notes" <<'EOF'
-          ## Distribution files
+          shopt -s nullglob
+          archives=(build/release/uie/*.jar)
+          [[ ${#archives[@]} -eq 1 ]] || { echo "Expected exactly one Revo UI release JAR" >&2; exit 1; }
+          jar="${archives[0]}"
+          test -s "$jar"
+          [[ "$jar" != *-dev.jar && "$jar" != *-sources.jar && "$jar" != *-shadow.jar ]]
+          entries="$(jar tf "$jar")"
+          grep -Fxq 'mcmod.info' <<<"$entries"
+          grep -Fxq 'mixins.neofontrender_ui_enhancements.json' <<<"$entries"
+          grep -Fxq 'neofontrender/addons/mixin/UiEnhancementsMixinLoader.class' <<<"$entries"
 
-          - **`neofontrender-<version>-full.jar`**: all-in-one package. Includes the core mod,
-            bundled font resources and Cosmic native libraries.
-          - **`neofontrender-<version>-core.jar`**: lightweight core package. Uses the system
-            font path and does not bundle the optional font resource payload.
-          - **`neofontrender-resources-<version>.jar`**: optional bundled font/resource payload
-            for installations that keep resources separate from the core mod.
-          The `full` package is the simplest choice for a normal installation. The other files
-          are provided for modular deployments and testing.
-          EOF
+      - name: Upload Revo UI workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neofontrender-ui-enhancements-${{ needs.release-meta.outputs.version }}
+          path: build/release/uie/*.jar
+          if-no-files-found: error
+          retention-days: 14
 
-          # Manual rebuilds of the same version update the existing release instead of failing.
-          if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" \
-              --target "${GITHUB_SHA}" \
-              --title "NeoFontRender ${VERSION}" \
-              --notes-file "$notes"
-          else
-            gh release edit "$tag" \
-              --title "NeoFontRender ${VERSION}" \
-              --notes-file "$notes"
-          fi
-          gh release upload "$tag" "${archives[@]}" --clobber
+      - name: Publish Revo UI to GitHub and CurseForge
+        if: needs.release-meta.outputs.publish == 'true'
+        uses: Kira-NT/mc-publish@v3
+        with:
+          files: build/release/uie/*.jar
+          name: Revo UI ${{ needs.release-meta.outputs.version }}
+          version: ${{ needs.release-meta.outputs.version }}
+          version-type: release
+          loaders: forge
+          game-versions: 1.12.2
+          game-version-filter: none
+          environment: client
+          curseforge-id: 1620532
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          github-tag: ${{ needs.release-meta.outputs.tag }}
+          github-generate-changelog: true
+          github-token: ${{ github.token }}
+          retry-attempts: 2
+          retry-delay: 10000
+          fail-mode: fail
