@@ -3,9 +3,22 @@ name: Build and Deploy
 on:
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: Existing release tag (for example 2.5.0 or uie/0.3.0)
+      target:
+        description: Artifact target used when Publish is disabled
         required: true
+        default: main
+        type: choice
+        options:
+          - main
+          - uie
+      publish:
+        description: Publish to GitHub Releases and CurseForge
+        required: true
+        default: false
+        type: boolean
+      release_tag:
+        description: Existing release tag; required only when Publish is enabled
+        required: false
         type: string
   pull_request:
   push:
@@ -17,7 +30,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: build-deploy-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
+  group: build-deploy-${{ inputs.release_tag || github.ref }}-${{ inputs.target || 'auto' }}
   cancel-in-progress: false
 
 jobs:
@@ -29,17 +42,20 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
       ref: ${{ steps.release.outputs.ref }}
+      publish: ${{ steps.release.outputs.publish }}
     steps:
       - name: Checkout release ref
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && inputs.release_tag || github.ref }}
 
       - name: Validate tag and configured version
         id: release
         shell: bash
         env:
           MANUAL_TAG: ${{ inputs.release_tag }}
+          MANUAL_TARGET: ${{ inputs.target }}
+          MANUAL_PUBLISH: ${{ inputs.publish }}
         run: |
           set -euo pipefail
 
@@ -48,17 +64,39 @@ jobs:
             echo "version=" >> "$GITHUB_OUTPUT"
             echo "tag=" >> "$GITHUB_OUTPUT"
             echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
             exit 0
-          fi
-
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            tag="$MANUAL_TAG"
-          else
-            tag="$GITHUB_REF_NAME"
           fi
 
           main_version="$(sed -n 's/^mod_version[[:space:]]*=[[:space:]]*//p' gradle.properties | tr -d '\r' | xargs)"
           uie_version="$(sed -n 's/^ui_enhancements_version[[:space:]]*=[[:space:]]*//p' gradle.properties | tr -d '\r' | xargs)"
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$MANUAL_PUBLISH" != "true" ]]; then
+            if [[ "$MANUAL_TARGET" == "main" ]]; then
+              version="$main_version"
+            elif [[ "$MANUAL_TARGET" == "uie" ]]; then
+              version="$uie_version"
+            else
+              echo "Unsupported artifact target '$MANUAL_TARGET'." >&2
+              exit 1
+            fi
+            echo "kind=$MANUAL_TARGET" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ -z "$MANUAL_TAG" ]]; then
+              echo "release_tag is required when Publish is enabled." >&2
+              exit 1
+            fi
+            tag="$MANUAL_TAG"
+          else
+            tag="$GITHUB_REF_NAME"
+          fi
 
           if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             kind="main"
@@ -82,6 +120,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "ref=$tag" >> "$GITHUB_OUTPUT"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
 
   cosmic-native:
     name: Cosmic ${{ matrix.resource }}
@@ -314,7 +353,7 @@ jobs:
           retention-days: 14
 
       - name: Publish main release to GitHub and CurseForge
-        if: needs.release-meta.outputs.kind == 'main'
+        if: needs.release-meta.outputs.kind == 'main' && needs.release-meta.outputs.publish == 'true'
         uses: Kira-NT/mc-publish@v3
         with:
           files: build/release/main/*.jar
@@ -387,6 +426,7 @@ jobs:
           retention-days: 14
 
       - name: Publish UI Enhancements to GitHub and CurseForge
+        if: needs.release-meta.outputs.publish == 'true'
         uses: Kira-NT/mc-publish@v3
         with:
           files: build/release/uie/*.jar
