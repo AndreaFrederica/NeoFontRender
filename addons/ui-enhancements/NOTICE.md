@@ -51,3 +51,8 @@ Tip content (gameplay tips and translations) is derived from Tips by Darkhax,
 used with attribution. The original Tips mod is available at
 https://www.curseforge.com/minecraft/mc-mods/tips and its source at
 https://github.com/Darkhax-Minecraft/Tips.
+# Gosling / Emojicord compatibility data
+
+The optional experimental image-glyph middleware includes the emoji and picker dictionaries
+from TeamFruit's Emojicord/Gosling project and retains compatibility with its message tags.
+Those portions are distributed under the MIT License in `LICENSE-Gosling-Emojicord.txt`.

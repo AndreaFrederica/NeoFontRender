@@ -3,7 +3,12 @@ package neofontrender.addons.ui;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
+import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
 import neofontrender.Tags;
+import neofontrender.addons.server.GroupChatCommand;
+import neofontrender.addons.server.MultiTargetMessageCommand;
+import neofontrender.addons.server.ServerChatHistoryManager;
 import neofontrender.addons.tips.TipsModule;
 import neofontrender.addons.tooltips.TooltipModule;
 import neofontrender.addons.scrolling.SmoothScrollingModule;
@@ -68,5 +73,19 @@ public final class NfrUiEnhancements {
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         MODULES.forEach(UiEnhancementModule::init);
+    }
+
+    // The client bundles an integrated server (single-player / Open to LAN), so the
+    // server-side group-chat and persistence features run from this mod as well.
+    @Mod.EventHandler
+    public void serverStarting(FMLServerStartingEvent event) {
+        ServerChatHistoryManager.INSTANCE.initialize(event.getServer());
+        event.registerServerCommand(new GroupChatCommand());
+        event.registerServerCommand(new MultiTargetMessageCommand());
+    }
+
+    @Mod.EventHandler
+    public void serverStopping(FMLServerStoppingEvent event) {
+        ServerChatHistoryManager.INSTANCE.shutdown();
     }
 }

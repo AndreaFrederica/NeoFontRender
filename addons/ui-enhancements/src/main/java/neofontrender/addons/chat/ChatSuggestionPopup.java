@@ -7,6 +7,8 @@ import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.renderer.GlStateManager;
 
 import java.util.List;
+import neofontrender.addons.api.inline.InlineTextEngine;
+import neofontrender.addons.api.inline.InlineTextLayout;
 
 /** Shared suggestion popup used by Salutation command completion and @player completion. */
 public final class ChatSuggestionPopup {
@@ -31,10 +33,26 @@ public final class ChatSuggestionPopup {
 
         Minecraft minecraft = Minecraft.getMinecraft();
         int maxTextWidth = 0;
-        for (String candidate : candidates) maxTextWidth = Math.max(maxTextWidth, font.getStringWidth(candidate));
+        InlineTextLayout[] visibleLayouts = new InlineTextLayout[rows];
+        int[] rowOffsets = new int[rows];
+        int[] rowHeights = new int[rows];
+        int contentHeight = 0;
+        for (int row = 0; row < rows; row++) {
+            String candidate = candidates.get(safeFirst + row);
+            InlineTextLayout candidateLayout = InlineTextEngine.layout(font, candidate);
+            visibleLayouts[row] = candidateLayout;
+            rowOffsets[row] = contentHeight;
+            rowHeights[row] = Math.max(ROW_HEIGHT, candidateLayout.height() + 4);
+            contentHeight += rowHeights[row];
+            int visualWidth = candidateLayout.width();
+            if (candidateLayout.hasGlyphs()) {
+                visualWidth += 4 + font.getStringWidth(candidateLabel(candidate));
+            }
+            maxTextWidth = Math.max(maxTextWidth, visualWidth);
+        }
         int contentOffset = playerHeads ? ChatHeadRenderer.TEXT_OFFSET : 0;
         int panelWidth = Math.min(maxTextWidth + 8 + contentOffset, minecraft.currentScreen.width);
-        int panelHeight = rows * ROW_HEIGHT + 2;
+        int panelHeight = contentHeight + 2;
 
         int inputX = tabbyGeometry == null ? input.x : tabbyGeometry.x;
         int inputY = tabbyGeometry == null ? input.y : tabbyGeometry.y;
@@ -45,14 +63,16 @@ public final class ChatSuggestionPopup {
         String beforeCursor = input.getText().substring(0, Math.max(0, cursor));
         int wordStart = beforeCursor.length();
         while (wordStart > 0 && !Character.isWhitespace(beforeCursor.charAt(wordStart - 1))) wordStart--;
-        int prefixWidth = Math.round(font.getStringWidth(beforeCursor.substring(0, wordStart)) * scale);
+        int prefixWidth = Math.round(InlineTextEngine.width(font,
+                beforeCursor.substring(0, wordStart)) * scale);
         int panelX = Math.max(0, Math.min(inputX + Math.min(prefixWidth, inputWidth),
                 minecraft.currentScreen.width - panelWidth));
         int panelY = inputY - panelHeight - 3;
         if (panelY < 0) panelY = Math.min(minecraft.currentScreen.height - panelHeight,
                 inputY + inputHeight + 3);
 
-        Layout layout = new Layout(panelX, panelY, panelWidth, panelHeight, rows);
+        Layout layout = new Layout(panelX, panelY, panelWidth, panelHeight,
+                rowOffsets, rowHeights);
         int hovered = layout.rowAt(mouseX, mouseY);
         GlStateManager.pushMatrix();
         GlStateManager.translate(panelX, panelY, 600.0F);
@@ -75,46 +95,63 @@ public final class ChatSuggestionPopup {
         }
         for (int row = 0; row < rows; row++) {
             int candidate = safeFirst + row;
+            int rowY = rowOffsets[row];
             if (row == hovered || candidate == selected) {
-                Gui.drawRect(1, row * ROW_HEIGHT + 1,
-                        panelWidth - 1, (row + 1) * ROW_HEIGHT + 1, highlight);
+                Gui.drawRect(1, rowY + 1,
+                        panelWidth - 1, rowY + rowHeights[row] + 1, highlight);
             }
             String candidateText = candidates.get(candidate);
             if (playerHeads) {
-                ChatHeadRenderer.renderCandidate(candidateText, 3, row * ROW_HEIGHT + 3, 1.0F);
+                ChatHeadRenderer.renderCandidate(candidateText, 3, rowY + 3, 1.0F);
             }
             int textX = 4 + contentOffset;
-            String value = font.trimStringToWidth(candidateText, panelWidth - textX - 3);
-            font.drawStringWithShadow(value, textX, row * ROW_HEIGHT + 3, textColor);
+            InlineTextLayout candidateLayout = visibleLayouts[row];
+            candidateLayout.draw(font, textX, rowY + 2, textColor, true);
+            if (candidateLayout.hasGlyphs()) {
+                String label = candidateLabel(candidateText);
+                font.drawStringWithShadow(label,
+                        textX + candidateLayout.width() + 4, rowY + 3, textColor);
+            }
         }
         GlStateManager.enableDepth();
         GlStateManager.popMatrix();
         return layout;
     }
 
+    private static String candidateLabel(String candidate) {
+        return candidate.length() > 2 && candidate.charAt(0) == ':'
+                && candidate.charAt(candidate.length() - 1) == ':'
+                ? candidate.substring(1, candidate.length() - 1) : candidate;
+    }
+
     public static final class Layout {
-        private static final Layout EMPTY = new Layout(0, 0, 0, 0, 0);
+        private static final Layout EMPTY = new Layout(0, 0, 0, 0, new int[0], new int[0]);
         private final int x;
         private final int y;
         private final int width;
         private final int height;
-        private final int rows;
+        private final int[] rowOffsets;
+        private final int[] rowHeights;
 
-        private Layout(int x, int y, int width, int height, int rows) {
+        private Layout(int x, int y, int width, int height, int[] rowOffsets, int[] rowHeights) {
             this.x = x;
             this.y = y;
             this.width = width;
             this.height = height;
-            this.rows = rows;
+            this.rowOffsets = rowOffsets;
+            this.rowHeights = rowHeights;
         }
 
         public int rowAt(int mouseX, int mouseY) {
-            if (rows <= 0 || mouseX < x || mouseX > x + width
+            if (rowOffsets.length <= 0 || mouseX < x || mouseX > x + width
                     || mouseY < y + 1 || mouseY >= y + height - 1) return -1;
-            int row = (mouseY - y - 1) / ROW_HEIGHT;
-            return row < rows ? row : -1;
+            int localY = mouseY - y - 1;
+            for (int row = 0; row < rowOffsets.length; row++) {
+                if (localY >= rowOffsets[row] && localY < rowOffsets[row] + rowHeights[row]) return row;
+            }
+            return -1;
         }
 
-        public boolean isVisible() { return rows > 0; }
+        public boolean isVisible() { return rowOffsets.length > 0; }
     }
 }

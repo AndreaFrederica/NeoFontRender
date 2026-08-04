@@ -31,6 +31,11 @@ import neofontrender.addons.chat.ChatStyleRenderer;
 import neofontrender.addons.chat.ChatAnimationController;
 import neofontrender.addons.chat.ChatContextMenu;
 import neofontrender.addons.chat.ChatHudWindowController;
+import neofontrender.addons.api.inline.InlineTextEngine;
+import neofontrender.addons.api.inline.InlineTextLayout;
+import neofontrender.addons.api.inline.InlineTextWrapping;
+import neofontrender.addons.api.inline.InlineGlyphHit;
+import neofontrender.addons.chat.EnhancedChatFeatures;
 
 import java.awt.Dimension;
 import java.awt.Rectangle;
@@ -88,6 +93,7 @@ public class TextBox extends GuiComponent implements ChatInput {
         drawPrivateCommandBlock(mouseX, mouseY);
         drawText();
         drawCursor();
+        drawGlyphHover(mouseX, mouseY);
 
         if (translated) GlStateManager.popMatrix();
 
@@ -116,7 +122,7 @@ public class TextBox extends GuiComponent implements ChatInput {
             // cursor drawing
             if (pos >= 0 && pos <= text.length()) {
                 // cursor is on this line
-                int c = fr.getStringWidth(text.substring(0, pos)) + inputInset();
+                int c = InlineTextEngine.width(fr, text.substring(0, pos)) + inputInset();
                 boolean cursorBlink = this.cursorCounter / 6 % 3 != 0;
                 if (cursorBlink) {
                     if (textField.getCursorPosition() < this.textField.getValue().length()) {
@@ -137,12 +143,12 @@ public class TextBox extends GuiComponent implements ChatInput {
 
             // test the start
             if (start >= 0 && start <= text.length()) {
-                    x = fr.getStringWidth(text.substring(0, start)) + inputInset();
+                    x = InlineTextEngine.width(fr, text.substring(0, start)) + inputInset();
             }
 
             // test the end
             if (end >= 0 && end <= text.length()) {
-                w = fr.getStringWidth(text.substring(start < 0 ? 0 : start, end)) + 2;
+                w = InlineTextEngine.width(fr, text.substring(start < 0 ? 0 : start, end)) + 2;
             }
 
             final int LINE_Y = line + fr.FONT_HEIGHT + 2;
@@ -154,7 +160,8 @@ public class TextBox extends GuiComponent implements ChatInput {
                 } else {
                     if (x >= 0) {
                         // started on this line
-                        drawSelectionBox(x + 2, line, x + fr.getStringWidth(text.substring(start)) + 1, LINE_Y);
+                        drawSelectionBox(x + 2, line,
+                                x + InlineTextEngine.width(fr, text.substring(start)) + 1, LINE_Y);
                     }
                     if (w >= 0) {
                         // ends on this line
@@ -163,7 +170,7 @@ public class TextBox extends GuiComponent implements ChatInput {
                     if (start < 0 && end > text.length()) {
                         // full line
                         drawSelectionBox(1 + inputInset(), line,
-                                fr.getStringWidth(text) + inputInset(), LINE_Y);
+                                InlineTextEngine.width(fr, text) + inputInset(), LINE_Y);
                     }
                 }
             }
@@ -197,10 +204,39 @@ public class TextBox extends GuiComponent implements ChatInput {
             int color = ChatStyleConfig.enabled
                     ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity)
                     : Color.WHITE.getHex();
-            ffr.drawChat(line, 3 + inputInset(), yPos, color, false);
+            String formatted = line.getFormattedText();
+            InlineTextLayout layout = InlineTextEngine.layout(fr, formatted);
+            if (layout.hasGlyphs()) layout.draw(fr, 3 + inputInset(), yPos, color, false);
+            else ffr.drawChat(line, 3 + inputInset(), yPos, color, false);
             yPos += fr.FONT_HEIGHT + 2;
         }
 
+    }
+
+    private void drawGlyphHover(int mouseX, int mouseY) {
+        if (!EnhancedChatFeatures.imageGlyphHover()) return;
+        int visualY = mouseY - Math.round(ChatAnimationController.inputOffset());
+        int rowHeight = fr.FONT_HEIGHT + 2;
+        int row = visualY / rowHeight;
+        List<String> lines = getWrappedLines();
+        if (row < 0 || row >= lines.size()) return;
+        int textX = 3 + inputInset();
+        InlineTextLayout layout = InlineTextEngine.layout(fr, lines.get(row));
+        InlineGlyphHit hit = layout.glyphAt(mouseX - textX);
+        if (hit == null) return;
+
+        final int preview = 56;
+        String description = fr.trimStringToWidth(hit.match().glyph().description(), 180);
+        int panelWidth = Math.max(preview + 10, fr.getStringWidth(description) + 10);
+        int panelHeight = preview + fr.FONT_HEIGHT + 13;
+        int x = Math.max(2, Math.min(mouseX + 12, getBounds().width - panelWidth - 2));
+        int y = -panelHeight - 5;
+        drawRect(x, y, x + panelWidth, y + panelHeight, 0xF0181D24);
+        drawRect(x + 1, y + 1, x + panelWidth - 1, y + panelHeight - 1, 0xF02B3440);
+        hit.match().glyph().drawPreview(x + (panelWidth - preview) / 2,
+                y + 5, preview, 0xFFFFFFFF);
+        fr.drawStringWithShadow(description, x + 5, y + preview + 8, 0xFFF2F5F7);
+        GlStateManager.color(1, 1, 1, 1);
     }
 
     /**
@@ -246,7 +282,7 @@ public class TextBox extends GuiComponent implements ChatInput {
 
     @Override
     public List<String> getWrappedLines() {
-        return fr.listFormattedStringToWidth(textField.getValue(),
+        return InlineTextWrapping.wrap(fr, textField.getValue(),
                 Math.max(8, getBounds().width - inputInset()));
     }
 
@@ -325,8 +361,8 @@ public class TextBox extends GuiComponent implements ChatInput {
             // listFormattedStringToWidth trims the wrapping space from the visual line.
             if (index < getText().length() && getText().charAt(index) == ' ') index++;
         }
-        index += fr.trimStringToWidth(lines.get(row),
-                Math.max(0, x - 3 - inputInset())).length();
+        index += InlineTextEngine.layout(fr, lines.get(row)).sourceIndexAt(fr,
+                Math.max(0, x - 3 - inputInset()));
         index = Math.max(0, Math.min(index, getText().length()));
         if (extendSelection) textField.getTextField().setSelectionPos(index);
         else textField.getTextField().setCursorPosition(index);

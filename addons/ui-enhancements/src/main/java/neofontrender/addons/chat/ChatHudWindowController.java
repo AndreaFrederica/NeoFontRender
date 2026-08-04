@@ -62,6 +62,9 @@ public final class ChatHudWindowController {
     public void render(RenderGameOverlayEvent.Post event) {
         if (event.getType() == RenderGameOverlayEvent.ElementType.ALL && queuedGui != null) {
             HudWindowCompositor.INSTANCE.render(event.getPartialTicks());
+            if (hudInteractive && mc.currentScreen == null) {
+                ChatInlineImageInteraction.draw(0, 0);
+            }
         }
     }
 

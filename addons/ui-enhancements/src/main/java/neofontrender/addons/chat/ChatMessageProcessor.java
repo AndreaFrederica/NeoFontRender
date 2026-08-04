@@ -24,6 +24,9 @@ import java.util.UUID;
 public enum ChatMessageProcessor {
     INSTANCE;
 
+    private static final String GROUP_INCOMING = "nfr.group.message.incoming";
+    private static final String GROUP_OUTGOING = "nfr.group.message.outgoing";
+
     private ChatOutgoingMessage recentOutgoing;
     private String lastMentionText = "";
     private long lastMentionSoundAt;
@@ -67,14 +70,30 @@ public enum ChatMessageProcessor {
         long now = System.currentTimeMillis();
         ChatOutgoingMessage outgoing = recentOutgoing;
         boolean outgoingMatch = outgoing != null && outgoing.matches(text, now);
-        if (outgoingMatch) {
+        boolean groupMessage = EnhancedChatConfig.sourceClassification && isGroupMessage(component);
+        String group = "";
+        if (groupMessage) {
+            String[] parts = groupParts(component);
+            group = parts[0];
+            playerName = parts[1];
+            outgoingMatch = "1".equals(parts[2]);
+            if (outgoingMatch) {
+                playerId = localPlayerId();
+                playerName = localPlayerName();
+            }
+        } else if (outgoingMatch) {
             playerId = localPlayerId();
             playerName = localPlayerName();
         }
-        ChatSource source = EnhancedChatConfig.sourceClassification
-                ? ChatSourceClassifier.classify(event.getType(), text, playerName)
-                : event.getType() == ChatType.CHAT ? ChatSource.PLAYER : ChatSource.SERVER;
-        if (outgoing != null && outgoing.privateMessage && outgoingMatch
+        ChatSource source;
+        if (groupMessage) {
+            source = ChatSource.GROUP;
+        } else if (EnhancedChatConfig.sourceClassification) {
+            source = ChatSourceClassifier.classify(event.getType(), text, playerName);
+        } else {
+            source = event.getType() == ChatType.CHAT ? ChatSource.PLAYER : ChatSource.SERVER;
+        }
+        if (!groupMessage && outgoing != null && outgoing.privateMessage && outgoingMatch
                 && !ChatRuleMatcher.matches(EnhancedChatConfig.serverSourcePattern, text)) {
             source = ChatSource.PRIVATE;
         }
@@ -92,7 +111,7 @@ public enum ChatMessageProcessor {
         }
         ChatMessageMetadata metadata = new ChatMessageMetadata(
                 System.currentTimeMillis(), source, playerName, playerId, privatePeer,
-                outgoingMatch, privateBody);
+                outgoingMatch, privateBody, group);
         ChatMessageMetadataRegistry.put(component, metadata);
 
         if (blocked(metadata, text)) {
@@ -114,6 +133,35 @@ public enum ChatMessageProcessor {
                 || metadata.source == ChatSource.PRIVATE && EnhancedChatConfig.blockPrivateMessages) return true;
         return ChatRuleMatcher.containsName(EnhancedChatConfig.mutedPlayers, metadata.playerName)
                 || ChatRuleMatcher.matches(EnhancedChatConfig.blockedMessagePattern, text);
+    }
+
+    private static boolean isGroupMessage(ITextComponent component) {
+        for (ITextComponent part : component) {
+            if (part instanceof TextComponentTranslation) {
+                String key = ((TextComponentTranslation) part).getKey();
+                if (GROUP_INCOMING.equals(key) || GROUP_OUTGOING.equals(key)) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Returns [group, sender, outgoing] parsed from the group message component. */
+    private static String[] groupParts(ITextComponent component) {
+        for (ITextComponent part : component) {
+            if (!(part instanceof TextComponentTranslation)) continue;
+            TextComponentTranslation translation = (TextComponentTranslation) part;
+            String key = translation.getKey();
+            if (!GROUP_INCOMING.equals(key) && !GROUP_OUTGOING.equals(key)) continue;
+            Object[] arguments = translation.getFormatArgs();
+            if (arguments.length < 3) break;
+            String sender = arguments[0] instanceof ITextComponent
+                    ? ((ITextComponent) arguments[0]).getUnformattedText()
+                    : String.valueOf(arguments[0]);
+            String group = arguments[1] instanceof String
+                    ? (String) arguments[1] : String.valueOf(arguments[1]);
+            return new String[] {group, sender, GROUP_OUTGOING.equals(key) ? "1" : "0"};
+        }
+        return new String[] {"", "", "0"};
     }
 
     private static String playerName(UUID id) {

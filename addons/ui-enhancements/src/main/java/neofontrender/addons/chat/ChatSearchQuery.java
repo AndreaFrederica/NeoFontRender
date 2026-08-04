@@ -34,14 +34,40 @@ final class ChatSearchQuery {
 
     boolean matches(ChatSearchEntry entry) {
         if (invalid) return false;
-        String lower = entry.text.toLowerCase(Locale.ROOT);
-        for (String term : terms) if (!lower.contains(term)) return false;
+        for (String term : terms) if (!entry.lowerText.contains(term)) return false;
         if (source != null && entry.metadata.source != source) return false;
         if (!player.isEmpty() && !entry.metadata.playerName.toLowerCase(Locale.ROOT).contains(player)) return false;
         LocalTime time = LocalDateTime.ofInstant(Instant.ofEpochMilli(entry.metadata.timestamp),
                 ZoneId.systemDefault()).toLocalTime();
         if (after != null && time.isBefore(after) || before != null && time.isAfter(before)) return false;
         return expression == null || expression.matcher(entry.text).find();
+    }
+
+    /** Non-overlapping term match ranges in {@code text}, for keyword highlighting. */
+    List<int[]> highlightRanges(String text) {
+        String lower = text.toLowerCase(Locale.ROOT);
+        List<int[]> ranges = new ArrayList<>();
+        for (String term : terms) {
+            int from = 0;
+            while (from <= lower.length()) {
+                int at = lower.indexOf(term, from);
+                if (at < 0) break;
+                merge(ranges, at, at + term.length());
+                from = at + Math.max(1, term.length());
+            }
+        }
+        return ranges;
+    }
+
+    private static void merge(List<int[]> ranges, int start, int end) {
+        for (int index = 0; index < ranges.size(); index++) {
+            int[] range = ranges.get(index);
+            if (end < range[0] || start > range[1]) continue;
+            range[0] = Math.min(range[0], start);
+            range[1] = Math.max(range[1], end);
+            return;
+        }
+        ranges.add(new int[] {start, end});
     }
 
     private void add(String token) {

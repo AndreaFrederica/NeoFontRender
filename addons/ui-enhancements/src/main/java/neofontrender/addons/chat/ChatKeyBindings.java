@@ -23,6 +23,7 @@ public final class ChatKeyBindings {
     private static final KeyBinding PASTE = binding("paste", KeyModifier.CONTROL, Keyboard.KEY_V);
     private static final KeyBinding SELECT_ALL = binding("select_all", KeyModifier.CONTROL, Keyboard.KEY_A);
     private static final KeyBinding SEARCH = binding("search", KeyModifier.CONTROL, Keyboard.KEY_F);
+    private static final KeyBinding HISTORY = binding("history", KeyModifier.CONTROL, Keyboard.KEY_H);
     private static final KeyBinding HUD_INTERACT = new KeyBinding(
             "key.neofontrender_ui_enhancements.chat.hud_interact", KeyConflictContext.IN_GAME,
             Keyboard.KEY_LMENU, CATEGORY);
@@ -40,6 +41,7 @@ public final class ChatKeyBindings {
         ClientRegistry.registerKeyBinding(PASTE);
         ClientRegistry.registerKeyBinding(SELECT_ALL);
         ClientRegistry.registerKeyBinding(SEARCH);
+        ClientRegistry.registerKeyBinding(HISTORY);
         ClientRegistry.registerKeyBinding(HUD_INTERACT);
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(INSTANCE);
     }
@@ -60,9 +62,20 @@ public final class ChatKeyBindings {
             event.setCanceled(true);
             return;
         }
+        if (HISTORY.isActiveAndMatches(keyCode) && EnhancedChatConfigAccess.tabbedChatEnabled()) {
+            ChatHistoryScreen.open();
+            handledCurrentEvent = true;
+            event.setCanceled(true);
+            return;
+        }
         GuiTextField input = ((AccessorGuiChatFeatures) event.getGui()).nfrUi$getInputField();
         boolean focusedInput = input != null && input.isFocused();
         if (MentionCompletionController.handleKey(input, keyCode)) {
+            handledCurrentEvent = true;
+            event.setCanceled(true);
+            return;
+        }
+        if (EmojiCompletionController.handleKey(input, keyCode)) {
             handledCurrentEvent = true;
             event.setCanceled(true);
             return;

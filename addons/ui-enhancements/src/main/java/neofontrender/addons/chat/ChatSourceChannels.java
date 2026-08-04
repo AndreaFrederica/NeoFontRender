@@ -1,5 +1,6 @@
 package neofontrender.addons.chat;
 
+import mnm.mods.tabbychat.ChatManager;
 import mnm.mods.tabbychat.TabbyChat;
 import mnm.mods.tabbychat.api.Channel;
 import mnm.mods.tabbychat.api.Chat;
@@ -40,6 +41,12 @@ public final class ChatSourceChannels {
         ChatMessageMetadata metadata = ChatMessageMetadataRegistry.get(message);
         if (metadata == null) return;
         Chat chat = TabbyChat.getInstance().getChat();
+        if (metadata.source == ChatSource.GROUP && !metadata.group.isEmpty()) {
+            if (chat instanceof ChatManager) {
+                event.channels.add(((ChatManager) chat).getGroupChannel(metadata.group));
+            }
+            return;
+        }
         Channel source = chat.getChannel(channelName(metadata.source), false);
         event.channels.add(source);
         if (metadata.source == ChatSource.PRIVATE && !metadata.privatePeer.isEmpty()) {

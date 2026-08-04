@@ -20,6 +20,34 @@ public final class EnhancedChatFeatures {
         return EnhancedChatConfig.enabled && EnhancedChatConfig.copySelection;
     }
 
+    public static boolean goslingImageGlyphs() {
+        return EmojiAndImageConfig.goslingImageGlyphs;
+    }
+
+    public static boolean externalImageGlyphs() {
+        return EmojiAndImageConfig.externalImageGlyphs;
+    }
+
+    public static boolean localImageGlyphs() {
+        return EmojiAndImageConfig.localImageGlyphs;
+    }
+
+    public static boolean inlineGlyphs() {
+        return goslingImageGlyphs() || externalImageGlyphs() || localImageGlyphs();
+    }
+
+    public static boolean imageGlyphHover() {
+        return EmojiAndImageConfig.imageGlyphHover;
+    }
+
+    public static String imageAllowlist() {
+        return EmojiAndImageConfig.imageAllowlist;
+    }
+
+    public static String imageBlocklist() {
+        return EmojiAndImageConfig.imageBlocklist;
+    }
+
     static boolean copyFormattingCodes() {
         return EnhancedChatConfig.copyFormattingCodes;
     }

@@ -62,6 +62,10 @@ public final class EnhancedChatConfigAccess {
         return EnhancedChatConfig.closeChatOnDetach;
     }
 
+    public static boolean verticalTabsEnabled() {
+        return tabbedChatEnabled() && EnhancedChatConfig.verticalTabs;
+    }
+
     /** Values used by the embedded Salutation command and translation implementation. */
     public static boolean forceServerTranslations() {
         return EnhancedChatConfig.salutationForceServerTranslations;

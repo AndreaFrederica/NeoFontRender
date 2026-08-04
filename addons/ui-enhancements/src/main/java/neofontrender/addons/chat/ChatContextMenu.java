@@ -1,11 +1,17 @@
 package neofontrender.addons.chat;
 
+import mnm.mods.tabbychat.ChatManager;
+import mnm.mods.tabbychat.TabbyChat;
+import mnm.mods.tabbychat.api.Channel;
+import mnm.mods.tabbychat.api.Chat;
+import mnm.mods.tabbychat.gui.ChatTray;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import neofontrender.addons.api.inline.InlineGlyph;
 import neofontrender.addons.tooltips.AddonI18n;
 
 import java.util.ArrayList;
@@ -44,6 +50,14 @@ public final class ChatContextMenu {
         open(next, mouseX, mouseY);
     }
 
+    public void openHistoryRow(String text, int mouseX, int mouseY, Runnable delete) {
+        if (text == null || text.isEmpty()) return;
+        List<Item> next = new ArrayList<>();
+        next.add(item("copy", () -> ChatCopyController.copyToClipboard(text)));
+        next.add(item("delete", delete));
+        open(next, mouseX, mouseY);
+    }
+
     public void openInput(GuiTextField field, int mouseX, int mouseY) {
         if (field == null) return;
         List<Item> next = new ArrayList<>();
@@ -64,6 +78,32 @@ public final class ChatContextMenu {
         next.add(item("copy_player", () -> ChatPlayerActions.copyName(player)));
         next.add(item("mute_player", () -> ChatPlayerActions.mute(player)));
         open(next, mouseX, mouseY);
+    }
+
+    public void openImage(InlineGlyph glyph, int mouseX, int mouseY) {
+        if (glyph == null) return;
+        List<Item> next = new ArrayList<>();
+        next.add(item("copy_image", glyph::copyImageToClipboard));
+        open(next, mouseX, mouseY);
+    }
+
+    public void openChannel(Channel channel, int mouseX, int mouseY) {
+        if (channel == null) return;
+        List<Item> next = new ArrayList<>();
+        boolean pinned = ChatTabPinPolicy.isPinned(channel);
+        next.add(item(pinned ? "unpin" : "pin", () -> {
+            ChatTabPinPolicy.setPinned(channel, !pinned);
+            ChatTray tray = tray();
+            if (tray != null) tray.refreshPins();
+        }));
+        next.add(item("delete", () -> TabbyChat.getInstance().getChat().removeChannel(channel)));
+        next.add(item("settings", () -> channel.openSettings()));
+        open(next, mouseX, mouseY);
+    }
+
+    private static ChatTray tray() {
+        Chat chat = TabbyChat.getInstance().getChat();
+        return chat instanceof ChatManager ? ((ChatManager) chat).getChatBox().getTray() : null;
     }
 
     public boolean click(int mouseX, int mouseY) {

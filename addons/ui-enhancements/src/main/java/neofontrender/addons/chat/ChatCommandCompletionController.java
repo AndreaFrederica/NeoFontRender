@@ -112,15 +112,18 @@ public final class ChatCommandCompletionController {
         if (!enabled(field)) return;
         State state = states.get(field);
         if (state == null || !state.acceptingResponses) return;
-        state.values.clear();
+        List<String> next = new ArrayList<>();
         if (values != null) {
             for (String value : values) {
-                if (value != null && !value.isEmpty()) state.values.add(value);
+                if (value != null && !value.isEmpty()) next.add(value);
             }
         }
-        if (state.values.isEmpty()) return;
         String current = currentWord(field);
-        state.values.removeIf(value -> value.equals(current));
+        next.removeIf(value -> value.equals(current));
+        if (state.values.equals(next)) return;
+        state.values.clear();
+        state.values.addAll(next);
+        if (state.values.isEmpty()) return;
         state.selected = 0;
         state.first = 0;
         state.firstSelection = true;
@@ -227,12 +230,12 @@ public final class ChatCommandCompletionController {
                 first = 0;
                 firstSelection = true;
                 wordStart = nextWordStart;
+                values.clear();
+                layout = null;
             }
-            values.clear();
-            layout = null;
-            // A single edit can produce both client-command and server responses, while older
-            // requests may still be in flight. Keep the session open so the newest ordered
-            // response can replace an earlier one instead of letting the first response close it.
+            // For the same word (Tab cycles, edits inside it) keep showing the previous candidates
+            // until the response arrives; if the solution is unchanged, acceptCompletions leaves
+            // everything untouched so the popup never flickers.
             acceptingResponses = true;
         }
 

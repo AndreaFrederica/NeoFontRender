@@ -77,7 +77,8 @@ public final class ChatHeadRenderer {
             int alpha = open ? 255 : (int) (255.0D * fade * fade);
             alpha = (int) (alpha * configuredOpacity);
             if (alpha <= 3) continue;
-            int y = -row * minecraft.fontRenderer.FONT_HEIGHT - 8;
+            int y = ChatInlineLayout.bottomAlignedY(lines, scrollPos, row, HEAD_SIZE,
+                    minecraft.fontRenderer);
             render(metadata.nfrUi$getSenderId(), 0, y, alpha / 255.0F);
         }
         GlStateManager.disableBlend();

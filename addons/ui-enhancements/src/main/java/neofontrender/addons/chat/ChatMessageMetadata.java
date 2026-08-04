@@ -10,6 +10,7 @@ public final class ChatMessageMetadata {
     public final String privatePeer;
     public final boolean outgoing;
     public final String privateBody;
+    public final String group;
 
     public ChatMessageMetadata(long timestamp, ChatSource source, String playerName, UUID playerId) {
         this(timestamp, source, playerName, playerId, "");
@@ -22,6 +23,11 @@ public final class ChatMessageMetadata {
 
     public ChatMessageMetadata(long timestamp, ChatSource source, String playerName, UUID playerId,
                                String privatePeer, boolean outgoing, String privateBody) {
+        this(timestamp, source, playerName, playerId, privatePeer, outgoing, privateBody, "");
+    }
+
+    public ChatMessageMetadata(long timestamp, ChatSource source, String playerName, UUID playerId,
+                               String privatePeer, boolean outgoing, String privateBody, String group) {
         this.timestamp = timestamp;
         this.source = source == null ? ChatSource.SERVER : source;
         this.playerName = playerName == null ? "" : playerName;
@@ -29,5 +35,6 @@ public final class ChatMessageMetadata {
         this.privatePeer = privatePeer == null ? "" : privatePeer;
         this.outgoing = outgoing;
         this.privateBody = privateBody == null ? "" : privateBody;
+        this.group = group == null ? "" : group;
     }
 }

@@ -15,6 +15,8 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.mixin.AccessorGuiChatFeatures;
 import neofontrender.addons.mixin.AccessorGuiNewChatFeatures;
 import org.lwjgl.input.Mouse;
+import neofontrender.addons.api.inline.InlineTextEngine;
+import neofontrender.addons.api.inline.InlineTextLayout;
 
 import java.util.List;
 import java.util.Map;
@@ -63,6 +65,12 @@ public final class ChatCopyController {
             return;
         }
         GuiNewChat chat = Minecraft.getMinecraft().ingameGUI.getChatGUI();
+        ChatInlineImageInteraction.Hit image = ChatInlineImageInteraction.hit(mouseX, mouseY);
+        if (button == 1 && image != null) {
+            ChatContextMenu.INSTANCE.openImage(image.glyph, mouseX, mouseY);
+            event.setCanceled(true);
+            return;
+        }
         Hit hit = hit(chat, false);
         String player = playerAt(chat, hit);
         if (button == 1 && player != null) {
@@ -116,6 +124,7 @@ public final class ChatCopyController {
     @SubscribeEvent
     public void onDrawChatScreen(GuiScreenEvent.DrawScreenEvent.Post event) {
         if (!(event.getGui() instanceof GuiChat)) return;
+        ChatInlineImageInteraction.draw(event.getMouseX(), event.getMouseY());
         if (!EnhancedChatConfigAccess.tabbedChatEnabled()) {
             GuiNewChat chat = Minecraft.getMinecraft().ingameGUI.getChatGUI();
             Hit hover = hit(chat, false);
@@ -151,12 +160,15 @@ public final class ChatCopyController {
             ChatSelectionModel.Range range = ranges.get(line);
             if (range == null || range.start >= range.end) continue;
             String value = text(line);
+            InlineTextLayout layout = InlineTextEngine.layout(minecraft.fontRenderer, value);
             int x1 = 2 + Math.round(scale * (textOffset
-                    + minecraft.fontRenderer.getStringWidth(value.substring(0, range.start))));
+                    + layout.widthTo(minecraft.fontRenderer, range.start)));
             int x2 = 2 + Math.round(scale * (textOffset
-                    + minecraft.fontRenderer.getStringWidth(value.substring(0, range.end))));
-            int y2 = bottom - Math.round(scale * row * minecraft.fontRenderer.FONT_HEIGHT);
-            int y1 = bottom - Math.round(scale * (row + 1) * minecraft.fontRenderer.FONT_HEIGHT);
+                    + layout.widthTo(minecraft.fontRenderer, range.end)));
+            int before = ChatInlineLayout.heightBefore(lines, scroll, row, minecraft.fontRenderer);
+            int rowHeight = ChatInlineLayout.lineHeight(line, minecraft.fontRenderer);
+            int y2 = bottom - Math.round(scale * before);
+            int y1 = bottom - Math.round(scale * (before + rowHeight));
             Gui.drawRect(x1, y1, x2, y2, SELECTION_COLOR);
         }
         ChatContextMenu.INSTANCE.draw(event.getMouseX(), event.getMouseY());
@@ -216,18 +228,32 @@ public final class ChatCopyController {
         int scaleFactor = resolution.getScaleFactor();
         float chatScale = chat.getChatScale();
         int panelX = (int) Math.floor((Mouse.getX() / (float) scaleFactor - 2.0F) / chatScale);
-        int localY = (int) Math.floor((Mouse.getY() / (float) scaleFactor - 40.0F) / chatScale);
-        int visibleCount = Math.min(chat.getLineCount(), lines(chat).size());
-        if (visibleCount == 0 || (!clamp && (panelX < 0 || panelX > chat.getChatWidth() / chatScale
-                || localY < 0 || localY >= visibleCount * minecraft.fontRenderer.FONT_HEIGHT))) return null;
-        int row = Math.max(0, Math.min(visibleCount - 1,
-                localY / minecraft.fontRenderer.FONT_HEIGHT));
+        float visualOffset = chat instanceof VanillaChatRenderState
+                ? ((VanillaChatRenderState) chat).nfrUi$getVisualOffset() : 0.0F;
+        int localY = (int) Math.floor((Mouse.getY() / (float) scaleFactor - 40.0F
+                - visualOffset) / chatScale);
+        List<ChatLine> chatLines = lines(chat);
         AccessorGuiNewChatFeatures accessor = (AccessorGuiNewChatFeatures) chat;
-        int index = Math.max(0, Math.min(lines(chat).size() - 1, row + accessor.nfrUi$getScrollPos()));
-        ChatLine line = lines(chat).get(index);
+        int scroll = accessor.nfrUi$getScrollPos();
+        int visibleCount = Math.min(chatLines.size() - Math.min(scroll, chatLines.size()),
+                ChatInlineLayout.visibleLineCount(chatLines, scroll, chat.getChatHeight(),
+                        minecraft.fontRenderer));
+        if (visibleCount == 0 || (!clamp && (panelX < 0 || panelX > chat.getChatWidth() / chatScale
+                || localY < 0 || localY >= chat.getChatHeight()))) return null;
+        int row = 0;
+        int before = 0;
+        for (; row < visibleCount; row++) {
+            int height = ChatInlineLayout.lineHeight(chatLines.get(scroll + row), minecraft.fontRenderer);
+            if (localY < before + height) break;
+            before += height;
+        }
+        row = Math.max(0, Math.min(visibleCount - 1, row));
+        int index = Math.max(0, Math.min(chatLines.size() - 1, row + scroll));
+        ChatLine line = chatLines.get(index);
         String value = text(line);
         int textX = Math.max(0, panelX - ChatHeadRenderer.textOffset());
-        int position = minecraft.fontRenderer.trimStringToWidth(value, textX).length();
+        int position = InlineTextEngine.layout(minecraft.fontRenderer, value)
+                .sourceIndexAt(minecraft.fontRenderer, textX);
         boolean head = EnhancedChatFeatures.playerHeads()
                 && panelX >= 0 && panelX < ChatHeadRenderer.HEAD_SIZE
                 && line instanceof ChatHeadLineMetadata

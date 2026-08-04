@@ -5,6 +5,7 @@ import net.minecraftforge.common.MinecraftForge;
 import neofontrender.addons.ui.UiEnhancementModule;
 import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 import neofontrender.addons.chat.network.SelfMessageCapability;
+import neofontrender.addons.inline.InlineGlyphMiddleware;
 import speiger.src.salutation.Salutation;
 import speiger.src.salutation.client.ClientHandler;
 
@@ -13,6 +14,8 @@ public final class EnhancedChatModule implements UiEnhancementModule {
     public void preInit() {
         SelfMessageCapability.initialize();
         EnhancedChatConfig.load();
+        EmojiAndImageConfig.load();
+        InlineGlyphMiddleware.initialize();
         ChatStyleConfig.load();
         Salutation.initialize();
         if (!ExternalChatCompat.salutationLoaded()) ClientHandler.INSTANCE.init();
@@ -23,6 +26,7 @@ public final class EnhancedChatModule implements UiEnhancementModule {
     @Override
     public void init() {
         NfrSettingsPageRegistry.register(new EnhancedChatSettingsPage());
+        NfrSettingsPageRegistry.register(new EmojiAndImageSettingsPage());
         NfrSettingsPageRegistry.register(new ChatRulesSettingsPage());
         if (!ExternalChatCompat.tabbyChatLoaded()) NfrSettingsPageRegistry.register(new TabbedChatSettingsPage());
         if (!ExternalChatCompat.tabbyChatLoaded()) NfrSettingsPageRegistry.register(new ChatStyleSettingsPage());
@@ -31,6 +35,7 @@ public final class EnhancedChatModule implements UiEnhancementModule {
         MinecraftForge.EVENT_BUS.register(ChatCopyController.INSTANCE);
         MinecraftForge.EVENT_BUS.register(ChatSearchController.INSTANCE);
         MinecraftForge.EVENT_BUS.register(MentionCompletionController.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(EmojiCompletionController.INSTANCE);
         MinecraftForge.EVENT_BUS.register(ChatCommandCompletionController.INSTANCE);
         MinecraftForge.EVENT_BUS.register(ChatHudWindowController.INSTANCE);
         ChatKeyBindings.register();

@@ -6,7 +6,8 @@
   "compatibilityLevel": "JAVA_8",
   "target": "@env(DEFAULT)",
   "mixins": [
-    "MixinCommandMessageSelfTarget"
+    "MixinCommandMessageSelfTarget",
+    "MixinCommandMessageRecord"
   ],
   "server": [],
   "client": [
@@ -20,6 +21,7 @@
     "MixinChatLineMetadata",
     "MixinEntityRendererZoomMouse",
     "MixinForgeGuiUtilsButtonAlpha",
+    "MixinFontRendererInlineGlyphs",
     "MixinGuiChatAnimation",
     "MixinGuiChatCommandCompletion",
     "MixinGuiButtonCreateWorldStyle",

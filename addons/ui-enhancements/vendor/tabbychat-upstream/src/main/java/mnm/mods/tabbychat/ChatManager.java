@@ -106,6 +106,18 @@ public class ChatManager implements Chat {
         return channel;
     }
 
+    /** PM-style channel for a chat group, sending through /nfrgroup &lt;name&gt;. */
+    public Channel getGroupChannel(String groupName) {
+        String name = "__uie_group_" + groupName;
+        Channel channel = getPmChannel(name);
+        channel.setAlias(groupName);
+        String expected = "/nfrgroup " + groupName;
+        if (!channel.getPrefix().startsWith("/nfrgroup ")) {
+            channel.setPrefix(expected);
+        }
+        return channel;
+    }
+
     private Channel getChannel(String name, boolean pm, Map<String, Channel> from, ValueMap<ChatChannel> setting) {
         if (!from.containsKey(name)) {
             // fetch from settings

@@ -9,6 +9,9 @@ import neofontrender.addons.chat.ChatAnimationController;
 import neofontrender.addons.chat.ChatHeadRenderer;
 import neofontrender.addons.chat.ChatItemIconRenderer;
 import neofontrender.addons.chat.VanillaChatRenderState;
+import neofontrender.addons.chat.ChatInlineLayout;
+import neofontrender.addons.chat.EnhancedChatFeatures;
+import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -26,6 +29,7 @@ public abstract class MixinGuiNewChatSmoothScroll implements VanillaChatRenderSt
     @Shadow private boolean isScrolled;
     @Shadow public abstract int getLineCount();
     @Shadow public abstract float getChatScale();
+    @Shadow public abstract int getChatHeight();
 
     @Unique private final SmoothScrollController nfrUi$scroller = new SmoothScrollController();
     @Unique private boolean nfrUi$translated;
@@ -65,7 +69,10 @@ public abstract class MixinGuiNewChatSmoothScroll implements VanillaChatRenderSt
         float fraction = position - scrollPos;
         nfrUi$fraction = fraction;
         float messageOffset = ChatAnimationController.messageOffset(scrollPos != 0) * getChatScale();
-        float totalOffset = fraction * 9.0F * getChatScale() + messageOffset;
+        int scrollHeight = scrollPos >= 0 && scrollPos < drawnChatLines.size()
+                ? ChatInlineLayout.lineHeight(drawnChatLines.get(scrollPos),
+                Minecraft.getMinecraft().fontRenderer) : 9;
+        float totalOffset = fraction * scrollHeight * getChatScale() + messageOffset;
         nfrUi$visualOffset = totalOffset;
         if (Math.abs(totalOffset) > 0.001F) {
             GlStateManager.pushMatrix();
@@ -77,7 +84,10 @@ public abstract class MixinGuiNewChatSmoothScroll implements VanillaChatRenderSt
     @Redirect(method = "drawChat", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/gui/GuiNewChat;getLineCount()I"))
     private int nfrUi$renderEnteringLine(GuiNewChat instance) {
-        return getLineCount() + (nfrUi$fraction > 0.001F ? 1 : 0);
+        int visible = EnhancedChatFeatures.inlineGlyphs()
+                ? ChatInlineLayout.visibleLineCount(drawnChatLines, scrollPos, getChatHeight(),
+                Minecraft.getMinecraft().fontRenderer) : getLineCount();
+        return visible + (nfrUi$fraction > 0.001F ? 1 : 0);
     }
 
     @Inject(method = "drawChat", at = @At("RETURN"))
@@ -92,7 +102,10 @@ public abstract class MixinGuiNewChatSmoothScroll implements VanillaChatRenderSt
 
     @Unique
     private float nfrUi$maxScroll() {
-        return Math.max(0, drawnChatLines.size() - getLineCount());
+        int visible = EnhancedChatFeatures.inlineGlyphs()
+                ? ChatInlineLayout.visibleLineCount(drawnChatLines, scrollPos, getChatHeight(),
+                Minecraft.getMinecraft().fontRenderer) : getLineCount();
+        return Math.max(0, drawnChatLines.size() - visible);
     }
 
     @Override

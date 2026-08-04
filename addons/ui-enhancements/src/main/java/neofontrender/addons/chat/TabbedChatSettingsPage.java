@@ -44,6 +44,7 @@ final class TabbedChatSettingsPage implements NfrSettingsPage {
         private final boolean keepOpenServer = EnhancedChatConfig.keepOpenServer;
         private final boolean keepOpenPrivate = EnhancedChatConfig.keepOpenPrivate;
         private final boolean keepOpenCustom = EnhancedChatConfig.keepOpenCustom;
+        private final boolean verticalTabs = EnhancedChatConfig.verticalTabs;
         private final boolean persistentChatHud = EnhancedChatConfig.persistentChatHud;
         private final boolean closeChatOnDetach = EnhancedChatConfig.closeChatOnDetach;
         private final boolean hideTag = advanced.hideTag.get();
@@ -79,6 +80,8 @@ final class TabbedChatSettingsPage implements NfrSettingsPage {
                             value -> EnhancedChatConfig.keepOpenPrivate = value))
                     .add(toggle(c, "keep_open_custom", () -> EnhancedChatConfig.keepOpenCustom,
                             value -> EnhancedChatConfig.keepOpenCustom = value))
+                    .add(toggle(c, "vertical_tabs", () -> EnhancedChatConfig.verticalTabs,
+                            value -> EnhancedChatConfig.verticalTabs = value))
                     .add(toggle(c, "close_on_detach", () -> EnhancedChatConfig.closeChatOnDetach,
                             value -> EnhancedChatConfig.closeChatOnDetach = value))
                     .add(toggle(c, "hide_tag", advanced.hideTag::get, advanced.hideTag::set))
@@ -126,6 +129,7 @@ final class TabbedChatSettingsPage implements NfrSettingsPage {
             EnhancedChatConfig.keepOpenServer = keepOpenServer;
             EnhancedChatConfig.keepOpenPrivate = keepOpenPrivate;
             EnhancedChatConfig.keepOpenCustom = keepOpenCustom;
+            EnhancedChatConfig.verticalTabs = verticalTabs;
             EnhancedChatConfig.persistentChatHud = persistentChatHud;
             EnhancedChatConfig.closeChatOnDetach = closeChatOnDetach;
             advanced.hideTag.set(hideTag);

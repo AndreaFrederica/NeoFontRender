@@ -14,10 +14,12 @@ import mnm.mods.util.gui.events.GuiMouseEvent;
 import mnm.mods.util.gui.events.GuiMouseEvent.MouseEvent;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
+import neofontrender.addons.chat.ChatContextMenu;
 import neofontrender.addons.chat.ChatStyleConfig;
 import neofontrender.addons.chat.ChatStyleRenderer;
 import neofontrender.addons.chat.ChatSourceChannels;
 import neofontrender.addons.chat.ChatHudWindowController;
+import neofontrender.addons.chat.EnhancedChatConfigAccess;
 
 import java.awt.Dimension;
 import javax.annotation.Nonnull;
@@ -49,8 +51,10 @@ public class ChatTab extends GuiButton {
                     TabbyChat.getInstance().getChat().setActiveChannel(this.channel);
                 }
             } else if (event.getButton() == 1) {
-                // Open channel options
-                this.channel.openSettings();
+                // Pin / delete / settings context menu
+                ILocation actual = getActualLocation();
+                ChatContextMenu.INSTANCE.openChannel(this.channel,
+                        actual.getXPos() + event.getMouseX(), actual.getYPos() + event.getMouseY());
             } else if (event.getButton() == 2) {
                 // middle click
                 TabbyChat.getInstance().getChat().removeChannel(this.channel);
@@ -87,7 +91,10 @@ public class ChatTab extends GuiButton {
             int color = ChatStyleConfig.enabled
                     ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity)
                     : Color.getColor(primary.getRed(), primary.getGreen(), primary.getBlue(), (int) (mc.gameSettings.chatOpacity * 255));
-            this.drawCenteredString(mc.fontRenderer, this.getText(), txtX, txtY, color);
+            String label = EnhancedChatConfigAccess.verticalTabsEnabled()
+                    ? mc.fontRenderer.trimStringToWidth(this.getText(), Math.max(4, loc.getWidth() - 6))
+                    : this.getText();
+            this.drawCenteredString(mc.fontRenderer, label, txtX, txtY, color);
             GlStateManager.disableBlend();
         }
     }
@@ -144,6 +151,9 @@ public class ChatTab extends GuiButton {
     @Nonnull
     @Override
     public Dimension getMinimumSize() {
+        if (EnhancedChatConfigAccess.verticalTabsEnabled()) {
+            return new Dimension(ChatTray.VERTICAL_WIDTH, 16);
+        }
         return new Dimension(mc.fontRenderer.getStringWidth(getText()) + 8, 14);
     }
 }

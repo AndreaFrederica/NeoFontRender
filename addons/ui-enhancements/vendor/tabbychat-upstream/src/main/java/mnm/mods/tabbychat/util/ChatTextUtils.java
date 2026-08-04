@@ -39,7 +39,9 @@ public class ChatTextUtils {
         synchronized (list) {
             List<Message> result = Lists.newArrayList();
             Iterator<Message> iter = list.iterator();
-            while (iter.hasNext() && result.size() <= 100) {
+            // Cap the wrapped line cache so scrolling can reach far back into history
+            // without pathological rebuild cost on every new message.
+            while (iter.hasNext() && result.size() <= 4096) {
                 Message line = iter.next();
                 ChatMessageMetadata metadata = line instanceof ChatMessage
                         ? ((ChatMessage) line).nfrUi$getMessageMetadata() : null;

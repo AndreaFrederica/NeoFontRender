@@ -13,6 +13,7 @@ import mnm.mods.tabbychat.api.gui.ChatScreen;
 import mnm.mods.tabbychat.gui.ChatBox;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiNewChat;
+import net.minecraft.client.gui.ScaledResolution;
 import neofontrender.addons.chat.ChatHistoryManager;
 import neofontrender.addons.chat.ChatAnimationController;
 import neofontrender.addons.chat.ChatMessageMetadataRegistry;
@@ -99,8 +100,17 @@ public class GuiNewChatTC extends GuiNewChat implements ChatScreen {
         // Make the upper left corner of the panel (0,0).
         GlStateManager.translate(chatbox.getBounds().x, chatbox.getBounds().y, 0.0F);
 
-        int mouseX = Mouse.getEventX();
-        int mouseY = -Mouse.getEventY() - 1;
+        // getEventX/Y only describes the last queued mouse event and becomes stale while the
+        // pointer is stationary. Hover rendering needs the current cursor converted from display
+        // pixels into this scaled ChatBox's local coordinate system every frame.
+        ScaledResolution resolution = new ScaledResolution(mc);
+        int screenMouseX = Mouse.getX() * resolution.getScaledWidth() / mc.displayWidth;
+        int screenMouseY = resolution.getScaledHeight()
+                - Mouse.getY() * resolution.getScaledHeight() / mc.displayHeight - 1;
+        mnm.mods.util.ILocation actual = chatbox.getActualLocation();
+        float actualScale = Math.max(0.01F, chatbox.getScale());
+        int mouseX = Math.round((screenMouseX - actual.getXPos()) / actualScale);
+        int mouseY = Math.round((screenMouseY - actual.getYPos()) / actualScale);
         chatbox.drawComponent(mouseX, mouseY);
 
         GlStateManager.popMatrix();

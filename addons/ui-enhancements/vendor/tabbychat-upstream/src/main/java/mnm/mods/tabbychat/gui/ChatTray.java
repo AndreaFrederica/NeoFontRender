@@ -16,6 +16,7 @@ import mnm.mods.util.gui.FlowLayout;
 import mnm.mods.util.gui.GuiComponent;
 import mnm.mods.util.gui.GuiPanel;
 import mnm.mods.util.gui.ILayout;
+import mnm.mods.util.gui.VerticalLayout;
 import mnm.mods.util.gui.events.ActionPerformedEvent;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
@@ -24,27 +25,33 @@ import neofontrender.addons.chat.ChatStyleConfig;
 import neofontrender.addons.chat.ChatStyleRenderer;
 import neofontrender.addons.chat.ChatKeepOpenPolicy;
 import neofontrender.addons.chat.ChatHudWindowController;
+import neofontrender.addons.chat.ChatTabPinPolicy;
 import neofontrender.addons.chat.EnhancedChatConfigAccess;
 
 import java.awt.Dimension;
 import java.awt.Rectangle;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
 public class ChatTray extends GuiPanel implements IGui {
 
     private final static TexturedModal MODAL = new TexturedModal(ChatBox.GUI_LOCATION, 0, 14, 254, 202);
+    public static final int VERTICAL_WIDTH = 92;
 
     private GuiPanel tabList = new GuiPanel(new FlowLayout());
     private GuiComponent handle = new ChatHandle();
+    private GuiPanel controls;
+    private final List<Channel> displayOrder = new ArrayList<>();
+    private boolean vertical;
 
     private Map<Channel, GuiComponent> map = Maps.newHashMap();
-
 
     ChatTray() {
         super(new BorderLayout());
         this.addComponent(tabList, BorderLayout.Position.CENTER);
-        ChatPanel controls = new ChatPanel(new FlowLayout());
+        controls = new ChatPanel(new FlowLayout());
         controls.addComponent(new ToggleButton());
         controls.addComponent(new DetachButton());
         controls.addComponent(handle);
@@ -54,6 +61,12 @@ public class ChatTray extends GuiPanel implements IGui {
 
     @Override
     public void drawComponent(int mouseX, int mouseY) {
+        // Layout switches mutate the component tree, so defer them out of the draw pass
+        // (GuiPanel iterates its components while rendering; modifying them here crashes).
+        if (vertical != EnhancedChatConfigAccess.verticalTabsEnabled()) {
+            mc.addScheduledTask(() -> getParent().filter(parent -> parent instanceof ChatBox)
+                    .ifPresent(parent -> ((ChatBox) parent).applyTabLayout()));
+        }
         GlStateManager.color(1, 1, 1, mc.gameSettings.chatOpacity);
         if (ChatHudWindowController.isChatExpanded()) {
             if (ChatStyleConfig.enabled) {
@@ -66,6 +79,77 @@ public class ChatTray extends GuiPanel implements IGui {
         super.drawComponent(mouseX, mouseY);
     }
 
+    /** Switches the tab strip between horizontal (FlowLayout) and vertical (Edge-style) layouts. */
+    public void applyVertical(boolean vertical) {
+        this.vertical = vertical;
+        this.removeComponent(tabList);
+        tabList = new GuiPanel(vertical ? new VerticalLayout() : new FlowLayout());
+        this.addComponent(tabList, BorderLayout.Position.CENTER);
+        reorder();
+    }
+
+    /** Moves the controls into a host panel (used to dock them at the window's top-right in vertical mode). */
+    public void detachControls(GuiPanel host) {
+        this.removeComponent(controls);
+        if (host != null) {
+            host.clearComponents();
+            host.addComponent(controls, BorderLayout.Position.EAST);
+        }
+    }
+
+    /** Returns the controls to the right edge of the tray (horizontal mode). */
+    public void attachControls() {
+        controls.getParent().ifPresent(parent -> parent.removeComponent(controls));
+        this.addComponent(controls, BorderLayout.Position.EAST);
+    }
+
+    public void addChannel(Channel channel) {
+        if (mc.isCallingFromMinecraftThread()) {
+            doAddChannel(channel);
+        } else {
+            mc.addScheduledTask(() -> doAddChannel(channel));
+        }
+    }
+
+    private void doAddChannel(Channel channel) {
+        if (!displayOrder.contains(channel)) displayOrder.add(channel);
+        GuiComponent gc = new ChatTab(channel);
+        map.put(channel, gc);
+        reorder();
+    }
+
+    public void removeChannel(final Channel channel) {
+        if (mc.isCallingFromMinecraftThread()) {
+            doRemoveChannel(channel);
+        } else {
+            mc.addScheduledTask(() -> doRemoveChannel(channel));
+        }
+    }
+
+    private void doRemoveChannel(Channel channel) {
+        GuiComponent gc = map.get(channel);
+        this.tabList.removeComponent(gc);
+        map.remove(channel);
+        displayOrder.remove(channel);
+    }
+
+    /** Re-applies pin ordering after a pin state change. */
+    public void refreshPins() {
+        if (mc.isCallingFromMinecraftThread()) {
+            reorder();
+        } else {
+            mc.addScheduledTask(this::reorder);
+        }
+    }
+
+    private void reorder() {
+        tabList.clearComponents();
+        for (Channel channel : ChatTabPinPolicy.ordered(displayOrder)) {
+            GuiComponent gc = map.get(channel);
+            if (gc != null) tabList.addComponent(gc);
+        }
+    }
+
     @Override
     public void updateComponent() {
         super.updateComponent();
@@ -75,20 +159,17 @@ public class ChatTray extends GuiPanel implements IGui {
                 .ifPresent(this::setSecondaryColor);
     }
 
-    public void addChannel(Channel channel) {
-        GuiComponent gc = new ChatTab(channel);
-        map.put(channel, gc);
-        tabList.addComponent(gc);
-    }
-
-    public void removeChannel(final Channel channel) {
-        GuiComponent gc = map.get(channel);
-        this.tabList.removeComponent(gc);
-        map.remove(channel);
-    }
-
     public void clear() {
+        if (mc.isCallingFromMinecraftThread()) {
+            doClear();
+        } else {
+            mc.addScheduledTask(this::doClear);
+        }
+    }
+
+    private void doClear() {
         this.tabList.clearComponents();
+        displayOrder.clear();
 
         addChannel(ChatChannel.DEFAULT_CHANNEL);
         ChatChannel.DEFAULT_CHANNEL.setStatus(ChannelStatus.ACTIVE);

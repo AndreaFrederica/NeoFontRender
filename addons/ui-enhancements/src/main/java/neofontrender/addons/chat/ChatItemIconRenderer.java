@@ -69,7 +69,8 @@ public final class ChatItemIconRenderer {
             if (age >= 200 && !open) continue;
             double fade = MathHelper.clamp((1.0D - age / 200.0D) * 10.0D, 0.0D, 1.0D);
             if (!open && fade * fade * minecraft.gameSettings.chatOpacity <= 0.02D) continue;
-            int y = -row * minecraft.fontRenderer.FONT_HEIGHT - 8;
+            int y = ChatInlineLayout.bottomAlignedY(lines, scrollPos, row, 8,
+                    minecraft.fontRenderer);
             renderLine(line.getChatComponent(), ChatHeadRenderer.textOffset(), y);
         }
         GlStateManager.popMatrix();

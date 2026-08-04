@@ -32,6 +32,8 @@ final class EnhancedChatConfig {
     static boolean keepOpenServer = false;
     static boolean keepOpenPrivate = false;
     static boolean keepOpenCustom = false;
+    static boolean verticalTabs = false;
+    static String pinnedTabs = "";
     static boolean persistentChatHud = false;
     static boolean closeChatOnDetach = false;
     static boolean playerHeads = true;
@@ -84,6 +86,8 @@ final class EnhancedChatConfig {
                 .define("chat.keepOpen.server", false, "Keep the chat screen open after sending from the server-source channel.")
                 .define("chat.keepOpen.private", false, "Keep the chat screen open after sending from private-message channels.")
                 .define("chat.keepOpen.custom", false, "Keep the chat screen open after sending from custom channels.")
+                .define("chat.tabs.vertical", false, "Arrange chat tabs vertically on the left edge, Edge-browser style.")
+                .define("chat.tabs.pinned", "", "Comma-separated channel names pinned to the front of the tab tray, in priority order.")
                 .define("chat.hud.persistent", false, "Keep the expanded TabbyChat window visible in the HUD.")
                 .define("chat.hud.closeOnDetach", false, "Close the current chat screen immediately after detaching it to the HUD.")
                 .define("chat.playerHeads", true, "Display cached player heads next to chat messages.")
@@ -133,6 +137,8 @@ final class EnhancedChatConfig {
         keepOpenServer = file.getBoolean("chat.keepOpen.server", legacyKeepOpen);
         keepOpenPrivate = file.getBoolean("chat.keepOpen.private", legacyKeepOpen);
         keepOpenCustom = file.getBoolean("chat.keepOpen.custom", legacyKeepOpen);
+        verticalTabs = file.getBoolean("chat.tabs.vertical", false);
+        pinnedTabs = file.getString("chat.tabs.pinned", "");
         persistentChatHud = file.getBoolean("chat.hud.persistent", false);
         closeChatOnDetach = file.getBoolean("chat.hud.closeOnDetach", false);
         playerHeads = file.getBoolean("chat.playerHeads", true);
@@ -183,6 +189,8 @@ final class EnhancedChatConfig {
                 .set("chat.keepOpen.server", keepOpenServer)
                 .set("chat.keepOpen.private", keepOpenPrivate)
                 .set("chat.keepOpen.custom", keepOpenCustom)
+                .set("chat.tabs.vertical", verticalTabs)
+                .set("chat.tabs.pinned", pinnedTabs)
                 .set("chat.hud.persistent", persistentChatHud)
                 .set("chat.hud.closeOnDetach", closeChatOnDetach)
                 .set("chat.playerHeads", playerHeads)

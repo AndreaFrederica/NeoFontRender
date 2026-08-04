@@ -109,11 +109,15 @@ public final class MentionCompletionController {
             if (name.toLowerCase(Locale.ROOT).startsWith(prefix)) next.add("@" + name);
         }
         next.sort(String.CASE_INSENSITIVE_ORDER);
-        matches.clear();
-        matches.addAll(next);
+        // Reuse the existing candidate list when the solution is unchanged so the popup
+        // does not flicker through a clear-and-rebuild every frame.
+        if (!next.equals(matches)) {
+            matches.clear();
+            matches.addAll(next);
+            selected = Math.max(0, matches.indexOf(selectedName));
+        }
         tokenStart = start;
         tokenEnd = cursor;
-        selected = Math.max(0, matches.indexOf(selectedName));
         keepSelectedVisible();
         if (matches.isEmpty()) closeCandidates();
     }
