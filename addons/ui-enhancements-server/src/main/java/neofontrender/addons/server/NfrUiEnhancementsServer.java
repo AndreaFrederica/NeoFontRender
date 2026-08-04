@@ -2,6 +2,8 @@ package neofontrender.addons.server;
 
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
+import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
 import neofontrender.addons.chat.network.SelfMessageCapability;
 
 @Mod(
@@ -20,5 +22,17 @@ public final class NfrUiEnhancementsServer {
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         SelfMessageCapability.initialize();
+    }
+
+    @Mod.EventHandler
+    public void serverStarting(FMLServerStartingEvent event) {
+        ServerChatHistoryManager.INSTANCE.initialize(event.getServer());
+        event.registerServerCommand(new GroupChatCommand());
+        event.registerServerCommand(new MultiTargetMessageCommand());
+    }
+
+    @Mod.EventHandler
+    public void serverStopping(FMLServerStoppingEvent event) {
+        ServerChatHistoryManager.INSTANCE.shutdown();
     }
 }

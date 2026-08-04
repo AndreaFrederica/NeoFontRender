@@ -18,10 +18,22 @@ repositories {
     maven { url = 'https://maven.minecraftforge.net/' }
 }
 
+configurations {
+    contain
+    implementation.extendsFrom(contain)
+}
+
 sourceSets {
     main {
         java.srcDir '../ui-enhancements-common/src/main/java'
     }
+}
+
+dependencies {
+    // Embedded SQL database backing server-side chat persistence.
+    contain 'com.h2database:h2:2.3.232'
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 unimined.minecraft {
@@ -46,12 +58,18 @@ processResources {
 jar {
     archiveClassifier = 'dev'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(configurations.contain) { into '/' }
     doFirst {
-        manifest.attributes(
+        def attributes = [
                 'ModType': 'CRL',
                 'FMLCorePlugin': 'neofontrender.addons.server.UiEnhancementsServerMixinLoader',
                 'FMLCorePluginContainsFMLMod': true
-        )
+        ]
+        if (!configurations.contain.isEmpty()) {
+            attributes['ContainedDeps'] = configurations.contain.collect { it.name }.join(' ')
+            attributes['NonModDeps'] = true
+        }
+        manifest.attributes(attributes)
     }
     finalizedBy tasks.named('remapJar')
 }
@@ -60,3 +78,12 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
 }
+
+test {
+    useJUnitPlatform()
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+}
+
+// Unimined wires Minecraft and Forge to main after source-set creation.
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath

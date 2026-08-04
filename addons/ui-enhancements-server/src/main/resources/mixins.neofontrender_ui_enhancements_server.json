@@ -6,7 +6,8 @@
   "compatibilityLevel": "JAVA_8",
   "target": "@env(DEFAULT)",
   "mixins": [
-    "MixinCommandMessageSelfTarget"
+    "MixinCommandMessageSelfTarget",
+    "MixinCommandMessageRecord"
   ],
   "server": [],
   "client": []
