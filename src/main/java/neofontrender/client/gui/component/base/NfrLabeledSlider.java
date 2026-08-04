@@ -12,7 +12,8 @@ import net.minecraft.client.Minecraft;
 import java.util.function.Supplier;
 
 /** A dynamic label and slider assembled as one consistently sized settings control. */
-public final class NfrLabeledSlider extends ParentWidget<NfrLabeledSlider> implements ILayoutWidget {
+public final class NfrLabeledSlider extends ParentWidget<NfrLabeledSlider>
+        implements ILayoutWidget, NfrPreferredHeight {
     private final TextWidget label;
     private final SliderWidget slider;
 
@@ -23,6 +24,7 @@ public final class NfrLabeledSlider extends ParentWidget<NfrLabeledSlider> imple
         child(slider);
     }
 
+    @Override
     public int preferredHeight() {
         return Minecraft.getMinecraft().fontRenderer.FONT_HEIGHT + 3 + 6 + 20;
     }
