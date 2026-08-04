@@ -62,6 +62,7 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinGuiContainerSlotHover\""));
         assertTrue(config.contains("\"MixinModularItemSlotHover\""));
         assertTrue(config.contains("\"MixinGuiScreenResourcePacksProgress\""));
+        assertTrue(config.contains("\"MixinGuiScreenBookCjkTypography\""));
         assertTrue(config.contains("\"MixinProgressBarResourceReload\""));
         assertTrue(config.contains("\"MixinProgressManagerResourceReload\""));
     }
