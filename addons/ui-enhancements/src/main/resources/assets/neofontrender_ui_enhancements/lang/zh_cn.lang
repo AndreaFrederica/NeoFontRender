@@ -435,3 +435,7 @@ neofontrender_ui_enhancements.gui.inline_glyph.allowlist=图片域名白名单�
 neofontrender_ui_enhancements.gui.inline_glyph.blocklist=图片域名黑名单（优先于白名单）
 neofontrender_ui_enhancements.gui.chat.context.copy_image=复制图片
 neofontrender_ui_enhancements.chat.image.copy_hint=右键复制 · 按住 Alt 按实际大小预览
+neofontrender_ui_enhancements.gui.cjk_typography.category=CJK 排版
+neofontrender_ui_enhancements.gui.cjk_typography.engine=段落排版引擎
+neofontrender_ui_enhancements.gui.cjk_typography.engine.tiqian=Tiqian
+neofontrender_ui_enhancements.gui.cjk_typography.engine.legacy=原有规则

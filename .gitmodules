@@ -1,0 +1,3 @@
+[submodule "addons/ui-enhancements/vendor/tiqian"]
+	path = addons/ui-enhancements/vendor/tiqian
+	url = https://github.com/tiqian-cjk/tiqian.git

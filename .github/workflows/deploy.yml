@@ -383,6 +383,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.release-meta.outputs.ref }}
+          submodules: recursive
 
       - name: Grant execute permission for Gradle wrapper
         run: |
@@ -416,6 +417,9 @@ jobs:
           grep -Fxq 'mcmod.info' <<<"$entries"
           grep -Fxq 'mixins.neofontrender_ui_enhancements.json' <<<"$entries"
           grep -Fxq 'neofontrender/addons/mixin/UiEnhancementsMixinLoader.class' <<<"$entries"
+          grep -Fxq 'META-INF/LICENSE-Tiqian.txt' <<<"$entries"
+          grep -Fxq 'META-INF/NOTICE-Tiqian.md' <<<"$entries"
+          grep -q 'nfr-tiqian-jvm' <<<"$entries"
 
       - name: Upload Revo UI workflow artifact
         uses: actions/upload-artifact@v4

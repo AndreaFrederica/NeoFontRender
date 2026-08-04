@@ -9,6 +9,7 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.text.ITextComponent;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -17,6 +18,7 @@ import neofontrender.addons.mixin.AccessorGuiNewChatFeatures;
 import org.lwjgl.input.Mouse;
 import neofontrender.addons.api.inline.InlineTextEngine;
 import neofontrender.addons.api.inline.InlineTextLayout;
+import neofontrender.addons.cjk.ChatTypographyRenderer;
 
 import java.util.List;
 import java.util.Map;
@@ -161,10 +163,17 @@ public final class ChatCopyController {
             if (range == null || range.start >= range.end) continue;
             String value = text(line);
             InlineTextLayout layout = InlineTextEngine.layout(minecraft.fontRenderer, value);
-            int x1 = 2 + Math.round(scale * (textOffset
-                    + layout.widthTo(minecraft.fontRenderer, range.start)));
-            int x2 = 2 + Math.round(scale * (textOffset
-                    + layout.widthTo(minecraft.fontRenderer, range.end)));
+            ITextComponent component = line.getChatComponent();
+            boolean positioned = ChatTypographyRenderer.isPositioned(component)
+                    && !layout.hasGlyphs();
+            float startX = positioned
+                    ? ChatTypographyRenderer.xAtFormattedIndex(component, range.start)
+                    : layout.widthTo(minecraft.fontRenderer, range.start);
+            float endX = positioned
+                    ? ChatTypographyRenderer.xAtFormattedIndex(component, range.end)
+                    : layout.widthTo(minecraft.fontRenderer, range.end);
+            int x1 = 2 + Math.round(scale * (textOffset + startX));
+            int x2 = 2 + Math.round(scale * (textOffset + endX));
             int before = ChatInlineLayout.heightBefore(lines, scroll, row, minecraft.fontRenderer);
             int rowHeight = ChatInlineLayout.lineHeight(line, minecraft.fontRenderer);
             int y2 = bottom - Math.round(scale * before);
@@ -252,8 +261,11 @@ public final class ChatCopyController {
         ChatLine line = chatLines.get(index);
         String value = text(line);
         int textX = Math.max(0, panelX - ChatHeadRenderer.textOffset());
-        int position = InlineTextEngine.layout(minecraft.fontRenderer, value)
-                .sourceIndexAt(minecraft.fontRenderer, textX);
+        ITextComponent component = line.getChatComponent();
+        InlineTextLayout layout = InlineTextEngine.layout(minecraft.fontRenderer, value);
+        int position = ChatTypographyRenderer.isPositioned(component) && !layout.hasGlyphs()
+                ? ChatTypographyRenderer.formattedIndexAt(component, textX)
+                : layout.sourceIndexAt(minecraft.fontRenderer, textX);
         boolean head = EnhancedChatFeatures.playerHeads()
                 && panelX >= 0 && panelX < ChatHeadRenderer.HEAD_SIZE
                 && line instanceof ChatHeadLineMetadata

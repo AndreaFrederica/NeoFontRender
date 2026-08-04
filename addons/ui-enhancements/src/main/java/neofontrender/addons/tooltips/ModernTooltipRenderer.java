@@ -15,6 +15,8 @@ import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
 import java.util.List;
+import neofontrender.addons.cjk.CjkTypographyRenderer;
+import neofontrender.api.text.CjkParagraphLayoutProvider;
 
 final class ModernTooltipRenderer {
     private static final int Z_LEVEL = 300;
@@ -246,12 +248,18 @@ final class ModernTooltipRenderer {
         for (int i = 0; i < layout.lines.size(); i++) {
             String line = layout.lines.get(i);
             int x = layout.x;
+            CjkParagraphLayoutProvider.Layout paragraph = CjkTypographyRenderer.layout(
+                    font, line, Math.max(1, layout.width), TooltipConfig.lineHeight);
+            int renderedWidth = paragraph == null ? font.getStringWidth(line)
+                    : CjkTypographyRenderer.measuredWidth(font, paragraph);
             if (TooltipConfig.centerTitle && i < layout.titleLines) {
-                x += Math.max(0, (layout.width - font.getStringWidth(line)) / 2);
+                x += Math.max(0, (layout.width - renderedWidth) / 2);
             }
             int color = i < layout.titleLines ? TooltipConfig.titleColor : TooltipConfig.textColor;
-            if (TooltipConfig.textShadow) font.drawStringWithShadow(line, x, y, color);
-            else font.drawString(line, x, y, color);
+            if (!CjkTypographyRenderer.draw(font, paragraph, x, y, color, TooltipConfig.textShadow)) {
+                if (TooltipConfig.textShadow) font.drawStringWithShadow(line, x, y, color);
+                else font.drawString(line, x, y, color);
+            }
             if (i + 1 == layout.titleLines && layout.lines.size() > layout.titleLines) {
                 y += TooltipConfig.titleGap;
             }

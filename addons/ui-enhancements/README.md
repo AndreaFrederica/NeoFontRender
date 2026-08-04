@@ -10,6 +10,8 @@ continuing to publish Forge tooltip color and post-render events.
 
 Current feature modules:
 
+- Experimental Tiqian paragraph typography for Simplified Chinese, with the
+  original NFR CJK rules retained as the fallback for other locales and failures.
 - Smooth wheel scrolling for vanilla `GuiSlot` and Forge `GuiScrollingList`.
 - Native GLFW I-beam cursors over vanilla and ModularUI text fields.
 - In-world screen background fade, four-corner gradient, and configurable
@@ -44,6 +46,12 @@ Only providers that explicitly return `true` from `replacesVanilla()` may replac
 Namespaced ids and deterministic ordering allow multiple integrations to share one height stack.
 
 ## Build
+
+Initialize the pinned Tiqian source before the first UIE build:
+
+```powershell
+git submodule update --init addons/ui-enhancements/vendor/tiqian
+```
 
 ```powershell
 .\gradlew.bat :addons:ui-enhancements:test :addons:ui-enhancements:remapJar

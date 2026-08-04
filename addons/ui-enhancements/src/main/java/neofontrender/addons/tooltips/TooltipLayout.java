@@ -3,6 +3,7 @@ package neofontrender.addons.tooltips;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraftforge.client.event.RenderTooltipEvent;
 import neofontrender.core.font.support.TooltipBoundsCompat;
+import neofontrender.addons.cjk.CjkTypographyRenderer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -79,7 +80,10 @@ final class TooltipLayout {
 
     private static int measure(FontRenderer font, List<String> lines) {
         int width = 0;
-        for (String line : lines) width = Math.max(width, TooltipBoundsCompat.measuredWidth(font, line));
+        for (String line : lines) {
+            width = Math.max(width, Math.max(TooltipBoundsCompat.measuredWidth(font, line),
+                    CjkTypographyRenderer.measuredWidth(font, line)));
+        }
         return width;
     }
 }

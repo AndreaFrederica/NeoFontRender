@@ -13,6 +13,7 @@ import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.event.HoverEvent;
 import net.minecraft.util.math.MathHelper;
+import neofontrender.addons.cjk.PositionedTextLine;
 
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -40,6 +41,18 @@ public final class ChatItemIconRenderer {
     public static void renderLine(ITextComponent component, int x, int y) {
         if (!EnhancedChatFeatures.itemIcons() || component == null) return;
         Minecraft minecraft = Minecraft.getMinecraft();
+        if (component instanceof PositionedTextLine) {
+            PositionedTextLine positioned = (PositionedTextLine) component;
+            for (ITextComponent part : component) {
+                ItemStack stack = markerStack(part);
+                if (stack.isEmpty()) continue;
+                float left = positioned.nfrUi$componentLeft(part);
+                float right = positioned.nfrUi$componentRight(part);
+                renderStack(stack, x + Math.max(0, Math.round((left + right - 8.0F) / 2.0F)), y);
+            }
+            restoreChatDrawingState();
+            return;
+        }
         int cursor = x;
         for (ITextComponent part : component) {
             String text = GuiUtilRenderComponents.removeTextColorsIfConfigured(

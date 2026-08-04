@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'java-library'
+    id 'org.jetbrains.kotlin.jvm' version '2.3.20'
     id 'xyz.wagyourtail.unimined' version '1.4.26-kappa'
 }
 
@@ -67,6 +68,9 @@ dependencies {
     // Embedded SQL database backing the chat-history persistence layer.
     contain 'com.h2database:h2:2.3.232'
 
+    // Tiqian is compiled from the pinned submodule by the JVM-only wrapper project.
+    contain project(path: ':addons:ui-enhancements:tiqian-jvm', configuration: 'jvmRuntimeElements')
+
     // Arc3D Core is distributed by the required NFR main mod. Compile against the same public
     // upstream packages without embedding a duplicate copy in this addon.
     compileOnly('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
@@ -102,6 +106,14 @@ processResources {
     from('vendor/salutation-upstream/LICENSE') {
         into 'META-INF'
         rename { 'LICENSE-Salutation-1.12.2.txt' }
+    }
+    from('vendor/tiqian/LICENSE') {
+        into 'META-INF'
+        rename { 'LICENSE-Tiqian.txt' }
+    }
+    from('TIQIAN-NOTICE.md') {
+        into 'META-INF'
+        rename { 'NOTICE-Tiqian.md' }
     }
     from('vendor/salutation-upstream/LICENSE') {
         into 'META-INF'
@@ -160,10 +172,14 @@ tasks.register('prepareCombinedClientRun', Copy) {
     rename { 'neofontrender-ui-enhancements-dev.jar' }
 }
 
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask).configureEach {
+    compilerOptions.jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25
+}
+
 tasks.register('stageUiEnhancementsRelease', Sync) {
     group = 'distribution'
     description = 'Stages only the remapped, installable UI Enhancements JAR.'
-    dependsOn tasks.named('build')
+    dependsOn tasks.named('build'), tasks.named('remapJar')
     from(layout.buildDirectory.file("libs/neofontrender-ui-enhancements-${project.version}.jar"))
     into rootProject.layout.buildDirectory.dir('release/uie')
 }

@@ -22,6 +22,7 @@ import neofontrender.addons.worldcreation.CreateWorldModule;
 import neofontrender.addons.mainmenu.MainMenuModule;
 import neofontrender.addons.zoom.ZoomModule;
 import neofontrender.addons.hover.HoverEffectsModule;
+import neofontrender.addons.cjk.CjkTypographyModule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -50,6 +51,7 @@ public final class NfrUiEnhancements {
 
     private static final List<UiEnhancementModule> MODULES = Arrays.asList(
             new SmoothScrollingModule(),
+            new CjkTypographyModule(),
             new TextInputModule(),
             new ScreenEffectsModule(),
             new WorldLoadingModule(),

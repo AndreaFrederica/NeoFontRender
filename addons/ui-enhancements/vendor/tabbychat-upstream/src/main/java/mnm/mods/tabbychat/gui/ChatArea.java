@@ -47,6 +47,7 @@ import neofontrender.addons.chat.EnhancedChatFeatures;
 import neofontrender.addons.api.inline.InlineGlyphHit;
 import neofontrender.addons.api.inline.InlineTextEngine;
 import neofontrender.addons.api.inline.InlineTextLayout;
+import neofontrender.addons.cjk.ChatTypographyRenderer;
 import mnm.mods.tabbychat.ChatMessage;
 import org.lwjgl.input.Mouse;
 
@@ -239,8 +240,10 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
             drawPrivateLine(line, xPos, yPos);
             return;
         }
-        String text = line.getMessageWithOptionalTimestamp().getFormattedText();
-        int contentHeight = InlineTextEngine.layout(mc.fontRenderer, text).height();
+        ITextComponent display = line.getMessageWithOptionalTimestamp();
+        String text = display.getFormattedText();
+        InlineTextLayout inline = InlineTextEngine.layout(mc.fontRenderer, text);
+        int contentHeight = inline.height();
         int iconY = yPos + Math.max(0, contentHeight - mc.fontRenderer.FONT_HEIGHT);
         float fade = getLineFade(line);
         if (line instanceof ChatMessage) {
@@ -254,9 +257,14 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
                 ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity * fade)
                 : Color.WHITE.getHex() & 0x00FFFFFF
                     | ChatFadeMath.lineOpacity(mc.gameSettings.chatOpacity, fade) << 24;
-        InlineTextEngine.layout(mc.fontRenderer, text).draw(mc.fontRenderer,
-                xPos + ChatHeadRenderer.textOffset(), yPos, configured, true);
-        ChatItemIconRenderer.renderLine(line.getMessageWithOptionalTimestamp(),
+        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()) {
+            ChatTypographyRenderer.draw(mc.fontRenderer, display,
+                    xPos + ChatHeadRenderer.textOffset(), yPos, configured, true);
+        } else {
+            inline.draw(mc.fontRenderer, xPos + ChatHeadRenderer.textOffset(),
+                    yPos, configured, true);
+        }
+        ChatItemIconRenderer.renderLine(display,
                 xPos + ChatHeadRenderer.textOffset(), iconY);
     }
 
@@ -293,14 +301,17 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     }
 
     private void drawPrivateLine(Message line, int xPos, int yPos) {
+        ITextComponent display = line.getMessageWithOptionalTimestamp();
         String text = lineText(line);
-        int contentHeight = InlineTextEngine.layout(mc.fontRenderer, text).height();
+        InlineTextLayout inline = InlineTextEngine.layout(mc.fontRenderer, text);
+        int contentHeight = inline.height();
         ChatMessageMetadata metadata = line instanceof ChatMessage
                 ? ((ChatMessage) line).nfrUi$getMessageMetadata() : null;
         boolean outgoing = metadata != null && metadata.outgoing;
         float fade = getLineFade(line);
         int avatarSpace = EnhancedChatFeatures.playerHeads() ? ChatHeadRenderer.HEAD_SIZE + 5 : 0;
-        int textWidth = InlineTextEngine.width(mc.fontRenderer, text);
+        int textWidth = ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()
+                ? ChatTypographyRenderer.width(mc.fontRenderer, display) : inline.width();
         int bubbleWidth = Math.min(getBounds().width - avatarSpace - 8, textWidth + 8);
         int bubbleX = outgoing
                 ? getBounds().width - 3 - avatarSpace - bubbleWidth
@@ -326,10 +337,14 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         int configured = ChatStyleConfig.enabled
                 ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity * fade)
                 : 0x00FFFFFF | alpha << 24;
-        InlineTextEngine.layout(mc.fontRenderer, text).draw(mc.fontRenderer,
-                textX, yPos + 1, configured, false);
+        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()) {
+            ChatTypographyRenderer.draw(mc.fontRenderer, display,
+                    textX, yPos + 1, configured, false);
+        } else {
+            inline.draw(mc.fontRenderer, textX, yPos + 1, configured, false);
+        }
         int iconY = yPos + 1 + Math.max(0, contentHeight - mc.fontRenderer.FONT_HEIGHT);
-        ChatItemIconRenderer.renderLine(line.getMessageWithOptionalTimestamp(), textX, iconY);
+        ChatItemIconRenderer.renderLine(display, textX, iconY);
         if (line instanceof ChatMessage && ((ChatMessage) line).nfrUi$isFirstFragment()) {
             int headX = outgoing
                     ? getBounds().width - 3 - ChatHeadRenderer.HEAD_SIZE : xPos;
@@ -483,8 +498,11 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         Message line = visible.get(row);
         String value = messageText(line);
         int localX = Math.max(0, mouseX - textX(line, 3));
-        int position = InlineTextEngine.layout(mc.fontRenderer, value)
-                .sourceIndexAt(mc.fontRenderer, localX);
+        ITextComponent display = line.getMessageWithOptionalTimestamp();
+        InlineTextLayout inline = InlineTextEngine.layout(mc.fontRenderer, value);
+        int position = ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()
+                ? ChatTypographyRenderer.formattedIndexAt(display, localX)
+                : inline.sourceIndexAt(mc.fontRenderer, localX);
         int headX = isPrivateView() && isOutgoing(line)
                 ? width - 3 - ChatHeadRenderer.HEAD_SIZE : 3;
         boolean head = EnhancedChatFeatures.playerHeads()
@@ -499,7 +517,13 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     private ITextComponent nfrUi$componentAt(Message line, int mouseX) {
         int x = textX(line, 3);
         if (mouseX < x) return null;
-        for (ITextComponent component : line.getMessageWithOptionalTimestamp()) {
+        ITextComponent display = line.getMessageWithOptionalTimestamp();
+        InlineTextLayout inline = InlineTextEngine.layout(
+                mc.fontRenderer, display.getFormattedText());
+        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()) {
+            return ChatTypographyRenderer.componentAt(display, mouseX - x);
+        }
+        for (ITextComponent component : display) {
             String text = GuiUtilRenderComponents.removeTextColorsIfConfigured(
                     component.getUnformattedComponentText(), false);
             x += InlineTextEngine.width(mc.fontRenderer, text);
@@ -532,8 +556,15 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
             String value = messageText(line);
             int textX = textX(line, xPos);
             InlineTextLayout layout = InlineTextEngine.layout(mc.fontRenderer, value);
-            int x1 = textX + layout.widthTo(mc.fontRenderer, range.start);
-            int x2 = textX + layout.widthTo(mc.fontRenderer, range.end);
+            ITextComponent display = line.getMessageWithOptionalTimestamp();
+            boolean positioned = ChatTypographyRenderer.isPositioned(display)
+                    && !layout.hasGlyphs();
+            int x1 = textX + Math.round(positioned
+                    ? ChatTypographyRenderer.xAtFormattedIndex(display, range.start)
+                    : layout.widthTo(mc.fontRenderer, range.start));
+            int x2 = textX + Math.round(positioned
+                    ? ChatTypographyRenderer.xAtFormattedIndex(display, range.end)
+                    : layout.widthTo(mc.fontRenderer, range.end));
             drawRect(x1, y, x2, y + height, ChatCopyController.SELECTION_COLOR);
         }
     }
@@ -734,12 +765,20 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     private int textX(Message line, int baseX) {
         if (!isPrivateView()) return baseX + ChatHeadRenderer.textOffset();
         int avatarSpace = EnhancedChatFeatures.playerHeads() ? ChatHeadRenderer.HEAD_SIZE + 5 : 0;
+        ITextComponent display = line.getMessageWithOptionalTimestamp();
         int bubbleWidth = Math.min(getBounds().width - avatarSpace - 8,
-                InlineTextEngine.width(mc.fontRenderer, messageText(line)) + 8);
+                nfrUi$textWidth(display) + 8);
         int bubbleX = isOutgoing(line)
                 ? getBounds().width - 3 - avatarSpace - bubbleWidth
                 : baseX + avatarSpace;
         return bubbleX + 4;
+    }
+
+    private int nfrUi$textWidth(ITextComponent display) {
+        InlineTextLayout inline = InlineTextEngine.layout(
+                mc.fontRenderer, display.getFormattedText());
+        return ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()
+                ? ChatTypographyRenderer.width(mc.fontRenderer, display) : inline.width();
     }
 
 }

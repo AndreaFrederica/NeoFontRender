@@ -17,6 +17,8 @@ import org.lwjgl.opengl.GL11;
 import neofontrender.api.text.ModernTextApi;
 import neofontrender.api.text.ModernTextLayout;
 import neofontrender.api.color.TextColorPaletteRegistry;
+import neofontrender.api.text.CjkParagraphLayoutProvider;
+import neofontrender.api.text.CjkParagraphLayoutRegistry;
 import neofontrender.core.font.support.ScopedFontRenderBypass;
 import neofontrender.core.font.support.ShadowColorPolicy;
 import neofontrender.core.font.FontManager;
@@ -631,6 +633,12 @@ public abstract class MixinFontRenderer {
         if (str == null) {
             return;
         }
+        CjkParagraphLayoutProvider.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
+        if (paragraph != null) {
+            cir.setReturnValue(Math.min(str.length(),
+                    Math.max(0, paragraph.firstRawBoundary(str.length()))));
+            return;
+        }
         PreprocessedText preprocessed = TextPreprocessingPipeline.process(str);
         if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
             cir.setReturnValue(sfr$sizePreprocessedTextToWidth(preprocessed, wrapWidth));
@@ -692,6 +700,38 @@ public abstract class MixinFontRenderer {
         }
 
         cir.setReturnValue(pos != len && breakPos != -1 && breakPos < pos ? breakPos : pos);
+    }
+
+    @Inject(method = "drawSplitString", at = @At("HEAD"), cancellable = true)
+    private void sfr$drawCjkParagraph(String str, int x, int y, int wrapWidth, int textColor,
+                                      CallbackInfo ci) {
+        if (str == null) return;
+        CjkParagraphLayoutProvider.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
+        if (paragraph == null) return;
+        FontRenderer self = (FontRenderer) (Object) this;
+        for (CjkParagraphLayoutProvider.Line line : paragraph.lines()) {
+            for (CjkParagraphLayoutProvider.Run run : line.runs()) {
+                self.drawString(run.formattedText(), x + run.xOffset(),
+                        y + line.yOffset(), textColor, false);
+            }
+        }
+        ci.cancel();
+    }
+
+    private CjkParagraphLayoutProvider.Layout sfr$layoutCjkParagraph(String text, int width) {
+        if (!NeofontrenderConfig.fixCjkLineBreak()) return null;
+        PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
+        if (preprocessed.transformed() && ModernTextApi.isAvailable()) return null;
+        FontRenderer self = (FontRenderer) (Object) this;
+        return CjkParagraphLayoutRegistry.layout(new CjkParagraphLayoutProvider.Request(
+                text, width, this.FONT_HEIGHT, sfr$currentLanguageCode(), self::getStringWidth));
+    }
+
+    private static String sfr$currentLanguageCode() {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        return minecraft == null || minecraft.getLanguageManager() == null
+                || minecraft.getLanguageManager().getCurrentLanguage() == null
+                ? "" : minecraft.getLanguageManager().getCurrentLanguage().getLanguageCode();
     }
 
     private float sfr$getWrappingCharWidth(int codePoint, boolean bold, boolean rendererActive) {

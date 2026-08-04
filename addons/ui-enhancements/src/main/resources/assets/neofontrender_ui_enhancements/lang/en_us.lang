@@ -435,3 +435,7 @@ neofontrender_ui_enhancements.gui.inline_glyph.allowlist=Image host allowlist (c
 neofontrender_ui_enhancements.gui.inline_glyph.blocklist=Image host blocklist (takes priority)
 neofontrender_ui_enhancements.gui.chat.context.copy_image=Copy image
 neofontrender_ui_enhancements.chat.image.copy_hint=Right-click to copy · Hold Alt for natural size
+neofontrender_ui_enhancements.gui.cjk_typography.category=CJK Typography
+neofontrender_ui_enhancements.gui.cjk_typography.engine=Paragraph layout engine
+neofontrender_ui_enhancements.gui.cjk_typography.engine.tiqian=Tiqian
+neofontrender_ui_enhancements.gui.cjk_typography.engine.legacy=Legacy rules

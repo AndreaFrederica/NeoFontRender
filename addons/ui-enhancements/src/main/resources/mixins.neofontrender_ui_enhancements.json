@@ -39,6 +39,7 @@
     "MixinGuiNewChatHistory",
     "MixinForgeGuiScrollingListSmoothScroll",
     "MixinGuiScreenBackground",
+    "MixinGuiScreenBookCjkTypography",
     "MixinGuiScreenPlayerLinks",
     "MixinGuiScreenResourcePacksProgress",
     "MixinGuiSlotSmoothScroll",

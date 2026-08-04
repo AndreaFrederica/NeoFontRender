@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - 'addons/ui-enhancements/**'
+      - '.gitmodules'
       - 'src/main/java/icyllis/arc3d/**'
       - 'src/main/java/neofontrender/api/**'
       - 'src/main/resources/META-INF/LICENSE-Arc3D.txt'
@@ -21,6 +22,7 @@ on:
       - '**'
     paths:
       - 'addons/ui-enhancements/**'
+      - '.gitmodules'
       - 'src/main/java/icyllis/arc3d/**'
       - 'src/main/java/neofontrender/api/**'
       - 'src/main/resources/META-INF/LICENSE-Arc3D.txt'
@@ -47,6 +49,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Grant execute permission for Gradle wrapper
         run: |
@@ -87,6 +91,9 @@ jobs:
           grep -Fxq 'mcmod.info' <<<"$entries"
           grep -Fxq 'mixins.neofontrender_ui_enhancements.json' <<<"$entries"
           grep -Fxq 'neofontrender/addons/mixin/UiEnhancementsMixinLoader.class' <<<"$entries"
+          grep -Fxq 'META-INF/LICENSE-Tiqian.txt' <<<"$entries"
+          grep -Fxq 'META-INF/NOTICE-Tiqian.md' <<<"$entries"
+          grep -q 'nfr-tiqian-jvm' <<<"$entries"
           if [[ -e "addons/ui-enhancements/build/libs/neofontrender-ui-enhancements-${VERSION}-dev.jar" ]]; then
             test "$jar" -nt "addons/ui-enhancements/build/libs/neofontrender-ui-enhancements-${VERSION}-dev.jar" || true
           fi
