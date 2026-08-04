@@ -68,14 +68,22 @@ public final class NfrSettingsDraft {
     public final float originalShadowOffsetY = NeofontrenderConfig.shadowOffsetY();
     public final float originalShadowBlurRadius = NeofontrenderConfig.shadowBlurRadius();
     public final int originalShadowColor = NeofontrenderConfig.shadowColor();
+    public final boolean originalColoredShadow = NeofontrenderConfig.coloredShadowEnabled();
+    public final String originalShadowColorRemapRules =
+            NeofontrenderConfig.shadowColorRemapRulesConfig();
     public final boolean originalFixImeInput = NeofontrenderConfig.fixImeInput();
     public final boolean originalFixUnicodeTextDeletion = NeofontrenderConfig.fixUnicodeTextDeletion();
     public final boolean originalFixCjkLineBreak = NeofontrenderConfig.fixCjkLineBreak();
     public final boolean originalAllowSignPaste = NeofontrenderConfig.allowSignPaste();
     public final boolean originalLaboratoryHexChat = NeofontrenderConfig.laboratoryHexChat();
+    public final boolean originalLaboratoryHexChatResetStyles = NeofontrenderConfig.laboratoryHexChatResetStyles();
     public final boolean originalLaboratoryTextUndoRedo = NeofontrenderConfig.laboratoryTextUndoRedo();
     public final boolean originalCompatModernSplash = NeofontrenderConfig.compatModernSplash();
     public final boolean originalCompatTinkersAntique = NeofontrenderConfig.compatTinkersAntique();
+    public final String originalTextColorPaletteProvider =
+            NeofontrenderConfig.textColorPaletteProvider();
+    public final String originalCustomTextColorPalette =
+            NeofontrenderConfig.customTextColorPalette();
     public final String originalEnchantmentBackend = NeofontrenderConfig.enchantmentFontBackend();
     public final String originalEnchantmentFonts = joinFontList(NeofontrenderConfig.enchantmentFonts());
     public final boolean originalSplashFontOverride = NeofontrenderConfig.splashFontOverrideEnabled();
@@ -110,14 +118,19 @@ public final class NfrSettingsDraft {
     public float shadowOffsetY = originalShadowOffsetY;
     public float shadowBlurRadius = originalShadowBlurRadius;
     public int shadowColor = originalShadowColor;
+    public boolean coloredShadow = originalColoredShadow;
+    public String shadowColorRemapRules = originalShadowColorRemapRules;
     public boolean fixImeInput = originalFixImeInput;
     public boolean fixUnicodeTextDeletion = originalFixUnicodeTextDeletion;
     public boolean fixCjkLineBreak = originalFixCjkLineBreak;
     public boolean allowSignPaste = originalAllowSignPaste;
     public boolean laboratoryHexChat = originalLaboratoryHexChat;
+    public boolean laboratoryHexChatResetStyles = originalLaboratoryHexChatResetStyles;
     public boolean laboratoryTextUndoRedo = originalLaboratoryTextUndoRedo;
     public boolean compatModernSplash = originalCompatModernSplash;
     public boolean compatTinkersAntique = originalCompatTinkersAntique;
+    public String textColorPaletteProvider = originalTextColorPaletteProvider;
+    public String customTextColorPalette = originalCustomTextColorPalette;
     public String enchantmentBackend = originalEnchantmentBackend;
     public String enchantmentFonts = originalEnchantmentFonts;
     public boolean splashFontOverride = originalSplashFontOverride;
@@ -224,6 +237,15 @@ public final class NfrSettingsDraft {
     }
 
     public void writeToConfig(boolean save) {
+        writeToConfig(save, true);
+    }
+
+    /** Applies live-preview settings while keeping the Shadow page isolated until Apply. */
+    public void writePreviewToConfig() {
+        writeToConfig(false, false);
+    }
+
+    private void writeToConfig(boolean save, boolean includeShadowPage) {
         applyForceUnicodeFont(forceUnicodeFont, save);
         NeofontrenderConfig.setEnabled(enabled);
         NeofontrenderConfig.setRenderingEngine(engine);
@@ -240,24 +262,31 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setSignModelLod(signModelLod);
         NeofontrenderConfig.setSignBlockOcclusionCulling(signBlockOcclusionCulling);
         NeofontrenderConfig.setRenderingBrightness(parseFloat(brightness, 3.0F, 0.0F, 12.0F));
-        NeofontrenderConfig.setShadowMode(shadowMode);
         NeofontrenderConfig.setShadowMaskFonts(shadowMaskFonts);
         NeofontrenderConfig.setShadowMaskCodepoints(shadowMaskCodepoints);
-        NeofontrenderConfig.setShadowLength(shadowLength);
-        NeofontrenderConfig.setShadowOpacity(shadowOpacity);
-        NeofontrenderConfig.setModernShadowEnabled(modernShadow);
-        NeofontrenderConfig.setShadowOffsetX(shadowOffsetX);
-        NeofontrenderConfig.setShadowOffsetY(shadowOffsetY);
-        NeofontrenderConfig.setShadowBlurRadius(shadowBlurRadius);
-        NeofontrenderConfig.setShadowColor(shadowColor);
+        if (includeShadowPage) {
+            NeofontrenderConfig.setShadowMode(shadowMode);
+            NeofontrenderConfig.setShadowLength(shadowLength);
+            NeofontrenderConfig.setShadowOpacity(shadowOpacity);
+            NeofontrenderConfig.setModernShadowEnabled(modernShadow);
+            NeofontrenderConfig.setShadowOffsetX(shadowOffsetX);
+            NeofontrenderConfig.setShadowOffsetY(shadowOffsetY);
+            NeofontrenderConfig.setShadowBlurRadius(shadowBlurRadius);
+            NeofontrenderConfig.setShadowColor(shadowColor);
+            NeofontrenderConfig.setColoredShadowEnabled(coloredShadow);
+            NeofontrenderConfig.setShadowColorRemapRules(shadowColorRemapRules);
+        }
         NeofontrenderConfig.setFixImeInput(fixImeInput);
         NeofontrenderConfig.setFixUnicodeTextDeletion(fixUnicodeTextDeletion);
         NeofontrenderConfig.setFixCjkLineBreak(fixCjkLineBreak);
         NeofontrenderConfig.setAllowSignPaste(allowSignPaste);
         NeofontrenderConfig.setLaboratoryHexChat(laboratoryHexChat);
+        NeofontrenderConfig.setLaboratoryHexChatResetStyles(laboratoryHexChatResetStyles);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(laboratoryTextUndoRedo);
         NeofontrenderConfig.setCompatModernSplash(compatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(compatTinkersAntique);
+        NeofontrenderConfig.setTextColorPaletteProvider(textColorPaletteProvider);
+        NeofontrenderConfig.setCustomTextColorPalette(customTextColorPalette);
         NeofontrenderConfig.setEnchantmentFontBackend(enchantmentBackend);
         NeofontrenderConfig.setEnchantmentFonts(parseFontList(enchantmentFonts));
         NeofontrenderConfig.setSplashFontOverrideEnabled(splashFontOverride);
@@ -316,14 +345,19 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setShadowOffsetY(originalShadowOffsetY);
         NeofontrenderConfig.setShadowBlurRadius(originalShadowBlurRadius);
         NeofontrenderConfig.setShadowColor(originalShadowColor);
+        NeofontrenderConfig.setColoredShadowEnabled(originalColoredShadow);
+        NeofontrenderConfig.setShadowColorRemapRules(originalShadowColorRemapRules);
         NeofontrenderConfig.setFixImeInput(originalFixImeInput);
         NeofontrenderConfig.setFixUnicodeTextDeletion(originalFixUnicodeTextDeletion);
         NeofontrenderConfig.setFixCjkLineBreak(originalFixCjkLineBreak);
         NeofontrenderConfig.setAllowSignPaste(originalAllowSignPaste);
         NeofontrenderConfig.setLaboratoryHexChat(originalLaboratoryHexChat);
+        NeofontrenderConfig.setLaboratoryHexChatResetStyles(originalLaboratoryHexChatResetStyles);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(originalLaboratoryTextUndoRedo);
         NeofontrenderConfig.setCompatModernSplash(originalCompatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(originalCompatTinkersAntique);
+        NeofontrenderConfig.setTextColorPaletteProvider(originalTextColorPaletteProvider);
+        NeofontrenderConfig.setCustomTextColorPalette(originalCustomTextColorPalette);
         NeofontrenderConfig.setEnchantmentFontBackend(originalEnchantmentBackend);
         NeofontrenderConfig.setEnchantmentFonts(parseFontList(originalEnchantmentFonts));
         NeofontrenderConfig.setSplashFontOverrideEnabled(originalSplashFontOverride);

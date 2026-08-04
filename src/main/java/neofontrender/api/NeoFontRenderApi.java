@@ -6,6 +6,11 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.FontManager;
+import neofontrender.api.color.TextColorPaletteCodec;
+import neofontrender.api.color.TextColorPaletteProvider;
+import neofontrender.api.color.TextColorPaletteRegistry;
+
+import java.util.List;
 
 /**
  * Stable client-side integration API for other mods.
@@ -16,7 +21,7 @@ import neofontrender.core.font.FontManager;
  */
 @SideOnly(Side.CLIENT)
 public final class NeoFontRenderApi {
-    public static final int API_VERSION = 4;
+    public static final int API_VERSION = 5;
 
     private NeoFontRenderApi() {}
 
@@ -33,6 +38,70 @@ public final class NeoFontRenderApi {
     public static ListenableFuture<?> reload() {
         Minecraft minecraft = Minecraft.getMinecraft();
         return minecraft.addScheduledTask(() -> reloadNow(minecraft));
+    }
+
+    /** Registers a selectable legacy text-color palette provider for the lifetime of the client. */
+    public static void registerTextColorPaletteProvider(TextColorPaletteProvider provider) {
+        TextColorPaletteRegistry.register(provider);
+    }
+
+    /** Includes {@code auto} followed by all built-in and mod-registered provider ids. */
+    public static List<String> getTextColorPaletteProviderIds() {
+        return TextColorPaletteRegistry.providerIds();
+    }
+
+    /** Refreshes renderers after a dynamic palette provider changes its internal state. */
+    public static void invalidateTextColorPaletteProviders() {
+        TextColorPaletteRegistry.invalidate();
+    }
+
+    public static String getSelectedTextColorPaletteProvider() {
+        return NeofontrenderConfig.textColorPaletteProvider();
+    }
+
+    public static ListenableFuture<?> selectTextColorPaletteProvider(String providerId) {
+        return selectTextColorPaletteProvider(providerId, true);
+    }
+
+    /** Selects a built-in or mod-registered provider. Unknown ids safely fall back to auto. */
+    public static ListenableFuture<?> selectTextColorPaletteProvider(
+            String providerId, boolean persist) {
+        String selected = TextColorPaletteRegistry.normalizeSelection(providerId);
+        Minecraft minecraft = Minecraft.getMinecraft();
+        return minecraft.addScheduledTask(() -> {
+            NeofontrenderConfig.setTextColorPaletteProvider(selected);
+            if (persist) NeofontrenderConfig.save();
+        });
+    }
+
+    public static ListenableFuture<?> setCustomTextColorPalette(int[] colorCodes) {
+        return setCustomTextColorPalette(colorCodes, true);
+    }
+
+    /** Stores 16 foreground colors or a complete 32-entry foreground/shadow palette. */
+    public static ListenableFuture<?> setCustomTextColorPalette(
+            int[] colorCodes, boolean persist) {
+        if (colorCodes == null || (colorCodes.length != 16 && colorCodes.length != 32)) {
+            throw new IllegalArgumentException("Custom palette must contain 16 or 32 colors");
+        }
+        int[] copy = colorCodes.clone();
+        Minecraft minecraft = Minecraft.getMinecraft();
+        return minecraft.addScheduledTask(() -> {
+            NeofontrenderConfig.setCustomTextColorCodes(copy);
+            if (persist) NeofontrenderConfig.save();
+        });
+    }
+
+    /** Parses the same comma/semicolon/whitespace-separated RGB format exposed by the settings UI. */
+    public static ListenableFuture<?> setCustomTextColorPalette(String colorCodes) {
+        return setCustomTextColorPalette(colorCodes, true);
+    }
+
+    /** Parses the same comma/semicolon/whitespace-separated RGB format exposed by the settings UI. */
+    public static ListenableFuture<?> setCustomTextColorPalette(
+            String colorCodes, boolean persist) {
+        int[] parsed = TextColorPaletteCodec.parse(colorCodes);
+        return setCustomTextColorPalette(parsed, persist);
     }
 
     /** Returns a point-in-time view of configuration and active backend state. */

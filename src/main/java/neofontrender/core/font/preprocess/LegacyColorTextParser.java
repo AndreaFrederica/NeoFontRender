@@ -1,6 +1,7 @@
 package neofontrender.core.font.preprocess;
 
 import neofontrender.api.text.ModernText;
+import neofontrender.core.config.NeofontrenderConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +15,12 @@ final class LegacyColorTextParser {
 
     static PreprocessedText process(String rawText, boolean decodeTinkersPua,
                                     boolean decodeHexColors) {
+        return process(rawText, decodeTinkersPua, decodeHexColors,
+                NeofontrenderConfig.laboratoryHexChatResetStyles());
+    }
+
+    static PreprocessedText process(String rawText, boolean decodeTinkersPua,
+                                    boolean decodeHexColors, boolean resetHexStyles) {
         if (rawText == null || rawText.isEmpty()) {
             return PreprocessedText.unchanged(rawText);
         }
@@ -29,6 +36,9 @@ final class LegacyColorTextParser {
         FormattingState formatting = new FormattingState();
         boolean colorOverride = false;
         int rgb = 0;
+        int[] hexGradient = null;
+        int hexGradientIndex = 0;
+        int hexGradientLength = 0;
         boolean needsStylePrefix = false;
         boolean transformed = false;
 
@@ -36,6 +46,7 @@ final class LegacyColorTextParser {
             char current = rawText.charAt(rawIndex);
             if (decodeTinkersPua && TinkersAntiqueTextPreprocessor.isMarker(current)) {
                 appendRun(modern, run, colorOverride, rgb);
+                hexGradient = null;
                 transformed = true;
                 while (rawIndex < rawText.length()
                         && TinkersAntiqueTextPreprocessor.isMarker(rawText.charAt(rawIndex))) {
@@ -69,9 +80,17 @@ final class LegacyColorTextParser {
 
             if (decodeHexColors && HexChatTextPreprocessor.isMarker(rawText, rawIndex)) {
                 appendRun(modern, run, colorOverride, rgb);
-                rgb = Integer.parseInt(rawText.substring(rawIndex + 1, rawIndex + 7), 16);
+                int markerLength = HexChatTextPreprocessor.markerLength(rawText, rawIndex);
+                hexGradient = HexChatTextPreprocessor.markerColors(rawText, rawIndex);
+                hexGradientIndex = 0;
+                hexGradientLength = HexChatTextPreprocessor.gradientLength(
+                        rawText, rawIndex + markerLength);
+                rgb = hexGradient.length == 0 ? 0xFFFFFF : hexGradient[0];
                 colorOverride = true;
-                rawIndex += 7;
+                if (resetHexStyles) {
+                    formatting.reset();
+                }
+                rawIndex += markerLength;
                 rawEnds.set(visible.length(), rawIndex);
                 needsStylePrefix = true;
                 transformed = true;
@@ -81,6 +100,10 @@ final class LegacyColorTextParser {
             if (needsStylePrefix) {
                 run.append(formatting.prefix());
                 needsStylePrefix = false;
+            }
+
+            if (hexGradient != null && hexGradient.length > 1 && run.length() == 0) {
+                run.append(formatting.prefix());
             }
 
             run.append(current);
@@ -103,7 +126,17 @@ final class LegacyColorTextParser {
                     run.append('\u00A7').append(code);
                     colorOverride = false;
                 }
+                char normalizedCode = Character.toLowerCase(code);
+                if ((normalizedCode >= '0' && normalizedCode <= '9')
+                        || (normalizedCode >= 'a' && normalizedCode <= 'f')
+                        || normalizedCode == 'r') {
+                    hexGradient = null;
+                }
                 formatting.accept(code);
+            } else if (hexGradient != null && hexGradient.length > 1) {
+                rgb = HexChatTextPreprocessor.interpolate(
+                        hexGradient, hexGradientIndex++, hexGradientLength);
+                appendRun(modern, run, true, rgb);
             }
         }
         appendRun(modern, run, colorOverride, rgb);
@@ -169,6 +202,10 @@ final class LegacyColorTextParser {
             if (underline) result.append('\u00A7').append('n');
             if (italic) result.append('\u00A7').append('o');
             return result.toString();
+        }
+
+        private void reset() {
+            bold = italic = underline = strikethrough = obfuscated = false;
         }
     }
 }

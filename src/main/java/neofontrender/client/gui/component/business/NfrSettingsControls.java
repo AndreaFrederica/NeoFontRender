@@ -109,7 +109,12 @@ public final class NfrSettingsControls {
     /** Opens ModularUI's native RGB/HSV/hex picker in an NFR-styled dialog. */
     public NfrColorPickerButton colorText(String name, Supplier<String> label, IntSupplier getter,
                                           IntConsumer setter, boolean alpha) {
-        return new NfrColorPickerButton(name, label, getter, setter, alpha, preview);
+        return colorText(name, label, getter, setter, alpha, preview);
+    }
+
+    public NfrColorPickerButton colorText(String name, Supplier<String> label, IntSupplier getter,
+                                          IntConsumer setter, boolean alpha, Runnable afterChange) {
+        return new NfrColorPickerButton(name, label, getter, setter, alpha, afterChange);
     }
 
     public NfrTextButton action(String labelKey, int width, int height, Runnable action) {
@@ -152,10 +157,14 @@ public final class NfrSettingsControls {
     }
 
     public IWidget shadowMode() {
+        return shadowMode(preview);
+    }
+
+    public IWidget shadowMode(Runnable afterChange) {
         return tooltip(dropdown("shadow_mode", "neofontrender.gui.option.shadow_mode",
                 () -> draft.shadowMode, value -> {
                     draft.shadowMode = value;
-                    preview.run();
+                    afterChange.run();
                 }, Arrays.asList("mask", "emoji", "all", "none"),
                 value -> tr("neofontrender.gui.shadow_mode." + value)).size(260, 24),
                 "neofontrender.tooltip.shadow_mode");
@@ -177,21 +186,30 @@ public final class NfrSettingsControls {
 
     public IWidget decimalSlider(String labelKey, Supplier<Float> getter, Consumer<Float> setter,
                                  float min, float max, float step) {
+        return decimalSlider(labelKey, getter, setter, min, max, step, preview);
+    }
+
+    public IWidget decimalSlider(String labelKey, Supplier<Float> getter, Consumer<Float> setter,
+                                 float min, float max, float step, Runnable afterChange) {
         NfrDecimalSlider slider = new NfrDecimalSlider(() -> tr(labelKey),
                 () -> String.format(Locale.ROOT, step < 0.1F ? "%.2f" : "%.1f", getter.get()));
         slider.value(new NfrDoubleValue(() -> (double) getter.get(), value -> {
                     double clipped = Math.max(min, Math.min(max, value));
                     float rounded = (float) (Math.round(clipped / step) * step);
                     setter.accept(rounded);
-                    preview.run();
+                    afterChange.run();
                 }))
                 .bounds(min, max);
         return slider.size(260, 24);
     }
 
     public IWidget shadowColor() {
+        return shadowColor(preview);
+    }
+
+    public IWidget shadowColor(Runnable afterChange) {
         return colorText("shadow_color", () -> tr("neofontrender.gui.option.shadow_color"),
-                () -> draft.shadowColor, value -> draft.shadowColor = value, true).size(260, 24);
+                () -> draft.shadowColor, value -> draft.shadowColor = value, true, afterChange).size(260, 24);
     }
 
     public NfrLabeledSlider brightness() {

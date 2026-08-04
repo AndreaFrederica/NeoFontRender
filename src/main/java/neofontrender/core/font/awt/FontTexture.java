@@ -5,6 +5,7 @@ import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.core.font.support.FontPixelUtils;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.ClientTextureDisposal;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -179,7 +180,7 @@ public class FontTexture implements AutoCloseable {
 
         @Override
         public void close() {
-            this.texture.deleteGlTexture();
+            ClientTextureDisposal.delete(this.location);
         }
     }
 

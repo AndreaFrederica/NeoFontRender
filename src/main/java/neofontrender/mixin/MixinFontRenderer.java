@@ -12,9 +12,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL11;
 import neofontrender.api.text.ModernTextApi;
 import neofontrender.api.text.ModernTextLayout;
+import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.core.font.support.ScopedFontRenderBypass;
+import neofontrender.core.font.support.ShadowColorPolicy;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.BakedGlyph;
 import neofontrender.core.font.awt.FontSet;
@@ -30,6 +34,8 @@ import neofontrender.core.font.linebreak.CjkLineBreakRules;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.StringErrorCorrector;
 
+import java.nio.FloatBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -37,7 +43,7 @@ import java.util.Locale;
  * Bridges vanilla {@link FontRenderer} into the replacement TTF pipeline.
  */
 @Mixin(FontRenderer.class)
-public class MixinFontRenderer {
+public abstract class MixinFontRenderer {
 
     @Shadow public float posX;
     @Shadow public float posY;
@@ -53,12 +59,26 @@ public class MixinFontRenderer {
     @Shadow private boolean italicStyle;
     @Shadow private boolean underlineStyle;
     @Shadow private boolean strikethroughStyle;
+    @Shadow protected abstract void setColor(float red, float green, float blue, float alpha);
 
     private final TextRunBatcher sfr$batcher = new TextRunBatcher();
+    private final FloatBuffer sfr$colorBuffer = BufferUtils.createFloatBuffer(4);
+    private int[] sfr$activeColorCodes = TextColorPaletteRegistry.vanillaColorCodes();
+    private int[] sfr$runtimeColorSnapshot = new int[0];
+    private String sfr$paletteProvider = "";
+    private long sfr$paletteRevision = Long.MIN_VALUE;
+    private int sfr$renderPassColor = 0xFFFFFFFF;
 
     // ================================================================== //
     //  Render hook
     // ================================================================== //
+
+    @Inject(method = "renderString(Ljava/lang/String;FFIZ)I", at = @At("HEAD"))
+    private void sfr$captureRenderPassColor(String text, float x, float y, int color,
+                                            boolean shadow,
+                                            CallbackInfoReturnable<Integer> cir) {
+        this.sfr$renderPassColor = color;
+    }
 
     @Inject(method = "drawString(Ljava/lang/String;FFIZ)I", at = @At("HEAD"), cancellable = true)
     private void sfr$onDrawString(String text, float x, float y, int color, boolean dropShadow,
@@ -67,8 +87,10 @@ public class MixinFontRenderer {
         if (!sfr$shouldHook() || text == null) {
             return;
         }
+        sfr$syncTextColorPalette();
         PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
         if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
+            color = sfr$resolveEffectiveColor(color);
             float advance = sfr$drawPreprocessedText(
                     preprocessed, x, y, color, dropShadow);
             this.posX = x + advance;
@@ -86,6 +108,7 @@ public class MixinFontRenderer {
         if (backend == null) {
             return;
         }
+        color = sfr$resolveEffectiveColor(color);
         if (dropShadow && NeofontrenderConfig.modernShadowEnabled()
                 && backend.supportsModernShadow() && backend.shouldRenderShadow(text)) {
             TextRenderResult rendered = backend.renderFormattedWithShadow(text, color);
@@ -111,7 +134,13 @@ public class MixinFontRenderer {
         if (!sfr$shouldHook() || text == null) {
             return;
         }
+        sfr$syncTextColorPalette();
         PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
+        if (shadow && NeofontrenderConfig.coloredShadowEnabled()
+                && (sfr$isAnyActive()
+                    || preprocessed.transformed() && ModernTextApi.isAvailable())) {
+            sfr$applyColoredShadowBase();
+        }
         if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
             ModernTextLayout layout = ModernTextApi.layoutFormatted(
                     preprocessed.modernText(), NeofontrenderConfig.fontSize(),
@@ -165,10 +194,12 @@ public class MixinFontRenderer {
                 this.italicStyle = false;
 
                 int colorIndex = style < 0 ? 15 : style;
-                if (shadow) {
-                    colorIndex += 16;
+                colorIndex = ShadowColorPolicy.paletteIndex(colorIndex, shadow,
+                        NeofontrenderConfig.coloredShadowEnabled());
+                int color = sfr$legacyColor(colorIndex);
+                if (shadow && NeofontrenderConfig.coloredShadowEnabled()) {
+                    color = sfr$coloredShadowColor(color);
                 }
-                int color = this.colorCode[colorIndex];
                 this.textColor = color;
                 this.red = (float) (color >> 16 & 255) / 255.0F;
                 this.blue = (float) (color >> 8 & 255) / 255.0F;
@@ -347,10 +378,12 @@ public class MixinFontRenderer {
                 this.italicStyle = false;
 
                 int colorIndex = style < 0 ? 15 : style;
-                if (shadow) {
-                    colorIndex += 16;
+                colorIndex = ShadowColorPolicy.paletteIndex(colorIndex, shadow,
+                        NeofontrenderConfig.coloredShadowEnabled());
+                int color = sfr$legacyColor(colorIndex);
+                if (shadow && NeofontrenderConfig.coloredShadowEnabled()) {
+                    color = sfr$coloredShadowColor(color);
                 }
-                int color = this.colorCode[colorIndex];
                 this.textColor = color;
                 this.red = (float) (color >> 16 & 255) / 255.0F;
                 this.blue = (float) (color >> 8 & 255) / 255.0F;
@@ -760,6 +793,61 @@ public class MixinFontRenderer {
         String className = ((Object) this).getClass().getName();
         return !className.equals("net.minecraftforge.fml.client.SplashProgress$SplashFontRenderer")
                 && !className.endsWith("SimpleModelFontRenderer");
+    }
+
+    /**
+     * Snapshot the final palette on the FontRenderer instance. Other constructor-tail mixins may
+     * replace those entries; resolving here observes their completed runtime values.
+     */
+    private void sfr$syncTextColorPalette() {
+        String provider = NeofontrenderConfig.textColorPaletteProvider();
+        long revision = TextColorPaletteRegistry.revision();
+        if (provider.equals(sfr$paletteProvider) && revision == sfr$paletteRevision
+                && Arrays.equals(sfr$runtimeColorSnapshot, this.colorCode)) return;
+        sfr$paletteProvider = provider;
+        sfr$paletteRevision = revision;
+        sfr$runtimeColorSnapshot = this.colorCode == null ? new int[0] : this.colorCode.clone();
+        sfr$activeColorCodes = TextColorPaletteRegistry.resolve(provider, this.colorCode);
+        FontManager.INSTANCE.updateLegacyColorCodes(sfr$activeColorCodes);
+    }
+
+    private int sfr$legacyColor(int index) {
+        return index >= 0 && index < sfr$activeColorCodes.length
+                ? sfr$activeColorCodes[index] & 0xFFFFFF : 0xFFFFFF;
+    }
+
+    private int sfr$coloredShadowColor(int color) {
+        return NeofontrenderConfig.shadowColorRemapRules().remap(color, sfr$activeColorCodes);
+    }
+
+    /** Restores the caller's RGB before vanilla has quarter-darkened its shadow pass. */
+    private void sfr$applyColoredShadowBase() {
+        int color = sfr$coloredShadowColor(this.sfr$renderPassColor);
+        this.textColor = color;
+        this.red = (color >> 16 & 255) / 255.0F;
+        this.blue = (color >> 8 & 255) / 255.0F;
+        this.green = (color & 255) / 255.0F;
+        this.alpha = alphaFromColor(color);
+        GlStateManager.color(this.red, this.blue, this.green, this.alpha);
+    }
+
+    /**
+     * Preserve FontRenderer subclasses that implement color as a GL multiplier (for example
+     * StellarAPI's WrappedFontRenderer) instead of encoding it in drawString's integer argument.
+     */
+    private int sfr$resolveEffectiveColor(int packedColor) {
+        float alpha = alphaFromColor(packedColor);
+        float red = (packedColor >> 16 & 255) / 255.0F;
+        float green = (packedColor >> 8 & 255) / 255.0F;
+        float blue = (packedColor & 255) / 255.0F;
+        this.setColor(red, green, blue, alpha);
+        this.sfr$colorBuffer.clear();
+        GL11.glGetFloat(GL11.GL_CURRENT_COLOR, this.sfr$colorBuffer);
+        int r = Math.max(0, Math.min(255, Math.round(this.sfr$colorBuffer.get(0) * 255.0F)));
+        int g = Math.max(0, Math.min(255, Math.round(this.sfr$colorBuffer.get(1) * 255.0F)));
+        int b = Math.max(0, Math.min(255, Math.round(this.sfr$colorBuffer.get(2) * 255.0F)));
+        int a = Math.max(0, Math.min(255, Math.round(this.sfr$colorBuffer.get(3) * 255.0F)));
+        return a << 24 | r << 16 | g << 8 | b;
     }
 
     private int sfr$currentArgb() {

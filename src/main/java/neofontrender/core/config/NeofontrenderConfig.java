@@ -4,7 +4,10 @@ import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.electronwill.nightconfig.toml.TomlFormat;
 import net.minecraft.client.Minecraft;
 import neofontrender.NeoFontRender;
+import neofontrender.api.color.TextColorPaletteCodec;
+import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.core.font.support.FontFileResolver;
+import neofontrender.core.font.support.ShadowColorRemapRules;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -26,6 +29,9 @@ public final class NeofontrenderConfig {
     private static final String DEFAULT_FONT_NAME = "Noto Sans SC";
     private static final String DEFAULT_FONT = "neofontrender:fonts/noto_sans_sc-regular.otf";
     private static final String ENCHANTMENT_FONT = "neofontrender:fonts/sric_minecraft_words.ttf";
+    private static final String DEFAULT_TEXT_COLOR_PALETTE =
+            "000000,0000AA,00AA00,00AAAA,AA0000,AA00AA,FFAA00,AAAAAA,"
+                    + "555555,5555FF,55FF55,55FFFF,FF5555,FF55FF,FFFF55,FFFFFF";
     private static Path configPath;
     private static CommentedFileConfig config;
     private static volatile Snapshot cached = Snapshot.defaults();
@@ -208,6 +214,11 @@ public final class NeofontrenderConfig {
     public static float shadowOffsetY() { return cached.shadowOffsetY; }
     public static float shadowBlurRadius() { return cached.shadowBlurRadius; }
     public static int shadowColor() { return cached.shadowColor; }
+    public static boolean coloredShadowEnabled() { return cached.coloredShadow; }
+    public static ShadowColorRemapRules shadowColorRemapRules() { return cached.shadowColorRemapRules; }
+    public static String shadowColorRemapRulesConfig() {
+        return cached.shadowColorRemapRules.toConfigString();
+    }
 
     public static float shadowOpacity() {
         return cached.shadowOpacity;
@@ -440,6 +451,10 @@ public final class NeofontrenderConfig {
         return cached.laboratoryHexChat;
     }
 
+    public static boolean laboratoryHexChatResetStyles() {
+        return cached.laboratoryHexChatResetStyles;
+    }
+
     public static boolean laboratoryTextUndoRedo() {
         return cached.laboratoryTextUndoRedo;
     }
@@ -450,6 +465,22 @@ public final class NeofontrenderConfig {
 
     public static boolean compatTinkersAntique() {
         return cached.compatTinkersAntique;
+    }
+
+    /** auto, vanilla, runtime, custom, or an API-registered provider id. */
+    public static String textColorPaletteProvider() {
+        return TextColorPaletteRegistry.normalizeSelection(
+                config.getOrElse("compat.colorPalette.provider", TextColorPaletteRegistry.AUTO));
+    }
+
+    /** Editable comma-separated 16/32-entry RRGGBB palette. */
+    public static String customTextColorPalette() {
+        String value = config.getOrElse("compat.colorPalette.custom", DEFAULT_TEXT_COLOR_PALETTE);
+        return value == null || value.trim().isEmpty() ? DEFAULT_TEXT_COLOR_PALETTE : value.trim();
+    }
+
+    public static int[] customTextColorCodes() {
+        return TextColorPaletteCodec.parse(customTextColorPalette());
     }
 
     /** vanilla, auto, awt, or cosmic. Only the enchanting-table magic text consumes this. */
@@ -587,6 +618,11 @@ public final class NeofontrenderConfig {
     public static void setShadowOffsetY(float value) { setValue("shadow.offsetY", Math.max(-8.0F, Math.min(8.0F, value))); }
     public static void setShadowBlurRadius(float value) { setValue("shadow.blurRadius", Math.max(0.0F, Math.min(6.0F, value))); }
     public static void setShadowColor(int value) { setValue("shadow.color", value); }
+    public static void setColoredShadowEnabled(boolean value) { setValue("shadow.colored", value); }
+    public static void setShadowColorRemapRules(String value) {
+        setValue("shadow.coloredRemapRules",
+                ShadowColorRemapRules.parse(value).toConfigString());
+    }
 
     public static void setShadowOpacity(float value) {
         setValue("shadow.opacity", value);
@@ -621,6 +657,10 @@ public final class NeofontrenderConfig {
         setValue("laboratory.hexChat", value);
     }
 
+    public static void setLaboratoryHexChatResetStyles(boolean value) {
+        setValue("laboratory.hexChatResetStyles", value);
+    }
+
     public static void setLaboratoryTextUndoRedo(boolean value) {
         setValue("laboratory.textUndoRedo", value);
     }
@@ -631,6 +671,23 @@ public final class NeofontrenderConfig {
 
     public static void setCompatTinkersAntique(boolean value) {
         setValue("compat.tinkersantique.enabled", value);
+    }
+
+    public static void setTextColorPaletteProvider(String value) {
+        setValue("compat.colorPalette.provider",
+                TextColorPaletteRegistry.normalizeSelection(value));
+    }
+
+    public static void setCustomTextColorPalette(String value) {
+        setValue("compat.colorPalette.custom", TextColorPaletteCodec.format(
+                TextColorPaletteCodec.parse(value)));
+    }
+
+    public static void setCustomTextColorCodes(int[] colorCodes) {
+        if (colorCodes == null || (colorCodes.length != 16 && colorCodes.length != 32)) {
+            throw new IllegalArgumentException("Custom palette must contain 16 or 32 colors");
+        }
+        setValue("compat.colorPalette.custom", TextColorPaletteCodec.format(colorCodes));
     }
 
     public static void setEnchantmentFontBackend(String value) {
@@ -870,6 +927,8 @@ public final class NeofontrenderConfig {
     private static void refreshCachedOptions() {
         cached = Snapshot.from(config);
         cachedDebugRenderStats = cached.debugRenderStats;
+        TextColorPaletteRegistry.setCustomColorCodes(TextColorPaletteCodec.parse(
+                config.getOrElse("compat.colorPalette.custom", DEFAULT_TEXT_COLOR_PALETTE)));
     }
 
     private static void setValue(String key, Object value) {
@@ -898,7 +957,12 @@ public final class NeofontrenderConfig {
     }
 
     public static List<File> primaryFamilyFiles() {
-        return FontFileResolver.familyFiles(Minecraft.getMinecraft().gameDir, fontName());
+        return fontFamilyFiles(fontName());
+    }
+
+    /** Finds every local face belonging to a configured font family. */
+    public static List<File> fontFamilyFiles(String family) {
+        return FontFileResolver.familyFiles(Minecraft.getMinecraft().gameDir, family);
     }
 
     public static String fontFamilyName(File file) {
@@ -946,6 +1010,8 @@ public final class NeofontrenderConfig {
             w.write("offsetY = 1.0\n");
             w.write("blurRadius = 0.5\n");
             w.write("color = -16777216\n");
+            w.write("colored = false\n");
+            w.write("coloredRemapRules = \"rgb:FFFFFF=000000\"\n");
             w.write("opacity = 0.25\n");
             w.write("mode = \"mask\"\n");
             w.write("maskFonts = \"\"\n");
@@ -1005,11 +1071,14 @@ public final class NeofontrenderConfig {
             w.write("\n");
             w.write("[laboratory]\n");
             w.write("hexChat = false\n");
+            w.write("hexChatResetStyles = true\n");
             w.write("textUndoRedo = false\n");
             w.write("\n");
             w.write("[compat]\n");
             w.write("modernsplash.enabled = true\n");
             w.write("tinkersantique.enabled = true\n");
+            w.write("colorPalette.provider = \"auto\"\n");
+            w.write("colorPalette.custom = \"" + DEFAULT_TEXT_COLOR_PALETTE + "\"\n");
             w.write("\n");
             w.write("[enchantment]\n");
             w.write("backend = \"awt\"\n");
@@ -1059,6 +1128,8 @@ public final class NeofontrenderConfig {
         config.setComment("shadow.offsetY", "Modern shadow vertical offset in pixels.");
         config.setComment("shadow.blurRadius", "Modern shadow blur radius in pixels.");
         config.setComment("shadow.color", "Modern shadow ARGB color stored as a signed 32-bit integer.");
+        config.setComment("shadow.colored", "Use each formatted text run's foreground RGB for its shadow instead of the configured/darkened shadow color.");
+        config.setComment("shadow.coloredRemapRules", "Colored-shadow RGB remaps, e.g. rgb:FFFFFF=000000;slot:e=6A5200. Rules preserve text alpha and only affect shadows.");
         config.setComment("shadow.opacity", "Shadow opacity multiplier (0.0-1.0).");
         config.setComment("shadow.mode", "Shadow mode: all, mask (skip color glyphs), emoji (skip Unicode emoji), or none.");
         config.setComment("shadow.maskFonts", "Comma-separated font families whose displayable code points skip shadows in mask mode.");
@@ -1068,9 +1139,12 @@ public final class NeofontrenderConfig {
         config.setComment("fix.cjkLineBreak", "Allow CJK wrapping opportunities while enforcing basic line-start and line-end punctuation rules.");
         config.setComment("laboratory.textUndoRedo", "Enable per-field undo/redo history in vanilla and ModularUI text inputs (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z).");
         config.setComment("laboratory.hexChat", "Experimental #RRGGBB chat rendering for the Cosmic text backend.");
+        config.setComment("laboratory.hexChatResetStyles", "Match RGB Chat Vintage by clearing bold/italic/etc. when a #RGB marker starts a new color run.");
         config.setComment("compat", "Compatibility options for third-party mods.");
         config.setComment("compat.modernsplash.enabled", "Allow the loading-screen font override to patch ModernSplash when it is installed. Requires splash.enabled and a restart.");
         config.setComment("compat.tinkersantique.enabled", "Handle Tinkers' Construct / TinkersAntique custom PUA color markers (\\uE700-\\uE7FF) as invisible color-change characters instead of rendering them as glyphs.");
+        config.setComment("compat.colorPalette.provider", "Legacy text color palette: auto, vanilla, runtime, custom, or an API-registered provider id. Runtime reads the final FontRenderer.colorCode modified by other mods.");
+        config.setComment("compat.colorPalette.custom", "Custom palette as 16 or 32 comma-separated RRGGBB values. Sixteen entries derive Minecraft-style shadow colors; 32 entries set them explicitly.");
         config.setComment("splash", "Forge loading-screen font replacement options.");
         config.setComment("splash.enabled", "Replace the Forge loading-screen bitmap font with the configured TTF font. Restart required.");
         config.setComment("rendering", "OpenGL texture rendering options.");
@@ -1162,6 +1236,7 @@ public final class NeofontrenderConfig {
         private final boolean fixUnicodeTextDeletion;
         private final boolean fixCjkLineBreak;
         private final boolean laboratoryHexChat;
+        private final boolean laboratoryHexChatResetStyles;
         private final boolean laboratoryTextUndoRedo;
         private final boolean compatModernSplash;
         private final boolean compatTinkersAntique;
@@ -1186,6 +1261,8 @@ public final class NeofontrenderConfig {
         private final float shadowOffsetY;
         private final float shadowBlurRadius;
         private final int shadowColor;
+        private final boolean coloredShadow;
+        private final ShadowColorRemapRules shadowColorRemapRules;
         private final float shadowOpacity;
         private final String shadowMode;
         private final String shadowMaskFonts;
@@ -1241,6 +1318,7 @@ public final class NeofontrenderConfig {
             fixUnicodeTextDeletion = true;
             fixCjkLineBreak = true;
             laboratoryHexChat = false;
+            laboratoryHexChatResetStyles = true;
             laboratoryTextUndoRedo = false;
             compatModernSplash = true;
             compatTinkersAntique = true;
@@ -1265,6 +1343,9 @@ public final class NeofontrenderConfig {
             shadowOffsetY = 1.0F;
             shadowBlurRadius = 0.5F;
             shadowColor = 0xFF000000;
+            coloredShadow = false;
+            shadowColorRemapRules = ShadowColorRemapRules.parse(
+                    ShadowColorRemapRules.DEFAULT_CONFIG);
             shadowOpacity = 0.25F;
             shadowMode = "mask";
             shadowMaskFonts = "";
@@ -1321,6 +1402,7 @@ public final class NeofontrenderConfig {
             fixUnicodeTextDeletion = config.getOrElse("input.fixUnicodeTextDeletion", true);
             fixCjkLineBreak = config.getOrElse("fix.cjkLineBreak", true);
             laboratoryHexChat = config.getOrElse("laboratory.hexChat", false);
+            laboratoryHexChatResetStyles = config.getOrElse("laboratory.hexChatResetStyles", true);
             laboratoryTextUndoRedo = config.getOrElse("laboratory.textUndoRedo", false);
             compatModernSplash = config.getOrElse("compat.modernsplash.enabled", true);
             compatTinkersAntique = config.getOrElse("compat.tinkersantique.enabled", true);
@@ -1345,6 +1427,9 @@ public final class NeofontrenderConfig {
             shadowOffsetY = getFloat(config, "shadow.offsetY", shadowLength);
             shadowBlurRadius = Math.max(0.0F, getFloat(config, "shadow.blurRadius", 0.5F));
             shadowColor = getInt(config, "shadow.color", 0xFF000000);
+            coloredShadow = config.getOrElse("shadow.colored", false);
+            shadowColorRemapRules = ShadowColorRemapRules.parse(config.getOrElse(
+                    "shadow.coloredRemapRules", ShadowColorRemapRules.DEFAULT_CONFIG));
             shadowOpacity = getFloat(config, "shadow.opacity", 0.25F);
             shadowMode = normalizeShadowMode(config.getOrElse("shadow.mode", "mask"));
             shadowMaskFonts = config.getOrElse("shadow.maskFonts", "");

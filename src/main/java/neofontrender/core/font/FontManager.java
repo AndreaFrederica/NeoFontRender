@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.awt.FontTexture;
 import neofontrender.core.font.awt.GlyphProvider;
@@ -19,6 +20,7 @@ import neofontrender.core.font.cosmic.CosmicTextRenderer;
 import neofontrender.core.font.support.FontRenderTuning;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
@@ -52,6 +54,7 @@ public class FontManager implements AutoCloseable {
     private volatile boolean active = false;
     private volatile boolean cosmicActive = false;
     private String backendVersion = "vanilla Minecraft font renderer";
+    private int[] legacyColorCodes = TextColorPaletteRegistry.vanillaColorCodes();
 
     // Async loading state
     private final AtomicReference<CompletableFuture<Void>> pendingReload = new AtomicReference<>();
@@ -160,6 +163,7 @@ public class FontManager implements AutoCloseable {
             } else {
                 try {
                     this.textRenderBackend = new CosmicTextRenderer(textureManager, resourceManager);
+                    this.textRenderBackend.updateLegacyColorCodes(legacyColorCodes);
                     if (NeofontrenderConfig.performancePrewarmBasicLatin()) {
                         this.textRenderBackend.prewarmBasicLatin();
                     }
@@ -330,6 +334,18 @@ public class FontManager implements AutoCloseable {
         return textRenderBackend;
     }
 
+    /** Applies one selected palette to active, modern-size, and scoped backends. */
+    public synchronized void updateLegacyColorCodes(int[] colorCodes) {
+        int[] normalized = TextColorPaletteRegistry.normalizeColorCodes(colorCodes);
+        if (Arrays.equals(legacyColorCodes, normalized)) return;
+        legacyColorCodes = normalized;
+        if (textRenderBackend != null) textRenderBackend.updateLegacyColorCodes(normalized);
+        if (modernAwtTextRenderer != null) modernAwtTextRenderer.updateLegacyColorCodes(normalized);
+        for (TextRenderBackend backend : scopedBackends.values()) {
+            if (backend != textRenderBackend) backend.updateLegacyColorCodes(normalized);
+        }
+    }
+
     /**
      * Backend used by the public native-size text API. Modern native engines are preferred; SFR
      * and vanilla selections receive a lazily-created AWT adapter with true per-size atlases.
@@ -341,6 +357,7 @@ public class FontManager implements AutoCloseable {
         }
         if (modernAwtTextRenderer == null && textureManager != null && resourceManager != null) {
             modernAwtTextRenderer = new AwtModernTextRenderer(textureManager, resourceManager);
+            modernAwtTextRenderer.updateLegacyColorCodes(legacyColorCodes);
         }
         return modernAwtTextRenderer != null && modernAwtTextRenderer.isReady()
                 ? modernAwtTextRenderer : null;
@@ -370,6 +387,7 @@ public class FontManager implements AutoCloseable {
         }
         if (created == null) created = new AwtModernTextRenderer(textureManager, resourceManager,
                 spec.fonts().isEmpty() ? NeofontrenderConfig.fontFamily() : spec.fonts());
+        created.updateLegacyColorCodes(legacyColorCodes);
         scopedBackends.put(key, created);
         return created;
     }

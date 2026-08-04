@@ -217,14 +217,14 @@ public final class NeofontrenderConfigScreen {
     }
 
     private static void reloadAndOpen(ScreenSession session, NfrSettingsRoute route) {
-        session.draft.writeToConfig(false);
+        session.draft.writePreviewToConfig();
         reloadFontManager();
         openRoute(session, Route.builtin(route));
     }
 
     private static void preview(NfrSettingsDraft draft) {
         if (!draft.enabled || "vanilla".equals(NfrSettingsControls.normalizeEngine(draft.engine))) return;
-        draft.writeToConfig(false);
+        draft.writePreviewToConfig();
         reloadFontManager();
     }
 
