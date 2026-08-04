@@ -22,11 +22,16 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 - 可变字体字重轴支持、Cosmic 分字形覆盖（regular/bold/italic）。
 - 自适应光栅缩放（1.5x–14x）、mipmap、各向异性过滤与 GL 插值。
 - 现代单通道阴影，可配置模糊半径、偏移、不透明度与颜色。
+- 彩色阴影：每段彩色文字的阴影沿用其前景色，并支持可配置的 RGB 重映射规则。
 - 经典阴影模式控制（all/mask/emoji/none）与阴影遮罩规则。
 - 高级字符串模式，对完整格式化字符串进行全跨度整形渲染。
 - 增强与着色器文本管线，提升抗锯齿边缘质量。
 - 亮度补偿与采样字形光栅自动检测。
 - 段缓存，无需高级字符串模式即可高效渲染部分文本。
+- §n 下划线与 §m 删除线文本装饰（Cosmic 原生支持，AWT 合成渲染）。
+- Hex 聊天渐变：聊天文本中 `#RRGGBB-RRGGBB` 多色渐变插值。
+- Cosmic 引擎在缺少真实粗体字重时自动启用合成粗体。
+- 可自定义文字调色板（16/32 色，vanilla/运行时/自定义/API 注册的提供者）。
 - Unicode/IME 输入修复、CJK 换行规则、文本撤销/重做。
 - 告示牌粘贴（Ctrl+V）多行换行与可配置告示牌优化（LOD、视锥剔除、遮挡剔除）。
 - TinkersAntique PUA 标记兼容与附魔台字体替换。
@@ -81,7 +86,7 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
   <td><b>UIE Server Companion</b></td>
   <td><code>neofontrender_ui_enhancements_server</code></td>
   <td>MIT</td>
-  <td>服务端自身消息网络支持，用于聊天模块。可选，仅在独立服务器上需要。</td>
+  <td>服务端自身消息网络支持、服务端聊天历史持久化（H2）、群组聊天命令（`/nfrgroup`、`/msg`）。可选，仅在独立服务器上需要。</td>
 </tr>
 </tbody>
 </table>
@@ -121,7 +126,7 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 | **平滑滚动** | 滚轮动画滚动，覆盖原版 GuiSlot 列表、Forge 滚动列表、创造模式背包网格与聊天记录。可配置时长和步长。 |
 | **屏幕效果** | 背景高斯模糊（后处理着色器）、四角渐变叠加与淡入/淡出过渡。按屏幕类型控制（菜单、容器、聊天）。 |
 | **HUD 状态条** | 替代原版生命值、饱食度、护甲、韧性、气泡与坐骑血条。6 种视觉主题（modern、flat、glass、segmented、minimal、classic），平滑动画填充，自定义颜色，数字/图标显示。AppleCore 集成。 |
-| **增强聊天** | 见子功能列表。 |
+| **增强聊天** | 见子功能列表。包含内联图片字形、H2 持久化与群组聊天。 |
 | **缩放** | 按住缩放按键，可配置倍率（2–8x），平滑镜头、鼠标灵敏度调整与动画 FOV 过渡。 |
 | **悬停效果** | 原版/Forge 按钮、物品格、JEI/HEI 成分网格与 ModularUI 物品格的平滑交叉淡入动画。 |
 | **世界加载** | 现代化世界加入与维度切换加载覆盖层。进度条、百分比、旋转器、底部渐变、淡出过渡、上次退出画面快照。 |
@@ -135,8 +140,13 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 | 功能 | 说明 |
 | --- | --- |
 | **标签聊天** | 内嵌 TabbyChat 2，频道标签、按频道历史记录与日志、防刷屏、时间戳、拼写检查、未读闪烁。 |
-| **聊天搜索** | 聊天记录全文搜索，`Ctrl+F` 打开。 |
-| **来源分类** | 基于正则的消息路由到玩家/服务器/私聊频道。 |
+| **纵向标签栏** | 聊天窗口左侧 Edge 风格的纵向标签栏布局。 |
+| **标签置顶** | 右键菜单置顶/取消置顶/删除频道标签。 |
+| **聊天搜索** | 聊天记录全文搜索，`Ctrl+F` 打开。支持键盘导航（↑↓/Enter/Esc）、关键词高亮、TabbyChat 内跳转到命中消息。 |
+| **历史消息管理** | `Ctrl+H` 打开独立的历史浏览器，支持按来源筛选（全部/玩家/服务器/私聊/群组）及按范围管理。 |
+| **群组聊天** | 服务端群组频道，`/nfrgroup` 命令，自动来源路由，TabbyChat 群组标签页。 |
+| **内联图片字形** | 渲染 Gosling/Emojicord 表情 `:别名:`、外部 `<img:https://…>` 图片（白/黑名单）和本地图片库（`neofontrender/images/`）。悬停预览和右键复制。 |
+| **来源分类** | 基于正则的消息路由到玩家/服务器/私聊/群组频道。 |
 | **消息过滤** | 基于正则的消息屏蔽与按玩家静音。 |
 | **@提及补全** | 从在线玩家列表实时补全 `@玩家名`，带提示音。 |
 | **命令补全** | 输入时显示可滚动的 Tab 补全建议列表。 |
@@ -145,10 +155,10 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 | **物品图标** | 在 `SHOW_ITEM` 聊天组件旁显示物品图标。 |
 | **时间戳** | 可配置的时间戳附加到聊天消息前。 |
 | **复制粘贴** | 拖拽选中复制文本，支持格式化代码选项，`Ctrl+C/X/V/A` 快捷键。 |
-| **右键菜单** | 聊天消息右键菜单，复制、玩家操作。 |
+| **右键菜单** | 聊天消息右键菜单，复制、玩家操作及内联图片操作。 |
 | **发送后保持** | 按消息来源类型控制发送后聊天窗口是否保持打开。 |
 | **HUD 突口** | 支持合成器的浮动聊天窗口，持久化/分离布局。 |
-| **持久化** | 按服务器/世界持久化收发消息历史（JSON）。 |
+| **持久化** | 按服务器/世界持久化收发消息历史，使用内嵌 H2 数据库，自动迁移旧版 JSON 数据。 |
 | **消息动画** | 新消息入场动画与聊天输入框开/关动画。 |
 | **颜色主题** | 聊天面板完整颜色主题（背景、边框、输入框、托盘、标签、滚动条、文本 — 11 个颜色槽）。 |
 | **拼写检查** | Jazzy（英文）+ 结巴（中文）拼写检查。 |
@@ -223,6 +233,37 @@ Cosmic 在缺字时会查询已配置的系统字体和内置资源。若其不�
 /neofontrender gui
 ```
 
+### 群组聊天（WIP）
+
+> **开发中** — 群组聊天功能可用，但界面和配置流程可能在后续版本中调整。
+
+群组聊天让你通过服务端定义的命名组向多个玩家同时发送消息。
+需要安装焕新 UI（客户端）和 UIE Server Companion（独立服务器），或仅焕新 UI（集成服务器）。
+
+**1. 定义组** — 在服务端创建或编辑 `config/nfr-group-chat.properties`：
+
+```properties
+# 格式：groups.<组名>=玩家1,玩家2,...
+groups.小队=Steve,Alex
+groups.管理员=Steve
+```
+
+玩家名大小写不敏感，`#` 开头的行为注释。
+
+**2. 使用命令：**
+
+| 命令 | 别名 | 作用 |
+| --- | --- | --- |
+| `/nfrgroup` | `/g` | 列出所有已配置的组 |
+| `/nfrgroup <组名>` | `/g <组名>` | 查看组成员 |
+| `/nfrgroup <组名> <消息>` | `/g <组名> <消息>` | 向组内所有在线玩家发送消息 |
+| `/nfrmessage <玩家1> [玩家2 ...] <消息>` | `/nfrtell` | 同时向多个玩家发私聊（最多 32 人） |
+
+**3. 客户端体验：**
+- 组消息自动识别为"群组"来源，路由到 TabbyChat 的专属群组频道标签页。
+- 收到格式：`§6Steve -> 组 小队 你好`；发出格式：`§7Steve -> 组 小队 你好`。
+- 消息持久化到 H2 数据库，可通过 Ctrl+H 历史管理界面按"群组"筛选浏览。
+
 ## 外部集成 API
 
 所有 API 位于 `neofontrender.api` 包下，可作为可选依赖安全使用。引用前请先通过
@@ -259,6 +300,29 @@ NeoFontRenderApi.updateFont()
 | `NeoFontRenderApi.setPrimaryFont(String)` | 快捷方式：选择一个字体并持久化。 |
 | `NeoFontRenderApi.reload()` | 不修改配置，仅调度后端重载。 |
 | `NeoFontRenderApi.getFontState()` | 当前字体配置与活动后端的不可变快照。 |
+
+### 文字调色板 (`NeoFontRenderApi`)
+
+注册或切换 Minecraft `§0`–`§f` 格式化代码使用的传统 16 色调色板。适用于覆盖了
+`FontRenderer.colorCode` 的 Mod 或资源包。
+
+```java
+// 注册自定义调色板提供者
+NeoFontRenderApi.registerTextColorPaletteProvider(myProvider);
+
+// 切换到指定提供者（auto、vanilla、runtime、custom 或已注册的 id）
+NeoFontRenderApi.selectTextColorPaletteProvider("myprovider");
+
+// 设置自定义 16 色调色板
+NeoFontRenderApi.setCustomTextColorPalette("FF0000,00FF00,0000FF,...");
+```
+
+| 方法 | 说明 |
+| --- | --- |
+| `registerTextColorPaletteProvider(provider)` | 注册会话级调色板提供者。 |
+| `selectTextColorPaletteProvider(id)` | 切换活动提供者。 |
+| `setCustomTextColorPalette(colors)` | 存储 16 或 32 个 RGB 十六进制颜色作为自定义提供者。 |
+| `invalidateTextColorPaletteProviders()` | 提供者内部状态变更后强制重新解析。 |
 
 ### 现代文本渲染 (`ModernTextApi`)
 

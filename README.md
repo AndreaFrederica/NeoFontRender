@@ -22,11 +22,16 @@ Neo Font Render replaces Minecraft 1.12.2's bitmap-font path with configurable m
 - Variable font weight axis support, per-style Cosmic face overrides (regular/bold/italic).
 - Adaptive raster scale (1.5x–14x), mipmapping, anisotropic filtering, and GL interpolation.
 - Modern single-pass shadow with configurable blur radius, offset, opacity, and color.
+- Colored shadows: each text segment's shadow uses its own foreground hue, with configurable RGB remap rules.
 - Classic shadow with mode control (all/mask/emoji/none) and shadow masking rules.
 - Advanced string mode for full-span shaped-text rendering across the entire formatted string.
 - Enhanced and shader text pipelines for improved anti-aliased edge quality.
 - Brightness compensation with auto-detection from sample glyph rasterization.
 - Segment cache for efficient partial-text rendering without advanced string mode.
+- §n underline and §m strikethrough text decorations (native in Cosmic, composited in AWT).
+- Hex chat gradients: `#RRGGBB-RRGGBB` multi-stop color interpolation in chat text.
+- Synthetic bold in the Cosmic engine when a real bold face is unavailable.
+- Customizable legacy text color palette (16/32 entries, vanilla/runtime/custom/API-registered providers).
 - Unicode/IME input fixes, CJK line-break rules, text undo/redo.
 - Sign-editor paste (Ctrl+V) with multi-line wrapping and configurable sign optimizations (LOD, frustum culling, occlusion culling).
 - TinkersAntique PUA marker compatibility and enchantment table font replacement.
@@ -82,7 +87,7 @@ The project ships as a main mod and several optional modules. All UIE modules sh
   <td><b>UIE Server Companion</b></td>
   <td><code>neofontrender_ui_enhancements_server</code></td>
   <td>MIT</td>
-  <td>Server-side self-message network support for the chat module. Optional, only needed on dedicated servers.</td>
+  <td>Server-side self-message network support, server-side chat history persistence (H2), group chat commands (`/nfrgroup`, `/msg`). Optional, only needed on dedicated servers.</td>
 </tr>
 </tbody>
 </table>
@@ -122,7 +127,7 @@ The project ships as a main mod and several optional modules. All UIE modules sh
 | **Smooth Scrolling** | Animated wheel scrolling for vanilla `GuiSlot` lists, Forge scrolling lists, creative inventory grid, and chat history. Configurable duration and step size. |
 | **Screen Effects** | Background Gaussian blur (post-processing shader), four-corner color gradient overlay, and fade-in/fade-out transitions. Per-screen-type control for menus, containers, and chat. |
 | **HUD Bars** | Modern replacement for vanilla health, food, armor, toughness, air, and mount bars. 6 visual themes (modern, flat, glass, segmented, minimal, classic), smooth animated fill, per-stat color customization, numeric/icon display. AppleCore integration. |
-| **Enhanced Chat** | See sub-features below. |
+| **Enhanced Chat** | See sub-features below. Includes inline image glyphs, H2-backed persistence, and group chat. |
 | **Zoom** | Hold-to-zoom keybind with configurable magnification (2–8x), smooth camera, mouse sensitivity adjustment, and animated FOV transitions. |
 | **Hover Effects** | Smooth cross-fade animations for vanilla/Forge buttons, inventory slots, JEI/HEI ingredient grids, and ModularUI slots. |
 | **World Loading** | Modern loading overlay for world join and dimension change. Progress bar, percentage, spinner, bottom gradient shade, fade-out transition, last-exit frame snapshot. |
@@ -136,8 +141,13 @@ The project ships as a main mod and several optional modules. All UIE modules sh
 | Feature | Description |
 | --- | --- |
 | **Tabbed chat** | Embedded TabbyChat 2 with channel tabs, per-channel history and logging, anti-spam, timestamps, spelling check, unread flashing. |
-| **Chat search** | Full-text search across chat history with `Ctrl+F`. |
-| **Source classification** | Regex-based message routing into Player/Server/Private channels. |
+| **Vertical tabs** | Edge-style vertical tab layout on the left edge of the chat window. |
+| **Tab pinning** | Pin/unpin/delete channel tabs via right-click context menu. |
+| **Chat search** | Full-text search across chat history with `Ctrl+F`. Keyboard navigation (↑↓/Enter/Esc), matched-term highlighting, jump-to-message in TabbyChat. |
+| **Chat history** | `Ctrl+H` opens a dedicated history browser with scope filtering (All/Player/Server/Private/Group) and per-scope management. |
+| **Group chat** | Server-side group channels with `/nfrgroup` command, automatic source routing, and TabbyChat group tabs. |
+| **Inline image glyphs** | Render Gosling/Emojicord emoji `:aliases:`, external `<img:https://…>` images (with allow/blocklist), and local image gallery (`neofontrender/images/`). Hover preview and right-click copy. |
+| **Source classification** | Regex-based message routing into Player/Server/Private/Group channels. |
 | **Message filtering** | Regex-based message blocking and per-player muting. |
 | **@mention completion** | Live `@player` suggestions from online player list with notification sound. |
 | **Command completion** | Scrollable tab-completion suggestions while typing. |
@@ -146,10 +156,10 @@ The project ships as a main mod and several optional modules. All UIE modules sh
 | **Item icons** | Displays item icons beside `SHOW_ITEM` chat components. |
 | **Timestamps** | Configurable timestamps prepended to chat messages. |
 | **Copy & paste** | Drag-to-select text copying with formatting code options, `Ctrl+C/X/V/A` keybindings. |
-| **Right-click menu** | Context menu on chat messages for copy, player actions. |
+| **Right-click menu** | Context menu on chat messages for copy, player actions, and inline image operations. |
 | **Keep-open policies** | Per-source-type control for keeping chat open after sending. |
 | **HUD window** | Floating chat window with compositor support for persistent/detached layout. |
-| **Persistence** | Per-server/world persistent received and sent message history (JSON). |
+| **Persistence** | Per-server/world persistent received and sent message history backed by an embedded H2 database with automatic legacy JSON migration. |
 | **Message animations** | Entrance animations for new messages and chat input open/close. |
 | **Color theme** | Full color theme for the chat panel (background, border, input, tray, tabs, scrollbar, text — 11 color slots). |
 | **Spellcheck** | Jazzy (English) + Jieba (Chinese) spell checking. |
@@ -225,6 +235,38 @@ Useful commands:
 /neofontrender gui
 ```
 
+### Group chat (WIP)
+
+> **Work in progress** — the group chat feature is functional but the interface and configuration
+> workflow may change in future releases.
+
+Group chat lets you message multiple players at once through named groups defined on the server.
+Requires Revo UI (client) and UIE Server Companion (dedicated server) or just UIE (integrated server).
+
+**1. Define groups** — create or edit `config/nfr-group-chat.properties` on the server:
+
+```properties
+# Format: groups.<name>=player1,player2,...
+groups.friends=Steve,Alex
+groups.admins=Steve
+```
+
+Player names are case-insensitive. Lines starting with `#` are comments.
+
+**2. Use the commands:**
+
+| Command | Alias | Description |
+| --- | --- | --- |
+| `/nfrgroup` | `/g` | List all configured groups |
+| `/nfrgroup <name>` | `/g <name>` | Show members of a group |
+| `/nfrgroup <name> <message>` | `/g <name> <message>` | Send a message to all online members |
+| `/nfrmessage <p1> [p2 ...] <msg>` | `/nfrtell` | Private-message several players at once (up to 32) |
+
+**3. Client experience:**
+- Group messages are automatically classified as `Group` source and routed to a dedicated TabbyChat channel tab.
+- Received format: `§6Steve -> group friends Hello`; sent: `§7Steve -> group friends Hello`.
+- Messages are persisted in the H2 database and browsable via `Ctrl+H` with the "Group" filter.
+
 ## Integration API
 
 All APIs live under `neofontrender.api` and are safe to use with an optional dependency. Check
@@ -262,6 +304,29 @@ Other entry points:
 | `NeoFontRenderApi.setPrimaryFont(String)` | Convenience: select one font across all backends and persist. |
 | `NeoFontRenderApi.reload()` | Schedule a backend reload without modifying config. |
 | `NeoFontRenderApi.getFontState()` | Immutable snapshot of the configured font and active backend. |
+
+### Text color palette (`NeoFontRenderApi`)
+
+Register or switch the legacy 16-color palette used by Minecraft's `§0`–`§f` formatting codes. Useful
+for mods that override `FontRenderer.colorCode` with custom colors or resource packs.
+
+```java
+// Register a custom palette provider
+NeoFontRenderApi.registerTextColorPaletteProvider(myProvider);
+
+// Switch to a specific provider (auto, vanilla, runtime, custom, or a registered id)
+NeoFontRenderApi.selectTextColorPaletteProvider("myprovider");
+
+// Set a custom 16-entry palette
+NeoFontRenderApi.setCustomTextColorPalette("FF0000,00FF00,0000FF,...");
+```
+
+| Method | Description |
+| --- | --- |
+| `registerTextColorPaletteProvider(provider)` | Register a palette provider for the session. |
+| `selectTextColorPaletteProvider(id)` | Switch the active provider. |
+| `setCustomTextColorPalette(colors)` | Store 16 or 32 RGB hex colors for the custom provider. |
+| `invalidateTextColorPaletteProviders()` | Force re-resolution after a provider's internal state changes. |
 
 ### Modern text rendering (`ModernTextApi`)
 
