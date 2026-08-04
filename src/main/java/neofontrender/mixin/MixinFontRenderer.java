@@ -31,6 +31,7 @@ import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.backend.BackendTextSegmenter;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.preprocess.PreprocessedText;
+import neofontrender.core.font.preprocess.LayoutText;
 import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
 import neofontrender.core.font.linebreak.CjkLineBreakRules;
 import neofontrender.core.font.support.FontRenderTuning;
@@ -639,9 +640,9 @@ public abstract class MixinFontRenderer {
                     Math.max(0, paragraph.firstRawBoundary(str.length()))));
             return;
         }
-        PreprocessedText preprocessed = TextPreprocessingPipeline.process(str);
-        if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
-            cir.setReturnValue(sfr$sizePreprocessedTextToWidth(preprocessed, wrapWidth));
+        LayoutText layoutText = LayoutText.process(str);
+        if (layoutText.transformed() && ModernTextApi.isAvailable()) {
+            cir.setReturnValue(sfr$sizeLayoutTextToWidth(layoutText, wrapWidth));
             return;
         }
         boolean rendererActive = sfr$isAnyActive();
@@ -720,8 +721,6 @@ public abstract class MixinFontRenderer {
 
     private CjkParagraphLayoutProvider.Layout sfr$layoutCjkParagraph(String text, int width) {
         if (!NeofontrenderConfig.fixCjkLineBreak()) return null;
-        PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
-        if (preprocessed.transformed() && ModernTextApi.isAvailable()) return null;
         FontRenderer self = (FontRenderer) (Object) this;
         return CjkParagraphLayoutRegistry.layout(new CjkParagraphLayoutProvider.Request(
                 text, width, this.FONT_HEIGHT, sfr$currentLanguageCode(), self::getStringWidth));
@@ -994,41 +993,40 @@ public abstract class MixinFontRenderer {
         return raw.substring(acceptedRawStart);
     }
 
-    private int sfr$sizePreprocessedTextToWidth(PreprocessedText text, int wrapWidth) {
-        String raw = text.rawText();
+    private int sfr$sizeLayoutTextToWidth(LayoutText text, int wrapWidth) {
         String visible = text.visibleText();
         int breakRaw = -1;
         int previousCodePoint = -1;
         int boundaryAfterPrevious = 0;
         boolean cjkLineBreak = NeofontrenderConfig.fixCjkLineBreak();
+        float width = 0.0F;
 
         for (int index = 0; index < visible.length();) {
             char ch = visible.charAt(index);
             if (ch == '\n') {
-                return text.rawStartForVisibleBoundary(index);
-            }
-            if (ch == 167 && index + 1 < visible.length()) {
-                index += 2;
-                continue;
+                return text.rawStartBoundary(index);
             }
 
             int codePoint = visible.codePointAt(index);
             int next = index + Character.charCount(codePoint);
             if (ch == ' ') {
-                breakRaw = text.rawStartForVisibleBoundary(index);
+                breakRaw = text.rawStartBoundary(index);
             } else if (cjkLineBreak && previousCodePoint >= 0
                     && CjkLineBreakRules.canBreakBetween(previousCodePoint, codePoint)) {
-                breakRaw = text.rawStartForVisibleBoundary(boundaryAfterPrevious);
+                breakRaw = text.rawStartBoundary(boundaryAfterPrevious);
             }
-            int rawEnd = text.rawEndForVisibleBoundary(next);
-            if (sfr$measurePreprocessedRaw(raw.substring(0, rawEnd)) > wrapWidth) {
+            width += ModernTextApi.measureFormatted(text.formattedDisplay(index,
+                            visible.substring(index, next)), NeofontrenderConfig.fontSize(),
+                    0xFFFFFFFF, false);
+            int rawEnd = text.rawEndBoundary(next);
+            if (width > wrapWidth) {
                 return breakRaw != -1 && breakRaw < rawEnd ? breakRaw : rawEnd;
             }
             previousCodePoint = codePoint;
             boundaryAfterPrevious = next;
             index = next;
         }
-        return raw.length();
+        return text.rawText().length();
     }
 
     private float sfr$measurePreprocessedRaw(String raw) {

@@ -49,13 +49,13 @@ final class RemoteImageGlyph implements InlineGlyph {
         if (shadow) {
             if (NeofontrenderConfig.coloredShadowEnabled()) {
                 drawTexture(x + 1, y + 1, display[0], display[1], 1.0F, 1.0F, 1.0F,
-                        alpha * 0.65F, false);
+                        alpha * 0.65F);
             } else {
                 drawTexture(x + 1, y + 1, display[0], display[1], 0.12F, 0.12F, 0.12F,
-                        alpha * 0.72F, false);
+                        alpha * 0.72F);
             }
         }
-        drawTexture(x, y, display[0], display[1], 1.0F, 1.0F, 1.0F, alpha, false);
+        drawTexture(x, y, display[0], display[1], 1.0F, 1.0F, 1.0F, alpha);
     }
 
     @Override public String description() { return description; }
@@ -72,7 +72,7 @@ final class RemoteImageGlyph implements InlineGlyph {
     @Override
     public void drawPreview(float x, float y, int width, int height, int argb) {
         if (handle.state() == InlineImageHandle.State.READY && handle.texture() != null) {
-            drawTexture(x, y, width, height, 1.0F, 1.0F, 1.0F, 1.0F, true);
+            drawTexture(x, y, width, height, 1.0F, 1.0F, 1.0F, 1.0F);
         } else {
             Minecraft.getMinecraft().fontRenderer.drawString("□", x + width / 2.0F - 3,
                     y + height / 2.0F - 4, argb, false);
@@ -105,32 +105,18 @@ final class RemoteImageGlyph implements InlineGlyph {
 
     private void drawTexture(float x, float y, int boxWidth, int boxHeight,
                              float red, float green, float blue,
-                             float alpha, boolean showCompleteImage) {
+                             float alpha) {
         float drawWidth = boxWidth;
         float drawHeight = boxHeight;
-        float u0 = 0.0F;
-        float u1 = 1.0F;
-        float v0 = 0.0F;
-        float v1 = 1.0F;
         if (handle.pixelWidth() > 0 && handle.pixelHeight() > 0) {
             float aspect = handle.pixelWidth() / (float) handle.pixelHeight();
-            if (showCompleteImage) {
-                float boxAspect = boxWidth / (float) boxHeight;
-                if (aspect > boxAspect) {
-                    drawHeight = boxWidth / aspect;
-                    y += (boxHeight - drawHeight) * 0.5F;
-                } else if (aspect < boxAspect) {
-                    drawWidth = boxHeight * aspect;
-                    x += (boxWidth - drawWidth) * 0.5F;
-                }
-            } else if (aspect > 1.0F) {
-                float visible = 1.0F / aspect;
-                u0 = (1.0F - visible) * 0.5F;
-                u1 = 1.0F - u0;
-            } else if (aspect < 1.0F) {
-                float visible = aspect;
-                v0 = (1.0F - visible) * 0.5F;
-                v1 = 1.0F - v0;
+            float boxAspect = boxWidth / (float) boxHeight;
+            if (aspect > boxAspect) {
+                drawHeight = boxWidth / aspect;
+                y += (boxHeight - drawHeight) * 0.5F;
+            } else if (aspect < boxAspect) {
+                drawWidth = boxHeight * aspect;
+                x += (boxWidth - drawWidth) * 0.5F;
             }
         }
         Minecraft.getMinecraft().getTextureManager().bindTexture(handle.texture());
@@ -140,10 +126,10 @@ final class RemoteImageGlyph implements InlineGlyph {
         GlStateManager.color(red, green, blue, Math.max(0.0F, Math.min(1.0F, alpha)));
         BufferBuilder buffer = Tessellator.getInstance().getBuffer();
         buffer.begin(7, DefaultVertexFormats.POSITION_TEX);
-        buffer.pos(x, y + drawHeight, 0).tex(u0, v1).endVertex();
-        buffer.pos(x + drawWidth, y + drawHeight, 0).tex(u1, v1).endVertex();
-        buffer.pos(x + drawWidth, y, 0).tex(u1, v0).endVertex();
-        buffer.pos(x, y, 0).tex(u0, v0).endVertex();
+        buffer.pos(x, y + drawHeight, 0).tex(0.0F, 1.0F).endVertex();
+        buffer.pos(x + drawWidth, y + drawHeight, 0).tex(1.0F, 1.0F).endVertex();
+        buffer.pos(x + drawWidth, y, 0).tex(1.0F, 0.0F).endVertex();
+        buffer.pos(x, y, 0).tex(0.0F, 0.0F).endVertex();
         Tessellator.getInstance().draw();
         GlStateManager.color(1, 1, 1, 1);
     }

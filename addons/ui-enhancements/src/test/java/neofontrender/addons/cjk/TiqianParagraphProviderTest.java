@@ -1,6 +1,9 @@
 package neofontrender.addons.cjk;
 
 import neofontrender.api.text.CjkParagraphLayoutProvider;
+import neofontrender.core.font.preprocess.PreprocessedText;
+import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
+import neofontrender.core.font.preprocess.TinkersAntiqueTextPreprocessor;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
@@ -61,6 +64,29 @@ class TiqianParagraphProviderTest {
         int boundary = layout.firstRawBoundary(text.length());
         assertTrue(boundary >= 0 && boundary <= text.length());
         assertFalse(boundary > 0 && text.charAt(boundary - 1) == '\u00a7');
+    }
+
+    @Test
+    void treatsEnabledTinkersRgbMarkersAsZeroWidthLayoutState() {
+        String marker = tinkersRgb(0x12, 0x80, 0xFE);
+        String text = "中" + marker + "文着色";
+        CjkParagraphLayoutProvider.Layout layout = TiqianParagraphProvider.INSTANCE.layout(
+                request(text, 100, "zh_cn"));
+
+        assertNotNull(layout);
+        assertEquals(text.length(), layout.lines().get(layout.lines().size() - 1).rawEnd());
+        StringBuilder visible = new StringBuilder();
+        boolean foundColor = false;
+        for (CjkParagraphLayoutProvider.Line line : layout.lines()) {
+            for (CjkParagraphLayoutProvider.Run run : line.runs()) {
+                PreprocessedText decoded = TextPreprocessingPipeline.process(run.formattedText());
+                visible.append(decoded.visibleText());
+                foundColor |= decoded.modernText().runs().stream().anyMatch(modernRun ->
+                        modernRun.hasColorOverride() && modernRun.rgb() == 0x1280FE);
+            }
+        }
+        assertEquals("中文着色", visible.toString());
+        assertTrue(foundColor);
     }
 
     @Test
@@ -247,6 +273,7 @@ class TiqianParagraphProviderTest {
     }
 
     private static float measure(String formatted) {
+        formatted = TextPreprocessingPipeline.process(formatted).visibleText();
         float width = 0;
         boolean bold = false;
         for (int index = 0; index < formatted.length();) {
@@ -264,5 +291,13 @@ class TiqianParagraphProviderTest {
             index += Character.charCount(codePoint);
         }
         return width;
+    }
+
+    private static String tinkersRgb(int red, int green, int blue) {
+        return new String(new char[]{
+                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + red),
+                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + green),
+                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + blue)
+        });
     }
 }

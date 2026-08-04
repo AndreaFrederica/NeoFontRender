@@ -3,6 +3,7 @@ package neofontrender.addons.cjk
 import net.minecraft.util.text.ITextComponent
 import net.minecraft.util.text.TextComponentString
 import neofontrender.api.text.CjkParagraphLayoutProvider
+import neofontrender.core.font.preprocess.LayoutText
 import org.tiqian.clreq.CjkPunctuationGlyphPolicy
 import org.tiqian.clreq.ClreqProfile
 import org.tiqian.clreq.ClreqProfileResolver
@@ -32,7 +33,6 @@ import org.tiqian.shaping.ShapingResult
 import org.tiqian.shaping.TextShaper
 import java.util.LinkedHashMap
 import java.util.Locale
-import java.util.TreeMap
 import kotlin.math.abs
 
 /** Tiqian-backed paragraph provider kept entirely inside the optional UIE addon. */
@@ -59,11 +59,12 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
         request: CjkParagraphLayoutProvider.Request,
     ): CjkParagraphLayoutProvider.Layout? {
         if (!enabledFor(request.languageCode())) return null
-        val parsed = ParsedText.parse(request.formattedText())
-        if (!containsCjk(parsed.visible)) return null
+        val parsed = LayoutText.process(request.formattedText())
+        if (!containsCjk(parsed.visibleText())) return null
         val key = CacheKey(
             request.formattedText(), request.maxWidth(), request.lineHeight(),
             normalizeLanguage(request.languageCode()), metricProbe(request.measurer()),
+            parsed.fingerprint(),
         )
         synchronized(cache) { cache[key]?.let { return it } }
         val built = buildLayout(parsed, request.maxWidth(), request.lineHeight(), request.measurer())
@@ -83,23 +84,24 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
         for (component in request.component()) {
             val text = component.unformattedComponentText
             if (text.isEmpty()) continue
+            val componentLayout = LayoutText.process(text)
             formatted.append('\u00a7').append('r')
                 .append(component.style.formattingCode)
                 .append(text)
-            val end = visibleOffset + text.length
-            segments += ComponentSegment(visibleOffset, end, text, component)
+            val end = visibleOffset + componentLayout.visibleText().length
+            segments += ComponentSegment(visibleOffset, end, componentLayout, component)
             visibleOffset = end
         }
         if (segments.isEmpty()) return listOf(TextComponentString(""))
 
-        val parsed = ParsedText.parse(formatted.toString())
-        if (!containsCjk(parsed.visible)) return null
+        val parsed = LayoutText.process(formatted.toString())
+        if (!containsCjk(parsed.visibleText())) return null
         val built = buildLayout(
             parsed, request.maxWidth(), request.lineHeight(), request.measurer(), request.surface(),
         )
         return built.visibleLines.mapIndexed { lineIndex, range ->
             var start = range.start
-            if (request.removeLeadingSpace() && start < range.end && parsed.visible[start] == ' ') {
+            if (request.removeLeadingSpace() && start < range.end && parsed.visibleText()[start] == ' ') {
                 start++
             }
             val apiLine = built.layout.lines()[lineIndex]
@@ -121,10 +123,9 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
                 if (overlapStart >= overlapEnd) continue
                 val localStart = overlapStart - segment.start
                 val localEnd = overlapEnd - segment.start
-                val child = TextComponentString(
-                        segment.source.style.formattingCode +
-                            segment.text.substring(localStart, localEnd),
-                    )
+                val display = segment.layout.visibleText().substring(localStart, localEnd)
+                val child = TextComponentString(segment.source.style.formattingCode +
+                        segment.layout.formattedDisplay(localStart, display))
                     .setStyle(segment.source.style.createDeepCopy())
                 line.appendSibling(child)
                 line.`nfrUi$addComponentSpan`(
@@ -170,14 +171,14 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
     }
 
     private fun buildLayout(
-        parsed: ParsedText,
+        parsed: LayoutText,
         maxWidth: Int,
         lineHeight: Int,
         measurer: CjkParagraphLayoutProvider.TextMeasurer,
         surface: CjkParagraphLayoutProvider.ComponentRequest.Surface =
             CjkParagraphLayoutProvider.ComponentRequest.Surface.DEFAULT,
     ): BuiltLayout {
-        if (parsed.visible.isEmpty()) {
+        if (parsed.visibleText().isEmpty()) {
             val line = CjkParagraphLayoutProvider.Line(0, 0, 0f, false, emptyList())
             return BuiltLayout(CjkParagraphLayoutProvider.Layout(listOf(line)), listOf(TextRange(0, 0)))
         }
@@ -188,17 +189,17 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
             fontSize = em,
             locale = PROFILE_LOCALE,
         )
-        val spans = parsed.styleRanges().map { (range, state) ->
+        val spans = styleRanges(parsed).map { (range, state) ->
             TextSpan(
                 range,
                 baseStyle.copy(
-                    fontWeight = if (state.bold) 700 else 400,
-                    italic = state.italic,
+                    fontWeight = if (state.bold()) 700 else 400,
+                    italic = state.italic(),
                 ),
             )
         }
         val content = TiqianTextContent(
-            text = parsed.visible,
+            text = parsed.visibleText(),
             spans = spans,
         )
         var guiProfile = ClreqProfile.MainlandHorizontal.copy(
@@ -223,7 +224,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
                 // Tiqian already gives Mourning spans the exact semantics chat needs here:
                 // keep the range whole when it fits, but permit emergency splitting when the
                 // range itself is wider than the viewport. UIE does not paint decorations.
-                decorations = chatSpeakerDecoration(parsed.visible, surface),
+                decorations = chatSpeakerDecoration(parsed.visibleText(), surface),
                 paragraphStyle = ParagraphStyle(
                     lineHeight = lineHeight.toFloat(),
                     firstLineIndent = Ic.Zero,
@@ -240,15 +241,15 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
             var pendingEnd = -1
             var pendingX = 0f
             var pendingRight = 0f
-            var pendingState: FormatState? = null
+            var pendingState: LayoutText.State? = null
 
             fun flushPending() {
                 if (pendingStart < 0) return
                 runs += CjkParagraphLayoutProvider.Run(
                     parsed.formattedDisplay(pendingStart, pendingText.toString()),
                     pendingX,
-                    parsed.rawBoundary(pendingStart),
-                    parsed.rawBoundary(pendingEnd),
+                    parsed.rawStartBoundary(pendingStart),
+                    parsed.rawEndBoundary(pendingEnd),
                 )
                 pendingText = StringBuilder()
                 pendingStart = -1
@@ -266,7 +267,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
                 }
                 val state = parsed.stateAt(cluster.range.start)
                 val joinsPending = pendingStart >= 0 && pendingEnd == cluster.range.start &&
-                    pendingState == state && (state.underline || state.strike) &&
+                    pendingState == state && (state.underline() || state.strike()) &&
                     abs(positioned.drawX - pendingRight) <= 0.01f
                 if (!joinsPending) {
                     flushPending()
@@ -280,7 +281,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
             }
             flushPending()
             if (line.hyphenAdvance > 0f) {
-                val boundary = parsed.rawBoundary(line.range.end)
+                val boundary = parsed.rawEndBoundary(line.range.end)
                 val styleOffset = (line.range.end - 1).coerceAtLeast(line.range.start)
                 runs += CjkParagraphLayoutProvider.Run(
                     parsed.formattedDisplay(styleOffset, "-"),
@@ -290,8 +291,8 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
                 )
             }
             CjkParagraphLayoutProvider.Line(
-                parsed.rawBoundary(line.range.start),
-                parsed.rawBoundary(line.range.end),
+                parsed.rawStartBoundary(line.range.start),
+                parsed.rawEndBoundary(line.range.end),
                 lineIndex * lineHeight.toFloat(),
                 line.endReason == LineEndReason.MandatoryBreak,
                 runs,
@@ -329,7 +330,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
     }
 
     private class HostTextShaper(
-        private val parsed: ParsedText,
+        private val parsed: LayoutText,
         private val measurer: CjkParagraphLayoutProvider.TextMeasurer,
     ) : TextShaper {
         override fun shape(input: ShapingInput): ShapingResult {
@@ -380,7 +381,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
     private data class ComponentSegment(
         val start: Int,
         val end: Int,
-        val text: String,
+        val layout: LayoutText,
         val source: ITextComponent,
     )
 
@@ -390,127 +391,26 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
         val lineHeight: Int,
         val language: String,
         val metricProbe: Int,
+        val layoutFingerprint: Int,
     )
 
-    private data class FormatState(
-        var color: Char? = null,
-        var random: Boolean = false,
-        var bold: Boolean = false,
-        var strike: Boolean = false,
-        var underline: Boolean = false,
-        var italic: Boolean = false,
-    ) {
-        fun apply(codeValue: Char) {
-            val code = codeValue.lowercaseChar()
-            if (code in "0123456789abcdef") {
-                color = code
-                random = false
-                bold = false
-                strike = false
-                underline = false
-                italic = false
-            } else {
-                when (code) {
-                    'k' -> random = true
-                    'l' -> bold = true
-                    'm' -> strike = true
-                    'n' -> underline = true
-                    'o' -> italic = true
-                    'r' -> {
-                        color = null
-                        random = false
-                        bold = false
-                        strike = false
-                        underline = false
-                        italic = false
-                    }
-                }
+    private fun styleRanges(parsed: LayoutText): List<Pair<TextRange, LayoutText.State>> {
+        val visible = parsed.visibleText()
+        if (visible.isEmpty()) return emptyList()
+        val ranges = mutableListOf<Pair<TextRange, LayoutText.State>>()
+        var start = 0
+        var state = parsed.stateAt(0)
+        var offset = Character.charCount(visible.codePointAt(0))
+        while (offset < visible.length) {
+            val nextState = parsed.stateAt(offset)
+            if (nextState != state) {
+                ranges += TextRange(start, offset) to state
+                start = offset
+                state = nextState
             }
+            offset += Character.charCount(visible.codePointAt(offset))
         }
-
-        fun prefix(): String = buildString {
-            color?.let { append('\u00a7').append(it) }
-            if (random) append("\u00a7k")
-            if (bold) append("\u00a7l")
-            if (strike) append("\u00a7m")
-            if (underline) append("\u00a7n")
-            if (italic) append("\u00a7o")
-        }
-    }
-
-    private class ParsedText private constructor(
-        val raw: String,
-        val visible: String,
-        private val rawBoundaries: IntArray,
-        private val states: TreeMap<Int, FormatState>,
-    ) {
-        fun rawBoundary(visibleOffset: Int): Int =
-            rawBoundaries[visibleOffset.coerceIn(0, rawBoundaries.lastIndex)]
-
-        fun stateAt(visibleOffset: Int): FormatState =
-            states.floorEntry(visibleOffset)?.value ?: FormatState()
-
-        fun formattedDisplay(visibleStart: Int, displayText: String): String =
-            stateAt(visibleStart).prefix() + displayText
-
-        fun codePointRanges(): List<TextRange> {
-            val ranges = mutableListOf<TextRange>()
-            var offset = 0
-            while (offset < visible.length) {
-                val next = offset + Character.charCount(visible.codePointAt(offset))
-                ranges += TextRange(offset, next)
-                offset = next
-            }
-            return ranges
-        }
-
-        fun styleRanges(): List<Pair<TextRange, FormatState>> {
-            if (visible.isEmpty()) return emptyList()
-            val ranges = mutableListOf<Pair<TextRange, FormatState>>()
-            var start = 0
-            var state = stateAt(0)
-            var offset = Character.charCount(visible.codePointAt(0))
-            while (offset < visible.length) {
-                val nextState = stateAt(offset)
-                if (nextState != state) {
-                    ranges += TextRange(start, offset) to state
-                    start = offset
-                    state = nextState
-                }
-                offset += Character.charCount(visible.codePointAt(offset))
-            }
-            ranges += TextRange(start, visible.length) to state
-            return ranges
-        }
-
-        companion object {
-            fun parse(raw: String): ParsedText {
-                val visible = StringBuilder()
-                val rawBoundaries = mutableListOf(0)
-                val states = TreeMap<Int, FormatState>()
-                val state = FormatState()
-                var rawOffset = 0
-                while (rawOffset < raw.length) {
-                    if (raw[rawOffset] == '\u00a7' && rawOffset + 1 < raw.length) {
-                        state.apply(raw[rawOffset + 1])
-                        rawOffset += 2
-                        continue
-                    }
-                    val codePoint = raw.codePointAt(rawOffset)
-                    val count = Character.charCount(codePoint)
-                    states[visible.length] = state.copy()
-                    visible.appendCodePoint(codePoint)
-                    repeat(count) { index -> rawBoundaries += rawOffset + index + 1 }
-                    rawOffset += count
-                }
-                states[visible.length] = state.copy()
-                return ParsedText(
-                    raw,
-                    visible.toString(),
-                    rawBoundaries.toIntArray(),
-                    states,
-                )
-            }
-        }
+        ranges += TextRange(start, visible.length) to state
+        return ranges
     }
 }

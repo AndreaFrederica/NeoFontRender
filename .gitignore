@@ -6,12 +6,13 @@ bin
 .classpath
 .project
 
-# idea
+# idea / vscode
 out
 *.ipr
 *.iws
 *.iml
 .idea
+.vscode/
 layout.json
 
 # gradle

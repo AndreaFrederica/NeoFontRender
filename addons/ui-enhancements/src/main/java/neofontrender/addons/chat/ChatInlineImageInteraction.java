@@ -102,21 +102,38 @@ public final class ChatInlineImageInteraction {
         if (y < 2) y = 2;
 
         GlStateManager.pushMatrix();
-        GlStateManager.translate(0, 0, 700);
+        GlStateManager.translate(x, y, 700);
         GlStateManager.disableDepth();
         GlStateManager.enableBlend();
-        Gui.drawRect(x - 1, y - 1, x + panelWidth + 1, y + panelHeight + 1, 0xD0606872);
-        Gui.drawRect(x, y, x + panelWidth, y + panelHeight, 0xF0181C22);
-        int imageX = x + PADDING + (contentWidth - imageSize[0]) / 2;
-        glyph.drawPreview(imageX, y + PADDING, imageSize[0], imageSize[1], 0xFFFFFFFF);
+        int textColor;
+        int hintColor;
+        if (EnhancedChatConfigAccess.tabbedChatEnabled() && ChatStyleConfig.enabled) {
+            float opacity = minecraft.gameSettings.chatOpacity;
+            ChatStyleRenderer.panel(panelWidth, panelHeight,
+                    ChatStyleConfig.background, ChatStyleConfig.border, opacity);
+            textColor = ChatStyleRenderer.color(ChatStyleConfig.text, opacity);
+            hintColor = withAlpha(textColor, 0.65F);
+        } else {
+            Gui.drawRect(-1, -1, panelWidth + 1, panelHeight + 1, 0xD0606872);
+            Gui.drawRect(0, 0, panelWidth, panelHeight, 0xF0181C22);
+            textColor = 0xFFE5E9EF;
+            hintColor = 0xFF9DA8B5;
+        }
+        int imageX = PADDING + (contentWidth - imageSize[0]) / 2;
+        glyph.drawPreview(imageX, PADDING, imageSize[0], imageSize[1], 0xFFFFFFFF);
         String description = minecraft.fontRenderer.trimStringToWidth(glyph.description(),
                 panelWidth - PADDING * 2);
-        minecraft.fontRenderer.drawStringWithShadow(description, x + PADDING,
-                y + imageSize[1] + 12, 0xFFE5E9EF);
-        minecraft.fontRenderer.drawStringWithShadow(hint, x + PADDING,
-                y + imageSize[1] + 22, 0xFF9DA8B5);
+        minecraft.fontRenderer.drawStringWithShadow(description, PADDING,
+                imageSize[1] + 12, textColor);
+        minecraft.fontRenderer.drawStringWithShadow(hint, PADDING,
+                imageSize[1] + 22, hintColor);
         GlStateManager.enableDepth();
         GlStateManager.popMatrix();
+    }
+
+    private static int withAlpha(int color, float multiplier) {
+        int alpha = Math.max(0, Math.min(255, Math.round((color >>> 24) * multiplier)));
+        return color & 0x00FFFFFF | alpha << 24;
     }
 
     /** Receives a Tabby/UIE-local hit and defers its preview until the screen's final overlay pass. */
