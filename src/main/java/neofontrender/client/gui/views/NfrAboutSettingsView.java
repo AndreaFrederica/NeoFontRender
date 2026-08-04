@@ -3,6 +3,7 @@ package neofontrender.client.gui.views;
 import net.minecraft.client.resources.I18n;
 import net.minecraftforge.fml.common.Loader;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
+import neofontrender.client.NeofontrenderBranding;
 import neofontrender.client.gui.component.base.NfrTextInfoPanel;
 import neofontrender.client.gui.model.NfrSettingsDraft;
 import neofontrender.api.client.settings.NfrInfoLine;
@@ -25,7 +26,7 @@ public final class NfrAboutSettingsView extends NfrContentView<NfrAboutSettingsV
 
     private static NfrTextInfoPanel content(NfrSettingsDraft draft) {
         List<NfrTextInfoPanel.Line> lines = new ArrayList<>();
-        lines.add(NfrTextInfoPanel.line(tr("neofontrender.gui.about.name"), 0xFFFFFF));
+        lines.add(NfrTextInfoPanel.line(NeofontrenderBranding.displayName(), 0xFFFFFF));
         lines.add(NfrTextInfoPanel.line(() -> tr("neofontrender.gui.about.version") + ": " + version(), 0xD8D8D8));
         lines.add(NfrTextInfoPanel.line(() -> tr("neofontrender.gui.option.engine") + ": "
                 + NfrSettingsControls.engineName(draft.engine), 0xD8D8D8));

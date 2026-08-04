@@ -911,7 +911,7 @@ public final class NeofontrenderConfig {
 
     private static void writeDefaultConfig(File file) throws IOException {
         try (Writer w = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"))) {
-            w.write("# Neo Font Render Configuration\n");
+            w.write("# Revo Font Configuration\n");
             w.write("\n");
             w.write("enabled = true\n");
             w.write("\n");

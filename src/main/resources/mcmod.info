@@ -15,12 +15,12 @@
 	"dependencies": []
 }, {
 	"modid": "neofontrender_resources",
-	"name": "Neo Font Render Resources",
+	"name": "Revo Font Resources",
 	"version": "${mod_version}",
 	"mcversion": "1.12.2",
 	"description": "Optional bundled fonts included by the full distribution.",
 	"authorList": ["${mod_authors}"],
-	"credits": "Bundled font resources for Neo Font Render.",
+	"credits": "Bundled font resources for Revo Font.",
 	"url": "${mod_url}",
 	"logoFile": "${mod_logo_path}",
 	"modProperties": {"issueTrackerUrl": "${mod_issue_tracker}"},

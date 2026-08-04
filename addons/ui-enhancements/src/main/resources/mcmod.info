@@ -4,7 +4,7 @@
     "name": "NFR UI Enhancements",
     "version": "${version}",
     "mcversion": "1.12.2",
-    "description": "Optional UI improvements powered by Neo Font Render, including modern tooltips.",
+    "description": "Optional UI improvements for the companion font renderer, including modern tooltips.",
     "authorList": ["AndreaFrederica", "baka-gourd", "DHJComical"],
     "url": "https://github.com/AndreaFrederica/NeoFontRender-UIEnhancements",
     "logoFile": "assets/neofontrender_ui_enhancements/logo.png",

@@ -17,17 +17,18 @@ import neofontrender.client.gui.NeofontrenderEmojiTestScreen;
  */
 @SideOnly(Side.CLIENT)
 public final class NeofontrenderKeyHandler {
+    private static final String BRAND_SUFFIX = NeofontrenderBranding.suffix();
 
     public static final KeyBinding OPEN_CONFIG = new KeyBinding(
-            "key.neofontrender.openConfig",
+            "key.neofontrender.openConfig." + BRAND_SUFFIX,
             Keyboard.KEY_O,
-            "key.categories.neofontrender"
+            "key.categories.neofontrender." + BRAND_SUFFIX
     );
 
     public static final KeyBinding OPEN_EMOJI_TEST = new KeyBinding(
             "key.neofontrender.emojiTest",
             Keyboard.KEY_P,
-            "key.categories.neofontrender"
+            "key.categories.neofontrender." + BRAND_SUFFIX
     );
 
     private NeofontrenderKeyHandler() {}

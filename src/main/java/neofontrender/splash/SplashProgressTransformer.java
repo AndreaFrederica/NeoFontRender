@@ -19,7 +19,7 @@ import org.apache.logging.log4j.Logger;
  */
 public final class SplashProgressTransformer implements IClassTransformer {
 
-    private static final Logger LOGGER = LogManager.getLogger("Neo Font Render");
+    private static final Logger LOGGER = LogManager.getLogger("Revo Font");
 
     // SplashFontRenderer targets
     private static final String FONT_RENDERER_TARGET =

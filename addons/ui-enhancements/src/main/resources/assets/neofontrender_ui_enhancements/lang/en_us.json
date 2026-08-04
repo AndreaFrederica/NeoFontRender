@@ -84,7 +84,7 @@
   "tip.tipsmod.zombie_armor.text": "Zombies take slightly less damage than most mobs.",
 
   "tip.uie.1": "You can hold the C key to zoom in. The mouse sensitivity scales automatically.",
-  "tip.uie.2": "Press O to open the Neo Font Render settings screen with live preview.",
+  "tip.uie.2": "Press O to open the font and UI settings screen with live preview.",
   "tip.uie.3": "Custom fonts can be placed in .minecraft/neofontrender/fonts/ as TTF or OTF files.",
   "tip.uie.4": "The Cosmic Text engine supports system fonts and fallback chains for missing glyphs.",
   "tip.uie.5": "Chat messages can be searched with Ctrl+F when the enhanced chat module is enabled.",

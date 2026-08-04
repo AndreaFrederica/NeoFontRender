@@ -36,7 +36,7 @@ public final class NeofontrenderCommand extends CommandBase {
     @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) {
         if (args.length == 0) {
-            message(sender, TextFormatting.GOLD, "Neo Font Render: " + getUsage(sender));
+            message(sender, TextFormatting.GOLD, NeofontrenderBranding.displayName() + ": " + getUsage(sender));
             return;
         }
         switch (args[0].toLowerCase(java.util.Locale.ROOT)) {
@@ -64,7 +64,7 @@ public final class NeofontrenderCommand extends CommandBase {
     private static void info(ICommandSender sender) {
         FontManager manager = FontManager.INSTANCE;
         String engine = manager.isCosmicActive() ? "cosmic" : manager.isSfrActive() ? "sfr" : "vanilla";
-        message(sender, TextFormatting.GOLD, "Neo Font Render engine: " + engine);
+        message(sender, TextFormatting.GOLD, NeofontrenderBranding.displayName() + " engine: " + engine);
         message(sender, TextFormatting.WHITE, "  configured: " + NeofontrenderConfig.renderingEngine());
         message(sender, TextFormatting.WHITE, "  backend: " + manager.getBackendVersion());
         message(sender, TextFormatting.WHITE, "  advanced string mode: " + NeofontrenderConfig.advancedStringMode());
@@ -100,7 +100,7 @@ public final class NeofontrenderCommand extends CommandBase {
             message(sender, TextFormatting.RED, "No modern text backend is available.");
             return;
         }
-        String sample = "NeoFontRender fi العربية 😀";
+        String sample = NeofontrenderBranding.displayName() + " fi العربية 😀";
         message(sender, TextFormatting.AQUA, "Measured sample width: " + backend.measureFormatted(sample, 0xFFFFFFFF, false));
     }
 

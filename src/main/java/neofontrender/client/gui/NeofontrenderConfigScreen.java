@@ -14,6 +14,7 @@ import net.minecraft.client.resources.I18n;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import neofontrender.client.gui.component.base.NfrScrollablePane;
+import neofontrender.client.NeofontrenderBranding;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
 import neofontrender.client.gui.component.business.NfrSettingsFooter;
 import neofontrender.client.gui.component.business.NfrSettingsTabs;
@@ -114,7 +115,7 @@ public final class NeofontrenderConfigScreen {
 
     private static NfrSettingsLayout buildLayout(ScreenSession session, Route route) {
         NfrSettingsDraft draft = session.draft;
-        TextWidget title = new TextWidget(IKey.str(tr("neofontrender.gui.title")
+        TextWidget title = new TextWidget(IKey.str(NeofontrenderBranding.displayName()
                 + (route.isFont() ? "" : " / " + route.title())))
                 .alignment(Alignment.CenterLeft)
                 .color(0xFFFFFF);
