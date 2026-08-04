@@ -17,7 +17,7 @@ import neofontrender.addons.chat.network.SelfMessageCapability;
 )
 public final class NfrUiEnhancementsServer {
     public static final String MOD_ID = "neofontrender_ui_enhancements_server";
-    public static final String VERSION = "0.1.1";
+    public static final String VERSION = "0.2.0";
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
