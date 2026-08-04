@@ -72,7 +72,7 @@ The project ships as a main mod and several optional modules. All UIE modules sh
 </tr>
 <tr>
   <td><img src="addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png" width="32"></td>
-  <td><b>NFR UI Enhancements</b></td>
+  <td><b>Revo UI</b></td>
   <td><code>neofontrender_ui_enhancements</code></td>
   <td>LGPL-3.0</td>
   <td>Visual and interactive addons: chat (TabbyChat + Salutation embedded), tooltips, HUD bars, smooth scrolling, text input, screen effects, hover animation, world loading, zoom.</td>
@@ -114,7 +114,7 @@ The project ships as a main mod and several optional modules. All UIE modules sh
 </tbody>
 </table>
 
-### UI Enhancements feature modules
+### Revo UI feature modules
 
 | Module | Description |
 | --- | --- |
@@ -181,11 +181,11 @@ Download the distribution that fits your installation and put it in the `mods` f
 
 Do not install `full` together with the split `core` or `resources` packages.
 
-### UI Enhancements
+### Revo UI
 
 Install `neofontrender-ui-enhancements-<version>.jar` alongside the main mod. The server companion is optional.
 
-- [UI Enhancements releases](https://github.com/AndreaFrederica/NeoFontRender/releases?q=ui-enhancements)
+- [Revo UI releases](https://github.com/AndreaFrederica/NeoFontRender/releases?q=uie%2F)
 - [Addon documentation and build instructions](addons/ui-enhancements/README.md)
 
 ## Getting started

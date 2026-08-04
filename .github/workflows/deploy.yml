@@ -374,7 +374,7 @@ jobs:
           fail-mode: fail
 
   package-uie:
-    name: Package and publish UI Enhancements
+    name: Package and publish Revo UI
     needs: release-meta
     if: needs.release-meta.outputs.kind == 'uie'
     runs-on: ubuntu-latest
@@ -399,16 +399,16 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build and stage UI Enhancements
+      - name: Build and stage Revo UI
         run: ./gradlew :addons:ui-enhancements:stageUiEnhancementsRelease --no-daemon
 
-      - name: Verify staged UI Enhancements JAR
+      - name: Verify staged Revo UI JAR
         shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
           archives=(build/release/uie/*.jar)
-          [[ ${#archives[@]} -eq 1 ]] || { echo "Expected exactly one UI Enhancements release JAR" >&2; exit 1; }
+          [[ ${#archives[@]} -eq 1 ]] || { echo "Expected exactly one Revo UI release JAR" >&2; exit 1; }
           jar="${archives[0]}"
           test -s "$jar"
           [[ "$jar" != *-dev.jar && "$jar" != *-sources.jar && "$jar" != *-shadow.jar ]]
@@ -417,7 +417,7 @@ jobs:
           grep -Fxq 'mixins.neofontrender_ui_enhancements.json' <<<"$entries"
           grep -Fxq 'neofontrender/addons/mixin/UiEnhancementsMixinLoader.class' <<<"$entries"
 
-      - name: Upload UI Enhancements workflow artifact
+      - name: Upload Revo UI workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: neofontrender-ui-enhancements-${{ needs.release-meta.outputs.version }}
@@ -425,12 +425,12 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish UI Enhancements to GitHub and CurseForge
+      - name: Publish Revo UI to GitHub and CurseForge
         if: needs.release-meta.outputs.publish == 'true'
         uses: Kira-NT/mc-publish@v3
         with:
           files: build/release/uie/*.jar
-          name: UI Enhancements ${{ needs.release-meta.outputs.version }}
+          name: Revo UI ${{ needs.release-meta.outputs.version }}
           version: ${{ needs.release-meta.outputs.version }}
           version-type: release
           loaders: forge

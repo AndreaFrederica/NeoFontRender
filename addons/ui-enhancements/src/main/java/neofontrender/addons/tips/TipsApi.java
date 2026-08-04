@@ -6,7 +6,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Public API for the NFR UI Enhancements tip system.
+ * Public API for the Revo UI tip system.
  *
  * <p>Other mods can contribute tips by:</p>
  * <ol>

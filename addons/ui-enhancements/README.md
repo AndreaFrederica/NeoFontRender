@@ -1,4 +1,4 @@
-# NFR UI Enhancements
+# Revo UI
 
 Optional Minecraft 1.12.2 client addon for Neo Font Render. It contains global
 interface features that are intentionally kept out of the font-rendering core.

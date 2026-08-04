@@ -6,7 +6,7 @@ import neofontrender.addons.chat.network.SelfMessageCapability;
 
 @Mod(
         modid = NfrUiEnhancementsServer.MOD_ID,
-        name = "NFR UI Enhancements Server Companion",
+        name = "Revo UI Server Companion",
         version = NfrUiEnhancementsServer.VERSION,
         dependencies = "after:neofontrender_ui_enhancements",
         serverSideOnly = true,

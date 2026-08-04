@@ -1,4 +1,4 @@
-name: UI Enhancements / Build
+name: Revo UI / Build
 
 on:
   workflow_dispatch:

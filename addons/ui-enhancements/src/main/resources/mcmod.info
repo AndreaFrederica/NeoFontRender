@@ -1,7 +1,7 @@
 [
   {
     "modid": "neofontrender_ui_enhancements",
-    "name": "NFR UI Enhancements",
+    "name": "Revo UI",
     "version": "${version}",
     "mcversion": "1.12.2",
     "description": "Optional UI improvements for the companion font renderer, including modern tooltips.",
@@ -20,7 +20,7 @@
     "mcversion": "1.12.2",
     "description": "Organises chat messages into separate channel columns with filters and manageable history. Bundled from TabbyChat 2 Reforged.",
     "authorList": ["MNM", "UIE"],
-    "credits": "Embedded by NFR UI Enhancements; original TabbyChat 2 Reforged sources are Apache-2.0.",
+    "credits": "Embedded by Revo UI; original TabbyChat 2 Reforged sources are Apache-2.0.",
     "logoFile": "assets/neofontrender_ui_enhancements/logo.png",
     "modProperties": {"issueTrackerUrl": "${issueTracker}"},
     "clientSideOnly": true,
@@ -34,7 +34,7 @@
     "mcversion": "1.12.2",
     "description": "Chunk Pregenerators backport of the Command System made open source. Bundled from Salutation 1.12.2.",
     "authorList": ["Speiger", "UIE"],
-    "credits": "Embedded by NFR UI Enhancements; original Salutation sources are Apache-2.0.",
+    "credits": "Embedded by Revo UI; original Salutation sources are Apache-2.0.",
     "logoFile": "assets/salutation/logo.png",
     "modProperties": {"issueTrackerUrl": "${issueTracker}"},
     "clientSideOnly": true,

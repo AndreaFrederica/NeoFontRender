@@ -18,7 +18,7 @@ final class UiEnhancementsInfoContributions {
             @Override public NfrInfoPage page() { return NfrInfoPage.ABOUT; }
             @Override public List<NfrInfoLine> lines() {
                 return Arrays.asList(
-                        NfrInfoLine.spaced("NFR UI Enhancements", 0xFFFFFF),
+                        NfrInfoLine.spaced(NfrUiEnhancements.MOD_NAME, 0xFFFFFF),
                         NfrInfoLine.line(() -> tr("neofontrender_ui_enhancements.info.version") + ": "
                                 + NfrUiEnhancements.VERSION, 0xD8D8D8),
                         NfrInfoLine.line(() -> tr("neofontrender_ui_enhancements.info.description"), 0xBFC7D1),
@@ -31,7 +31,7 @@ final class UiEnhancementsInfoContributions {
             @Override public NfrInfoPage page() { return NfrInfoPage.LICENSES; }
             @Override public List<NfrInfoLine> lines() {
                 return Arrays.asList(
-                        NfrInfoLine.spaced("NFR UI Enhancements - LGPL-3.0", 0xD8D8D8),
+                        NfrInfoLine.spaced(NfrUiEnhancements.MOD_NAME + " - LGPL-3.0", 0xD8D8D8),
                         NfrInfoLine.line("Arc3D Core - LGPL-3.0-or-later", 0xD8D8D8),
                         NfrInfoLine.line("ModularUI - LGPL-3.0", 0xD8D8D8),
                         NfrInfoLine.line("TabbyChat 2 Reforged - Apache-2.0", 0xD8D8D8),
