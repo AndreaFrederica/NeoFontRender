@@ -27,6 +27,7 @@ import neofontrender.addons.chat.ExternalChatCompat;
 import neofontrender.addons.chat.ChatAnimationController;
 import neofontrender.addons.chat.ChatKeyBindings;
 import neofontrender.addons.chat.ChatKeepOpenPolicy;
+import neofontrender.addons.chat.ChatInlineImageInteraction;
 import neofontrender.addons.input.TextCursorManager;
 
 import java.io.IOException;
@@ -116,6 +117,7 @@ public abstract class MixinGuiChat extends GuiScreen implements ITabCompleter {
     @Inject(method = "onGuiClosed()V", at = @At("RETURN"))
     private void onChatClosed(CallbackInfo ci) {
         if (this.chat != null) this.chat.captureActiveDraft();
+        ChatInlineImageInteraction.clearTabbyHover();
         this.historyBuffer = "";
         ExternalChatCompat.removeSalutationInput(this.inputField);
         this.componentList.forEach(GuiComponent::onClosed);

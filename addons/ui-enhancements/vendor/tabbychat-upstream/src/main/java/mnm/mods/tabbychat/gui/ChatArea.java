@@ -201,10 +201,17 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         if (clipped) endClip();
         ILocation hoverLocation = getActualLocation();
         float hoverScale = getActualScale();
+        int glyphX = glyphHover == null ? 0
+                : hoverLocation.getXPos() + Math.round(glyphHover.x * hoverScale);
+        int glyphY = glyphHover == null ? 0
+                : hoverLocation.getYPos() + Math.round(glyphHover.y * hoverScale);
+        int glyphWidth = glyphHover == null ? 0
+                : Math.max(1, Math.round(glyphHover.width * hoverScale));
+        int glyphHeight = glyphHover == null ? 0
+                : Math.max(1, Math.round(glyphHover.height * hoverScale));
         ChatInlineImageInteraction.publishTabbyHover(
                 glyphHover == null ? null : glyphHover.hit.match().glyph(),
-                hoverLocation.getXPos() + Math.round(mouseX * hoverScale),
-                hoverLocation.getYPos() + Math.round(mouseY * hoverScale));
+                glyphX, glyphY, glyphWidth, glyphHeight);
     }
 
     private final IntBuffer oldScissor = BufferUtils.createIntBuffer(4);
@@ -510,8 +517,10 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
                 && line instanceof ChatMessage
                 && ((ChatMessage) line).nfrUi$isFirstFragment();
         ITextComponent component = nfrUi$componentAt(line, mouseX);
+        int rowTop = Math.round(visualBottom);
+        for (int index = 0; index <= row; index++) rowTop -= rowHeight(visible.get(index));
         return new SelectionHit(line, Math.max(0, Math.min(value.length(), position)),
-                head, component);
+                head, component, rowTop);
     }
 
     private ITextComponent nfrUi$componentAt(Message line, int mouseX) {
@@ -583,15 +592,25 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         Message line = rowHit.line;
         int textX = textX(line, 3);
         InlineTextLayout layout = InlineTextEngine.layout(mc.fontRenderer, messageText(line));
-        InlineGlyphHit hit = layout.glyphAt(mouseX - textX);
-        return hit == null ? null : new GlyphHover(hit);
+        InlineGlyphHit hit = layout.glyphAt(mouseX - textX,
+                mouseY - rowHit.rowTop, mc.fontRenderer);
+        return hit == null ? null : new GlyphHover(hit,
+                textX + hit.x(), rowHit.rowTop + hit.y());
     }
 
     private static final class GlyphHover {
         private final InlineGlyphHit hit;
+        private final int x;
+        private final int y;
+        private final int width;
+        private final int height;
 
-        private GlyphHover(InlineGlyphHit hit) {
+        private GlyphHover(InlineGlyphHit hit, int x, int y) {
             this.hit = hit;
+            this.x = x;
+            this.y = y;
+            this.width = hit.width();
+            this.height = hit.height();
         }
     }
 
@@ -600,12 +619,19 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         private final int position;
         private final boolean head;
         private final ITextComponent component;
+        private final int rowTop;
 
         private SelectionHit(Message line, int position, boolean head, ITextComponent component) {
+            this(line, position, head, component, 0);
+        }
+
+        private SelectionHit(Message line, int position, boolean head, ITextComponent component,
+                             int rowTop) {
             this.line = line;
             this.position = position;
             this.head = head;
             this.component = component;
+            this.rowTop = rowTop;
         }
     }
 

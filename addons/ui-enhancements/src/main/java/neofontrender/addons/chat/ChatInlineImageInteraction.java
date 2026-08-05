@@ -14,8 +14,10 @@ import neofontrender.addons.api.inline.InlineTextEngine;
 import neofontrender.addons.api.inline.InlineTextLayout;
 import neofontrender.addons.mixin.AccessorGuiNewChatFeatures;
 import neofontrender.addons.tooltips.AddonI18n;
+import org.lwjgl.input.Mouse;
 
 import javax.annotation.Nullable;
+import java.awt.Rectangle;
 import java.util.List;
 
 /** Hover preview and hit testing for image glyphs in the open vanilla chat. */
@@ -23,8 +25,7 @@ public final class ChatInlineImageInteraction {
     private static final int PREVIEW_SIZE = 144;
     private static final int PADDING = 8;
     private static InlineGlyph tabbyHoverGlyph;
-    private static int tabbyHoverX;
-    private static int tabbyHoverY;
+    private static Rectangle tabbyHoverBounds;
 
     private ChatInlineImageInteraction() {}
 
@@ -67,13 +68,26 @@ public final class ChatInlineImageInteraction {
 
     static void draw(int mouseX, int mouseY) {
         InlineGlyph published = tabbyHoverGlyph;
-        tabbyHoverGlyph = null;
         if (!EnhancedChatFeatures.imageGlyphHover() || ChatContextMenu.INSTANCE.isOpen()) return;
         InlineGlyph glyph;
         if (EnhancedChatConfigAccess.tabbedChatEnabled()) {
+            Minecraft minecraft = Minecraft.getMinecraft();
+            if (minecraft.currentScreen == null) {
+                ScaledResolution liveResolution = new ScaledResolution(minecraft);
+                mouseX = Mouse.getX() * liveResolution.getScaledWidth() / minecraft.displayWidth;
+                mouseY = liveResolution.getScaledHeight()
+                        - Mouse.getY() * liveResolution.getScaledHeight() / minecraft.displayHeight - 1;
+            }
+            // Gnetum may replay its cached HUD without asking TabbyChat to lay out the line again.
+            // Retain the last glyph's real screen box across those frames and hit-test the live
+            // pointer against it. Comparing only with the previous pointer position caused every
+            // movement frame to alternate between an empty hit and a freshly published hit.
+            if (!insideRetainedBounds(mouseX, mouseY)) {
+                tabbyHoverGlyph = null;
+                tabbyHoverBounds = null;
+                return;
+            }
             glyph = published;
-            mouseX = tabbyHoverX;
-            mouseY = tabbyHoverY;
         } else {
             Hit hit = hit(mouseX, mouseY);
             glyph = hit == null ? null : hit.glyph;
@@ -137,10 +151,24 @@ public final class ChatInlineImageInteraction {
     }
 
     /** Receives a Tabby/UIE-local hit and defers its preview until the screen's final overlay pass. */
-    public static void publishTabbyHover(@Nullable InlineGlyph glyph, int screenX, int screenY) {
+    public static void publishTabbyHover(@Nullable InlineGlyph glyph,
+                                         int glyphX, int glyphY, int glyphWidth, int glyphHeight) {
         tabbyHoverGlyph = glyph;
-        tabbyHoverX = screenX;
-        tabbyHoverY = screenY;
+        tabbyHoverBounds = glyph == null ? null : new Rectangle(glyphX, glyphY,
+                Math.max(1, glyphWidth), Math.max(1, glyphHeight));
+    }
+
+    /** Clears the retained hit when the chat screen closes. */
+    public static void clearTabbyHover() {
+        tabbyHoverGlyph = null;
+        tabbyHoverBounds = null;
+    }
+
+    private static boolean insideRetainedBounds(int mouseX, int mouseY) {
+        Rectangle bounds = tabbyHoverBounds;
+        return tabbyHoverGlyph != null && bounds != null
+                && mouseX >= bounds.x - 1 && mouseX < bounds.x + bounds.width + 1
+                && mouseY >= bounds.y - 1 && mouseY < bounds.y + bounds.height + 1;
     }
 
     static final class Hit {
