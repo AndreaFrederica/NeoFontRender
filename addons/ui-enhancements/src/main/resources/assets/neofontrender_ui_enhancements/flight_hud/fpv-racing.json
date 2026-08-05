@@ -1,0 +1,29 @@
+{
+  "schema": 3,
+  "id": "fpv-racing",
+  "name": "FPV Racing OSD",
+  "style": "FPV_RACING",
+  "canvasWidth": 600,
+  "canvasHeight": 340,
+  "crosshairMode": "HIDE_VANILLA",
+  "lineWidth": 1.15,
+  "textScale": 0.72,
+  "colors": {
+    "primary": "#FFF4F7F8", "secondary": "#B8B8C5CA",
+    "horizon": "#FFF4F7F8", "flightPath": "#FFFFD84A",
+    "energy": "#FFFFA83D", "reference": "#FFFFD84A",
+    "selected": "#FFFF5A50", "warning": "#FFFF3E45", "halo": "#E0000000"
+  },
+  "stall": {"enabled": true, "referencePitch": -15, "margin": 1.12, "label": "LOW"},
+  "elements": [
+    {"id":"status","type":"STATUS","x":60,"y":18,"width":480,"scale":0.8,"variant":"FPV_RACING","data":{"left":"ARMED","center":"ACRO","right":"RACE"}},
+    {"id":"heading","type":"HEADING_RIBBON","x":300,"y":55,"width":340,"range":80,"majorStep":10,"minorStep":5,"scale":0.78},
+    {"id":"flight-reference","type":"FLIGHT_REFERENCE","x":300,"y":175,"width":230,"scale":0.82,"pitchPixelsPerDegree":2.25,"driftPixelsPerDegree":2.3,"pitchRange":35,"pitchStep":5,"pitchMode":"WRAP_360","variant":"FPV_RACING"},
+    {"id":"airspeed","type":"AIRSPEED_TAPE","x":88,"y":118,"height":122,"range":120,"majorStep":20,"minorStep":10,"boxWidth":42,"trendSeconds":3,"scale":0.78},
+    {"id":"altitude","type":"ALTITUDE_TAPE","x":512,"y":118,"height":122,"range":500,"majorStep":100,"minorStep":20,"boxWidth":44,"trendSeconds":3,"scale":0.78},
+    {"id":"vertical-speed","type":"VERTICAL_SPEED","x":540,"y":179,"height":84,"range":1800,"scale":0.72},
+    {"id":"ground-speed","type":"GROUND_SPEED","x":55,"y":285,"scale":0.72,"label":"GS"},
+    {"id":"datum","type":"DATUM","x":482,"y":285,"scale":0.72,"label":"ALT"},
+    {"id":"input-stick","type":"INPUT_STICK","x":300,"y":310,"radius":9,"scale":0.8}
+  ]
+}

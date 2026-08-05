@@ -1,0 +1,26 @@
+{
+  "schema": 3,
+  "id": "fpv-freestyle",
+  "name": "FPV Freestyle Minimal",
+  "style": "FPV_FREESTYLE",
+  "canvasWidth": 600,
+  "canvasHeight": 340,
+  "crosshairMode": "HIDE_VANILLA",
+  "lineWidth": 1.2,
+  "textScale": 0.76,
+  "colors": {
+    "primary": "#FFF2F4F5", "secondary": "#B2B9C0C4",
+    "horizon": "#DDECF0F2", "flightPath": "#FF55E7FF",
+    "energy": "#FFFFCE55", "reference": "#FFFF6B66",
+    "selected": "#FFFF6B66", "warning": "#FFFF454D", "halo": "#E0000000"
+  },
+  "stall": {"enabled": true, "referencePitch": -15, "margin": 1.1, "label": "LOW"},
+  "elements": [
+    {"id":"status","type":"STATUS","x":80,"y":20,"width":440,"scale":0.82,"variant":"FPV_FREESTYLE","data":{"left":"ARMED","center":"AIR","right":"FREESTYLE"}},
+    {"id":"heading","type":"HEADING_RIBBON","x":300,"y":58,"width":300,"range":70,"majorStep":10,"minorStep":5,"scale":0.74},
+    {"id":"flight-reference","type":"FLIGHT_REFERENCE","x":300,"y":177,"width":245,"scale":0.88,"pitchPixelsPerDegree":2.35,"driftPixelsPerDegree":2.35,"pitchRange":40,"pitchStep":5,"pitchMode":"WRAP_360","variant":"FPV_FREESTYLE"},
+    {"id":"ground-speed","type":"GROUND_SPEED","x":76,"y":286,"scale":0.76,"label":"GS"},
+    {"id":"datum","type":"DATUM","x":475,"y":286,"scale":0.76,"label":"ALT"},
+    {"id":"input-stick","type":"INPUT_STICK","x":300,"y":309,"radius":10,"scale":0.85}
+  ]
+}

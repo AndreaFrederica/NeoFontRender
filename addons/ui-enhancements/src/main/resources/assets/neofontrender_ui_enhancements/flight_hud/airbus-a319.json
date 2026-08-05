@@ -1,0 +1,29 @@
+{
+  "schema": 3,
+  "id": "airbus-a319",
+  "name": "Airbus A319 MPP HUD",
+  "style": "AIRBUS_A319",
+  "canvasWidth": 560,
+  "canvasHeight": 320,
+  "crosshairMode": "HIDE_VANILLA",
+  "lineWidth": 0.95,
+  "textScale": 0.72,
+  "colors": {
+    "primary": "#FF88FFAA", "secondary": "#B874DC91",
+    "horizon": "#E890FFAE", "flightPath": "#FF8BFFAE",
+    "energy": "#FFB3FF92", "reference": "#E894FFB1",
+    "selected": "#FFFF62D6", "warning": "#FFFF5068", "halo": "#D0001307"
+  },
+  "stall": {"enabled": true, "referencePitch": -15, "margin": 1.15, "label": "VLS"},
+  "elements": [
+    {"id":"status","type":"STATUS","x":140,"y":25,"width":280,"scale":0.78,"variant":"AIRBUS_A319"},
+    {"id":"heading","type":"HEADING_RIBBON","x":280,"y":60,"width":310,"range":50,"majorStep":10,"minorStep":5,"scale":0.76},
+    {"id":"flight-reference","type":"FLIGHT_REFERENCE","x":280,"y":170,"width":235,"scale":0.76,"pitchPixelsPerDegree":2.15,"driftPixelsPerDegree":2.0,"pitchRange":20,"pitchStep":5,"variant":"AIRBUS_A319"},
+    {"id":"airspeed","type":"AIRSPEED_TAPE","x":112,"y":118,"height":116,"range":120,"majorStep":20,"minorStep":10,"boxWidth":42,"trendSeconds":5,"scale":0.74,"variant":"AIRBUS_A319_SPEED_DRUM"},
+    {"id":"altitude","type":"ALTITUDE_TAPE","x":448,"y":118,"height":116,"range":600,"majorStep":100,"minorStep":20,"boxWidth":46,"trendSeconds":5,"scale":0.74,"variant":"AIRBUS_A319_ALTITUDE_DRUM"},
+    {"id":"vertical-speed","type":"VERTICAL_SPEED","x":464,"y":176,"height":78,"range":2000,"scale":0.68,"variant":"AIRBUS_A319"},
+    {"id":"ground-speed","type":"GROUND_SPEED","x":96,"y":267,"scale":0.68,"label":"GS"},
+    {"id":"datum","type":"DATUM","x":421,"y":267,"scale":0.68,"label":"ALT"},
+    {"id":"input-stick","type":"INPUT_STICK","x":280,"y":292,"radius":7,"scale":0.67}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "schema": 3,
+  "id": "airbus-a319-360",
+  "name": "Airbus A319 MPP 360 Expanded",
+  "extends": "airbus-a319",
+  "elements": [
+    {"id":"flight-reference","pitchRange":30,"pitchMode":"WRAP_360"}
+  ]
+}

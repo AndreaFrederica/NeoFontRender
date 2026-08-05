@@ -1,0 +1,9 @@
+{
+  "schema": 3,
+  "id": "boeing-737-360",
+  "name": "Boeing 737 HGS-4000 360 Expanded",
+  "extends": "boeing-737",
+  "elements": [
+    {"id":"flight-reference","pitchRange":30,"pitchMode":"WRAP_360"}
+  ]
+}

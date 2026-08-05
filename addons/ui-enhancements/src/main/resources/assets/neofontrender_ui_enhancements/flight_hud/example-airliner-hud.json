@@ -1,0 +1,13 @@
+{
+  "schema": 3,
+  "id": "my-a350-hud",
+  "name": "My A350 HUD",
+  "extends": "airbus-a350",
+  "colors": {"primary":"#FF8CFFC7", "selected":"#FFFF8EE8"},
+  "lineWidth": 1.25,
+  "elements": [
+    {"id":"airspeed","x":105,"scale":0.72},
+    {"id":"altitude","x":435,"scale":0.72},
+    {"id":"input-stick","enabled":false}
+  ]
+}

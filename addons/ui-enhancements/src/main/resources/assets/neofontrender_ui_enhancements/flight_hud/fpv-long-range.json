@@ -1,0 +1,29 @@
+{
+  "schema": 3,
+  "id": "fpv-long-range",
+  "name": "FPV Long Range Navigation",
+  "style": "FPV_LONG_RANGE",
+  "canvasWidth": 600,
+  "canvasHeight": 340,
+  "crosshairMode": "HIDE_VANILLA",
+  "lineWidth": 1.0,
+  "textScale": 0.7,
+  "colors": {
+    "primary": "#FFB7FFDA", "secondary": "#B080C8A2",
+    "horizon": "#E8A4F5C4", "flightPath": "#FF66EFFF",
+    "energy": "#FFFFD768", "reference": "#FFFFF29A",
+    "selected": "#FF66EFFF", "warning": "#FFFF5666", "halo": "#E0001009"
+  },
+  "stall": {"enabled": true, "referencePitch": -15, "margin": 1.18, "label": "MIN"},
+  "elements": [
+    {"id":"status","type":"STATUS","x":55,"y":18,"width":490,"scale":0.78,"variant":"FPV_LONG_RANGE","data":{"left":"NAV","center":"CRUISE","right":"LR"}},
+    {"id":"heading","type":"HEADING_RIBBON","x":300,"y":54,"width":380,"range":100,"majorStep":10,"minorStep":5,"scale":0.76},
+    {"id":"flight-reference","type":"FLIGHT_REFERENCE","x":300,"y":174,"width":230,"scale":0.78,"pitchPixelsPerDegree":2.15,"driftPixelsPerDegree":2.2,"pitchRange":35,"pitchStep":5,"pitchMode":"WRAP_360","variant":"FPV_LONG_RANGE"},
+    {"id":"airspeed","type":"AIRSPEED_TAPE","x":88,"y":116,"height":126,"range":140,"majorStep":20,"minorStep":10,"boxWidth":42,"trendSeconds":6,"scale":0.74},
+    {"id":"altitude","type":"ALTITUDE_TAPE","x":512,"y":116,"height":126,"range":800,"majorStep":100,"minorStep":20,"boxWidth":46,"trendSeconds":6,"scale":0.74},
+    {"id":"vertical-speed","type":"VERTICAL_SPEED","x":540,"y":179,"height":88,"range":2400,"scale":0.68},
+    {"id":"ground-speed","type":"GROUND_SPEED","x":55,"y":286,"scale":0.7,"label":"GS"},
+    {"id":"datum","type":"DATUM","x":477,"y":286,"scale":0.7,"label":"ALT"},
+    {"id":"input-stick","type":"INPUT_STICK","x":300,"y":310,"radius":8,"scale":0.72}
+  ]
+}
