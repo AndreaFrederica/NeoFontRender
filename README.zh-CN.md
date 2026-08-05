@@ -79,7 +79,7 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
   <td><b>焕新UI</b></td>
   <td><code>neofontrender_ui_enhancements</code></td>
   <td>LGPL-3.0</td>
-  <td>视觉与交互增强：聊天（内嵌 TabbyChat + Salutation）、工具提示、HUD 状态条、平滑滚动、文本输入、屏幕效果、悬停动画、世界加载、缩放。</td>
+  <td>视觉与交互增强：聊天（内嵌 TabbyChat + Salutation）、工具提示、HUD 状态条、平滑滚动、文本输入、屏幕效果、悬停动画、世界加载、缩放、飞行控制、准星定制。</td>
 </tr>
 <tr>
   <td><img src="addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png" width="32"></td>
@@ -134,6 +134,18 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
 | **主菜单** | "继续游戏"按钮，直接重连上次游玩的世界或服务器。 |
 | **创建世界** | 创建世界界面三种布局主题：vanilla、tabbed、modernui。 |
 | **文本输入** | 原版与 ModularUI 文本框使用系统 I 型光标。 |
+| **飞行控制** | 三轴鞘翅飞行，支持动量模式、逐轴灵敏度/反转、手柄输入 API（供第三方手柄 mod 集成）、第三人称姿态同步与桶滚。包含 Arc3D 飞行 HUD，布局参考空客、波音和微软模拟飞行航电风格，另有 FPV OSD 和影视化战术主题。用户主题存放于 `neofontrender/flight_hud_themes`。 |
+| **准星定制** | 10 种准星样式（vanilla、十字、点、圆、方、三角、箭头、飞行V、调试、像素），独立尺寸/旋转/偏移，自适应对比度、描边、中心点，情境可见性、动态攻击/拉弓扩散、目标颜色、彩虹动画、冷却环、低耐久警告、弹药指示器与游戏内像素编辑器。 |
+
+### 兼容性补丁
+
+UIE 包含多个第三方 Mod 的兼容性修复：
+
+**Shoulder Surfing** — **建议启用自定义准星**以修复偏移问题。Shoulder Surfing 原版会移动整个 HUD 矩阵，但 UIE 的 `patched` 模式只将准星偏移到实际光标位置，并同步方块/实体拾取与投影准星射线。修复模式默认为 `patched`（玩家原点射线用于光标、弹射物和交互），另有 `adaptive`（按持有物品切换）、`static`（肩部摄像机中心拾取）、`dual`（玩家/摄像机双光标，橙色交互标记）和 `off`（原版 Mod 行为）。
+
+**后向移植物品** — 通过精确物品 ID 识别 1.17+ 的望远镜、弩和三叉戟，ID 来自打包的 `assets/neofontrender_ui_enhancements/crosshair_compat.toml` 列表及 `crosshair.compat.spyglassItems`、`crosshair.compat.crossbowItems`、`crosshair.compat.tridentItems`、`crosshair.compat.rangedItems` UIE 配置字段。这些逗号分隔字段故意不支持通配符、前缀、子串或正则表达式，只比较 Forge `namespace:path` 资源 ID，因此同一列表在 Roughly Enough IDs 下仍然有效。UIE 的 C 键缩放共享望远镜可见性规则。
+
+**Matter Overdrive** — 远程物品列表包含 Matter Overdrive 的显式武器 ID，不会将其视为充能弓。
 
 ### 聊天子功能（UIE 内部）
 
@@ -444,6 +456,20 @@ NFR 分发的 Arc3D Core 2026.2.0 的稳定访问入口。原始 `icyllis.arc3d.
 | `lerp(from, to, amount)` | 线性插值。 |
 | `hsv(h, s, v, alpha)` | HSV 转 ARGB 颜色。 |
 | `lerpArgb(from, to, amount)` | 逐通道 ARGB 插值。 |
+
+## 兼容性
+
+### 第三方 Mod 集成
+
+- **TinkersAntique** — PUA 标记兼容与附魔台字体替换。
+- **SFR/AWT** — 内置 Java2D AWT 兼容渲染器，当 Cosmic 不可用时便于排障。
+- **HEI / Obscure Tooltips / Quark** — 现代工具提示与这些 Mod 集成，确保渲染一致。
+- **后向移植物品** — 通过精确物品 ID 识别 1.17+ 的望远镜、弩和三叉戟。
+- **Matter Overdrive** — 远程物品列表包含 Matter Overdrive 的显式武器 ID。
+
+### 第三方 Mod Bug 修复
+
+- **Shoulder Surfing 准星偏移** — Shoulder Surfing 原版会移动整个 HUD 矩阵，导致准星偏离实际光标位置。**建议启用自定义准星**以修复此问题：`patched` 模式只将准星偏移到实际光标位置，并同步方块/实体拾取与投影准星射线，使世界交互体验接近原版第一人称。其他模式：`adaptive`（按持有物品切换）、`static`（肩部摄像机中心拾取）、`dual`（玩家/摄像机双光标，带交互标记）、`off`（原版行为）。
 
 ## 开发
 

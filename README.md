@@ -80,7 +80,7 @@ The project ships as a main mod and several optional modules. All UIE modules sh
   <td><b>Revo UI</b></td>
   <td><code>neofontrender_ui_enhancements</code></td>
   <td>LGPL-3.0</td>
-  <td>Visual and interactive addons: chat (TabbyChat + Salutation embedded), tooltips, HUD bars, smooth scrolling, text input, screen effects, hover animation, world loading, zoom.</td>
+  <td>Visual and interactive addons: chat (TabbyChat + Salutation embedded), tooltips, HUD bars, smooth scrolling, text input, screen effects, hover animation, world loading, zoom, flight control, crosshair customization.</td>
 </tr>
 <tr>
   <td><img src="addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png" width="32"></td>
@@ -135,6 +135,8 @@ The project ships as a main mod and several optional modules. All UIE modules sh
 | **Main Menu** | "Continue Game" button to directly rejoin the last played world or server. |
 | **Create World** | Three layout themes for the create-world screen: vanilla, tabbed, and modernui. |
 | **Text Input** | OS-style I-beam cursor over vanilla and ModularUI text fields. |
+| **Flight Control** | Continuous three-axis Elytra flight with momentum mode, per-axis sensitivity/inversion, controller input API for third-party gamepad mods, third-person pose sync, and barrel rolls. Includes an Arc3D-powered flight HUD with layouts inspired by Airbus, Boeing, and MSFS avionics, plus FPV OSD and cinematic tactical themes. User themes live in `neofontrender/flight_hud_themes`. |
+| **Crosshair** | Custom crosshair with 10 styles (vanilla, cross, dot, circle, square, triangle, arrow, flight-chevron, debug, pixel-drawn), independent sizing/rotation/offsets, adaptive contrast, outlines, center dots, contextual visibility, dynamic attack/bow spread, target colors, rainbow animation, cooldown rings, low-durability warnings, ammunition indicators, and in-game pixel editor. Shoulder Surfing compatibility included. |
 
 ### Chat sub-features (inside UIE)
 
@@ -456,6 +458,27 @@ API is also available and never relocated.
 | `lerp(from, to, amount)` | Linear interpolation. |
 | `hsv(h, s, v, alpha)` | HSV to ARGB color conversion. |
 | `lerpArgb(from, to, amount)` | Per-channel ARGB interpolation. |
+
+## Compatibility
+
+### Third-party mod integration
+
+- **TinkersAntique** — PUA marker compatibility and enchantment table font replacement.
+- **SFR/AWT** — built-in Java2D AWT compatibility renderer for troubleshooting when Cosmic is unavailable.
+- **HEI / Obscure Tooltips / Quark** — Modern Tooltips integrates with these mods for consistent rendering.
+- **Backported items** — spyglasses, crossbows and tridents from 1.17+ are recognized by exact item
+  IDs from the bundled `assets/neofontrender_ui_enhancements/crosshair_compat.toml` list and the
+  additive config fields.
+- **Matter Overdrive** — the ranged item list includes Matter Overdrive's explicit weapon IDs.
+
+### Fixes for third-party mod bugs
+
+- **Shoulder Surfing crosshair offset** — Shoulder Surfing's default behavior translates the entire
+  HUD matrix, causing the crosshair to drift from the actual cursor position. Enable UIE's custom
+  crosshair to fix this: `patched` mode confines the offset to the actual cursor and synchronizes
+  block/entity picking with the projected crosshair ray, making world interaction feel like vanilla
+  first-person. Other modes: `adaptive` (switch by held item), `static` (shoulder-camera center
+  picking), `dual` (player/camera cursors with interaction marker), `off` (original behavior).
 
 ## Development
 

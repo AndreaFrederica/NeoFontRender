@@ -27,14 +27,14 @@ Current feature modules:
   limit, vertical input pitches around the current aircraft frame, and an optional momentum mode
   behaves like a persistent virtual flight stick. Fine-grained mouse/controller sensitivity,
   per-axis inversion, a local-axis third-person pose, and an Arc3D flight HUD are included. The HUD
-  provides model-specific A319 MPP, A350 dual-HUD, and 737 HGS-4000 conformal layouts with a
+  provides layouts inspired by Airbus, Boeing, and MSFS avionics, with a
   flight-path vector, total-energy cue, narrow air-data scales, unit selection, vertical-speed
   indication, heading presentation, and a physics-derived VLS warning line. Nearby player orientation can be
   synchronized through the UIE Server Companion.
 
 ## Runtime design
 
-- Requires Neo Font Render 0.3.5 or newer.
+- Requires Neo Font Render 0.5.1 or newer.
 - Uses Arc3D Core 2026.2.0 distributed by the required NFR main mod.
 - Uses Cleanroom's host LWJGL 3.4.1 and never bundles LWJGL or native files.
 - Yields to LegendaryTooltips by default when that mod is present.
@@ -88,9 +88,8 @@ The conformal pitch ladder, flight-path vector, total-energy cue, bank scale, in
 air-data scales use Arc3D Core color/math and are registered as a non-interactive surface in UIE's
 shared HUD compositor.
 
-Flight HUD layouts are schema-3 JSON themes. UIE bundles model-specific `airbus-a319`,
-`airbus-a350`, and `boeing-737` layouts, an `msfs-external` instrument layout, three FPV OSD
-layouts, full-sphere Airbus/Boeing variants, and a cinematic tactical layout, then
+Flight HUD layouts are schema-3 JSON themes. UIE bundles layouts inspired by Airbus, Boeing,
+and MSFS avionics, plus FPV OSD and cinematic tactical themes, then
 loads player files from `neofontrender/flight_hud_themes`. The generated `README.txt` documents the
 schema and `example-airliner-hud.json` demonstrates inheritance; files are checked for changes once per
 second while flying. The ordered `elements` array creates and positions every instrument—including
@@ -126,23 +125,9 @@ cooldown rings, low-durability warnings and ammunition indicators. The drawn sty
 in-game pixel editor.
 
 UIE subscribes to Forge's `CROSSHAIRS` element at lowest priority and can either yield to an item
-mod or claim the layer according to the configured priority. Shoulder Surfing compatibility
-confines its offset to the actual cursor rather than translating the complete HUD. Its repair-mode
-selector defaults to `patched` (one player-origin ray for the cursor, projectiles, and interaction),
-offers `adaptive` switching by held item, `static` centered shoulder-camera picking, `dual`
-player/camera cursors with an orange interaction marker, and `off` for original mod behavior. An
-active Shoulder Surfing camera is not mistaken for
-ordinary third person. Vanilla's two regular third-person perspectives remain cursorless unless
-UIE's explicit third-person visibility option is enabled. Backported spyglasses, crossbows and
-tridents are recognized only by exact item IDs
-from the bundled `assets/neofontrender_ui_enhancements/crosshair_compat.toml` list and the additive
-`crosshair.compat.spyglassItems`, `crosshair.compat.crossbowItems`,
-`crosshair.compat.tridentItems` and `crosshair.compat.rangedItems` UIE config fields. The ranged
-list includes Matter Overdrive's explicit weapon IDs without treating them as charging bows.
-These comma-separated fields deliberately do
-not support wildcards, prefixes, substrings or regular expressions. They compare Forge
-`namespace:path` resource IDs and never serialize numeric item IDs, so the same lists remain valid
-with Roughly Enough IDs. UIE's C-key zoom shares the spyglass visibility rule. Independently,
+mod or claim the layer according to the configured priority. An active Shoulder Surfing camera is
+not mistaken for ordinary third person. Vanilla's two regular third-person perspectives remain
+cursorless unless UIE's explicit third-person visibility option is enabled. Independently,
 vanilla/custom crosshairs can be hidden only while the flight HUD is visible, leaving the HUD's
 aircraft-center symbol as the reticle.
 
