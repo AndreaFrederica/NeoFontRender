@@ -118,7 +118,12 @@ public final class NfrSettingsControls {
     }
 
     public NfrTextButton action(String labelKey, int width, int height, Runnable action) {
-        return new NfrTextButton(() -> tr(labelKey), true)
+        return action(() -> tr(labelKey), width, height, action);
+    }
+
+    /** Addon-safe overload for namespaces that provide their own translation fallback. */
+    public NfrTextButton action(Supplier<String> label, int width, int height, Runnable action) {
+        return new NfrTextButton(label, true)
                 .size(width, height)
                 .onMousePressed(mouseButton -> {
                     action.run();
@@ -189,9 +194,21 @@ public final class NfrSettingsControls {
         return decimalSlider(labelKey, getter, setter, min, max, step, preview);
     }
 
+    /** Addon-safe overload for namespaces that provide their own translation fallback. */
+    public IWidget decimalSlider(Supplier<String> label, Supplier<Float> getter, Consumer<Float> setter,
+                                 float min, float max, float step) {
+        return decimalSlider(label, getter, setter, min, max, step, preview);
+    }
+
     public IWidget decimalSlider(String labelKey, Supplier<Float> getter, Consumer<Float> setter,
                                  float min, float max, float step, Runnable afterChange) {
-        NfrDecimalSlider slider = new NfrDecimalSlider(() -> tr(labelKey),
+        return decimalSlider(() -> tr(labelKey), getter, setter, min, max, step, afterChange);
+    }
+
+    /** Addon-safe overload for namespaces that provide their own translation fallback. */
+    public IWidget decimalSlider(Supplier<String> label, Supplier<Float> getter, Consumer<Float> setter,
+                                 float min, float max, float step, Runnable afterChange) {
+        NfrDecimalSlider slider = new NfrDecimalSlider(label,
                 () -> String.format(Locale.ROOT, step < 0.1F ? "%.2f" : "%.1f", getter.get()));
         slider.value(new NfrDoubleValue(() -> (double) getter.get(), value -> {
                     double clipped = Math.max(min, Math.min(max, value));
