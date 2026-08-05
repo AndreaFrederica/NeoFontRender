@@ -135,8 +135,10 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
                             value -> FlightRollConfig.hudTheme = value,
                             FlightHudThemeManager.INSTANCE.themeIds(),
                             FlightHudThemeManager.INSTANCE::displayName).size(260, 24))
-                    .add(c.action("neofontrender_ui_enhancements.gui.flight_roll.hud_reload",
+                    .add(c.action(() -> tr("gui.flight_roll.hud_reload"),
                             260, 24, FlightHudThemeManager.INSTANCE::reloadNow))
+                    .add(c.action("neofontrender.gui.button.open_folder", 130, 24,
+                            FlightRollSettingsPage::openThemeFolder))
                     .add(c.dropdownText("flight_hud_speed_unit",
                             () -> tr("gui.flight_roll.hud_speed_unit"),
                             () -> FlightRollConfig.hudSpeedUnit,
@@ -297,6 +299,18 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
 
     private static String tr(String key) {
         return AddonI18n.tr("neofontrender_ui_enhancements." + key);
+    }
+
+    private static void openThemeFolder() {
+        java.nio.file.Path directory = FlightHudThemeManager.INSTANCE.themeDirectory();
+        try {
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop.getDesktop().open(directory.toFile());
+            }
+        } catch (java.io.IOException | RuntimeException exception) {
+            neofontrender.NeoFontRender.LOGGER.error("Failed to open flight HUD theme folder '{}'",
+                    directory, exception);
+        }
     }
 
     private static final class PageView extends NfrContentView<PageView> {

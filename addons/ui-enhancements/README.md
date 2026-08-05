@@ -91,7 +91,7 @@ shared HUD compositor.
 Flight HUD layouts are schema-3 JSON themes. UIE bundles model-specific `airbus-a319`,
 `airbus-a350`, and `boeing-737` layouts, an `msfs-external` instrument layout, three FPV OSD
 layouts, full-sphere Airbus/Boeing variants, and a cinematic tactical layout, then
-loads player files from `config/neofontrender/hud/flight`. The generated `README.txt` documents the
+loads player files from `neofontrender/flight_hud_themes`. The generated `README.txt` documents the
 schema and `example-airliner-hud.json` demonstrates inheritance; files are checked for changes once per
 second while flying. The ordered `elements` array creates and positions every instrument—including
 the virtual stick—and inherited elements merge by `id`, so a custom theme may override one
@@ -118,10 +118,33 @@ Elytra travel. The VLS-style line solves vanilla's gravity/lift term
 not a claim that Minecraft simulates real angle of attack. Speed acceleration and vertical speed
 are sampled at the entity's 20 Hz physics ticks so render-frame repetition does not create spikes.
 
-The Crosshair settings page can replace vanilla with a colored cross, dot, circle, or flight
-chevron. UIE subscribes to Forge's `CROSSHAIRS` element at lowest priority and does nothing when an
-earlier handler has taken ownership. Independently, vanilla/custom crosshairs can be hidden only
-while the flight HUD is visible, leaving the HUD's aircraft-center symbol as the reticle.
+The Crosshair settings page provides the traditional Custom Crosshair Mod feature set on 1.12.2:
+vanilla, cross, dot, circle, square, triangle, arrow, flight-chevron, debug and pixel-drawn styles; independent
+width/height/gap/thickness, rotation, scale and offsets; adaptive contrast, outlines and center
+dots; contextual visibility, dynamic attack/bow spread, target colors, rainbow animation,
+cooldown rings, low-durability warnings and ammunition indicators. The drawn style includes an
+in-game pixel editor.
+
+UIE subscribes to Forge's `CROSSHAIRS` element at lowest priority and can either yield to an item
+mod or claim the layer according to the configured priority. Shoulder Surfing compatibility
+confines its offset to the actual cursor rather than translating the complete HUD. Its repair-mode
+selector defaults to `patched` (one player-origin ray for the cursor, projectiles, and interaction),
+offers `adaptive` switching by held item, `static` centered shoulder-camera picking, `dual`
+player/camera cursors with an orange interaction marker, and `off` for original mod behavior. An
+active Shoulder Surfing camera is not mistaken for
+ordinary third person. Vanilla's two regular third-person perspectives remain cursorless unless
+UIE's explicit third-person visibility option is enabled. Backported spyglasses, crossbows and
+tridents are recognized only by exact item IDs
+from the bundled `assets/neofontrender_ui_enhancements/crosshair_compat.toml` list and the additive
+`crosshair.compat.spyglassItems`, `crosshair.compat.crossbowItems`,
+`crosshair.compat.tridentItems` and `crosshair.compat.rangedItems` UIE config fields. The ranged
+list includes Matter Overdrive's explicit weapon IDs without treating them as charging bows.
+These comma-separated fields deliberately do
+not support wildcards, prefixes, substrings or regular expressions. They compare Forge
+`namespace:path` resource IDs and never serialize numeric item IDs, so the same lists remain valid
+with Roughly Enough IDs. UIE's C-key zoom shares the spyglass visibility rule. Independently,
+vanilla/custom crosshairs can be hidden only while the flight HUD is visible, leaving the HUD's
+aircraft-center symbol as the reticle.
 
 The full UIE jar owns both halves of the `nfr_ui_flight` protocol in an integrated server. The
 renderer-free Server Companion supplies the same server half to dedicated servers. The protocol

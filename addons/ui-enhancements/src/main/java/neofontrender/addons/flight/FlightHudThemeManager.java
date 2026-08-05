@@ -5,7 +5,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.minecraftforge.fml.common.Loader;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.addons.api.flight.FlightApi;
 
@@ -48,8 +47,8 @@ enum FlightHudThemeManager {
 
     synchronized void initialize() {
         if (directory == null) {
-            directory = Loader.instance().getConfigDir().toPath()
-                    .resolve("neofontrender").resolve("hud").resolve("flight");
+            directory = net.minecraft.client.Minecraft.getMinecraft().gameDir.toPath()
+                    .resolve("neofontrender").resolve("flight_hud_themes");
             try {
                 Files.createDirectories(directory);
                 installTemplate("example-airliner-hud.json");
@@ -77,6 +76,11 @@ enum FlightHudThemeManager {
     synchronized List<String> themeIds() {
         reloadIfChanged();
         return Collections.unmodifiableList(new ArrayList<>(themes.keySet()));
+    }
+
+    synchronized Path themeDirectory() {
+        if (directory == null) initialize();
+        return directory;
     }
 
     synchronized String displayName(String id) {
