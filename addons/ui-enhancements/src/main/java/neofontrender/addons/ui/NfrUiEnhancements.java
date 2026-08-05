@@ -21,6 +21,7 @@ import neofontrender.addons.loading.ResourceReloadModule;
 import neofontrender.addons.worldcreation.CreateWorldModule;
 import neofontrender.addons.mainmenu.MainMenuModule;
 import neofontrender.addons.zoom.ZoomModule;
+import neofontrender.addons.flight.FlightRollModule;
 import neofontrender.addons.hover.HoverEffectsModule;
 import neofontrender.addons.cjk.CjkTypographyModule;
 import org.apache.logging.log4j.LogManager;
@@ -57,6 +58,7 @@ public final class NfrUiEnhancements {
             new WorldLoadingModule(),
             new ResourceReloadModule(),
             new ZoomModule(),
+            new FlightRollModule(),
             new HoverEffectsModule(),
             new MainMenuModule(),
             new CreateWorldModule(),

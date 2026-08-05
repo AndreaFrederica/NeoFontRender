@@ -52,6 +52,9 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"GuiCreateWorldAccessor\""));
         assertTrue(config.contains("\"MixinGuiMainMenuContinueGame\""));
         assertTrue(config.contains("\"MixinEntityRendererZoomMouse\""));
+        assertTrue(config.contains("\"MixinEntityRendererMouseInputEvent\""));
+        assertTrue(config.contains("\"MixinRenderPlayerFlightRoll\""));
+        assertTrue(config.contains("\"MixinGuiIngameForgeCrosshair\""));
         assertTrue(config.contains("\"AccessorGuiChatFeatures\""));
         assertTrue(config.contains("\"AccessorGuiNewChatFeatures\""));
         assertTrue(config.contains("\"MixinChatLineMetadata\""));
@@ -65,6 +68,19 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinGuiScreenBookCjkTypography\""));
         assertTrue(config.contains("\"MixinProgressBarResourceReload\""));
         assertTrue(config.contains("\"MixinProgressManagerResourceReload\""));
+    }
+
+    @Test
+    void zoomMixinLeavesEntityPlayerTurnAvailableToOtherCoremods() {
+        InputStream stream = UiEnhancementsMixinConfigTest.class.getClassLoader().getResourceAsStream(
+                "neofontrender/addons/mixin/MixinEntityRendererZoomMouse.class");
+        assertNotNull(stream);
+        try (InputStream input = stream) {
+            String bytecode = new String(input.readAllBytes(), StandardCharsets.ISO_8859_1);
+            assertFalse(bytecode.contains("net/minecraft/client/entity/EntityPlayerSP"));
+        } catch (Exception error) {
+            throw new AssertionError("Failed to inspect zoom mixin bytecode", error);
+        }
     }
 
     private static String config(String name) {
