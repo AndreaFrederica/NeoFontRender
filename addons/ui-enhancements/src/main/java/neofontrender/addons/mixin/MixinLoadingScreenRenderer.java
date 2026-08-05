@@ -23,7 +23,7 @@ public abstract class MixinLoadingScreenRenderer {
      */
     @ModifyConstant(method = "setLoadingProgress", constant = @Constant(longValue = 100L))
     private long nfrUi$smoothIntegratedLoadingFrames(long original) {
-        return WorldLoadingRenderer.INSTANCE.isIntegratedLaunchActive()
+        return WorldLoadingRenderer.INSTANCE.isLoadingScreenPresentationActive()
                 || ResourceReloadRenderer.INSTANCE.isActive() ? 16L : original;
     }
 
@@ -36,7 +36,7 @@ public abstract class MixinLoadingScreenRenderer {
     private void nfrUi$drawIntegratedServerProgress(int vanillaProgress, CallbackInfo ci) {
         Minecraft mc = Minecraft.getMinecraft();
         ScaledResolution resolution = new ScaledResolution(mc);
-        WorldLoadingRenderer.INSTANCE.renderIntegratedServerLoading(
+        WorldLoadingRenderer.INSTANCE.renderLoadingScreen(
                 resolution.getScaledWidth(), resolution.getScaledHeight(), vanillaProgress,
                 currentlyDisplayedText, message);
         ResourceReloadRenderer.INSTANCE.render(

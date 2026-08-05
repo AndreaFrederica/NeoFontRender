@@ -58,6 +58,7 @@
     "MixinProgressBarResourceReload",
     "MixinProgressManagerResourceReload",
     "MixinTextureManagerResourceReloadPulse",
+    "MixinViewFrustumLoadingProgress",
     "tabbychat.IChatTabCompleter",
     "tabbychat.MixinChatTabCompleter",
     "tabbychat.MixinGuiChat",

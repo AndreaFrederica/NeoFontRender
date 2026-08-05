@@ -278,6 +278,7 @@ neofontrender_ui_enhancements.gui.loading.accent_color=进度与指示器颜色
 neofontrender_ui_enhancements.gui.loading.text_color=文字颜色
 neofontrender_ui_enhancements.loading.label=正在载入
 neofontrender_ui_enhancements.loading.preparing_world=正在准备世界
+neofontrender_ui_enhancements.loading.preparing_renderer=正在准备世界渲染器
 neofontrender_ui_enhancements.loading.loading_world=正在加载世界
 neofontrender_ui_enhancements.loading.finalizing=即将完成
 neofontrender_ui_enhancements.tooltip.loading.enabled=替换 1.12 的“正在下载地形”界面；不使用外部贴图或着色器。
