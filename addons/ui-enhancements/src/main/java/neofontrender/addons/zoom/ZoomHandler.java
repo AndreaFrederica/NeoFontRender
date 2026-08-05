@@ -21,6 +21,7 @@ final class ZoomHandler {
     private final ZoomTransition transition = new ZoomTransition();
     private boolean zooming;
     private boolean smoothCamEnabled;
+    private boolean previousSmoothCamera;
 
     private ZoomHandler() {}
 
@@ -31,8 +32,7 @@ final class ZoomHandler {
         int duration = ZoomConfig.smoothTransition ? ZoomConfig.transitionDurationMillis : 0;
         float amount = transition.update(requested, System.nanoTime(), duration);
         boolean active = amount > 0.0F;
-        boolean settled = amount >= 0.99F;
-        updateSmoothCamera(active, settled);
+        updateSmoothCamera(minecraft, active);
         if (active) {
             float baseFov = event.getFOV();
             float zoomedFov = ZoomMath.zoomedFov(baseFov, ZoomConfig.magnification, amount);
@@ -76,36 +76,38 @@ final class ZoomHandler {
     }
 
     /**
-     * Manages our own zoom smooth camera via {@link ZoomMouseScaling}.
-     * <p>
-     * Vanilla's {@code smoothCamera} is <b>not</b> used because its
-     * {@code MouseFilter} gets cold-reset every tick while the flag is false,
-     * causing a ~1.5 s ramp-up stutter when the flag flips to true.  Our EMA
-     * filter in {@code ZoomMouseScaling} starts producing correct output
-     * immediately.
+     * Uses Minecraft's normal smooth-camera path so the original player.turn() invocations stay
+     * available to camera mods such as RollTheSky. Enabling the filter during the FOV transition
+     * also gives it time to warm up before the zoom settles.
      */
-    private void updateSmoothCamera(boolean active, boolean settled) {
+    private void updateSmoothCamera(Minecraft minecraft, boolean active) {
         if (active) {
-            zooming = true;
-            if (ZoomConfig.smoothCamera && settled) {
-                if (!smoothCamEnabled) {
-                    smoothCamEnabled = true;
-                    ZoomMouseScaling.enableSmoothCamera();
-                }
+            if (!zooming) {
+                zooming = true;
+                previousSmoothCamera = minecraft.gameSettings.smoothCamera;
+            }
+            if (ZoomConfig.smoothCamera && !smoothCamEnabled) {
+                smoothCamEnabled = true;
+                minecraft.gameSettings.smoothCamera = true;
             }
         } else if (zooming) {
             zooming = false;
             if (smoothCamEnabled) {
                 smoothCamEnabled = false;
-                ZoomMouseScaling.disableSmoothCamera();
+                minecraft.gameSettings.smoothCamera = previousSmoothCamera;
             }
         }
     }
 
     private void resetState() {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (smoothCamEnabled && minecraft != null && minecraft.gameSettings != null) {
+            minecraft.gameSettings.smoothCamera = previousSmoothCamera;
+        }
         transition.reset();
         zooming = false;
         smoothCamEnabled = false;
+        previousSmoothCamera = false;
         ZoomMouseScaling.reset();
     }
 }
