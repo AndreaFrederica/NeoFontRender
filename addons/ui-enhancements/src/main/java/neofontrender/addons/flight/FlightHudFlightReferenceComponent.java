@@ -67,8 +67,21 @@ final class FlightHudFlightReferenceComponent implements BuiltInFlightHudCompone
 
         if (c.showBankScale) drawBankScale(cx, cy, halfWidth, scale, theme,
                 frame.roll, stroke);
-        if (c.showAircraftReference) drawAircraftReference(cx, cy, scale, theme,
-                c.variant, stroke);
+        if (c.showAircraftReference) {
+            float referenceX = cx;
+            float referenceY = cy;
+            // When this HUD replaces the normal crosshair, its aircraft-reference symbol is the
+            // only remaining boresight cue. Follow Shoulder Surfing's projected aim point without
+            // translating the pitch ladder, bank scale, tapes, or any other HUD instrumentation.
+            if (FlightRollController.suppressVanillaCrosshair()) {
+                float[] shoulderOffset = ShoulderSurfingCompat.crosshairOffset();
+                if (shoulderOffset != null) {
+                    referenceX += shoulderOffset[0];
+                    referenceY += shoulderOffset[1];
+                }
+            }
+            drawAircraftReference(referenceX, referenceY, scale, theme, c.variant, stroke);
+        }
         if (c.showFlightPathVector) {
             float fpvX = cx + (float) clamp(sample.driftAngle, -32.0D, 32.0D)
                     * c.driftPixelsPerDegree * scale;

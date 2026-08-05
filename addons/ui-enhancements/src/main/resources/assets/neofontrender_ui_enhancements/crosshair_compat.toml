@@ -1,0 +1,31 @@
+version = 1
+
+# Exact item IDs only. UIE deliberately does not use wildcard or substring matching here.
+[items]
+crossbow = [
+  "crossbow:crossbow",
+  "crossbows:crossbow",
+  "tconstruct:crossbow",
+  "futuremc:crossbow"
+]
+
+spyglass = [
+  "hgwsspyglasses:spyglass",
+  "hgwsspyglasses:spyglassgreen",
+  "hgwsspyglasses:spyglasspurple",
+  "hgwsspyglasses:spyglassred",
+  "hgwsspyglasses:spyglassyellow"
+]
+
+trident = [
+  "futuremc:trident"
+]
+
+# Ranged weapons that use an immediate/projectile weapon crosshair but do not charge like bows.
+ranged = [
+  "matteroverdrive:phaser",
+  "matteroverdrive:phaser_rifle",
+  "matteroverdrive:plasma_shotgun",
+  "matteroverdrive:ion_sniper",
+  "matteroverdrive:omni_tool"
+]

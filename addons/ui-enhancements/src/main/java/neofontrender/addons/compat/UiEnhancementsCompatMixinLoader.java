@@ -19,10 +19,18 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
             "mixins.neofontrender_ui_enhancements_salutation.json";
     static final String QUARK_CONFIG =
             "mixins.neofontrender_ui_enhancements_quark.json";
+    static final String SHOULDER_SURFING_CONFIG =
+            "mixins.neofontrender_ui_enhancements_shouldersurfing.json";
+    static final String SHOULDER_SURFING_TCONSTRUCT_CONFIG =
+            "mixins.neofontrender_ui_enhancements_shouldersurfing_tconstruct.json";
+    static final String SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG =
+            "mixins.neofontrender_ui_enhancements_shouldersurfing_matteroverdrive.json";
 
     @Override
     public List<String> getMixinConfigs() {
-        return Arrays.asList(HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG);
+        return Arrays.asList(HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG,
+                SHOULDER_SURFING_CONFIG, SHOULDER_SURFING_TCONSTRUCT_CONFIG,
+                SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG);
     }
 
     @Override
@@ -50,6 +58,25 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
         if (QUARK_CONFIG.equals(config)) {
             return context.isModPresent("quark")
                     && classResourcePresent("vazkii/quark/client/feature/MapTooltip.class");
+        }
+        if (SHOULDER_SURFING_CONFIG.equals(config)) {
+            return context.isModPresent("shouldersurfing")
+                    && classResourcePresent(
+                            "com/teamderpy/shouldersurfing/client/ShoulderRenderer.class");
+        }
+        if (SHOULDER_SURFING_TCONSTRUCT_CONFIG.equals(config)) {
+            return context.isModPresent("shouldersurfing") && context.isModPresent("tconstruct")
+                    && classResourcePresent(
+                            "com/teamderpy/shouldersurfing/client/ShoulderRenderer.class")
+                    && classResourcePresent(
+                            "slimeknights/tconstruct/library/client/crosshair/CrosshairRenderEvents.class");
+        }
+        if (SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG.equals(config)) {
+            return context.isModPresent("shouldersurfing")
+                    && context.isModPresent("matteroverdrive")
+                    && classResourcePresent(
+                            "com/teamderpy/shouldersurfing/client/ShoulderRenderer.class")
+                    && classResourcePresent("matteroverdrive/gui/GuiAndroidHud.class");
         }
         return false;
     }

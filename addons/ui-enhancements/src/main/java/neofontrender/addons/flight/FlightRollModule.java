@@ -14,10 +14,13 @@ public final class FlightRollModule implements UiEnhancementModule {
         FlightApi.installBackend(FlightRollController.INSTANCE);
         FlightRollConfig.load();
         CrosshairConfig.load();
+        ShoulderSurfingFixConfig.load();
         FlightHudThemeManager.INSTANCE.initialize();
     }
 
     @Override public void init() {
+        ShoulderSurfingCompat.registerAdaptiveItems();
+        ShoulderSurfingFixSettings.register();
         FlightRollNetwork.initializeClient(FlightRollController.INSTANCE);
         // The full UIE jar owns the integrated-server implementation. The separate companion jar
         // supplies the same common protocol to dedicated servers without shipping client renderers.

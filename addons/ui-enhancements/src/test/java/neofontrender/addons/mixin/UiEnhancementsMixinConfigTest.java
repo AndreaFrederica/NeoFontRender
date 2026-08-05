@@ -23,6 +23,12 @@ class UiEnhancementsMixinConfigTest {
         String obscure = config("mixins.neofontrender_ui_enhancements_obscure_tooltips.json");
         String salutation = config("mixins.neofontrender_ui_enhancements_salutation.json");
         String quark = config("mixins.neofontrender_ui_enhancements_quark.json");
+        String shoulderSurfing = config(
+                "mixins.neofontrender_ui_enhancements_shouldersurfing.json");
+        String shoulderSurfingTconstruct = config(
+                "mixins.neofontrender_ui_enhancements_shouldersurfing_tconstruct.json");
+        String shoulderSurfingMatterOverdrive = config(
+                "mixins.neofontrender_ui_enhancements_shouldersurfing_matteroverdrive.json");
 
         assertTrue(hei.contains("\"required\": false"));
         assertTrue(hei.contains("\"compat.MixinJeiIngredientRendererHover\""));
@@ -37,6 +43,17 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(salutation.contains("\"compat.MixinSalutationAdvancedTabCompleter\""));
         assertTrue(quark.contains("\"required\": false"));
         assertTrue(quark.contains("\"compat.MixinQuarkMapTooltip\""));
+        assertTrue(shoulderSurfing.contains("\"required\": false"));
+        assertTrue(shoulderSurfing.contains(
+                "\"compat.MixinShoulderSurfingCrosshairMatrix\""));
+        assertTrue(shoulderSurfing.contains(
+                "\"compat.MixinEntityRendererShoulderSurfingMouseOver\""));
+        assertTrue(shoulderSurfingTconstruct.contains("\"required\": false"));
+        assertTrue(shoulderSurfingTconstruct.contains(
+                "\"compat.MixinTConstructCrosshairOffset\""));
+        assertTrue(shoulderSurfingMatterOverdrive.contains("\"required\": false"));
+        assertTrue(shoulderSurfingMatterOverdrive.contains(
+                "\"compat.MixinMatterOverdriveCrosshairOffset\""));
     }
 
     @Test
@@ -55,6 +72,7 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinEntityRendererMouseInputEvent\""));
         assertTrue(config.contains("\"MixinRenderPlayerFlightRoll\""));
         assertTrue(config.contains("\"MixinGuiIngameForgeCrosshair\""));
+        assertTrue(config.contains("\"InvokerGuiIngameCrosshair\""));
         assertTrue(config.contains("\"AccessorGuiChatFeatures\""));
         assertTrue(config.contains("\"AccessorGuiNewChatFeatures\""));
         assertTrue(config.contains("\"MixinChatLineMetadata\""));

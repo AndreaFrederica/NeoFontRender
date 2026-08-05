@@ -37,6 +37,10 @@ import neofontrender.client.gui.views.NfrShadowSettingsView;
 import neofontrender.api.client.settings.NfrSettingsPageContext;
 import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 import neofontrender.api.client.settings.NfrSettingsPageSession;
+import neofontrender.api.client.settings.NfrSettingsSection;
+import neofontrender.api.client.settings.NfrSettingsSectionContribution;
+import neofontrender.api.client.settings.NfrSettingsSectionRegistry;
+import neofontrender.api.client.settings.NfrSettingsSectionSession;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.FontManager;
 
@@ -170,7 +174,8 @@ public final class NeofontrenderConfigScreen {
             case SHADOW:
                 return new NfrShadowSettingsView(controls);
             case FIXES:
-                return new NfrFixesSettingsView(draft, controls);
+                return new NfrFixesSettingsView(draft, controls,
+                        screen.sectionControls(NfrSettingsSection.FIXES, selected));
             case COMPATIBILITY:
                 return new NfrCompatibilitySettingsView(draft, controls);
             case LABORATORY:
@@ -239,6 +244,8 @@ public final class NeofontrenderConfigScreen {
         private final NfrSettingsDraft draft;
         private final List<neofontrender.api.client.settings.NfrSettingsPage> extensionPages;
         private final Map<String, NfrSettingsPageSession> extensionSessions = new LinkedHashMap<>();
+        private final List<NfrSettingsSectionContribution> sectionContributions;
+        private final Map<String, NfrSettingsSectionSession> sectionSessions = new LinkedHashMap<>();
 
         private ScreenSession(NfrSettingsDraft draft) {
             this.draft = draft;
@@ -248,10 +255,40 @@ public final class NeofontrenderConfigScreen {
                 if (session == null) throw new IllegalStateException("Settings page returned a null session: " + page.id());
                 extensionSessions.put(page.id(), session);
             }
+            this.sectionContributions = NfrSettingsSectionRegistry.snapshot(NfrSettingsSection.FIXES);
+            for (NfrSettingsSectionContribution contribution : sectionContributions) {
+                NfrSettingsSectionSession session = contribution.createSession();
+                if (session == null) {
+                    throw new IllegalStateException(
+                            "Settings section contribution returned a null session: "
+                                    + contribution.id());
+                }
+                sectionSessions.put(contribution.id(), session);
+            }
         }
 
-        private void applyExtensions() { for (NfrSettingsPageSession session : extensionSessions.values()) session.apply(); }
-        private void cancelExtensions() { for (NfrSettingsPageSession session : extensionSessions.values()) session.cancel(); }
+        private List<IWidget> sectionControls(NfrSettingsSection section, Route route) {
+            List<IWidget> controls = new ArrayList<>();
+            for (NfrSettingsSectionContribution contribution : sectionContributions) {
+                if (contribution.section() != section) continue;
+                NfrSettingsSectionSession session = sectionSessions.get(contribution.id());
+                NfrSettingsControls sectionControls = new NfrSettingsControls(draft, session::preview,
+                        id -> reloadAndOpen(this, NfrSettingsRoute.byId(id)));
+                List<IWidget> created = session.createControls(new NfrSettingsPageContext(
+                        sectionControls, () -> openRoute(this, route)));
+                if (created != null) controls.addAll(created);
+            }
+            return controls;
+        }
+
+        private void applyExtensions() {
+            for (NfrSettingsPageSession session : extensionSessions.values()) session.apply();
+            for (NfrSettingsSectionSession session : sectionSessions.values()) session.apply();
+        }
+        private void cancelExtensions() {
+            for (NfrSettingsPageSession session : extensionSessions.values()) session.cancel();
+            for (NfrSettingsSectionSession session : sectionSessions.values()) session.cancel();
+        }
     }
 
     private static final class Route {

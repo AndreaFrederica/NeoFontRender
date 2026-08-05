@@ -110,4 +110,8 @@ final class ZoomHandler {
         previousSmoothCamera = false;
         ZoomMouseScaling.reset();
     }
+
+    boolean isZooming() {
+        return zooming || shouldZoom(Minecraft.getMinecraft());
+    }
 }

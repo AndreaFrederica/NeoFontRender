@@ -28,6 +28,7 @@ import neofontrender.addons.tips.TipManager;
 import neofontrender.addons.tips.TipRenderer;
 import neofontrender.addons.tips.TipsConfig;
 import neofontrender.addons.mixin.AccessorChunkProviderClient;
+import neofontrender.addons.tooltips.AddonI18n;
 import neofontrender.api.text.ModernTextApi;
 import org.lwjgl.opengl.GL11;
 
@@ -225,7 +226,7 @@ public enum WorldLoadingRenderer {
         rendererFrameInProgress = false;
         integratedDisplayedProgress = rendererPreparationIntegrated
                 ? Math.max(0.88F, integratedDisplayedProgress) : 0.02F;
-        vanillaStage = I18n.format(
+        vanillaStage = AddonI18n.tr(
                 "neofontrender_ui_enhancements.loading.preparing_renderer");
         vanillaDetail = "";
         if (!rendererPreparationIntegrated) arc3dBar.reset(now);
@@ -354,7 +355,7 @@ public enum WorldLoadingRenderer {
         }
         float exact;
         if (rendererPreparationActive) {
-            vanillaStage = I18n.format(
+            vanillaStage = AddonI18n.tr(
                     "neofontrender_ui_enhancements.loading.preparing_renderer");
             vanillaDetail = "";
             exact = rendererPreparationProgress(rendererPreparationIntegrated,
@@ -586,11 +587,7 @@ public enum WorldLoadingRenderer {
                 : amount < 0.97F
                 ? "neofontrender_ui_enhancements.loading.loading_world"
                 : "neofontrender_ui_enhancements.loading.finalizing";
-        String translated = I18n.format(key);
-        if (!key.equals(translated)) return translated;
-        String fallbackKey = "neofontrender_ui_enhancements.loading.label";
-        String fallback = I18n.format(fallbackKey);
-        return fallbackKey.equals(fallback) ? "Loading" : fallback;
+        return AddonI18n.tr(key);
     }
 
     private static String animatedDots(long now) {
