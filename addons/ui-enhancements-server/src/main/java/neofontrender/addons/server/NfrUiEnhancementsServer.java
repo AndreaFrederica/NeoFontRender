@@ -2,9 +2,11 @@ package neofontrender.addons.server;
 
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
 import neofontrender.addons.chat.network.SelfMessageCapability;
+import neofontrender.addons.flight.network.FlightRollNetwork;
 
 @Mod(
         modid = NfrUiEnhancementsServer.MOD_ID,
@@ -20,8 +22,14 @@ public final class NfrUiEnhancementsServer {
     public static final String VERSION = "0.2.0";
 
     @Mod.EventHandler
+    public void preInit(FMLPreInitializationEvent event) {
+        FlightRollServerConfig.load(event.getModConfigurationDirectory());
+    }
+
+    @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         SelfMessageCapability.initialize();
+        FlightRollNetwork.initializeServer();
     }
 
     @Mod.EventHandler
