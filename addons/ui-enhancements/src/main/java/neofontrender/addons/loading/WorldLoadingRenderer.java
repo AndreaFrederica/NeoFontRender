@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiDownloadTerrain;
 import net.minecraft.client.gui.GuiIngameMenu;
 import net.minecraft.client.gui.GuiScreenWorking;
 import net.minecraft.client.multiplayer.ChunkProviderClient;
+import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
@@ -44,6 +45,7 @@ public enum WorldLoadingRenderer {
     INSTANCE;
 
     private static final int MATERIAL_GRADIENT_SEGMENTS = 24;
+    private static final long RENDERER_FRAME_INTERVAL_NANOS = 50_000_000L;
     private static final float[] MATERIAL_GRADIENT_AMOUNTS = createMaterialGradientAmounts();
     private final WorldLoadingProgress progress = new WorldLoadingProgress();
     private final Arc3DLoadingBarRenderer arc3dBar = new Arc3DLoadingBarRenderer();
@@ -67,7 +69,16 @@ public enum WorldLoadingRenderer {
     private long integratedLaunchStartedNanos;
     private IntegratedServer renderedIntegratedServer;
     private float integratedDisplayedProgress;
-    private boolean worldJoinClientPhase;
+    private float clientPhaseStart;
+    private float clientPhaseEnd;
+    private boolean rendererPreparationActive;
+    private boolean rendererPreparationCompleted;
+    private boolean rendererPreparationIntegrated;
+    private Thread rendererPreparationThread;
+    private int rendererChunksCompleted;
+    private int rendererChunksTotal;
+    private long lastRendererFrameNanos;
+    private boolean rendererFrameInProgress;
     private volatile String vanillaStage = "";
     private volatile String vanillaDetail = "";
 
@@ -127,9 +138,8 @@ public enum WorldLoadingRenderer {
         event.setCanceled(true);
         long now = System.nanoTime();
         float clientReadiness = progress.update(loadedChunkCount(), renderDistance(), startedNanos, now);
-        displayedProgress = worldJoinClientPhase
-                ? clientPhaseProgress(clientReadiness)
-                : clientReadiness;
+        displayedProgress = mapClientPhase(
+                clientReadiness, clientPhaseStart, clientPhaseEnd);
         lastDrawNanos = now;
         render(event.getGui().width, event.getGui().height, displayedProgress, 1.0F, now);
     }
@@ -183,6 +193,118 @@ public enum WorldLoadingRenderer {
         return integratedLaunchActive;
     }
 
+    public boolean isLoadingScreenPresentationActive() {
+        return integratedLaunchActive || rendererPreparationActive;
+    }
+
+    /** Starts the client-only renderer phase shared by singleplayer, multiplayer, and dimensions. */
+    public void beginClientWorldLoad(WorldClient nextWorld) {
+        if (nextWorld == null) {
+            cancelClientRendererPreparation();
+            return;
+        }
+
+        Minecraft mc = Minecraft.getMinecraft();
+        boolean dimensionChange = hasStableWorld && mc.player != null
+                && nextWorld.provider.getDimension() != stableDimension;
+        boolean enabled = WorldLoadingConfig.enabled
+                && (dimensionChange ? WorldLoadingConfig.dimensionChange : WorldLoadingConfig.worldJoin);
+        rendererPreparationCompleted = false;
+        rendererPreparationActive = enabled;
+        if (!enabled) {
+            rendererPreparationThread = null;
+            return;
+        }
+
+        long now = System.nanoTime();
+        rendererPreparationIntegrated = integratedLaunchActive && !dimensionChange;
+        rendererPreparationThread = Thread.currentThread();
+        rendererChunksCompleted = 0;
+        rendererChunksTotal = 0;
+        lastRendererFrameNanos = 0L;
+        rendererFrameInProgress = false;
+        integratedDisplayedProgress = rendererPreparationIntegrated
+                ? Math.max(0.88F, integratedDisplayedProgress) : 0.02F;
+        vanillaStage = I18n.format(
+                "neofontrender_ui_enhancements.loading.preparing_renderer");
+        vanillaDetail = "";
+        if (!rendererPreparationIntegrated) arc3dBar.reset(now);
+        TipManager.INSTANCE.reset();
+    }
+
+    public void finishClientWorldLoad(WorldClient nextWorld) {
+        if (nextWorld == null) {
+            cancelClientRendererPreparation();
+            return;
+        }
+        if (!rendererPreparationActive) return;
+        if (rendererChunksTotal > 0) {
+            rendererChunksCompleted = rendererChunksTotal;
+            integratedDisplayedProgress = Math.max(integratedDisplayedProgress,
+                    rendererPreparationProgress(rendererPreparationIntegrated,
+                            rendererChunksCompleted, rendererChunksTotal));
+        }
+        rendererPreparationActive = false;
+        rendererPreparationCompleted = true;
+        rendererPreparationThread = null;
+        rendererFrameInProgress = false;
+    }
+
+    public void beginClientRenderChunkBatch(int total) {
+        if (!ownsRendererPreparationThread()) return;
+        rendererChunksCompleted = 0;
+        rendererChunksTotal = Math.max(1, total);
+    }
+
+    public void recordClientRenderChunk() {
+        if (!ownsRendererPreparationThread() || rendererChunksTotal <= 0) return;
+        rendererChunksCompleted = Math.min(rendererChunksTotal, rendererChunksCompleted + 1);
+        integratedDisplayedProgress = Math.max(integratedDisplayedProgress,
+                rendererPreparationProgress(rendererPreparationIntegrated,
+                        rendererChunksCompleted, rendererChunksTotal));
+        requestRendererPreparationFrame(false);
+    }
+
+    public void finishClientRenderChunkBatch() {
+        if (!ownsRendererPreparationThread() || rendererChunksTotal <= 0) return;
+        rendererChunksCompleted = rendererChunksTotal;
+        integratedDisplayedProgress = Math.max(integratedDisplayedProgress,
+                rendererPreparationProgress(rendererPreparationIntegrated,
+                        rendererChunksCompleted, rendererChunksTotal));
+        requestRendererPreparationFrame(true);
+    }
+
+    private void requestRendererPreparationFrame(boolean force) {
+        if (rendererFrameInProgress) return;
+        long now = System.nanoTime();
+        if (!force && now - lastRendererFrameNanos < RENDERER_FRAME_INTERVAL_NANOS) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.loadingScreen == null || !mc.isCallingFromMinecraftThread()) return;
+        lastRendererFrameNanos = now;
+        rendererFrameInProgress = true;
+        try {
+            mc.loadingScreen.setLoadingProgress(
+                    Math.round(integratedDisplayedProgress * 100.0F));
+        } finally {
+            rendererFrameInProgress = false;
+        }
+    }
+
+    private boolean ownsRendererPreparationThread() {
+        return rendererPreparationActive
+                && Thread.currentThread() == rendererPreparationThread;
+    }
+
+    private void cancelClientRendererPreparation() {
+        rendererPreparationActive = false;
+        rendererPreparationCompleted = false;
+        rendererPreparationIntegrated = false;
+        rendererPreparationThread = null;
+        rendererChunksCompleted = 0;
+        rendererChunksTotal = 0;
+        rendererFrameInProgress = false;
+    }
+
     public void beginExactSpawnPreparation(MinecraftServer server) {
         if (!(server instanceof IntegratedServer)) return;
         trackedIntegratedServer = (IntegratedServer) server;
@@ -208,6 +330,7 @@ public enum WorldLoadingRenderer {
         if (!WorldLoadingConfig.enabled) {
             active = false;
             fading = false;
+            cancelClientRendererPreparation();
             WorldLoadingSnapshotManager.INSTANCE.releaseActive();
         } else if (!WorldLoadingConfig.lastExitSnapshot) {
             WorldLoadingSnapshotManager.INSTANCE.releaseActive();
@@ -219,28 +342,33 @@ public enum WorldLoadingRenderer {
      * the initial world. Vanilla prepares exactly 625 spawn chunks in 1.12.2; chunk events provide
      * a granular real count, while MinecraftServer.percentDone remains an authoritative fallback.
      */
-    public void renderIntegratedServerLoading(int width, int height, int vanillaProgress,
-                                              String stage, String detail) {
-        if (!WorldLoadingConfig.enabled || !WorldLoadingConfig.worldJoin
-                || !integratedLaunchActive) return;
+    public void renderLoadingScreen(int width, int height, int vanillaProgress,
+                                    String stage, String detail) {
+        if (!WorldLoadingConfig.enabled || !isLoadingScreenPresentationActive()) return;
         Minecraft mc = Minecraft.getMinecraft();
-        updateVanillaStage(stage, detail);
         IntegratedServer server = mc.getIntegratedServer();
 
         if (server != null && renderedIntegratedServer != server) {
             renderedIntegratedServer = server;
             integratedDisplayedProgress = 0.02F;
         }
-        int eventPrepared = server != null && server == trackedIntegratedServer
-                ? preparedSpawnChunks.size() : 0;
-        int serverPercent = server == null ? 0 : server.percentDone;
         float exact;
-        if (WorldLoadingConfig.singleplayerServerProgress && server != null
+        if (rendererPreparationActive) {
+            vanillaStage = I18n.format(
+                    "neofontrender_ui_enhancements.loading.preparing_renderer");
+            vanillaDetail = "";
+            exact = rendererPreparationProgress(rendererPreparationIntegrated,
+                    rendererChunksCompleted, rendererChunksTotal);
+        } else if (WorldLoadingConfig.singleplayerServerProgress && server != null
                 && server == trackedIntegratedServer) {
+            updateVanillaStage(stage, detail);
+            int eventPrepared = preparedSpawnChunks.size();
+            int serverPercent = server.percentDone;
             float spawnProgress = authoritativeSpawnProgress(exactSpawnCounterObserved,
                     exactPreparedSpawnChunks, eventPrepared, serverPercent);
             exact = serverPhaseProgress(spawnProgress);
         } else {
+            updateVanillaStage(stage, detail);
             float seconds = Math.max(0.0F,
                     (System.nanoTime() - integratedLaunchStartedNanos) / 1_000_000_000.0F);
             float waiting = 0.02F + 0.06F * (1.0F - (float) Math.exp(-seconds / 1.2F));
@@ -275,25 +403,46 @@ public enum WorldLoadingRenderer {
     }
 
     static float clientPhaseProgress(float clientReadiness) {
-        return 0.88F + Math.max(0.0F, Math.min(1.0F, clientReadiness)) * 0.11F;
+        return mapClientPhase(clientReadiness, 0.92F, 0.99F);
+    }
+
+    static float multiplayerClientPhaseProgress(float clientReadiness) {
+        return mapClientPhase(clientReadiness, 0.12F, 0.97F);
+    }
+
+    static float rendererPreparationProgress(boolean integrated, int completed, int total) {
+        float amount = total <= 0 ? 0.0F
+                : Math.max(0.0F, Math.min(1.0F, completed / (float) total));
+        float start = integrated ? 0.88F : 0.02F;
+        float end = integrated ? 0.92F : 0.12F;
+        return start + amount * (end - start);
+    }
+
+    private static float mapClientPhase(float readiness, float start, float end) {
+        return start + Math.max(0.0F, Math.min(1.0F, readiness)) * (end - start);
     }
 
     private void begin(Minecraft mc, long now) {
         boolean dimensionChange = hasStableWorld && mc.player != null
                 && mc.player.dimension != stableDimension;
         boolean continuingIntegratedLaunch = integratedLaunchActive && !dimensionChange;
+        boolean continuingRendererPreparation = rendererPreparationCompleted;
+        rendererPreparationCompleted = false;
         sessionEnabled = WorldLoadingConfig.enabled
                 && (dimensionChange ? WorldLoadingConfig.dimensionChange : WorldLoadingConfig.worldJoin);
         active = true;
         fading = false;
-        worldJoinClientPhase = continuingIntegratedLaunch;
         startedNanos = now;
         lastDrawNanos = now;
+        clientPhaseStart = continuingIntegratedLaunch ? 0.92F
+                : continuingRendererPreparation ? 0.12F : 0.0F;
+        clientPhaseEnd = continuingIntegratedLaunch ? 0.99F
+                : continuingRendererPreparation ? 0.97F : 1.0F;
         displayedProgress = continuingIntegratedLaunch
-                ? Math.max(0.88F, integratedDisplayedProgress)
-                : 0.02F;
+                ? Math.max(clientPhaseStart, integratedDisplayedProgress)
+                : continuingRendererPreparation ? clientPhaseStart : 0.02F;
         progress.reset(now);
-        if (!continuingIntegratedLaunch) arc3dBar.reset(now);
+        if (!continuingIntegratedLaunch && !continuingRendererPreparation) arc3dBar.reset(now);
         TipManager.INSTANCE.reset();
     }
 

@@ -65,6 +65,7 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinGuiScreenBookCjkTypography\""));
         assertTrue(config.contains("\"MixinProgressBarResourceReload\""));
         assertTrue(config.contains("\"MixinProgressManagerResourceReload\""));
+        assertTrue(config.contains("\"MixinViewFrustumLoadingProgress\""));
     }
 
     private static String config(String name) {

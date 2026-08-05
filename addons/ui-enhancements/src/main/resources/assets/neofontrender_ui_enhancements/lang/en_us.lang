@@ -278,6 +278,7 @@ neofontrender_ui_enhancements.gui.loading.accent_color=Progress and indicator co
 neofontrender_ui_enhancements.gui.loading.text_color=Text color
 neofontrender_ui_enhancements.loading.label=LOADING
 neofontrender_ui_enhancements.loading.preparing_world=PREPARING WORLD
+neofontrender_ui_enhancements.loading.preparing_renderer=PREPARING WORLD RENDERER
 neofontrender_ui_enhancements.loading.loading_world=LOADING WORLD
 neofontrender_ui_enhancements.loading.finalizing=FINALIZING
 neofontrender_ui_enhancements.tooltip.loading.enabled=Replaces the 1.12 downloading-terrain screen without external textures or shaders.

@@ -41,8 +41,24 @@ final class WorldLoadingProgressTest {
     void serverAndClientPhasesReserveCompletionForTheLiveWorld() {
         assertEquals(0.08F, WorldLoadingRenderer.serverPhaseProgress(0.0F), 0.001F);
         assertEquals(0.88F, WorldLoadingRenderer.serverPhaseProgress(1.0F), 0.001F);
-        assertEquals(0.88F, WorldLoadingRenderer.clientPhaseProgress(0.0F), 0.001F);
+        assertEquals(0.92F, WorldLoadingRenderer.clientPhaseProgress(0.0F), 0.001F);
         assertEquals(0.99F, WorldLoadingRenderer.clientPhaseProgress(1.0F), 0.001F);
+        assertEquals(0.12F, WorldLoadingRenderer.multiplayerClientPhaseProgress(0.0F), 0.001F);
+        assertEquals(0.97F, WorldLoadingRenderer.multiplayerClientPhaseProgress(1.0F), 0.001F);
+    }
+
+    @Test
+    void rendererPreparationUsesRealRenderChunkCounts() {
+        assertEquals(0.88F,
+                WorldLoadingRenderer.rendererPreparationProgress(true, 0, 1600), 0.001F);
+        assertEquals(0.90F,
+                WorldLoadingRenderer.rendererPreparationProgress(true, 800, 1600), 0.001F);
+        assertEquals(0.92F,
+                WorldLoadingRenderer.rendererPreparationProgress(true, 1600, 1600), 0.001F);
+        assertEquals(0.02F,
+                WorldLoadingRenderer.rendererPreparationProgress(false, 0, 1600), 0.001F);
+        assertEquals(0.12F,
+                WorldLoadingRenderer.rendererPreparationProgress(false, 1600, 1600), 0.001F);
     }
 
     @Test
