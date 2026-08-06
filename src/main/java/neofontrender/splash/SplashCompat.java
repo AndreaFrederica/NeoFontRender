@@ -34,8 +34,9 @@ public final class SplashCompat {
         initialized = true;
 
         try {
-            if (!NeofontrenderConfig.isLoaded()) {
-                NeofontrenderConfig.load();
+            if (!NeofontrenderConfig.ensureLoadedForEarlyRendering()) {
+                LOGGER.warn("Loading-screen configuration is unavailable; using its bitmap font");
+                return;
             }
             if (!NeofontrenderConfig.splashFontOverrideEnabled()) {
                 LOGGER.info("Loading-screen font override is disabled in config");

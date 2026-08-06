@@ -23,7 +23,9 @@ public class ClientProxy extends CommonProxy {
     public void init(FMLInitializationEvent event) {
         super.init(event);
 
-        NeofontrenderConfig.load();
+        if (!NeofontrenderConfig.isLoaded()) {
+            NeofontrenderConfig.load();
+        }
         if (ModernSplashDetector.isInstalled()) {
             if (SplashCompat.isInstalled()) {
                 NeoFontRender.LOGGER.info("ModernSplash font override is active");

@@ -33,7 +33,9 @@ public final class NeofontrenderConfig {
             "000000,0000AA,00AA00,00AAAA,AA0000,AA00AA,FFAA00,AAAAAA,"
                     + "555555,5555FF,55FF55,55FFFF,FF5555,FF55FF,FFFF55,FFFFFF";
     private static Path configPath;
-    private static CommentedFileConfig config;
+    private static volatile CommentedFileConfig config;
+    private static volatile boolean loaded;
+    private static volatile boolean earlyLoadFailed;
     private static volatile Snapshot cached = Snapshot.defaults();
     private static volatile boolean cachedDebugRenderStats;
     private static final List<BuiltinFont> BUILTIN_FONTS = Collections.unmodifiableList(Arrays.asList(
@@ -42,7 +44,40 @@ public final class NeofontrenderConfig {
     ));
 
     public static boolean isLoaded() {
-        return config != null;
+        return loaded;
+    }
+
+    /**
+     * Loads the real configuration for renderers that can run before Forge mod initialization.
+     * A failed early load leaves the immutable default snapshot active so startup rendering can
+     * continue safely; the normal client lifecycle may still retry through {@link #load()}.
+     */
+    public static boolean ensureLoadedForEarlyRendering() {
+        if (loaded) {
+            return true;
+        }
+        if (earlyLoadFailed) {
+            return false;
+        }
+        synchronized (NeofontrenderConfig.class) {
+            if (loaded) {
+                return true;
+            }
+            if (earlyLoadFailed) {
+                return false;
+            }
+            try {
+                load();
+                return loaded;
+            } catch (Throwable t) {
+                config = null;
+                loaded = false;
+                earlyLoadFailed = true;
+                NeoFontRender.LOGGER.error(
+                        "Failed to load configuration during early rendering; using defaults", t);
+                return false;
+            }
+        }
     }
 
     // ===================== Font =====================
@@ -469,8 +504,12 @@ public final class NeofontrenderConfig {
 
     /** auto, vanilla, runtime, custom, or an API-registered provider id. */
     public static String textColorPaletteProvider() {
+        CommentedFileConfig current = config;
+        if (!loaded || current == null) {
+            return TextColorPaletteRegistry.AUTO;
+        }
         return TextColorPaletteRegistry.normalizeSelection(
-                config.getOrElse("compat.colorPalette.provider", TextColorPaletteRegistry.AUTO));
+                current.getOrElse("compat.colorPalette.provider", TextColorPaletteRegistry.AUTO));
     }
 
     /** Editable comma-separated 16/32-entry RRGGBB palette. */
@@ -888,10 +927,13 @@ public final class NeofontrenderConfig {
     }
 
     private static void ensureLoadedForExtensionApi() {
-        if (config == null) load();
+        if (!loaded) load();
     }
 
-    public static void load() {
+    public static synchronized void load() {
+        if (loaded) {
+            return;
+        }
         if (configPath == null) {
             configPath = new File(Minecraft.getMinecraft().gameDir, "config" + File.separator + CONFIG_NAME).toPath();
         }
@@ -908,10 +950,11 @@ public final class NeofontrenderConfig {
             }
         }
 
-        config = CommentedFileConfig.builder(configPath, TomlFormat.instance())
+        CommentedFileConfig loadedConfig = CommentedFileConfig.builder(configPath, TomlFormat.instance())
                 .preserveInsertionOrder()
                 .build();
-        config.load();
+        loadedConfig.load();
+        config = loadedConfig;
 
         boolean migratedFontLocations = migratePortableFontLocations();
         if (needsDefault) {
@@ -922,6 +965,8 @@ public final class NeofontrenderConfig {
         }
         refreshCachedOptions();
         ensureFontDirectory();
+        earlyLoadFailed = false;
+        loaded = true;
     }
 
     private static void refreshCachedOptions() {

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.2]
+
+- Fix a startup crash when loading-screen mods render text before Forge mod initialization by
+  sharing the early configuration-loading path with the regular font renderer and retaining safe
+  defaults if that early load fails.
+
 ## [0.4.0]
 
 - Remove the Skia/Skija renderer, runtime dependencies, package variant, settings, diagnostics,

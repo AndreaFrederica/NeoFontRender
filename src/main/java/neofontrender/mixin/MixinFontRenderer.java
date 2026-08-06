@@ -839,6 +839,7 @@ public abstract class MixinFontRenderer {
      * replace those entries; resolving here observes their completed runtime values.
      */
     private void sfr$syncTextColorPalette() {
+        NeofontrenderConfig.ensureLoadedForEarlyRendering();
         String provider = NeofontrenderConfig.textColorPaletteProvider();
         long revision = TextColorPaletteRegistry.revision();
         if (provider.equals(sfr$paletteProvider) && revision == sfr$paletteRevision
