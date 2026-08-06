@@ -5,9 +5,13 @@ import neofontrender.api.config.NfrConfigFile;
 
 final class FlightRollConfig {
     static boolean enabled = false;
+    static boolean allowInWater = false;
+    static boolean keyboardYaw = false;
+    static boolean banking = false;
     static boolean momentumMouse = true;
     static float rollSensitivity = 1.0F;
     static float pitchSensitivity = 1.0F;
+    static float yawSensitivity = 0.4F;
     static float maximumRollSpeed = 180.0F;
     static int momentumDeadzonePercent = 5;
     static boolean invertPitch;
@@ -43,10 +47,18 @@ final class FlightRollConfig {
     static void load() {
         NfrConfigFile file = UiEnhancementsConfig.file();
         file.define("flightRoll.enabled", false, "Enable continuous three-axis elytra control.")
+                .define("flightRoll.allowInWater", false,
+                        "Keep flight-roll control active while the player is in water.")
+                .define("flightRoll.keyboardYaw", false,
+                        "Enable the remappable left/right keyboard yaw bindings.")
+                .define("flightRoll.banking", false,
+                        "Automatically coordinate turns from the current roll attitude.")
                 .define("flightRoll.momentumMouse", true,
                         "Use mouse displacement as a persistent virtual flight stick.")
                 .define("flightRoll.rollSensitivity", 1.0D, "Horizontal roll sensitivity.")
                 .define("flightRoll.pitchSensitivity", 1.0D, "Vertical pitch sensitivity.")
+                .define("flightRoll.yawSensitivity", 0.4D,
+                        "Keyboard yaw sensitivity for the left/right yaw bindings.")
                 .define("flightRoll.maximumRollSpeed", 180.0D,
                         "Maximum momentum-mode roll speed in degrees per second.")
                 .define("flightRoll.momentumDeadzonePercent", 5,
@@ -95,9 +107,13 @@ final class FlightRollConfig {
                 .define("flightRoll.hud.hideFirstPersonHand", false,
                         "Hide the first-person hand while the flight HUD is visible.");
         enabled = file.getBoolean("flightRoll.enabled", false);
+        allowInWater = file.getBoolean("flightRoll.allowInWater", false);
+        keyboardYaw = file.getBoolean("flightRoll.keyboardYaw", false);
+        banking = file.getBoolean("flightRoll.banking", false);
         momentumMouse = file.getBoolean("flightRoll.momentumMouse", true);
         rollSensitivity = (float) file.getDouble("flightRoll.rollSensitivity", 1.0D, 0.1D, 4.0D);
         pitchSensitivity = (float) file.getDouble("flightRoll.pitchSensitivity", 1.0D, 0.1D, 4.0D);
+        yawSensitivity = (float) file.getDouble("flightRoll.yawSensitivity", 0.4D, 0.1D, 4.0D);
         maximumRollSpeed = (float) file.getDouble("flightRoll.maximumRollSpeed", 180.0D, 30.0D, 720.0D);
         momentumDeadzonePercent = file.getInt("flightRoll.momentumDeadzonePercent", 5, 0, 30);
         invertPitch = file.getBoolean("flightRoll.invertPitch", false);
@@ -142,6 +158,7 @@ final class FlightRollConfig {
     static void save() {
         rollSensitivity = Math.max(0.1F, Math.min(4.0F, rollSensitivity));
         pitchSensitivity = Math.max(0.1F, Math.min(4.0F, pitchSensitivity));
+        yawSensitivity = Math.max(0.1F, Math.min(4.0F, yawSensitivity));
         maximumRollSpeed = Math.max(30.0F, Math.min(720.0F, maximumRollSpeed));
         momentumDeadzonePercent = Math.max(0, Math.min(30, momentumDeadzonePercent));
         controllerPitchSensitivity = clampSensitivity(controllerPitchSensitivity);
@@ -151,9 +168,13 @@ final class FlightRollConfig {
         barrelDurationTicks = Math.max(6, Math.min(40, barrelDurationTicks));
         UiEnhancementsConfig.file()
                 .set("flightRoll.enabled", enabled)
+                .set("flightRoll.allowInWater", allowInWater)
+                .set("flightRoll.keyboardYaw", keyboardYaw)
+                .set("flightRoll.banking", banking)
                 .set("flightRoll.momentumMouse", momentumMouse)
                 .set("flightRoll.rollSensitivity", (double) rollSensitivity)
                 .set("flightRoll.pitchSensitivity", (double) pitchSensitivity)
+                .set("flightRoll.yawSensitivity", (double) yawSensitivity)
                 .set("flightRoll.maximumRollSpeed", (double) maximumRollSpeed)
                 .set("flightRoll.momentumDeadzonePercent", momentumDeadzonePercent)
                 .set("flightRoll.invertPitch", invertPitch)

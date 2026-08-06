@@ -27,6 +27,8 @@ public final class FlightRollModule implements UiEnhancementModule {
         FlightRollNetwork.initializeServer();
         ClientRegistry.registerKeyBinding(FlightRollController.ROLL_LEFT);
         ClientRegistry.registerKeyBinding(FlightRollController.ROLL_RIGHT);
+        ClientRegistry.registerKeyBinding(FlightRollController.YAW_LEFT);
+        ClientRegistry.registerKeyBinding(FlightRollController.YAW_RIGHT);
         MinecraftForge.EVENT_BUS.register(FlightRollController.INSTANCE);
         MinecraftForge.EVENT_BUS.register(FlightHudOverlayController.INSTANCE);
         MinecraftForge.EVENT_BUS.register(CrosshairController.INSTANCE);

@@ -35,6 +35,12 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
     static final KeyBinding ROLL_RIGHT = new KeyBinding(
             "key.neofontrender_ui_enhancements.flight_roll_right",
             Keyboard.KEY_NONE, "key.categories.neofontrender_ui_enhancements");
+    static final KeyBinding YAW_LEFT = new KeyBinding(
+            "key.neofontrender_ui_enhancements.flight_yaw_left",
+            Keyboard.KEY_A, "key.categories.neofontrender_ui_enhancements");
+    static final KeyBinding YAW_RIGHT = new KeyBinding(
+            "key.neofontrender_ui_enhancements.flight_yaw_right",
+            Keyboard.KEY_D, "key.categories.neofontrender_ui_enhancements");
 
     private final Minecraft mc = Minecraft.getMinecraft();
     private final Map<Integer, RemoteRoll> remoteRolls = new HashMap<>();
@@ -101,6 +107,13 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
             hudInputY = clampAxis(event.getDeltaY() * vanillaScale / 20.0F);
         }
 
+        if (FlightRollConfig.keyboardYaw) {
+            double keyboardYaw = (YAW_RIGHT.isKeyDown() ? 1.0D : 0.0D)
+                    - (YAW_LEFT.isKeyDown() ? 1.0D : 0.0D);
+            yawDegrees += keyboardYaw * FlightRollConfig.maximumRollSpeed * elapsed
+                    * FlightRollConfig.yawSensitivity;
+        }
+
         FlightControllerInputEvent controller = new FlightControllerInputEvent(
                 event.getPlayer(), event.getPartialTicks(), elapsed);
         MinecraftForge.EVENT_BUS.post(controller);
@@ -122,6 +135,12 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
         if (FlightRollConfig.invertPitch) pitchDegrees = -pitchDegrees;
         if (FlightRollConfig.invertYaw) yawDegrees = -yawDegrees;
         if (FlightRollConfig.invertRoll) rollDegrees = -rollDegrees;
+        if (FlightRollConfig.banking) {
+            FlightRollMath.BankingDelta banking = FlightRollMath.bankingDelta(
+                    roll, event.getPlayer().rotationPitch, elapsed);
+            pitchDegrees += banking.pitch;
+            yawDegrees += banking.yaw;
+        }
 
         applyLocalRotation(event.getPlayer(), pitchDegrees, yawDegrees, rollDegrees,
                 interpolatedBarrel(event.getPartialTicks()));
@@ -196,7 +215,9 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
     private boolean active(EntityPlayerSP player) {
         if (companionPresent && !serverAllows) return false;
         boolean builtIn = FlightRollConfig.enabled && serverAllows && player != null
-                && player.isElytraFlying() && !Loader.isModLoaded("rollthesky");
+                && player.isElytraFlying()
+                && (FlightRollConfig.allowInWater || !player.isInWater())
+                && !Loader.isModLoaded("rollthesky");
         return capability(player, FlightCapability.CONTROL, builtIn);
     }
 

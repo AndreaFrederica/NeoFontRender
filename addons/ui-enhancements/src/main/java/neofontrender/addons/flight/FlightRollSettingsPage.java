@@ -28,9 +28,13 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
 
     private static final class Session implements NfrSettingsPageSession {
         private final boolean originalEnabled = FlightRollConfig.enabled;
+        private final boolean originalAllowInWater = FlightRollConfig.allowInWater;
+        private final boolean originalKeyboardYaw = FlightRollConfig.keyboardYaw;
+        private final boolean originalBanking = FlightRollConfig.banking;
         private final boolean originalMomentum = FlightRollConfig.momentumMouse;
         private final float originalRollSensitivity = FlightRollConfig.rollSensitivity;
         private final float originalPitchSensitivity = FlightRollConfig.pitchSensitivity;
+        private final float originalYawSensitivity = FlightRollConfig.yawSensitivity;
         private final float originalMaximumSpeed = FlightRollConfig.maximumRollSpeed;
         private final int originalDeadzone = FlightRollConfig.momentumDeadzonePercent;
         private final boolean originalInvertPitch = FlightRollConfig.invertPitch;
@@ -72,6 +76,18 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
                     .add(c.toggleText(() -> tr("gui.flight_roll.enabled"),
                             () -> tr("tooltip.flight_roll.enabled"),
                             () -> FlightRollConfig.enabled, value -> FlightRollConfig.enabled = value))
+                    .add(c.toggleText(() -> tr("gui.flight_roll.allow_in_water"),
+                            () -> tr("tooltip.flight_roll.allow_in_water"),
+                            () -> FlightRollConfig.allowInWater,
+                            value -> FlightRollConfig.allowInWater = value))
+                    .add(c.toggleText(() -> tr("gui.flight_roll.keyboard_yaw"),
+                            () -> tr("tooltip.flight_roll.keyboard_yaw"),
+                            () -> FlightRollConfig.keyboardYaw,
+                            value -> FlightRollConfig.keyboardYaw = value))
+                    .add(c.toggleText(() -> tr("gui.flight_roll.banking"),
+                            () -> tr("tooltip.flight_roll.banking"),
+                            () -> FlightRollConfig.banking,
+                            value -> FlightRollConfig.banking = value))
                     .add(c.toggleText(() -> tr("gui.flight_roll.momentum"),
                             () -> tr("tooltip.flight_roll.momentum"),
                             () -> FlightRollConfig.momentumMouse,
@@ -82,6 +98,9 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
                     .add(multiplierSlider("gui.flight_roll.pitch_sensitivity",
                             () -> FlightRollConfig.pitchSensitivity,
                             value -> FlightRollConfig.pitchSensitivity = (float) value))
+                    .add(multiplierSlider("gui.flight_roll.yaw_sensitivity",
+                            () -> FlightRollConfig.yawSensitivity,
+                            value -> FlightRollConfig.yawSensitivity = (float) value))
                     .add(slider("gui.flight_roll.maximum_speed",
                             () -> FlightRollConfig.maximumRollSpeed,
                             value -> FlightRollConfig.maximumRollSpeed = (float) value,
@@ -220,9 +239,13 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
 
         @Override public void cancel() {
             FlightRollConfig.enabled = originalEnabled;
+            FlightRollConfig.allowInWater = originalAllowInWater;
+            FlightRollConfig.keyboardYaw = originalKeyboardYaw;
+            FlightRollConfig.banking = originalBanking;
             FlightRollConfig.momentumMouse = originalMomentum;
             FlightRollConfig.rollSensitivity = originalRollSensitivity;
             FlightRollConfig.pitchSensitivity = originalPitchSensitivity;
+            FlightRollConfig.yawSensitivity = originalYawSensitivity;
             FlightRollConfig.maximumRollSpeed = originalMaximumSpeed;
             FlightRollConfig.momentumDeadzonePercent = originalDeadzone;
             FlightRollConfig.invertPitch = originalInvertPitch;
