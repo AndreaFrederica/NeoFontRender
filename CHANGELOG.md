@@ -1,5 +1,22 @@
 # Changelog
 
+## [electric-elytra/0.1.0]
+
+- Initial alpha of the Revo Electric Elytra submod: vanilla-control electric elytra and
+  aerodynamic powered-wing tiers driven by Forge Energy, with SAS/flaps assistance, flight
+  HUD/debug telemetry, and networking.
+- Publish the Electric Aircraft API (`neofontrender_electric_aircraft_api` v1) so third-party
+  mods can register powered aircraft with additive engine thrust on the shared flight frame.
+
+## [uie/0.6.0]
+
+- Expand the Flight API to v9 with shared quaternion attitude, body-pose and camera-tracking
+  providers, maneuver input handling, and HUD attitude surfaces for aircraft-style addons.
+- Rework the flight-roll controller around the new attitude model and extend the HUD telemetry
+  and graphics pipeline accordingly.
+- Consume Arc3D Core through the main mod's exposed API instead of compiling against a private
+  copy, so addon developers get the complete upstream API transitively.
+
 ## [uie/0.3.2]
 
 - Add independently toggleable desktop yaw control with remappable A/D bindings and sensitivity,

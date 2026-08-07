@@ -1,0 +1,33 @@
+item.neofontrender_electric_elytra.vanilla_electric_elytra.name=Electric Elytra
+item.neofontrender_electric_elytra.creative_vanilla_electric_elytra.name=Creative Electric Elytra
+item.neofontrender_electric_elytra.electric_elytra.name=Powered Flight Wing
+item.neofontrender_electric_elytra.advanced_electric_elytra.name=SAS Powered Flight Wing
+item.neofontrender_electric_elytra.advanced_flap_electric_elytra.name=SAS Flap Powered Flight Wing
+item.neofontrender_electric_elytra.creative_electric_elytra.name=Creative SAS Flap Powered Flight Wing
+key.categories.neofontrender_electric_elytra=Electric Elytra
+key.neofontrender_electric_elytra.toggle_engine=Toggle Elytra Engine
+key.neofontrender_electric_elytra.increase_throttle=Increase Elytra Throttle
+key.neofontrender_electric_elytra.decrease_throttle=Decrease Elytra Throttle
+key.neofontrender_electric_elytra.toggle_sas=Toggle SAS Stability Assist
+key.neofontrender_electric_elytra.flap_up=Retract Flaps One Detent
+key.neofontrender_electric_elytra.flap_down=Extend Flaps One Detent
+key.neofontrender_electric_elytra.edit_hud=Move Electric Elytra HUD
+gui.neofontrender_electric_elytra.hud_editor=Drag the Electric Elytra panel · Esc to save and close
+tooltip.neofontrender_electric_elytra.energy=Energy: %,d / %,d FE
+tooltip.neofontrender_electric_elytra.energy_infinite=Energy: ∞ FE (creative test article)
+tooltip.neofontrender_electric_elytra.controls=G engine · -/= throttle · H SAS · [/] flaps · J move HUD · Jump takeoff
+tooltip.neofontrender_electric_elytra.vanilla_controls=G engine · -/= throttle · all other input uses vanilla Elytra controls
+tooltip.neofontrender_electric_elytra.vanilla_flight=Vanilla Elytra flight model; only view-axis electric thrust is added
+tooltip.neofontrender_electric_elytra.aerodynamic_flight=Independent aerodynamic flight-wing model; vanilla Elytra physics is not used
+tooltip.neofontrender_electric_elytra.sas_on=SAS: stability assist (manual override enabled)
+tooltip.neofontrender_electric_elytra.sas_off=SAS: off (H engages stability assist)
+tooltip.neofontrender_electric_elytra.flap=Flaps: %s
+message.neofontrender_electric_elytra.engine_on=Electric Elytra engine started
+message.neofontrender_electric_elytra.engine_off=Electric Elytra engine off; gliding
+message.neofontrender_electric_elytra.empty=Electric Elytra battery depleted
+message.neofontrender_electric_elytra.throttle=Electric Elytra throttle: %s%%
+message.neofontrender_electric_elytra.sas_on=SAS engaged: stability assist with manual override
+message.neofontrender_electric_elytra.sas_off=SAS disengaged
+message.neofontrender_electric_elytra.flap_0=Flaps: UP
+message.neofontrender_electric_elytra.flap_1=Flaps: TO
+message.neofontrender_electric_elytra.flap_2=Flaps: LDG

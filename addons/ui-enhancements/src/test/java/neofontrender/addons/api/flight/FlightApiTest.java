@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FlightApiTest {
@@ -58,8 +59,8 @@ class FlightApiTest {
     }
 
     @Test
-    void apiV2ComponentRegistrationIsReversibleAndDiscoverable() {
-        assertEquals(2, FlightApi.getApiVersion());
+    void apiV9ComponentRegistrationIsReversibleAndDiscoverable() {
+        assertEquals(9, FlightApi.getApiVersion());
         ResourceLocation type = new ResourceLocation("test", "radar");
         FlightRegistration registration = FlightApi.registerHudComponent(type,
                 (context, element) -> {});
@@ -68,5 +69,101 @@ class FlightApiTest {
         registration.close();
         assertFalse(FlightApi.hasHudComponent("test:radar"));
         assertFalse(FlightApi.registeredHudComponentTypes().contains("test:radar"));
+    }
+
+    @Test
+    void customFlightModeCanTakeOverOnlyKeyboardYaw() {
+        FlightRegistration registration = FlightApi.registerCapabilityProvider(
+                new ResourceLocation("test", "rudder_takeover"), 100,
+                (player, capability, builtIn) -> capability == FlightCapability.KEYBOARD_YAW
+                        ? FlightDecision.DENY : FlightDecision.PASS);
+        try {
+            assertEquals(FlightDecision.DENY, FlightApi.queryCapability(
+                    null, FlightCapability.KEYBOARD_YAW, true));
+            assertEquals(FlightDecision.PASS, FlightApi.queryCapability(
+                    null, FlightCapability.CAMERA_ROTATION, true));
+            assertEquals(FlightDecision.PASS, FlightApi.queryCapability(
+                    null, FlightCapability.PLAYER_ROLL_RENDERING, true));
+        } finally {
+            registration.close();
+        }
+    }
+
+    @Test
+    void bodyPoseRegistrationIsReversible() {
+        FlightRegistration registration = FlightApi.registerBodyPoseProvider(
+                new ResourceLocation("test", "body"), 10,
+                (player, partialTicks) -> new FlightBodyPose(
+                        FlightAttitude.fromMinecraftDegrees(-90.0D, 0.0D, 0.0D)));
+        FlightBodyPose pose = FlightApi.queryBodyPose(null, 0.5F);
+        assertEquals(1.0D, pose.attitude.forward().y, 0.0001D);
+        registration.close();
+        assertNull(FlightApi.queryBodyPose(null, 0.5F));
+    }
+
+    @Test
+    void bodyPoseCarriesCompleteQuaternionAttitude() {
+        FlightBodyPose pose = new FlightBodyPose(
+                FlightAttitude.fromMinecraftDegrees(-20.0D, 45.0D, 37.5D));
+        FlightEulerAngles angles = pose.attitude.toMinecraftEuler(-20.0D, 45.0D, 37.5D);
+        assertEquals(-20.0F, angles.pitchDegrees, 0.001F);
+        assertEquals(45.0F, angles.yawDegrees, 0.001F);
+        assertEquals(37.5F, angles.rollDegrees, 0.001F);
+    }
+
+    @Test
+    void hudAttitudeProviderOverridesCameraWithBodyAxis() {
+        FlightRegistration registration = FlightApi.registerHudAttitudeProvider(
+                new ResourceLocation("test", "airframe"), 100,
+                (player, partialTicks) -> new FlightHudAttitude(
+                        FlightAttitude.fromMinecraftDegrees(-45.0D, 90.0D, 42.0D)));
+        try {
+            FlightHudAttitude attitude = FlightApi.queryHudAttitude(null, 0.5F);
+            FlightEulerAngles angles = attitude.getAttitude()
+                    .toMinecraftEuler(-45.0D, 90.0D, 42.0D);
+            assertEquals(-45.0F, angles.pitchDegrees, 0.001F);
+            assertEquals(90.0F, angles.yawDegrees, 0.001F);
+            assertEquals(42.0F, angles.rollDegrees, 0.001F);
+        } finally {
+            registration.close();
+        }
+        assertNull(FlightApi.queryHudAttitude(null, 0.5F));
+    }
+
+    @Test
+    void maneuverAndCameraTrackingRegistrationsAreIndependent() {
+        FlightRegistration maneuver = FlightApi.registerManeuverHandler(
+                new ResourceLocation("test", "controls"), 100,
+                input -> input.getPitch() > 0.25F);
+        FlightRegistration camera = FlightApi.registerCameraTrackingProvider(
+                new ResourceLocation("test", "camera"), 100,
+                (player, partialTicks) -> FlightCameraTracking.rigid(
+                        FlightAttitude.fromMinecraftDegrees(-10.0F, 25.0F, 30.0F)));
+        try {
+            assertTrue(FlightApi.dispatchManeuverInput(new FlightManeuverInput(
+                    null, 0.5F, 0.016D, 0.5F, 0.0F, 0.0F)));
+            FlightCameraTracking tracking = FlightApi.queryCameraTracking(null, 0.5F);
+            assertTrue(tracking.isRigid());
+            assertEquals(25.0F, tracking.getAttitude()
+                    .toMinecraftEuler(-10.0D, 25.0D, 30.0D).yawDegrees);
+        } finally {
+            maneuver.close();
+            camera.close();
+        }
+        assertFalse(FlightApi.dispatchManeuverInput(new FlightManeuverInput(
+                null, 0.5F, 0.016D, 1.0F, 0.0F, 0.0F)));
+        assertNull(FlightApi.queryCameraTracking(null, 0.5F));
+    }
+
+    @Test
+    void maneuverInputExposesRawKeyboardRudderAxis() {
+        FlightManeuverInput right = new FlightManeuverInput(
+                null, 0.5F, 0.016D, 0.0F, 0.7F, 0.0F, 1.0F);
+        FlightManeuverInput left = new FlightManeuverInput(
+                null, 0.5F, 0.016D, 0.0F, -0.7F, 0.0F, -1.0F);
+        assertEquals(1.0F, right.getKeyboardYaw());
+        assertEquals(-1.0F, left.getKeyboardYaw());
+        assertEquals(0.7F, right.getYaw());
+        assertEquals(-0.7F, left.getYaw());
     }
 }

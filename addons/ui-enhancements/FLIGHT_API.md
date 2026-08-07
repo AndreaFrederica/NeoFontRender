@@ -1,4 +1,4 @@
-# Revo UI Flight API v2
+# Revo UI Flight API v9
 
 The public client API is rooted at `neofontrender.addons.api.flight.FlightApi`.
 Integrations should depend on the UI Enhancements artifact, not classes in
@@ -8,10 +8,66 @@ All registrations use a namespaced `ResourceLocation`, replace an older registra
 same id, and return an idempotent `FlightRegistration`. Keep the handle and close it when the
 integration is disabled. Higher numeric priority runs first.
 
+API v6 exposes UIE's state-safe Arc3D HUD drawing backend through
+`FlightApi.getHudCanvas()`. Debug overlays and addon instruments should use this public
+`FlightHudCanvas` instead of linking UIE internals or issuing raw GL lines. `polyline` submits an
+entire curve as one continuous line strip.
+
+API v9 uses `FlightAttitude`, a normalized quaternion, as the only physical attitude format.
+Local +Z is thrust/forward, local +X is the left wing, local -X is the right wing and local +Y is
+aircraft up. This complete right-handed frame remains defined through vertical flight, inverted
+flight and repeated loops. Euler yaw/pitch/roll exists only at Minecraft camera and HUD output
+boundaries. Register a `FlightHudAttitudeProvider`; returning `null` yields to the next provider
+and ultimately to UIE's camera fallback.
+
+```java
+FlightRegistration attitude = FlightApi.registerHudAttitudeProvider(
+        new ResourceLocation("example", "airframe_attitude"), 100,
+        (player, partialTicks) -> {
+            FlightAttitude attitude = aircraft.sampleAttitude(player, partialTicks);
+            return new FlightHudAttitude(attitude);
+        });
+```
+
+API v8 separates aircraft maneuver input from camera orientation. A high-priority
+`FlightManeuverHandler` receives UIE's normalized virtual-stick pitch/yaw/roll and returns
+`true` to prevent the legacy camera-driven flight controller. A separate
+`FlightCameraTrackingProvider` then follows the physical airframe attitude. `rigid` tracking is
+tick-locked with Minecraft's normal render interpolation; the public constructor supports damped
+tracking with a response and maximum angular rate.
+
+The maneuver yaw axis always includes the A/D rudder binding, even when UIE's legacy
+`flightRoll.keyboardYaw` option is disabled or the aircraft denies `KEYBOARD_YAW` to stop UIE
+from directly rotating the player. `FlightManeuverInput.getKeyboardYaw()` exposes that raw A/D
+axis separately; `getYaw()` is the combined, sensitivity-adjusted virtual-stick command.
+
+Camera and HUD consumers must use `FlightApi.getRenderPose(player, partialTicks)` when they need
+Euler display angles. UIE resolves the quaternion branch once and returns the same
+`FlightRenderPose` to the camera, built-in HUD, and addon instruments for that render sample. This
+avoids separate yaw/roll branch choices near vertical flight and during repeated barrel rolls.
+
+```java
+FlightApi.registerManeuverHandler(new ResourceLocation("example", "controls"), 100, input -> {
+    if (!aircraft.isPiloting(input.getPlayer())) return false;
+    aircraft.setPitchStick(input.getPitch());
+    aircraft.setRudder(input.getYaw());
+    aircraft.setRollStick(input.getRoll());
+    return true;
+});
+
+FlightApi.registerCameraTrackingProvider(new ResourceLocation("example", "camera"), 100,
+        (player, partialTicks) -> aircraft.isPiloting(player)
+                ? FlightCameraTracking.rigid(aircraft.attitude(player, partialTicks))
+                : null);
+```
+
 ## Capabilities and camera rotation
 
-Capabilities are independent: `CONTROL`, `CAMERA_ROTATION`, `PLAYER_ROLL_RENDERING`, `HUD`, and
-`CROSSHAIR_SUPPRESSION`. A provider returns `PASS`, `ALLOW`, or `DENY`. The first non-PASS result
+Capabilities are independent: `CONTROL`, `KEYBOARD_YAW`, `CAMERA_ROTATION`,
+`PLAYER_ROLL_RENDERING`, `HUD`, and `CROSSHAIR_SUPPRESSION`. `KEYBOARD_YAW` specifically owns
+UIE's built-in A/D yaw mapping, allowing an aerodynamic flight model to route the same keys to its
+own rudder without disabling mouse attitude control or rendering. A provider returns `PASS`,
+`ALLOW`, or `DENY`. The first non-PASS result
 in priority order becomes the initial result of `FlightCapabilityEvent`; Forge listeners may still
 override it. This lets a vehicle unlock rotation without pretending that the player is using an
 Elytra.
@@ -33,6 +89,11 @@ effective roll-speed limit. Mods with their own network channel may feed remote 
 `updateRemotePlayerRoll` and read the interpolated value through `getPlayerRoll`.
 Non-Elytra registered flight modes use a generic model-forward roll path; Elytra retains its
 aircraft-local pose reconstruction.
+
+Body-pose providers return `new FlightBodyPose(attitude)`. UIE applies that quaternion directly to
+the third-person player model, without reconstructing a horizontal basis or converting through
+Euler angles. `FlightAttitude.rotateLocal` and `slerp` are the supported integration/interpolation
+operations; `forward`, `right` and `up` derive the exact same frame for physics and rendering.
 
 Use `registerFlightMode` to enable the complete controller/camera/player/HUD stack. Use the lower
 level `registerCapabilityProvider` when capabilities need different rules. UIE also posts

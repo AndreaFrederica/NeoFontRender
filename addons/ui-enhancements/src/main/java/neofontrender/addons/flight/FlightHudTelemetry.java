@@ -9,7 +9,8 @@ final class FlightHudTelemetry {
     private double lastSpeed;
     private double acceleration;
 
-    Sample sample(EntityPlayerSP player, float partialTicks, FlightHudTheme theme) {
+    Sample sample(EntityPlayerSP player, float partialTicks, FlightHudTheme theme,
+                  float attitudePitch, float attitudeYaw) {
         double speed = Math.sqrt(player.motionX * player.motionX
                 + player.motionY * player.motionY + player.motionZ * player.motionZ) * 20.0D;
         if (player.ticksExisted != lastTick) {
@@ -29,11 +30,10 @@ final class FlightHudTelemetry {
                 Math.max(1.0E-6D, Math.sqrt(player.motionX * player.motionX
                         + player.motionZ * player.motionZ))));
         double motionYaw = Math.toDegrees(Math.atan2(-player.motionX, player.motionZ));
-        float heading = player.prevRotationYaw
-                + (float) wrapDegrees(player.rotationYaw - player.prevRotationYaw) * (float) amount;
+        float heading = Float.isFinite(attitudeYaw) ? attitudeYaw : 0.0F;
         double drift = wrapDegrees(motionYaw - heading);
         double lowerSpeed = theme.stall.enabled ? FlightHudMath.vanillaElytraLowerSpeed(
-                player.rotationPitch, theme.stall.referencePitch, theme.stall.margin) : 0.0D;
+                attitudePitch, theme.stall.referencePitch, theme.stall.margin) : 0.0D;
         return new Sample(speed, horizontal, altitude, player.motionY * 20.0D, acceleration,
                 lowerSpeed, heading, flightPathAngle, drift);
     }

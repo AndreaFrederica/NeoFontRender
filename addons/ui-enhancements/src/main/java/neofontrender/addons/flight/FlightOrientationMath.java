@@ -6,6 +6,9 @@ final class FlightOrientationMath {
 
     private FlightOrientationMath() {}
 
+    /** Forge 1.12 CameraSetup uses OpenGL view yaw: Minecraft entity yaw plus 180 degrees. */
+    static float cameraEventYaw(float entityYaw) { return entityYaw + 180.0F; }
+
     static Orientation rotate(float pitch, float yaw, float roll,
                               double localPitchDegrees, double localYawDegrees,
                               double localRollDegrees) {

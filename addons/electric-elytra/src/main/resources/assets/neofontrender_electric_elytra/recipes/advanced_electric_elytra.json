@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "CRC",
+    "RER",
+    "CRC"
+  ],
+  "key": {
+    "C": { "item": "minecraft:comparator" },
+    "R": { "item": "minecraft:redstone_block" },
+    "E": { "item": "neofontrender_electric_elytra:electric_elytra" }
+  },
+  "result": {
+    "item": "neofontrender_electric_elytra:advanced_electric_elytra"
+  }
+}

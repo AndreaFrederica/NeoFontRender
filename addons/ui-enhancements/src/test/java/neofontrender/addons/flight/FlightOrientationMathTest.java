@@ -8,6 +8,13 @@ class FlightOrientationMathTest {
     private static final float EPSILON = 0.001F;
 
     @Test
+    void forgeCameraYawLooksAlongMinecraftEntityForward() {
+        assertEquals(180.0F, FlightOrientationMath.cameraEventYaw(0.0F), 0.0F);
+        assertEquals(270.0F, FlightOrientationMath.cameraEventYaw(90.0F), 0.0F);
+        assertEquals(90.0F, FlightOrientationMath.cameraEventYaw(-90.0F), 0.0F);
+    }
+
+    @Test
     void uprightLocalAxesMatchMinecraftPitchAndYaw() {
         FlightOrientationMath.Orientation pitch = FlightOrientationMath.rotate(
                 0.0F, 0.0F, 0.0F, 10.0D, 0.0D, 0.0D);

@@ -15,9 +15,14 @@ import neofontrender.addons.api.input.CameraMouseInputEvent;
 import neofontrender.addons.api.flight.FlightApi;
 import neofontrender.addons.api.flight.FlightCapability;
 import neofontrender.addons.api.flight.FlightCapabilityEvent;
+import neofontrender.addons.api.flight.FlightCameraTracking;
 import neofontrender.addons.api.flight.FlightControlInput;
 import neofontrender.addons.api.flight.FlightControllerInputEvent;
 import neofontrender.addons.api.flight.FlightDecision;
+import neofontrender.addons.api.flight.FlightEulerAngles;
+import neofontrender.addons.api.flight.FlightAttitude;
+import neofontrender.addons.api.flight.FlightRenderPose;
+import neofontrender.addons.api.flight.FlightManeuverInput;
 import neofontrender.addons.api.flight.FlightOrientationEvent;
 import neofontrender.addons.api.flight.FlightState;
 import neofontrender.addons.flight.network.FlightRollNetwork;
@@ -61,6 +66,11 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
     private long lastMouseNanos;
     private float hudInputX;
     private float hudInputY;
+    private float trackedCameraRoll;
+    private FlightRenderPose cachedRenderPose;
+    private float renderReferencePitch;
+    private float renderReferenceYaw;
+    private float renderReferenceRoll;
 
     private FlightRollController() {}
 
@@ -79,6 +89,9 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
         double pitchDegrees;
         double yawDegrees = 0.0D;
         double rollDegrees;
+        float maneuverPitch;
+        float maneuverYaw = 0.0F;
+        float maneuverRoll;
         if (FlightRollConfig.momentumMouse) {
             momentumX += event.getDeltaX() * vanillaScale / 300.0D;
             momentumY += event.getDeltaY() * vanillaScale / 300.0D;
@@ -95,6 +108,9 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
                     * FlightRollConfig.pitchSensitivity * invertPitch;
             rollDegrees = readyX * effectiveMaximumRollSpeed() * elapsed
                     * FlightRollConfig.rollSensitivity;
+            maneuverPitch = clampAxis((float) (-readyY
+                    * FlightRollConfig.pitchSensitivity * invertPitch));
+            maneuverRoll = clampAxis((float) (readyX * FlightRollConfig.rollSensitivity));
             hudInputX = (float) readyX;
             hudInputY = (float) readyY;
         } else {
@@ -103,15 +119,25 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
                     * FlightRollConfig.pitchSensitivity * invertPitch;
             rollDegrees = event.getDeltaX() * vanillaScale * 0.15D
                     * FlightRollConfig.rollSensitivity;
+            maneuverPitch = clampAxis(-event.getDeltaY() * vanillaScale / 20.0F
+                    * FlightRollConfig.pitchSensitivity * invertPitch);
+            maneuverRoll = clampAxis(event.getDeltaX() * vanillaScale / 20.0F
+                    * FlightRollConfig.rollSensitivity);
             hudInputX = clampAxis(event.getDeltaX() * vanillaScale / 20.0F);
             hudInputY = clampAxis(event.getDeltaY() * vanillaScale / 20.0F);
         }
 
+        // A/D is always part of the public virtual-stick sample. The keyboardYaw option and
+        // KEYBOARD_YAW capability control only UIE's legacy direct camera/body yaw application;
+        // an aircraft that takes over maneuver input must still receive its rudder axis.
+        float keyboardYaw = (YAW_RIGHT.isKeyDown() ? 1.0F : 0.0F)
+                - (YAW_LEFT.isKeyDown() ? 1.0F : 0.0F);
+        maneuverYaw += keyboardYaw * FlightRollConfig.yawSensitivity;
         if (FlightRollConfig.keyboardYaw) {
-            double keyboardYaw = (YAW_RIGHT.isKeyDown() ? 1.0D : 0.0D)
-                    - (YAW_LEFT.isKeyDown() ? 1.0D : 0.0D);
-            yawDegrees += keyboardYaw * FlightRollConfig.maximumRollSpeed * elapsed
-                    * FlightRollConfig.yawSensitivity;
+            if (capability(event.getPlayer(), FlightCapability.KEYBOARD_YAW, true)) {
+                yawDegrees += keyboardYaw * FlightRollConfig.maximumRollSpeed * elapsed
+                        * FlightRollConfig.yawSensitivity;
+            }
         }
 
         FlightControllerInputEvent controller = new FlightControllerInputEvent(
@@ -129,12 +155,30 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
                 * FlightRollConfig.controllerYawSensitivity;
         rollDegrees += controller.getRoll() * effectiveMaximumRollSpeed() * elapsed
                 * FlightRollConfig.controllerRollSensitivity;
+        maneuverPitch += controller.getPitch() * FlightRollConfig.controllerPitchSensitivity;
+        maneuverYaw += controller.getYaw() * FlightRollConfig.controllerYawSensitivity;
+        maneuverRoll += controller.getRoll() * FlightRollConfig.controllerRollSensitivity;
         if (Math.abs(controller.getRoll()) > Math.abs(hudInputX)) hudInputX = controller.getRoll();
         if (Math.abs(controller.getPitch()) > Math.abs(hudInputY)) hudInputY = controller.getPitch();
 
-        if (FlightRollConfig.invertPitch) pitchDegrees = -pitchDegrees;
-        if (FlightRollConfig.invertYaw) yawDegrees = -yawDegrees;
-        if (FlightRollConfig.invertRoll) rollDegrees = -rollDegrees;
+        if (FlightRollConfig.invertPitch) { pitchDegrees = -pitchDegrees; maneuverPitch = -maneuverPitch; }
+        if (FlightRollConfig.invertYaw) { yawDegrees = -yawDegrees; maneuverYaw = -maneuverYaw; }
+        if (FlightRollConfig.invertRoll) { rollDegrees = -rollDegrees; maneuverRoll = -maneuverRoll; }
+        FlightManeuverInput maneuver = new FlightManeuverInput(event.getPlayer(),
+                event.getPartialTicks(), elapsed, maneuverPitch, maneuverYaw, maneuverRoll,
+                keyboardYaw);
+        if (FlightApi.dispatchManeuverInput(maneuver)) {
+            hudInputX = maneuver.getRoll();
+            hudInputY = -maneuver.getPitch();
+            event.consumeHorizontal();
+            event.consumeVertical();
+            return;
+        }
+        if (!capability(event.getPlayer(), FlightCapability.CAMERA_ROTATION, true)) {
+            event.consumeHorizontal();
+            event.consumeVertical();
+            return;
+        }
         if (FlightRollConfig.banking) {
             FlightRollMath.BankingDelta banking = FlightRollMath.bankingDelta(
                     roll, event.getPlayer().rotationPitch, elapsed);
@@ -158,7 +202,14 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
         }
         EntityPlayerSP player = mc.player;
         boolean active = active(player);
-        if (active && FlightRollConfig.barrelRolls && barrelProgress >= 1.0F) {
+        trackCamera(player);
+        boolean quaternionTracking = player != null
+                && FlightApi.queryCameraTracking(player, 1.0F) != null;
+        if (quaternionTracking) {
+            barrelProgress = 1.0F;
+            previousBarrel = barrel = 0.0F;
+            barrelDirection = 0;
+        } else if (active && FlightRollConfig.barrelRolls && barrelProgress >= 1.0F) {
             if (ROLL_LEFT.isPressed()) startBarrel(-1, FlightRollConfig.barrelDurationTicks);
             else if (ROLL_RIGHT.isPressed()) startBarrel(1, FlightRollConfig.barrelDurationTicks);
         }
@@ -186,8 +237,79 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
 
     @SubscribeEvent
     public void cameraSetup(EntityViewRenderEvent.CameraSetup event) {
+        FlightRenderPose pose = resolveRenderPose(mc.player,
+                (float) event.getRenderPartialTicks());
+        if (pose != null) {
+            FlightEulerAngles angles = pose.getCameraAngles();
+            // Forge's CameraSetup yaw is the OpenGL view rotation, not Entity.rotationYaw.
+            // Vanilla supplies interpolated entity yaw + 180 degrees here; omitting that half
+            // turn makes the camera look out of the aircraft tail while physics still thrusts
+            // along its correct local +Z forward axis.
+            event.setYaw(FlightOrientationMath.cameraEventYaw(angles.yawDegrees));
+            event.setPitch(angles.pitchDegrees);
+            event.setRoll(angles.rollDegrees);
+            return;
+        }
         if (!capability(mc.player, FlightCapability.CAMERA_ROTATION, active(mc.player))) return;
         event.setRoll(event.getRoll() + renderedRoll((float) event.getRenderPartialTicks()));
+    }
+
+    private void trackCamera(EntityPlayerSP player) {
+        if (player == null) return;
+        FlightCameraTracking tracking = FlightApi.queryCameraTracking(player, 1.0F);
+        if (tracking == null) {
+            trackedCameraRoll = renderedRoll(1.0F);
+            return;
+        }
+        FlightEulerAngles target = tracking.getAttitude().toMinecraftEuler(
+                player.rotationPitch, player.rotationYaw, trackedCameraRoll);
+        float targetPitch = target.pitchDegrees;
+        float yawError = target.yawDegrees - player.rotationYaw;
+        float pitchError = targetPitch - player.rotationPitch;
+        float rollError = target.rollDegrees - trackedCameraRoll;
+        if (tracking.isRigid()) {
+            player.rotationYaw += yawError;
+            player.rotationPitch = targetPitch;
+            trackedCameraRoll = target.rollDegrees;
+            return;
+        }
+        float response = tracking.getResponsePerSecond();
+        float fraction = 1.0F - (float) Math.exp(-response / 20.0F);
+        float maximumStep = tracking.getMaximumRateDegreesPerSecond() / 20.0F;
+        player.rotationYaw += trackingStep(yawError, fraction, maximumStep);
+        player.rotationPitch += trackingStep(pitchError, fraction, maximumStep);
+        trackedCameraRoll += trackingStep(rollError, fraction, maximumStep);
+    }
+
+    static float trackingStep(float error, float fraction, float maximumStep) {
+        float correction = error * Math.max(0.0F, Math.min(1.0F, fraction));
+        return Math.max(-maximumStep, Math.min(maximumStep, correction));
+    }
+
+    private FlightRenderPose resolveRenderPose(EntityPlayerSP player, float partialTicks) {
+        if (player == null) { cachedRenderPose = null; return null; }
+        FlightCameraTracking tracking = FlightApi.queryCameraTracking(player, partialTicks);
+        if (tracking == null) {
+            cachedRenderPose = null;
+            renderReferencePitch = player.rotationPitch;
+            renderReferenceYaw = player.rotationYaw;
+            renderReferenceRoll = renderedRoll(partialTicks);
+            return null;
+        }
+        FlightAttitude attitude = tracking.getAttitude();
+        float amount = Math.max(0.0F, Math.min(1.0F, partialTicks));
+        if (cachedRenderPose != null
+                && Math.abs(cachedRenderPose.getPartialTicks() - amount) < 1.0E-6F
+                && cachedRenderPose.getAttitude().angularDistance(attitude) < 1.0E-9D) {
+            return cachedRenderPose;
+        }
+        FlightEulerAngles angles = attitude.toMinecraftEuler(renderReferencePitch,
+                renderReferenceYaw, renderReferenceRoll);
+        renderReferencePitch = angles.pitchDegrees;
+        renderReferenceYaw = angles.yawDegrees;
+        renderReferenceRoll = angles.rollDegrees;
+        cachedRenderPose = new FlightRenderPose(attitude, angles, amount);
+        return cachedRenderPose;
     }
 
     @SubscribeEvent
@@ -370,6 +492,13 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
     }
     static float hudRoll(float partialTicks) { return INSTANCE.renderedRoll(partialTicks); }
     static float hudPitch() { return INSTANCE.mc.player == null ? 0.0F : INSTANCE.mc.player.rotationPitch; }
+    static float hudYaw(float partialTicks) {
+        EntityPlayerSP player = INSTANCE.mc.player;
+        if (player == null) return 0.0F;
+        float amount = Math.max(0.0F, Math.min(1.0F, partialTicks));
+        return player.prevRotationYaw
+                + FlightRollMath.wrapDegrees(player.rotationYaw - player.prevRotationYaw) * amount;
+    }
     static float hudInputX() { return INSTANCE.hudInputX; }
     static float hudInputY() { return INSTANCE.hudInputY; }
 
@@ -389,6 +518,10 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
                 player == null ? 0.0F : player.rotationYaw, renderedRoll(partialTicks),
                 hudInputX, hudInputY, barrelProgress < 1.0F, companionPresent, serverAllows,
                 serverSync, effectiveMaximumRollSpeed());
+    }
+
+    @Override public FlightRenderPose renderPose(EntityPlayerSP player, float partialTicks) {
+        return resolveRenderPose(player, partialTicks);
     }
 
     @Override public void setRoll(float degrees) { roll = degrees; }
@@ -435,5 +568,9 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
 
     @Override public void updateRemotePlayerRoll(int entityId, boolean rolling, float degrees) {
         onRemoteRoll(entityId, rolling, degrees);
+    }
+
+    @Override public neofontrender.addons.api.flight.FlightHudCanvas hudCanvas() {
+        return FlightHudGraphicsCanvas.INSTANCE;
     }
 }
