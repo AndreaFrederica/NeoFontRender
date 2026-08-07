@@ -8,4 +8,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 public interface GuiCreateWorldAccessor {
     @Invoker("toggleMoreWorldOptions")
     void nfrUi$toggleMoreWorldOptions();
+
+    @Invoker("showMoreWorldOptions")
+    void nfrUi$showMoreWorldOptions(boolean show);
 }

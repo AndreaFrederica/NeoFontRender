@@ -11,6 +11,7 @@ import neofontrender.addons.server.MultiTargetMessageCommand;
 import neofontrender.addons.server.ServerChatHistoryManager;
 import neofontrender.addons.tips.TipsModule;
 import neofontrender.addons.tooltips.TooltipModule;
+import neofontrender.addons.diagnostics.DiagnosticsModule;
 import neofontrender.addons.scrolling.SmoothScrollingModule;
 import neofontrender.addons.input.TextInputModule;
 import neofontrender.addons.effects.ScreenEffectsModule;
@@ -65,7 +66,8 @@ public final class NfrUiEnhancements {
             new HudBarsModule(),
             new EnhancedChatModule(),
             new TooltipModule(),
-            new TipsModule()
+            new TipsModule(),
+            new DiagnosticsModule()
     );
 
     @Mod.EventHandler

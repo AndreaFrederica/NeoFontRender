@@ -335,8 +335,9 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
     }
 
     private boolean active(EntityPlayerSP player) {
+        if (player == null) return false;
         if (companionPresent && !serverAllows) return false;
-        boolean builtIn = FlightRollConfig.enabled && serverAllows && player != null
+        boolean builtIn = FlightRollConfig.enabled && serverAllows
                 && player.isElytraFlying()
                 && (FlightRollConfig.allowInWater || !player.isInWater())
                 && !Loader.isModLoaded("rollthesky");
