@@ -10,8 +10,6 @@ import org.lwjgl.opengl.GL11;
 
 public final class NeofontrenderMainMenuBranding {
 
-    private static final String BRANDING = Tags.MOD_NAME + " " + Tags.VERSION;
-
     @SubscribeEvent
     public void onDrawMainMenu(GuiScreenEvent.DrawScreenEvent.Post event) {
         if (!(event.gui instanceof GuiMainMenu)) {
@@ -26,7 +24,9 @@ public final class NeofontrenderMainMenuBranding {
         GL11.glDisable(GL11.GL_LIGHTING);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
         try {
-            event.gui.drawString(mc.fontRenderer, BRANDING, 2, y, 0xFFFFFF);
+            event.gui.drawString(mc.fontRenderer,
+                    NeofontrenderBranding.displayName() + " " + Tags.VERSION,
+                    2, y, 0xFFFFFF);
         } finally {
             GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
             if (lighting) GL11.glEnable(GL11.GL_LIGHTING);

@@ -1,7 +1,7 @@
 use cosmic_text::fontdb::{Family as DbFamily, Query, ID};
 use cosmic_text::{
     Attrs, Buffer, Color, Fallback, Family, FontSystem, Metrics, PlatformFallback, Shaping, Style,
-    SwashCache, Weight,
+    SwashCache, UnderlineStyle, Weight,
 };
 use jni::objects::{JByteArray, JClass, JObjectArray, JString};
 use jni::sys::{jboolean, jbyteArray, jfloat, jint, jlong, jstring};
@@ -13,7 +13,11 @@ use std::ptr;
 use std::sync::Mutex;
 use unicode_script::Script;
 
-const ABI_VERSION: jint = 8;
+const ABI_VERSION: jint = 9;
+const STYLE_BOLD: jint = 1;
+const STYLE_ITALIC: jint = 2;
+const STYLE_UNDERLINE: jint = 4;
+const STYLE_STRIKETHROUGH: jint = 8;
 const RASTER_MAGIC: i32 = 0x434F534D; // "COSM"
 const HEADER_SIZE: usize = 32;
 const MAX_TEXTURE_DIMENSION: i32 = 8192;
@@ -37,6 +41,7 @@ struct ResolvedFace {
     weight: Weight,
     style: Style,
     post_script_name: String,
+    synthetic_bold: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -225,13 +230,28 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
                     desired_style,
                     &mut warnings,
                 ) {
-                    Some((_, resolved)) => faces[index] = resolved,
+                    Some((_, mut resolved)) => {
+                        let requests_bold = index == 1 || index == 3;
+                        resolved.synthetic_bold = variant_overrides_only_switch_font == 0
+                            && requests_bold
+                            && resolved.weight.0 < Weight::SEMIBOLD.0;
+                        faces[index] = resolved;
+                    }
                     None => warnings.push(format!(
                         "{} override '{}' was not found; using '{}'",
                         style_slot_name(index),
                         selector,
                         automatic[index].post_script_name
                     )),
+                }
+            }
+            for (index, face) in faces.iter().enumerate() {
+                if face.synthetic_bold {
+                    warnings.push(format!(
+                        "{} face for '{}' has no usable bold weight; synthetic bold is enabled",
+                        style_slot_name(index),
+                        face.family
+                    ));
                 }
             }
             let locale: String = env.get_string(&locale).map_err(|e| e.to_string())?.into();
@@ -655,7 +675,22 @@ fn selection_from_face(
         weight: Weight(weight),
         style,
         post_script_name,
+        synthetic_bold: false,
     })
+}
+
+fn attrs_for_style<'a>(face: &'a ResolvedFace, style_flags: jint) -> Attrs<'a> {
+    let mut attrs = Attrs::new()
+        .family(Family::Name(&face.render_family))
+        .weight(face.weight)
+        .style(face.style);
+    if style_flags & STYLE_UNDERLINE != 0 {
+        attrs = attrs.underline(UnderlineStyle::Single);
+    }
+    if style_flags & STYLE_STRIKETHROUGH != 0 {
+        attrs = attrs.strikethrough();
+    }
+    attrs
 }
 
 fn selection_for_family(
@@ -690,14 +725,23 @@ fn build_automatic_faces(
         (bold_weight, Style::Italic),
     ];
     desired.map(|(weight, style)| {
-        selection_for_family(db, catalog, &base.family, weight, style)
-            .map(|entry| entry.1)
-            .unwrap_or_else(|| {
-                let mut fallback = base.clone();
-                fallback.weight = weight;
-                fallback.style = style;
-                fallback
-            })
+        let (mut resolved, matched) =
+            match selection_for_family(db, catalog, &base.family, weight, style) {
+                Some((_, resolved)) => (resolved, true),
+                None => {
+                    let mut fallback = base.clone();
+                    fallback.weight = weight;
+                    fallback.style = style;
+                    (fallback, false)
+                }
+            };
+        resolved.synthetic_bold = weight.0 >= Weight::BOLD.0
+            && if matched {
+                resolved.weight.0 < Weight::SEMIBOLD.0
+            } else {
+                base.weight.0 < Weight::SEMIBOLD.0
+            };
+        resolved
     })
 }
 
@@ -751,15 +795,23 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_resolved
         return ptr::null_mut();
     }
     let engine = unsafe { &*(handle as *const Engine) };
-    let face = &engine.faces[(style_flags & 3) as usize];
+    let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
     let style = match face.style {
         Style::Normal => "normal",
         Style::Italic => "italic",
         Style::Oblique => "oblique",
     };
     let description = format!(
-        "{}|{}|{}|{}",
-        face.post_script_name, face.family, face.weight.0, style
+        "{}|{}|{}|{}|{}",
+        face.post_script_name,
+        face.family,
+        face.weight.0,
+        style,
+        if face.synthetic_bold {
+            "synthetic-bold"
+        } else {
+            "native"
+        }
     );
     match env.new_string(description) {
         Ok(value) => value.into_raw(),
@@ -803,12 +855,20 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_measure(
     } else {
         unsafe { &*(handle as *const Engine) }.font_size
     };
-    match with_text(&mut env, handle, text, style_flags, font_size, 1.0, |buffer, _, _| {
-        Ok(buffer
-            .layout_runs()
-            .map(|run| run.line_w)
-            .fold(0.0_f32, f32::max))
-    }) {
+    match with_text(
+        &mut env,
+        handle,
+        text,
+        style_flags,
+        font_size,
+        1.0,
+        |buffer, _, _| {
+            Ok(buffer
+                .layout_runs()
+                .map(|run| run.line_w)
+                .fold(0.0_f32, f32::max))
+        },
+    ) {
         Ok(width) => width,
         Err(message) => {
             throw(&mut env, &message);
@@ -839,7 +899,9 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_render(
         style_flags,
         font_size,
         raster_scale.max(1.0),
-        |buffer, engine, scale| rasterize(buffer, engine, argb as u32, scale),
+        |buffer, engine, scale| {
+            rasterize(buffer, engine, argb as u32, scale, style_flags, font_size)
+        },
     );
     encode_render_result(&mut env, result)
 }
@@ -893,15 +955,21 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_renderSi
         style_flags,
         font_size.max(1.0),
         raster_scale.max(1.0),
-        |buffer, engine, scale| rasterize(buffer, engine, argb as u32, scale),
+        |buffer, engine, scale| {
+            rasterize(
+                buffer,
+                engine,
+                argb as u32,
+                scale,
+                style_flags,
+                font_size.max(1.0),
+            )
+        },
     );
     encode_render_result(&mut env, result)
 }
 
-fn encode_render_result(
-    env: &mut JNIEnv,
-    result: Result<Vec<u8>, String>,
-) -> jbyteArray {
+fn encode_render_result(env: &mut JNIEnv, result: Result<Vec<u8>, String>) -> jbyteArray {
     match result {
         Ok(bytes) => match env.byte_array_from_slice(&bytes) {
             Ok(array) => array.into_raw(),
@@ -947,11 +1015,8 @@ where
         // Each style slot is resolved once at engine creation. Keeping the requested weight here
         // is essential for variable fonts whose OS/2 default weight differs from the desired
         // `wght` coordinate.
-        let face = &engine.faces[(style_flags & 3) as usize];
-        let attrs = Attrs::new()
-            .family(Family::Name(&face.render_family))
-            .weight(face.weight)
-            .style(face.style);
+        let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
+        let attrs = attrs_for_style(face, style_flags);
         buffer.set_text(&value, &attrs, Shaping::Advanced, None);
         buffer.shape_until_scroll(&mut font_system, false);
         drop(font_system);
@@ -965,6 +1030,8 @@ fn rasterize(
     engine: &Engine,
     argb: u32,
     scale: f32,
+    style_flags: jint,
+    logical_font_size: f32,
 ) -> Result<Vec<u8>, String> {
     let mut advance_px = 0.0_f32;
     let mut baseline_px = 0.0_f32;
@@ -1001,6 +1068,33 @@ fn rasterize(
                 });
             }
         });
+    }
+
+    let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
+    if face.synthetic_bold {
+        // Match the legacy/AWT one-GUI-pixel faux-bold stroke while keeping real bold faces and
+        // variable `wght` instances untouched. Buffer::draw emits mask glyphs as 1x1 rectangles
+        // tinted with the requested color; decoration rectangles and native color glyphs are not
+        // expanded, so underlines stay crisp and emoji are not smeared.
+        let size_ratio = logical_font_size / engine.font_size.max(1.0);
+        let stroke = (scale * size_ratio).round().max(1.0) as i32;
+        let original_len = rects.len();
+        for index in 0..original_len {
+            let rect = rects[index];
+            if rect.w != 1
+                || rect.h != 1
+                || rect.color.r() != color.r()
+                || rect.color.g() != color.g()
+                || rect.color.b() != color.b()
+            {
+                continue;
+            }
+            for offset in 1..=stroke {
+                let mut duplicate = rect;
+                duplicate.x = duplicate.x.saturating_add(offset);
+                rects.push(duplicate);
+            }
+        }
     }
 
     if rects.is_empty() {
@@ -1173,6 +1267,7 @@ mod tests {
             weight,
             style,
             post_script_name: "Example".to_string(),
+            synthetic_bold: false,
         };
         let automatic = [
             face(Weight::NORMAL, Style::Normal),
@@ -1204,6 +1299,23 @@ mod tests {
     }
 
     #[test]
+    fn style_flags_enable_native_text_decorations() {
+        let face = ResolvedFace {
+            id: ID::dummy(),
+            family: "Example".to_string(),
+            render_family: "Example".to_string(),
+            weight: Weight::NORMAL,
+            style: Style::Normal,
+            post_script_name: "Example".to_string(),
+            synthetic_bold: false,
+        };
+        let attrs = attrs_for_style(&face, STYLE_UNDERLINE | STYLE_STRIKETHROUGH);
+
+        assert_eq!(attrs.text_decoration.underline, UnderlineStyle::Single);
+        assert!(attrs.text_decoration.strikethrough);
+    }
+
+    #[test]
     fn automatic_bold_faces_never_reduce_configured_weight() {
         let db = cosmic_text::fontdb::Database::new();
         let catalog = Vec::new();
@@ -1221,6 +1333,7 @@ mod tests {
                 weight: base_weight,
                 style: Style::Normal,
                 post_script_name: "Example".to_string(),
+                synthetic_bold: false,
             };
 
             let faces = build_automatic_faces(&db, &catalog, &base);
@@ -1228,10 +1341,12 @@ mod tests {
             assert_eq!(faces[0].style, Style::Normal);
             assert_eq!(faces[1].weight, expected_bold_weight);
             assert_eq!(faces[1].style, Style::Normal);
+            assert_eq!(faces[1].synthetic_bold, base_weight.0 < Weight::SEMIBOLD.0);
             assert_eq!(faces[2].weight, base_weight);
             assert_eq!(faces[2].style, Style::Italic);
             assert_eq!(faces[3].weight, expected_bold_weight);
             assert_eq!(faces[3].style, Style::Italic);
+            assert_eq!(faces[3].synthetic_bold, base_weight.0 < Weight::SEMIBOLD.0);
         }
     }
 
@@ -1280,6 +1395,8 @@ mod tests {
         let faces = build_automatic_faces(&db, &catalog, &regular);
         assert_eq!(faces[0].weight, Weight::NORMAL);
         assert_eq!(faces[1].weight, Weight::BOLD);
+        assert!(!faces[1].synthetic_bold);
+        assert!(!faces[3].synthetic_bold);
 
         let medium = resolve_selector(
             &db,

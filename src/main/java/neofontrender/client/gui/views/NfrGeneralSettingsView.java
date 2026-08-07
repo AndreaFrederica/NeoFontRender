@@ -1,5 +1,7 @@
 package neofontrender.client.gui.views;
 
+import net.minecraft.client.resources.I18n;
+import neofontrender.client.NeofontrenderBranding;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
 import neofontrender.client.gui.model.NfrSettingsDraft;
@@ -19,7 +21,8 @@ public final class NfrGeneralSettingsView extends NfrContentView<NfrGeneralSetti
                 .add(c.engine(route))
                 .add(c.antialias())
                 .add(c.style())
-                .add(c.toggle("neofontrender.gui.option.enabled", "neofontrender.tooltip.enabled",
+                .add(c.toggleText(() -> I18n.format("neofontrender.gui.option.enabled"),
+                        () -> I18n.format("neofontrender.tooltip.enabled", NeofontrenderBranding.displayName()),
                         () -> d.enabled, value -> d.enabled = value, () -> c.reload(route)))
                 .add(c.toggle("options.forceUnicodeFont", "neofontrender.tooltip.force_unicode_font",
                         () -> d.forceUnicodeFont, value -> d.forceUnicodeFont = value,

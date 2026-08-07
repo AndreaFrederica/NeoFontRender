@@ -5,6 +5,11 @@
     "mcversion": "${minecraftVersion}",
     "description": "Optional bundled fonts for Neo Font Render Core.",
     "authorList": ["AndreaFrederica"],
+    "credits": "Bundled font resources for Neo Font Render.",
     "url": "https://github.com/AndreaFrederica/NeoFontRender",
-    "clientSideOnly": true
+    "logoFile": "assets/neofontrender/logo.png",
+    "modProperties": {"issueTrackerUrl": "https://github.com/AndreaFrederica/NeoFontRender/issues"},
+    "clientSideOnly": true,
+    "requiredMods": ["${modId}@[${modVersion},)"],
+    "dependencies": []
 }]

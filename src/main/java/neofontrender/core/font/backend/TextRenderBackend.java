@@ -22,6 +22,10 @@ public interface TextRenderBackend extends AutoCloseable {
 
     TextRenderResult renderFormatted(String text, int baseArgb, boolean shadow);
 
+    /** Updates the 32 legacy formatting colors used by complete-string rendering paths. */
+    default void updateLegacyColorCodes(int[] colorCodes) {
+    }
+
     /**
      * Whether this backend can shape and rasterize a caller-selected logical font size instead of
      * enlarging the normal UI-size texture with a model-view transform.

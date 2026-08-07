@@ -1,0 +1,9 @@
+jieba-analysis 1.0.2
+=====================
+
+Maven coordinate: com.huaban:jieba-analysis:1.0.2
+Upstream: https://github.com/huaban/jieba-analysis
+License: Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+This notice accompanies the unmodified jieba-analysis dependency embedded
+for Chinese chat segmentation and dictionary lookup.

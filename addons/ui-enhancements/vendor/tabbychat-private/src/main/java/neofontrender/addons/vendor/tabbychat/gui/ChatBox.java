@@ -1,6 +1,8 @@
 package neofontrender.addons.vendor.tabbychat.gui;
 
 import com.google.common.eventbus.Subscribe;
+import neofontrender.addons.chat.ChatHudWindowController;
+import neofontrender.addons.chat.EnhancedChatConfigAccess;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import neofontrender.addons.vendor.tabbychat.api.gui.ChatGui;
 import neofontrender.addons.vendor.tabbychat.settings.TabbySettings;
@@ -8,6 +10,7 @@ import neofontrender.addons.vendor.tabbychat.util.ScaledDimension;
 import neofontrender.addons.vendor.tabbychat.foundation.ILocation;
 import neofontrender.addons.vendor.tabbychat.foundation.Location;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.BorderLayout;
+import neofontrender.addons.vendor.tabbychat.foundation.gui.GuiComponent;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.GuiPanel;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.events.GuiMouseEvent;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.events.GuiMouseEvent.MouseEvent;
@@ -19,6 +22,7 @@ import org.lwjglx.input.Keyboard;
 import org.lwjglx.input.Mouse;
 
 import java.awt.*;
+import javax.annotation.Nonnull;
 
 public class ChatBox extends GuiPanel implements ChatGui {
 
@@ -28,6 +32,9 @@ public class ChatBox extends GuiPanel implements ChatGui {
     private ChatArea chatArea;
     private ChatTray pnlTray;
     private TextBox txtChatInput;
+    private GuiPanel pnlInput;
+    private GuiPanel controlsHost;
+    private GuiComponent inputSpacer;
 
     private boolean dragMode;
     private Point drag;
@@ -37,10 +44,46 @@ public class ChatBox extends GuiPanel implements ChatGui {
         super(new BorderLayout());
         this.addComponent(pnlTray = new ChatTray(), BorderLayout.Position.NORTH);
         this.addComponent(chatArea = new ChatArea(), BorderLayout.Position.CENTER);
-        this.addComponent(txtChatInput = new TextBox(), BorderLayout.Position.SOUTH);
+        pnlInput = new GuiPanel(new BorderLayout());
+        pnlInput.addComponent(txtChatInput = new TextBox(), BorderLayout.Position.CENTER);
+        this.addComponent(pnlInput, BorderLayout.Position.SOUTH);
         this.addComponent(new Scrollbar(chatArea), BorderLayout.Position.EAST);
+        controlsHost = new GuiPanel(new BorderLayout());
         super.setLocation(rect);
+        applyTabLayout();
         super.updateComponent();
+    }
+
+    /** Moves the tab tray to the left edge (Edge-style) or back to the top. */
+    public void applyTabLayout() {
+        boolean vertical = EnhancedChatConfigAccess.verticalTabsEnabled();
+        this.removeComponent(pnlTray);
+        this.removeComponent(pnlInput);
+        this.removeComponent(controlsHost);
+        if (vertical) {
+            this.addComponent(pnlTray, BorderLayout.Position.WEST);
+            pnlTray.applyVertical(true);
+            pnlTray.detachControls(controlsHost);
+            this.addComponent(controlsHost, BorderLayout.Position.NORTH);
+            if (inputSpacer == null) inputSpacer = new TraySpacer();
+            pnlInput.removeComponent(inputSpacer);
+            pnlInput.addComponent(inputSpacer, BorderLayout.Position.WEST);
+        } else {
+            this.addComponent(pnlTray, BorderLayout.Position.NORTH);
+            pnlTray.applyVertical(false);
+            pnlTray.attachControls();
+            if (inputSpacer != null) pnlInput.removeComponent(inputSpacer);
+        }
+        this.addComponent(pnlInput, BorderLayout.Position.SOUTH);
+    }
+
+    /** Invisible spacer holding the input field clear of the vertical tab tray. */
+    private final class TraySpacer extends GuiComponent {
+        @Nonnull
+        @Override
+        public Dimension getMinimumSize() {
+            return new Dimension(ChatTray.VERTICAL_WIDTH, 1);
+        }
     }
 
     @Subscribe
@@ -53,7 +96,8 @@ public class ChatBox extends GuiPanel implements ChatGui {
 
         if (event.getType() == MouseEvent.CLICK) {
             boolean altDown = Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU);
-            if (Mouse.isButtonDown(0) && (pnlTray.isHovered() || (altDown && isHovered()))) {
+            if (Mouse.isButtonDown(0) && (pnlTray.isHovered()
+                    || (!ChatHudWindowController.isHudInteractive() && altDown && isHovered()))) {
                 dragMode = !pnlTray.isHandleHovered();
                 drag = new Point(x, y);
                 tempbox = bounds.copy();

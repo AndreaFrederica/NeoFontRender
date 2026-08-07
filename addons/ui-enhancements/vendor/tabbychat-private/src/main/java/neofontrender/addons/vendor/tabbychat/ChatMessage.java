@@ -5,6 +5,9 @@ import java.util.Date;
 
 import com.google.gson.annotations.Expose;
 
+import neofontrender.addons.chat.ChatMessageMetadata;
+import neofontrender.addons.chat.ChatMessageMetadataCarrier;
+import neofontrender.addons.chat.ChatMessageMetadataRegistry;
 import neofontrender.addons.chat.ChatHeadResolver;
 import neofontrender.addons.vendor.tabbychat.api.Message;
 import neofontrender.addons.vendor.tabbychat.settings.GeneralSettings;
@@ -15,7 +18,7 @@ import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.EnumChatFormatting;
 
-public class ChatMessage implements Message {
+public class ChatMessage implements Message, ChatMessageMetadataCarrier {
 
     @Expose
     private IChatComponent message;
@@ -26,6 +29,7 @@ public class ChatMessage implements Message {
     private transient String nfrUi$senderName;
     private transient boolean nfrUi$senderResolved;
     private transient boolean nfrUi$firstFragment = true;
+    private transient ChatMessageMetadata nfrUi$messageMetadata;
     @Expose
     private Date date;
 
@@ -47,8 +51,10 @@ public class ChatMessage implements Message {
         this.nfrUi$senderName = senderName;
         this.nfrUi$senderResolved = senderResolved;
         this.nfrUi$firstFragment = firstFragment;
+        this.nfrUi$messageMetadata = ChatMessageMetadataRegistry.get(chat);
         if (isNew) {
-            this.date = Calendar.getInstance().getTime();
+            this.date = nfrUi$messageMetadata == null ? Calendar.getInstance().getTime()
+                    : new Date(nfrUi$messageMetadata.timestamp);
         }
     }
 
@@ -108,6 +114,11 @@ public class ChatMessage implements Message {
 
     public boolean nfrUi$isFirstFragment() {
         return nfrUi$firstFragment;
+    }
+
+    @Override
+    public ChatMessageMetadata nfrUi$getMessageMetadata() {
+        return nfrUi$messageMetadata;
     }
 
 }

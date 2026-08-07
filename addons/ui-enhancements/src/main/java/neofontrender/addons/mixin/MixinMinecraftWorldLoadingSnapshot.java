@@ -37,5 +37,13 @@ public abstract class MixinMinecraftWorldLoadingSnapshot {
         if (nextWorld == null) {
             WorldLoadingSnapshotManager.INSTANCE.saveCurrentWorldAndRelease();
         }
+        WorldLoadingRenderer.INSTANCE.beginClientWorldLoad(nextWorld);
+    }
+
+    @Inject(method = "loadWorld(Lnet/minecraft/client/multiplayer/WorldClient;Ljava/lang/String;)V",
+            at = @At("RETURN"))
+    private void nfrUi$finishClientWorldLoad(WorldClient nextWorld, String loadingMessage,
+                                             CallbackInfo ci) {
+        WorldLoadingRenderer.INSTANCE.finishClientWorldLoad(nextWorld);
     }
 }

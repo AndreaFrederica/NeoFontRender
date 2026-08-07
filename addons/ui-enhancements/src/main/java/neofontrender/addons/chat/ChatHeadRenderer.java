@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * Renders cached player skin heads beside chat lines. Minecraft 1.7.10 resolves skins
- * per player entity instead of NetworkPlayerInfo, so lines carry the sender's name.
+ * per player entity instead of GuiPlayerInfo, so lines carry the sender's name.
  */
 public final class ChatHeadRenderer {
     public static final int HEAD_SIZE = 8;
@@ -42,6 +42,11 @@ public final class ChatHeadRenderer {
         GL11.glColor4f(1.0F, 1.0F, 1.0F, opacity);
         drawFace(x, y);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    public static void renderCandidate(String candidate, int x, int y, float opacity) {
+        if (candidate == null || candidate.length() < 2 || candidate.charAt(0) != '@') return;
+        render(candidate.substring(1), x, y, opacity);
     }
 
     public static void renderVanilla(List<ChatLine> lines, int scrollPos, int updateCounter,

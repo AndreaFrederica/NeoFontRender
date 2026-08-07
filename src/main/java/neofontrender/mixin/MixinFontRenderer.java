@@ -3,6 +3,7 @@ package neofontrender.mixin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.Tessellator;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -12,21 +13,29 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import neofontrender.api.text.ModernTextApi;
 import neofontrender.api.text.ModernTextLayout;
+import neofontrender.api.color.TextColorPaletteRegistry;
+import neofontrender.api.text.CjkParagraphLayoutProvider;
+import neofontrender.api.text.CjkParagraphLayoutRegistry;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.BakedGlyph;
 import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.awt.GlyphInfo;
+import neofontrender.core.font.awt.TextRunBatcher;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.backend.BackendTextSegmenter;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.core.font.preprocess.LayoutText;
 import neofontrender.core.font.preprocess.PreprocessedText;
 import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
 import neofontrender.core.font.linebreak.CjkLineBreakRules;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.ScopedFontRenderBypass;
+import neofontrender.core.font.support.ShadowColorPolicy;
 import neofontrender.core.font.support.StringErrorCorrector;
 
+import java.nio.FloatBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -34,7 +43,7 @@ import java.util.Locale;
  * Bridges vanilla {@link FontRenderer} into the replacement TTF pipeline.
  */
 @Mixin(FontRenderer.class)
-public class MixinFontRenderer {
+public abstract class MixinFontRenderer {
 
     @Shadow public float posX;
     @Shadow public float posY;
@@ -50,10 +59,26 @@ public class MixinFontRenderer {
     @Shadow private boolean italicStyle;
     @Shadow private boolean underlineStyle;
     @Shadow private boolean strikethroughStyle;
+    @Shadow protected abstract void setColor(float red, float green, float blue, float alpha);
+
+    private final TextRunBatcher sfr$batcher = new TextRunBatcher();
+    private final FloatBuffer sfr$colorBuffer = BufferUtils.createFloatBuffer(4);
+    private int[] sfr$activeColorCodes = TextColorPaletteRegistry.vanillaColorCodes();
+    private int[] sfr$runtimeColorSnapshot = new int[0];
+    private String sfr$paletteProvider = "";
+    private long sfr$paletteRevision = Long.MIN_VALUE;
+    private int sfr$renderPassColor = 0xFFFFFFFF;
 
     // ================================================================== //
     //  Render hook
     // ================================================================== //
+
+    @Inject(method = "renderString(Ljava/lang/String;IIIZ)I", at = @At("HEAD"))
+    private void sfr$captureRenderPassColor(String text, int x, int y, int color,
+                                            boolean shadow,
+                                            CallbackInfoReturnable<Integer> cir) {
+        this.sfr$renderPassColor = color;
+    }
 
     @Inject(method = "drawString(Ljava/lang/String;IIIZ)I", at = @At("HEAD"), cancellable = true)
     private void sfr$onDrawString(String text, int x, int y, int color, boolean dropShadow,
@@ -62,6 +87,8 @@ public class MixinFontRenderer {
         if (!sfr$shouldHook() || text == null) {
             return;
         }
+        sfr$syncTextColorPalette();
+        color = sfr$resolveEffectiveColor(color);
         PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
         if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
             float advance = sfr$drawPreprocessedText(
@@ -81,6 +108,7 @@ public class MixinFontRenderer {
         if (backend == null) {
             return;
         }
+        color = sfr$resolveEffectiveColor(color);
         if (dropShadow && NeofontrenderConfig.modernShadowEnabled()
                 && backend.supportsModernShadow() && backend.shouldRenderShadow(text)) {
             TextRenderResult rendered = backend.renderFormattedWithShadow(text, color);
@@ -106,7 +134,13 @@ public class MixinFontRenderer {
         if (!sfr$shouldHook() || text == null) {
             return;
         }
+        sfr$syncTextColorPalette();
         PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
+        if (shadow && NeofontrenderConfig.coloredShadowEnabled()
+                && (sfr$isAnyActive()
+                    || preprocessed.transformed() && ModernTextApi.isAvailable())) {
+            sfr$applyColoredShadowBase();
+        }
         if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
             ModernTextLayout layout = ModernTextApi.layoutFormatted(
                     preprocessed.modernText(), NeofontrenderConfig.fontSize(),
@@ -160,10 +194,12 @@ public class MixinFontRenderer {
                 this.italicStyle = false;
 
                 int colorIndex = style < 0 ? 15 : style;
-                if (shadow) {
-                    colorIndex += 16;
+                colorIndex = ShadowColorPolicy.paletteIndex(colorIndex, shadow,
+                        NeofontrenderConfig.coloredShadowEnabled());
+                int color = sfr$legacyColor(colorIndex);
+                if (shadow && NeofontrenderConfig.coloredShadowEnabled()) {
+                    color = sfr$coloredShadowColor(color);
                 }
-                int color = this.colorCode[colorIndex];
                 this.textColor = color;
                 this.red = (float) (color >> 16 & 255) / 255.0F;
                 this.blue = (float) (color >> 8 & 255) / 255.0F;
@@ -271,8 +307,12 @@ public class MixinFontRenderer {
         }
 
         FontSet fontSet = FontManager.INSTANCE.getDefaultFontSet();
+        fontSet.flushAtlas();
         float startX = this.posX;
         float[] positions = fontSet.layoutPositions(run, this.boldStyle);
+
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GL11.glEnable(GL11.GL_ALPHA_TEST);
 
         for (int i = 0; i < run.length(); ) {
             int codePoint = run.codePointAt(i);
@@ -295,15 +335,16 @@ public class MixinFontRenderer {
             }
 
             float x = startX + positions[i];
-            Minecraft.getMinecraft().getTextureManager().bindTexture(glyph.getTextureLocation());
-            GL11.glEnable(GL11.GL_TEXTURE_2D);
-            GL11.glEnable(GL11.GL_ALPHA_TEST);
-            glyph.render(this.italicStyle, x, this.posY, this.red, this.blue, this.green, this.alpha);
+            sfr$batcher.addGlyph(glyph, this.italicStyle, x, this.posY,
+                    this.red, this.blue, this.green, this.alpha);
             if (this.boldStyle) {
-                glyph.render(this.italicStyle, x + 1.0F, this.posY, this.red, this.blue, this.green, this.alpha);
+                sfr$batcher.addGlyph(glyph, this.italicStyle, x + 1.0F, this.posY,
+                        this.red, this.blue, this.green, this.alpha);
             }
             i = next;
         }
+
+        sfr$batcher.flush();
 
         float width = positions[positions.length - 1];
         if (this.strikethroughStyle) {
@@ -346,10 +387,12 @@ public class MixinFontRenderer {
                 this.italicStyle = false;
 
                 int colorIndex = style < 0 ? 15 : style;
-                if (shadow) {
-                    colorIndex += 16;
+                colorIndex = ShadowColorPolicy.paletteIndex(colorIndex, shadow,
+                        NeofontrenderConfig.coloredShadowEnabled());
+                int color = sfr$legacyColor(colorIndex);
+                if (shadow && NeofontrenderConfig.coloredShadowEnabled()) {
+                    color = sfr$coloredShadowColor(color);
                 }
-                int color = this.colorCode[colorIndex];
                 this.textColor = color;
                 this.red = (float) (color >> 16 & 255) / 255.0F;
                 this.blue = (float) (color >> 8 & 255) / 255.0F;
@@ -592,9 +635,15 @@ public class MixinFontRenderer {
         if (str == null) {
             return;
         }
-        PreprocessedText preprocessed = TextPreprocessingPipeline.process(str);
-        if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
-            cir.setReturnValue(sfr$sizePreprocessedTextToWidth(preprocessed, wrapWidth));
+        CjkParagraphLayoutProvider.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
+        if (paragraph != null) {
+            cir.setReturnValue(Math.min(str.length(),
+                    Math.max(0, paragraph.firstRawBoundary(str.length()))));
+            return;
+        }
+        LayoutText layoutText = LayoutText.process(str);
+        if (layoutText.transformed() && ModernTextApi.isAvailable()) {
+            cir.setReturnValue(sfr$sizeLayoutTextToWidth(layoutText, wrapWidth));
             return;
         }
         boolean rendererActive = sfr$isAnyActive();
@@ -653,6 +702,36 @@ public class MixinFontRenderer {
         }
 
         cir.setReturnValue(pos != len && breakPos != -1 && breakPos < pos ? breakPos : pos);
+    }
+
+    @Inject(method = "drawSplitString", at = @At("HEAD"), cancellable = true)
+    private void sfr$drawCjkParagraph(String str, int x, int y, int wrapWidth, int textColor,
+                                      CallbackInfo ci) {
+        if (str == null) return;
+        CjkParagraphLayoutProvider.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
+        if (paragraph == null) return;
+        FontRenderer self = (FontRenderer) (Object) this;
+        for (CjkParagraphLayoutProvider.Line line : paragraph.lines()) {
+            for (CjkParagraphLayoutProvider.Run run : line.runs()) {
+                self.drawString(run.formattedText(), x + (int) run.xOffset(),
+                        y + (int) line.yOffset(), textColor, false);
+            }
+        }
+        ci.cancel();
+    }
+
+    private CjkParagraphLayoutProvider.Layout sfr$layoutCjkParagraph(String text, int width) {
+        if (!NeofontrenderConfig.fixCjkLineBreak()) return null;
+        FontRenderer self = (FontRenderer) (Object) this;
+        return CjkParagraphLayoutRegistry.layout(new CjkParagraphLayoutProvider.Request(
+                text, width, this.FONT_HEIGHT, sfr$currentLanguageCode(), self::getStringWidth));
+    }
+
+    private static String sfr$currentLanguageCode() {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        return minecraft == null || minecraft.getLanguageManager() == null
+                || minecraft.getLanguageManager().getCurrentLanguage() == null
+                ? "" : minecraft.getLanguageManager().getCurrentLanguage().getLanguageCode();
     }
 
     private float sfr$getWrappingCharWidth(int codePoint, boolean bold, boolean rendererActive) {
@@ -754,6 +833,62 @@ public class MixinFontRenderer {
         String className = ((Object) this).getClass().getName();
         return !className.equals("cpw.mods.fml.client.SplashProgress$SplashFontRenderer")
                 && !className.endsWith("SimpleModelFontRenderer");
+    }
+
+    /**
+     * Snapshot the final palette on the FontRenderer instance. Other constructor-tail mixins may
+     * replace those entries; resolving here observes their completed runtime values.
+     */
+    private void sfr$syncTextColorPalette() {
+        NeofontrenderConfig.ensureLoadedForEarlyRendering();
+        String provider = NeofontrenderConfig.textColorPaletteProvider();
+        long revision = TextColorPaletteRegistry.revision();
+        if (provider.equals(sfr$paletteProvider) && revision == sfr$paletteRevision
+                && Arrays.equals(sfr$runtimeColorSnapshot, this.colorCode)) return;
+        sfr$paletteProvider = provider;
+        sfr$paletteRevision = revision;
+        sfr$runtimeColorSnapshot = this.colorCode == null ? new int[0] : this.colorCode.clone();
+        sfr$activeColorCodes = TextColorPaletteRegistry.resolve(provider, this.colorCode);
+        FontManager.INSTANCE.updateLegacyColorCodes(sfr$activeColorCodes);
+    }
+
+    private int sfr$legacyColor(int index) {
+        return index >= 0 && index < sfr$activeColorCodes.length
+                ? sfr$activeColorCodes[index] & 0xFFFFFF : 0xFFFFFF;
+    }
+
+    private int sfr$coloredShadowColor(int color) {
+        return NeofontrenderConfig.shadowColorRemapRules().remap(color, sfr$activeColorCodes);
+    }
+
+    /** Restores the caller's RGB before vanilla has quarter-darkened its shadow pass. */
+    private void sfr$applyColoredShadowBase() {
+        int color = sfr$coloredShadowColor(this.sfr$renderPassColor);
+        this.textColor = color;
+        this.red = (color >> 16 & 255) / 255.0F;
+        this.blue = (color >> 8 & 255) / 255.0F;
+        this.green = (color & 255) / 255.0F;
+        this.alpha = alphaFromColor(color);
+        GL11.glColor4f(this.red, this.blue, this.green, this.alpha);
+    }
+
+    /**
+     * Preserve FontRenderer subclasses that implement color as a GL multiplier (for example
+     * StellarAPI's WrappedFontRenderer) instead of encoding it in drawString's integer argument.
+     */
+    private int sfr$resolveEffectiveColor(int packedColor) {
+        float alpha = alphaFromColor(packedColor);
+        float red = (packedColor >> 16 & 255) / 255.0F;
+        float green = (packedColor >> 8 & 255) / 255.0F;
+        float blue = (packedColor & 255) / 255.0F;
+        this.setColor(red, green, blue, alpha);
+        this.sfr$colorBuffer.clear();
+        GL11.glGetFloat(GL11.GL_CURRENT_COLOR, this.sfr$colorBuffer);
+        int r = Math.max(0, Math.min(255, Math.round(this.sfr$colorBuffer.get(0) * 255.0F)));
+        int g = Math.max(0, Math.min(255, Math.round(this.sfr$colorBuffer.get(1) * 255.0F)));
+        int b = Math.max(0, Math.min(255, Math.round(this.sfr$colorBuffer.get(2) * 255.0F)));
+        int a = Math.max(0, Math.min(255, Math.round(this.sfr$colorBuffer.get(3) * 255.0F)));
+        return a << 24 | r << 16 | g << 8 | b;
     }
 
     private int sfr$currentArgb() {
@@ -860,41 +995,40 @@ public class MixinFontRenderer {
         return raw.substring(acceptedRawStart);
     }
 
-    private int sfr$sizePreprocessedTextToWidth(PreprocessedText text, int wrapWidth) {
-        String raw = text.rawText();
+    private int sfr$sizeLayoutTextToWidth(LayoutText text, int wrapWidth) {
         String visible = text.visibleText();
         int breakRaw = -1;
         int previousCodePoint = -1;
         int boundaryAfterPrevious = 0;
         boolean cjkLineBreak = NeofontrenderConfig.fixCjkLineBreak();
+        float width = 0.0F;
 
         for (int index = 0; index < visible.length();) {
             char ch = visible.charAt(index);
             if (ch == '\n') {
-                return text.rawStartForVisibleBoundary(index);
-            }
-            if (ch == 167 && index + 1 < visible.length()) {
-                index += 2;
-                continue;
+                return text.rawStartBoundary(index);
             }
 
             int codePoint = visible.codePointAt(index);
             int next = index + Character.charCount(codePoint);
             if (ch == ' ') {
-                breakRaw = text.rawStartForVisibleBoundary(index);
+                breakRaw = text.rawStartBoundary(index);
             } else if (cjkLineBreak && previousCodePoint >= 0
                     && CjkLineBreakRules.canBreakBetween(previousCodePoint, codePoint)) {
-                breakRaw = text.rawStartForVisibleBoundary(boundaryAfterPrevious);
+                breakRaw = text.rawStartBoundary(boundaryAfterPrevious);
             }
-            int rawEnd = text.rawEndForVisibleBoundary(next);
-            if (sfr$measurePreprocessedRaw(raw.substring(0, rawEnd)) > wrapWidth) {
+            width += ModernTextApi.measureFormatted(text.formattedDisplay(index,
+                            visible.substring(index, next)), NeofontrenderConfig.fontSize(),
+                    0xFFFFFFFF, false);
+            int rawEnd = text.rawEndBoundary(next);
+            if (width > wrapWidth) {
                 return breakRaw != -1 && breakRaw < rawEnd ? breakRaw : rawEnd;
             }
             previousCodePoint = codePoint;
             boundaryAfterPrevious = next;
             index = next;
         }
-        return raw.length();
+        return text.rawText().length();
     }
 
     private float sfr$measurePreprocessedRaw(String raw) {

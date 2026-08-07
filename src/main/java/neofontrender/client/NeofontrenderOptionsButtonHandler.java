@@ -6,7 +6,6 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiOptions;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.OpenGlHelper;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
@@ -20,7 +19,7 @@ import org.lwjgl.opengl.GLContext;
 import java.util.Collections;
 
 /**
- * Adds a textured Neo Font Render shortcut beside the vanilla language button.
+ * Adds a textured settings shortcut beside the vanilla language button.
  */
 public final class NeofontrenderOptionsButtonHandler {
 
@@ -44,7 +43,7 @@ public final class NeofontrenderOptionsButtonHandler {
                 BUTTON_ID,
                 gui.width / 2 - 180,
                 gui.height / 6 + 120 - 6,
-                I18n.format("neofontrender.options.button")
+                NeofontrenderBranding.displayName()
         );
         event.buttonList.add(this.optionsButton);
     }

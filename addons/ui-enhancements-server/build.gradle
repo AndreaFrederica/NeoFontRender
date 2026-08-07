@@ -1,0 +1,117 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'neofontrender.addons'
+version = providers.gradleProperty('ui_enhancements_server_version').get()
+
+base {
+    archivesName = 'neofontrender-ui-enhancements-server'
+}
+
+configurations {
+    contain
+    runtimeOnlyNonPublishable
+    implementation.extendsFrom(contain)
+    runtimeClasspath.extendsFrom(runtimeOnlyNonPublishable)
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://nexus.gtnewhorizons.com/repository/public/' }
+    maven { url = 'https://maven.cleanroommc.com/' }
+    maven { url = 'https://repo.cleanroommc.com/releases' }
+}
+
+sourceSets {
+    main {
+        java.srcDir '../ui-enhancements-common/src/main/java'
+    }
+}
+
+dependencies {
+    compileOnly project(':')
+    compileOnly files(rootProject.configurations.compileClasspath)
+
+    contain 'com.h2database:h2:2.3.232'
+
+    annotationProcessor files(provider {
+        rootProject.configurations.compileClasspath.findAll { it.name.startsWith('unimixins-') }
+    })
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testImplementation project(':')
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly files(rootProject.tasks.named('compileJava').get().classpath)
+    testRuntimeOnly files(rootProject.sourceSets.main.output)
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    classpath += rootProject.tasks.named('compileJava').get().classpath
+    options.encoding = 'UTF-8'
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+def reobfuscatedJarType = rootProject.ext.reobfuscatedJarType
+def rootReobfJar = rootProject.tasks.named('reobfJar', reobfuscatedJarType)
+def mixinSrg = layout.buildDirectory.file('tmp/mixins/mixins.neofontrender_ui_enhancements_server.srg')
+def mixinRefMap = layout.buildDirectory.file('tmp/mixins/mixins.neofontrender_ui_enhancements_server-refmap.json')
+tasks.named('compileJava', JavaCompile) {
+    def reobfSrg = rootReobfJar.get().srg.locationOnly.get().asFile
+    inputs.file(rootReobfJar.flatMap { it.srg })
+    outputs.files(mixinSrg, mixinRefMap)
+    options.compilerArgs.addAll(
+            "-AreobfSrgFile=${reobfSrg}",
+            "-AoutSrgFile=${mixinSrg.get().asFile}",
+            "-AoutRefMapFile=${mixinRefMap.get().asFile}")
+}
+
+def resourceVersion = project.version.toString()
+def issueTracker = rootProject.mod_issue_tracker
+processResources {
+    inputs.property('version', resourceVersion)
+    inputs.property('issueTracker', issueTracker)
+    filesMatching('mcmod.info') {
+        expand(version: resourceVersion, issueTracker: issueTracker)
+    }
+}
+
+jar {
+    archiveClassifier = 'dev'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(provider { configurations.contain.collect { it.isDirectory() ? it : zipTree(it) } })
+    from(mixinRefMap)
+    manifest.attributes(
+            'FMLCorePlugin': 'neofontrender.addons.server.UiEnhancementsServerMixinLoader',
+            'FMLCorePluginContainsFMLMod': 'true')
+}
+
+tasks.register('reobfJar', reobfuscatedJarType) {
+    setInputJarFromTask(tasks.named('jar', Jar))
+    archiveClassifier = ''
+    mcVersion.set(rootReobfJar.flatMap { it.mcVersion })
+    srg.set(rootReobfJar.flatMap { it.srg })
+    fieldCsv.set(rootReobfJar.flatMap { it.fieldCsv })
+    methodCsv.set(rootReobfJar.flatMap { it.methodCsv })
+    exceptorCfg.set(rootReobfJar.flatMap { it.exceptorCfg })
+    recompMcJar.set(rootReobfJar.flatMap { it.recompMcJar })
+    extraSrgEntries.set(rootReobfJar.flatMap { it.extraSrgEntries })
+    extraSrgFiles.from(rootReobfJar.map { it.extraSrgFiles }, mixinSrg)
+    referenceClasspath.from(rootReobfJar.map { it.referenceClasspath }, sourceSets.main.compileClasspath)
+}
+
+tasks.named('assemble') {
+    dependsOn tasks.named('reobfJar')
+}
+
+test {
+    useJUnitPlatform()
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+}

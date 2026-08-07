@@ -1,0 +1,9 @@
+{
+  "schema": 3,
+  "id": "airbus-a350-360",
+  "name": "Airbus A350 Dual HUD 360 Expanded",
+  "extends": "airbus-a350",
+  "elements": [
+    {"id":"flight-reference","pitchRange":30,"pitchMode":"WRAP_360"}
+  ]
+}

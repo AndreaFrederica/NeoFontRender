@@ -12,6 +12,7 @@
 /crash-reports/
 /logs/
 /addons/*/build/
+/addons/*/*/build/
 /addons/*/logs/
 options.txt
 /saves/
@@ -43,3 +44,10 @@ native/**/target/
 
 hs_err_pid*.log
 src/main/java/io/
+
+# local agent tooling
+.claude/
+.mimocode/
+
+# vendored arc3d scratch (not wired into any build; use the dev.icyllis:arc3d-core dependency)
+/icyllis/

@@ -11,6 +11,8 @@ import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.settings.GameSettings;
 import net.minecraft.client.settings.KeyBinding;
 import neofontrender.addons.mixin.AccessorGuiChatFeatures;
+import neofontrender.addons.vendor.tabbychat.ChatManager;
+import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import org.lwjgl.input.Keyboard;
 
 /**
@@ -27,6 +29,7 @@ public final class ChatKeyBindings {
     private static final KeyBinding CUT = binding("cut", Keyboard.KEY_X);
     private static final KeyBinding PASTE = binding("paste", Keyboard.KEY_V);
     private static final KeyBinding SELECT_ALL = binding("select_all", Keyboard.KEY_A);
+    private static final KeyBinding HUD_INTERACT = binding("hud_interact", Keyboard.KEY_GRAVE);
     private static final KeyBinding[] ALL = {COPY, CUT, PASTE, SELECT_ALL};
     private static final ChatKeyBindings INSTANCE = new ChatKeyBindings();
 
@@ -41,7 +44,12 @@ public final class ChatKeyBindings {
         if (registered) return;
         registered = true;
         for (KeyBinding binding : ALL) ClientRegistry.registerKeyBinding(binding);
+        ClientRegistry.registerKeyBinding(HUD_INTERACT);
         FMLCommonHandler.instance().bus().register(INSTANCE);
+    }
+
+    public static boolean hudInteractionDown() {
+        return Keyboard.isKeyDown(HUD_INTERACT.getKeyCode());
     }
 
     @SubscribeEvent
@@ -86,6 +94,27 @@ public final class ChatKeyBindings {
 
     public static boolean handledCurrentEvent() {
         return handledCurrentEvent;
+    }
+
+    public static boolean removePrivateCommandBlock(GuiTextField field) {
+        if (field == null) return false;
+        String text = field.getText();
+        if (text == null || text.isEmpty()) return false;
+        String template = EnhancedChatConfig.privateMessageCommand == null
+                ? "/msg" : EnhancedChatConfig.privateMessageCommand.trim();
+        if (!template.startsWith("/")) template = "/" + template;
+        if (!text.startsWith(template + " ")) return false;
+        field.setText(text.substring(template.length() + 1));
+        field.setCursorPosition(0);
+        return true;
+    }
+
+    /** Clears the PM draft only after GuiChat has copied and sent its text. */
+    public static void resetPrivateInputAfterSend(GuiTextField input) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled() || input == null) return;
+        ChatManager manager = TabbyChat.getInstance().getChat();
+        if (manager == null || !manager.getActiveChannel().isPm()) return;
+        manager.clearActiveDraft();
     }
 
     public static String copyDisplayName() { return displayName(COPY); }

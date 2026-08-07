@@ -1,6 +1,7 @@
 package neofontrender.addons.vendor.tabbychat.gui;
 
 import neofontrender.addons.vendor.tabbychat.core.GuiNewChatTC;
+import neofontrender.addons.chat.ChatHudWindowController;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.GuiPanel;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.ILayout;
 
@@ -16,6 +17,6 @@ public class ChatPanel extends GuiPanel {
 
     @Override
     public boolean isVisible() {
-        return super.isVisible() && GuiNewChatTC.getInstance().getChatOpen();
+        return super.isVisible() && ChatHudWindowController.isChatExpanded();
     }
 }

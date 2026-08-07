@@ -27,4 +27,35 @@ public final class EnhancedChatFeatures {
     static boolean ampersandFormatting() {
         return EnhancedChatConfig.ampersandFormatting;
     }
+
+    public static boolean inlineGlyphs() {
+        return EnhancedChatConfig.enabled
+                && (EmojiAndImageConfig.goslingImageGlyphs
+                    || EmojiAndImageConfig.localImageGlyphs
+                    || EmojiAndImageConfig.externalImageGlyphs);
+    }
+
+    public static boolean imageGlyphHover() {
+        return EnhancedChatConfig.enabled && EmojiAndImageConfig.imageGlyphHover;
+    }
+
+    public static boolean goslingImageGlyphs() {
+        return EnhancedChatConfig.enabled && EmojiAndImageConfig.goslingImageGlyphs;
+    }
+
+    public static boolean localImageGlyphs() {
+        return EnhancedChatConfig.enabled && EmojiAndImageConfig.localImageGlyphs;
+    }
+
+    public static boolean externalImageGlyphs() {
+        return EnhancedChatConfig.enabled && EmojiAndImageConfig.externalImageGlyphs;
+    }
+
+    public static String imageAllowlist() {
+        return EmojiAndImageConfig.imageAllowlist;
+    }
+
+    public static String imageBlocklist() {
+        return EmojiAndImageConfig.imageBlocklist;
+    }
 }

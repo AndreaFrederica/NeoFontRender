@@ -1,15 +1,22 @@
 package neofontrender.addons.vendor.tabbychat.util;
 
 import com.google.common.collect.Lists;
+import neofontrender.addons.cjk.CjkTypographyRenderer;
+import neofontrender.addons.chat.ChatMessageMetadata;
+import neofontrender.addons.chat.ChatMessageMetadataRegistry;
 import neofontrender.addons.chat.ChatHeadResolver;
 import neofontrender.addons.chat.ChatItemIconRenderer;
+import neofontrender.addons.chat.ChatSource;
+import neofontrender.api.text.CjkParagraphLayoutProvider;
 import neofontrender.addons.vendor.tabbychat.ChatMessage;
+import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import neofontrender.addons.vendor.tabbychat.api.Message;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.IChatComponent;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 
 import java.util.Iterator;
 import java.util.List;
@@ -24,7 +31,12 @@ public class ChatTextUtils {
             throw new IllegalArgumentException("width must be positive");
         }
         FontRenderer fr = Minecraft.getMinecraft().fontRenderer;
-        List<IChatComponent> pending = Lists.newArrayList(ChatItemIconRenderer.decorate(chat));
+        IChatComponent decorated = ChatItemIconRenderer.decorate(chat);
+        List<IChatComponent> positioned = CjkTypographyRenderer.splitComponents(
+                fr, decorated, width, false, false,
+                CjkParagraphLayoutProvider.ComponentRequest.Surface.CHAT);
+        if (positioned != null) return positioned;
+        List<IChatComponent> pending = Lists.newArrayList(decorated);
         List<IChatComponent> lines = Lists.newArrayList();
         ChatComponentText current = new ChatComponentText("");
         int currentWidth = 0;
@@ -86,25 +98,82 @@ public class ChatTextUtils {
     }
 
     public static List<Message> split(List<Message> list, int width) {
+        return split(list, width, false);
+    }
+
+    public static List<Message> split(List<Message> list, int width, boolean privateView) {
         if (width <= 8) // ignore, characters are larger than width
             return Lists.newArrayList(list);
         // prevent concurrent modification caused by chat thread
         synchronized (list) {
             List<Message> result = Lists.newArrayList();
             Iterator<Message> iter = list.iterator();
-            while (iter.hasNext() && result.size() <= 100) {
+            // Cap the wrapped line cache so scrolling can reach far back into history
+            // without pathological rebuild cost on every new message.
+            while (iter.hasNext() && result.size() <= 4096) {
                 Message line = iter.next();
-                List<IChatComponent> chatlist = split(line.getMessageWithOptionalTimestamp(), width);
+                ChatMessageMetadata metadata = line instanceof ChatMessage
+                        ? ((ChatMessage) line).nfrUi$getMessageMetadata() : null;
+                IChatComponent display = line.getMessageWithOptionalTimestamp();
+                if (privateView && metadata != null && metadata.source == ChatSource.PRIVATE) {
+                    IChatComponent body = findPrivateBody(line.getMessage());
+                    if (body == null && !metadata.privateBody.isEmpty()) {
+                        body = new ChatComponentText(metadata.privateBody);
+                    }
+                    if (body != null && line.getDate() != null
+                            && TabbyChat.getInstance().settings.general.timestampChat.get()) {
+                        body = new ChatComponentText(
+                                TabbyChat.getInstance().settings.general.timestampColor.get()
+                                + TabbyChat.getInstance().settings.general.timestampStyle.get().format(line.getDate())
+                                + EnumChatFormatting.RESET + " ").appendSibling(body);
+                    }
+                    if (body != null) display = body;
+                }
+                List<IChatComponent> chatlist = split(display, width);
                 String senderName = line instanceof ChatMessage
                         ? ((ChatMessage) line).nfrUi$getSenderName() : ChatHeadResolver.detect(line.getMessage());
                 for (int i = chatlist.size() - 1; i >= 0; i--) {
                     IChatComponent chat = chatlist.get(i);
+                    ChatMessageMetadata fragmentMetadata = metadata;
+                    if (privateView && metadata != null && !metadata.outgoing
+                            && isOutgoingPrivate(line.getMessage())) {
+                        fragmentMetadata = new ChatMessageMetadata(metadata.timestamp,
+                                metadata.source, metadata.playerName, metadata.playerId,
+                                metadata.privatePeer, true, display.getUnformattedText());
+                    }
+                    ChatMessageMetadataRegistry.put(chat, fragmentMetadata);
                     result.add(new ChatMessage(line.getCounter(), chat, line.getID(), false,
                             senderName, i == 0));
                 }
             }
             return result;
         }
+    }
+
+    private static IChatComponent findPrivateBody(IChatComponent component) {
+        if (component instanceof ChatComponentTranslation) {
+            Object[] arguments = ((ChatComponentTranslation) component).getFormatArgs();
+            if (arguments.length > 0) {
+                Object body = arguments[arguments.length - 1];
+                if (body instanceof IChatComponent) return ((IChatComponent) body).createCopy();
+                if (body != null) return new ChatComponentText(String.valueOf(body));
+            }
+        }
+        for (IChatComponent sibling : component.getSiblings()) {
+            IChatComponent body = findPrivateBody(sibling);
+            if (body != null) return body;
+        }
+        return null;
+    }
+
+    private static boolean isOutgoingPrivate(IChatComponent component) {
+        if (component instanceof ChatComponentTranslation
+                && "commands.message.display.outgoing".equals(
+                ((ChatComponentTranslation) component).getKey())) return true;
+        for (IChatComponent sibling : component.getSiblings()) {
+            if (isOutgoingPrivate(sibling)) return true;
+        }
+        return false;
     }
 
     /**

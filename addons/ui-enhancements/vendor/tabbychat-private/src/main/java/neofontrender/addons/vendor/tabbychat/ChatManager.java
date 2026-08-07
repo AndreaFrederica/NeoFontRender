@@ -8,6 +8,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import neofontrender.addons.chat.ChatSourceChannels;
+import neofontrender.addons.chat.EnhancedChatConfigAccess;
 import neofontrender.addons.vendor.tabbychat.api.Channel;
 import neofontrender.addons.vendor.tabbychat.api.ChannelStatus;
 import neofontrender.addons.vendor.tabbychat.api.Chat;
@@ -51,6 +53,8 @@ public class ChatManager implements Chat {
     private Channel active = ChatChannel.DEFAULT_CHANNEL;
 
     private Map<Channel, List<Message>> messages = Maps.newHashMap();
+    private Map<String, String> drafts = Maps.newHashMap();
+    private Map<String, Boolean> privateCommandBlocks = Maps.newHashMap();
 
     public ChatManager(TabbyChat tc) {
         AdvancedSettings settings = tc.settings.advanced;
@@ -84,7 +88,20 @@ public class ChatManager implements Chat {
     private Channel getPmChannel(String name) {
         Channel channel = getChannel(name, true, this.allPms, TabbyChat.getInstance().serverSettings.pms);
         if (channel.getPrefix().isEmpty()) {
-            channel.setPrefix("/msg " + name);
+            channel.setPrefix(EnhancedChatConfigAccess.privateCommandPrefix(name));
+        }
+        syncPrivateCommandMode(channel);
+        return channel;
+    }
+
+    /** PM-style channel for a chat group, sending through /nfrgroup &lt;name&gt;. */
+    public Channel getGroupChannel(String groupName) {
+        String name = "__uie_group_" + groupName;
+        Channel channel = getPmChannel(name);
+        channel.setAlias(groupName);
+        String expected = "/nfrgroup " + groupName;
+        if (!channel.getPrefix().startsWith("/nfrgroup ")) {
+            channel.setPrefix(expected);
         }
         return channel;
     }
@@ -157,17 +174,10 @@ public class ChatManager implements Chat {
     @Override
     public void setActiveChannel(Channel channel) {
         TextBox text = chatbox.getChatInput();
-
-
-        if (active.isPrefixHidden()
-                ? text.getText().trim().isEmpty()
-                : text.getText().trim().equals(active.getPrefix())) {
-            // text is the prefix, so remove it.
-            text.setText("");
-            if (!channel.isPrefixHidden() && !channel.getPrefix().isEmpty()) {
-                // target has prefix visible
-                text.getTextField().getTextField().setText(channel.getPrefix() + " ");
-            }
+        saveDraft(active, text.getText());
+        syncPrivateCommandMode(channel);
+        if (channel.isPm() && EnhancedChatConfigAccess.privateCommandBlockEnabled()) {
+            privateCommandBlocks.put(draftKey(channel), true);
         }
         // set max text length
         boolean hidden = channel.isPrefixHidden();
@@ -183,12 +193,102 @@ public class ChatManager implements Chat {
         active.setStatus(null);
         active = channel;
         active.setStatus(ChannelStatus.ACTIVE);
+        restoreActiveInput("");
 
         runActivationCommand(channel);
 
     }
 
+    public void captureActiveDraft() {
+        saveDraft(active, chatbox.getChatInput().getText());
+    }
+
+    public void restoreActiveInput(String explicitText) {
+        syncPrivateCommandMode(active);
+        String value = explicitText == null ? "" : explicitText;
+        if (value.isEmpty() && active != null && active.isPm()
+                && EnhancedChatConfigAccess.privateCommandBlockEnabled()) {
+            privateCommandBlocks.put(draftKey(active), true);
+        }
+        if (value.isEmpty()) {
+            value = drafts.get(draftKey(active));
+            if (value == null) value = defaultInput(active);
+        }
+        chatbox.getChatInput().getTextField().getTextField().setText(value);
+    }
+
+    public void clearActiveDraft() {
+        clearDraft(active);
+    }
+
+    public void clearDraft(Channel channel) {
+        if (channel == null) return;
+        drafts.remove(draftKey(channel));
+        if (channel.isPm()) privateCommandBlocks.put(draftKey(channel), true);
+        if (channel == active) {
+            chatbox.getChatInput().getTextField().getTextField().setText(defaultInput(channel));
+        }
+    }
+
+    public boolean hasActivePrivateCommandBlock() {
+        syncPrivateCommandMode(active);
+        return active != null && active.isPm()
+                && EnhancedChatConfigAccess.privateCommandBlockEnabled()
+                && privateCommandBlocks.getOrDefault(draftKey(active), true);
+    }
+
+    public String getActivePrivateCommandPrefix() {
+        return hasActivePrivateCommandBlock() ? active.getPrefix() : "";
+    }
+
+    public boolean removeActivePrivateCommandBlock() {
+        if (!hasActivePrivateCommandBlock()) return false;
+        privateCommandBlocks.put(draftKey(active), false);
+        return true;
+    }
+
+    public String applyActivePrivateCommand(String message) {
+        String body = message == null ? "" : message;
+        if (!hasActivePrivateCommandBlock() || body.trim().isEmpty()
+                || body.trim().startsWith("/")) return body;
+        return active.getPrefix() + " " + body;
+    }
+
+    public String activeInputText(String sentMessage) {
+        String message = sentMessage == null ? "" : sentMessage;
+        String prefix = getActivePrivateCommandPrefix();
+        return !prefix.isEmpty() && message.startsWith(prefix + " ")
+                ? message.substring(prefix.length() + 1) : message;
+    }
+
+    private void saveDraft(Channel channel, String value) {
+        if (channel == null) return;
+        String text = value == null ? "" : value;
+        if (text.equals(defaultInput(channel))) drafts.remove(draftKey(channel));
+        else drafts.put(draftKey(channel), text);
+    }
+
+    private static String defaultInput(Channel channel) {
+        return channel != null && !(channel.isPm()
+                && EnhancedChatConfigAccess.privateCommandBlockEnabled())
+                && !channel.isPrefixHidden() && !channel.getPrefix().isEmpty()
+                ? channel.getPrefix() + " " : "";
+    }
+
+    private static void syncPrivateCommandMode(Channel channel) {
+        if (channel != null && channel.isPm()) {
+            channel.setPrefixHidden(EnhancedChatConfigAccess.privateCommandBlockEnabled());
+        }
+    }
+
+    private static String draftKey(Channel channel) {
+        if (channel == null || channel == ChatChannel.DEFAULT_CHANNEL
+                || ChatSourceChannels.isSourceChannel(channel)) return "__uie_public";
+        return (channel.isPm() ? "pm:" : "channel:") + channel.getName();
+    }
+
     private void runActivationCommand(Channel channel) {
+        if (ChatSourceChannels.isSourceChannel(channel)) return;
         String cmd = channel.getCommand();
         if (cmd.isEmpty()) {
 
@@ -227,6 +327,11 @@ public class ChatManager implements Chat {
 
     private synchronized void loadFrom_(File dir) throws IOException {
         File file = new File(dir, "data.gz");
+        clearMessages();
+        drafts.clear();
+        privateCommandBlocks.clear();
+        allChannels.clear();
+        allPms.clear();
         if (!file.exists()) {
             return;
         }
@@ -241,10 +346,6 @@ public class ChatManager implements Chat {
             IOUtils.closeQuietly(fin);
             IOUtils.closeQuietly(gzin);
         }
-
-        clearMessages();
-        allChannels.clear();
-        allPms.clear();
 
         JsonElement parsed = new JsonParser().parse(data);
         if (!parsed.isJsonObject()) {

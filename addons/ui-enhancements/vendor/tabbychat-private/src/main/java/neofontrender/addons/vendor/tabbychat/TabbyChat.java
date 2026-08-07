@@ -6,6 +6,7 @@ import neofontrender.addons.vendor.tabbychat.extra.ChatAddonAntiSpam;
 import neofontrender.addons.vendor.tabbychat.extra.ChatLogging;
 import neofontrender.addons.vendor.tabbychat.extra.filters.FilterAddon;
 import neofontrender.addons.vendor.tabbychat.extra.spell.Spellcheck;
+import neofontrender.addons.chat.ChatSourceChannels;
 import neofontrender.addons.vendor.tabbychat.gui.settings.GuiSettingsScreen;
 import neofontrender.addons.vendor.tabbychat.host.TabbyChatHost;
 import neofontrender.addons.vendor.tabbychat.settings.ServerSettings;
@@ -151,6 +152,7 @@ public class TabbyChat {
         } catch (Exception e) {
             LOGGER.warn("Unable to load chat data.", e);
         }
+        ChatSourceChannels.sync();
 
         if (settings.general.checkUpdates.get() && !updateChecked) {
             //UpdateChecker.runUpdateCheck(TabbedChatProxy.INSTANCE, TabbyRef.getVersionData());

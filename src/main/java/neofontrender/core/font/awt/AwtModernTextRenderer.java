@@ -6,15 +6,21 @@ import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.NeoFontRender;
+import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.awt.providers.AwtTtfGlyphProvider;
 import neofontrender.core.font.awt.providers.MissingGlyphProvider;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
+import neofontrender.core.font.backend.SampledShadowTextRenderResult;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.ShadowColorPolicy;
+import neofontrender.core.font.support.ShadowColorRemapRules;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL14;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -31,16 +37,18 @@ import java.util.Map;
 public final class AwtModernTextRenderer implements TextRenderBackend {
     private static final int MAX_SIZE_ATLASES = 16;
     private static final int MAX_LAYOUTS = 2048;
-    private static final int[] COLOR_CODES = createColorCodes();
+    private static final long LAYOUT_TTL_MS = 300_000L; // 5 minutes
 
     private final TextureManager textureManager;
     private final IResourceManager resourceManager;
     private final List<String> selectors;
     private final LinkedHashMap<SizeKey, FontSet> fontSets =
             new LinkedHashMap<>(8, 0.75F, true);
-    private final LinkedHashMap<LayoutKey, TextRenderResult> layouts =
+    private final LinkedHashMap<LayoutKey, CachedLayout> layouts =
             new LinkedHashMap<>(128, 0.75F, true);
     private int nextAtlasId;
+    private long lastCleanupMs = System.currentTimeMillis();
+    private volatile int[] legacyColorCodes = TextColorPaletteRegistry.vanillaColorCodes();
 
     public AwtModernTextRenderer(TextureManager textureManager, IResourceManager resourceManager) {
         this(textureManager, resourceManager, NeofontrenderConfig.fontFamily());
@@ -57,6 +65,15 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
     @Override
     public boolean isReady() {
         return textureManager != null && resourceManager != null;
+    }
+
+    @Override
+    public synchronized void updateLegacyColorCodes(int[] colorCodes) {
+        int[] normalized = TextColorPaletteRegistry.normalizeColorCodes(colorCodes);
+        if (!Arrays.equals(legacyColorCodes, normalized)) {
+            legacyColorCodes = normalized;
+            layouts.clear();
+        }
     }
 
     @Override
@@ -107,18 +124,70 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         if (text == null || text.isEmpty()) return TextRenderResult.EMPTY;
         float fontSize = Math.max(1.0F, requestedFontSize);
         float rasterScale = currentRasterScale();
-        LayoutKey key = new LayoutKey(text, baseArgb, shadow, fontSize, rasterScale);
-        TextRenderResult cached = layouts.get(key);
-        if (cached != null) return cached;
-        TextRenderResult rendered = build(fontSet(fontSize, rasterScale),
-                parseFormatted(text, baseArgb, shadow), fontSize);
-        layouts.put(key, rendered);
-        while (layouts.size() > MAX_LAYOUTS) {
-            Iterator<LayoutKey> iterator = layouts.keySet().iterator();
-            iterator.next();
-            iterator.remove();
+        FontSet fs = fontSet(fontSize, rasterScale);
+        fs.flushAtlas();
+        LayoutKey key = new LayoutKey(text, baseArgb, shadow,
+                shadow && NeofontrenderConfig.coloredShadowEnabled(),
+                NeofontrenderConfig.shadowColorRemapRules().profileHash(), fontSize, rasterScale);
+        CachedLayout cached = layouts.get(key);
+        if (cached != null) {
+            cached.lastAccessMs = System.currentTimeMillis();
+            return cached.result;
         }
+        TextRenderResult rendered = build(fs,
+                parseFormatted(text, baseArgb, shadow), fontSize);
+        layouts.put(key, new CachedLayout(rendered));
+        evictOldEntries();
         return rendered;
+    }
+
+    @Override
+    public boolean supportsModernShadow() {
+        return true;
+    }
+
+    @Override
+    public TextRenderResult renderFormattedWithShadow(String text, int baseArgb) {
+        return renderFormattedWithShadowAtSize(text, baseArgb, NeofontrenderConfig.fontSize());
+    }
+
+    @Override
+    public synchronized TextRenderResult renderFormattedWithShadowAtSize(
+            String text, int baseArgb, float requestedFontSize) {
+        if (text == null || text.isEmpty()) return TextRenderResult.EMPTY;
+        float fontSize = Math.max(1.0F, requestedFontSize);
+        float rasterScale = currentRasterScale();
+        FontSet set = fontSet(fontSize, rasterScale);
+        set.flushAtlas();
+        List<FormattedRun> foregroundRuns = parseFormatted(text, baseArgb, false);
+        List<FormattedRun> shadowRuns = new ArrayList<>(foregroundRuns.size());
+        boolean colored = NeofontrenderConfig.coloredShadowEnabled();
+        int configured = NeofontrenderConfig.shadowColor();
+        ShadowColorRemapRules remapRules = NeofontrenderConfig.shadowColorRemapRules();
+        for (FormattedRun run : foregroundRuns) {
+            shadowRuns.add(new FormattedRun(run.text,
+                    ShadowColorPolicy.modernColor(run.argb, configured, colored,
+                            remapRules, legacyColorCodes),
+                    run.bold, run.italic, run.underline, run.strikethrough));
+        }
+        TextRenderResult foreground = build(set, foregroundRuns, fontSize);
+        TextRenderResult shadow = build(set, shadowRuns, fontSize);
+        float geometryScale = fontSize / Math.max(1.0F, NeofontrenderConfig.fontSize());
+        float colorAlpha = colored ? 1.0F : (configured >>> 24) / 255.0F;
+        return new SampledShadowTextRenderResult(shadow, foreground,
+                NeofontrenderConfig.shadowOffsetX(), NeofontrenderConfig.shadowOffsetY(),
+                NeofontrenderConfig.shadowBlurRadius(),
+                NeofontrenderConfig.shadowOpacity() * colorAlpha, geometryScale);
+    }
+
+    private void evictOldEntries() {
+        long now = System.currentTimeMillis();
+        if (now - lastCleanupMs < 10_000L) return; // cleanup at most every 10 seconds
+        lastCleanupMs = now;
+        layouts.entrySet().removeIf(entry -> {
+            if (layouts.size() <= MAX_LAYOUTS / 2) return false;
+            return (now - entry.getValue().lastAccessMs) > LAYOUT_TTL_MS;
+        });
     }
 
     private float measurePlainAtSize(String text, boolean bold, boolean italic, float fontSize) {
@@ -261,9 +330,15 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         return positions;
     }
 
-    private static List<FormattedRun> parseFormatted(String text, int baseArgb, boolean shadow) {
+    private List<FormattedRun> parseFormatted(String text, int baseArgb, boolean shadow) {
         List<FormattedRun> runs = new ArrayList<>();
-        int color = shadow ? shadowColor(normalizeAlpha(baseArgb)) : normalizeAlpha(baseArgb);
+        int[] colorCodes = legacyColorCodes;
+        boolean coloredShadow = NeofontrenderConfig.coloredShadowEnabled();
+        ShadowColorRemapRules remapRules = NeofontrenderConfig.shadowColorRemapRules();
+        int color = shadow
+                ? ShadowColorPolicy.legacyColor(normalizeAlpha(baseArgb), coloredShadow,
+                        remapRules, colorCodes)
+                : normalizeAlpha(baseArgb);
         boolean bold = false;
         boolean italic = false;
         boolean underline = false;
@@ -278,8 +353,9 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             int style = "0123456789abcdefklmnor".indexOf(
                     Character.toLowerCase(text.charAt(++i)));
             if (style >= 0 && style < 16) {
-                color = (baseArgb & 0xFF000000)
-                        | COLOR_CODES[style + (shadow ? 16 : 0)];
+                color = (baseArgb & 0xFF000000) | colorCodes[
+                        ShadowColorPolicy.paletteIndex(style, shadow, coloredShadow)];
+                if (shadow && coloredShadow) color = remapRules.remap(color, colorCodes);
                 bold = italic = underline = strikethrough = false;
             } else if (style == 17) {
                 bold = true;
@@ -290,7 +366,10 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             } else if (style == 20) {
                 italic = true;
             } else if (style == 21) {
-                color = shadow ? shadowColor(normalizeAlpha(baseArgb)) : normalizeAlpha(baseArgb);
+                color = shadow
+                        ? ShadowColorPolicy.legacyColor(normalizeAlpha(baseArgb), coloredShadow,
+                                remapRules, colorCodes)
+                        : normalizeAlpha(baseArgb);
                 bold = italic = underline = strikethrough = false;
             }
             start = i + 1;
@@ -306,31 +385,9 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         return (argb & 0xFC000000) == 0 ? argb | 0xFF000000 : argb;
     }
 
-    private static int shadowColor(int argb) {
-        return (argb & 0xFCFCFC) >> 2 | argb & 0xFF000000;
-    }
-
     private static float currentRasterScale() {
         return Math.max(1.0F,
                 FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
-    }
-
-    private static int[] createColorCodes() {
-        int[] codes = new int[32];
-        for (int i = 0; i < 32; i++) {
-            int j = (i >> 3 & 1) * 85;
-            int r = (i >> 2 & 1) * 170 + j;
-            int g = (i >> 1 & 1) * 170 + j;
-            int b = (i & 1) * 170 + j;
-            if (i == 6) r += 85;
-            if (i >= 16) {
-                r /= 4;
-                g /= 4;
-                b /= 4;
-            }
-            codes[i] = r << 16 | g << 8 | b;
-        }
-        return codes;
     }
 
     @Override
@@ -371,22 +428,47 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         public void draw(float x, float y, float alpha) {
             Minecraft mc = Minecraft.getMinecraft();
             GL11.glEnable(GL11.GL_TEXTURE_2D);
-            GL11.glEnable(GL11.GL_ALPHA_TEST);
-            for (GlyphDraw draw : glyphs) {
-                mc.getTextureManager().bindTexture(draw.glyph.getTextureLocation());
-                float red = (draw.argb >> 16 & 255) / 255.0F;
-                float green = (draw.argb >> 8 & 255) / 255.0F;
-                float blue = (draw.argb & 255) / 255.0F;
-                draw.glyph.render(draw.italic, x + draw.x, y, red, green, blue, alpha);
-                if (draw.bold) {
-                    draw.glyph.render(draw.italic, x + draw.x + draw.boldOffset, y,
-                            red, green, blue, alpha);
+            try (StraightAlphaBlendState ignored = new StraightAlphaBlendState()) {
+                for (GlyphDraw draw : glyphs) {
+                    mc.getTextureManager().bindTexture(draw.glyph.getTextureLocation());
+                    float red = (draw.argb >> 16 & 255) / 255.0F;
+                    float green = (draw.argb >> 8 & 255) / 255.0F;
+                    float blue = (draw.argb & 255) / 255.0F;
+                    draw.glyph.render(draw.italic, x + draw.x, y, red, green, blue, alpha);
+                    if (draw.bold) {
+                        draw.glyph.render(draw.italic, x + draw.x + draw.boldOffset, y,
+                                red, green, blue, alpha);
+                    }
+                }
+                for (EffectDraw effect : effects) {
+                    drawSolidQuad(x + effect.left, y + effect.top, x + effect.right,
+                            y + effect.bottom, effect.argb, alpha);
                 }
             }
-            for (EffectDraw effect : effects) {
-                drawSolidQuad(x + effect.left, y + effect.top, x + effect.right,
-                        y + effect.bottom, effect.argb, alpha);
-            }
+        }
+    }
+
+    private static final class StraightAlphaBlendState implements AutoCloseable {
+        private final boolean blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
+        private final boolean alphaTestEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
+        private final int srcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
+        private final int dstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
+        private final int srcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
+        private final int dstAlpha = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
+
+        private StraightAlphaBlendState() {
+            GL11.glDisable(GL11.GL_ALPHA_TEST);
+            GL11.glEnable(GL11.GL_BLEND);
+            GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
+                    GL11.GL_ONE, GL11.GL_ZERO);
+        }
+
+        @Override
+        public void close() {
+            GL14.glBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
+            if (!blendEnabled) GL11.glDisable(GL11.GL_BLEND);
+            if (alphaTestEnabled) GL11.glEnable(GL11.GL_ALPHA_TEST);
+            else GL11.glDisable(GL11.GL_ALPHA_TEST);
         }
     }
 
@@ -442,6 +524,16 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         }
     }
 
+    private static final class CachedLayout {
+        final TextRenderResult result;
+        volatile long lastAccessMs;
+
+        CachedLayout(TextRenderResult result) {
+            this.result = result;
+            this.lastAccessMs = System.currentTimeMillis();
+        }
+    }
+
     private static final class FormattedRun {
         private final String text;
         private final int argb;
@@ -486,13 +578,17 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         private final String text;
         private final int argb;
         private final boolean shadow;
+        private final boolean coloredShadow;
+        private final int remapProfile;
         private final SizeKey size;
 
-        private LayoutKey(String text, int argb, boolean shadow,
+        private LayoutKey(String text, int argb, boolean shadow, boolean coloredShadow, int remapProfile,
                           float fontSize, float rasterScale) {
             this.text = text;
             this.argb = argb;
             this.shadow = shadow;
+            this.coloredShadow = coloredShadow;
+            this.remapProfile = coloredShadow ? remapProfile : 0;
             this.size = new SizeKey(fontSize, rasterScale);
         }
 
@@ -501,6 +597,8 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             if (!(object instanceof LayoutKey)) return false;
             LayoutKey other = (LayoutKey) object;
             return argb == other.argb && shadow == other.shadow
+                    && coloredShadow == other.coloredShadow
+                    && remapProfile == other.remapProfile
                     && text.equals(other.text) && size.equals(other.size);
         }
 
@@ -508,6 +606,8 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         public int hashCode() {
             int hash = 31 * text.hashCode() + argb;
             hash = 31 * hash + (shadow ? 1 : 0);
+            hash = 31 * hash + (coloredShadow ? 1 : 0);
+            hash = 31 * hash + remapProfile;
             return 31 * hash + size.hashCode();
         }
     }

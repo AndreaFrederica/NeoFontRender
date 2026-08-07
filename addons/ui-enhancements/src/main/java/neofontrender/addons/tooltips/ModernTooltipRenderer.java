@@ -3,6 +3,8 @@ package neofontrender.addons.tooltips;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
+import neofontrender.addons.cjk.CjkTypographyRenderer;
+import neofontrender.api.text.CjkParagraphLayoutProvider;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
@@ -56,11 +58,18 @@ final class ModernTooltipRenderer {
             String line = layout.lines.get(index);
             int color = index < layout.titleLines ? TooltipConfig.titleColor : TooltipConfig.textColor;
             int textX = layout.x;
+            CjkParagraphLayoutProvider.Layout paragraph = CjkTypographyRenderer.layout(
+                    font, line, Math.max(1, layout.width), TooltipConfig.lineHeight);
+            int renderedWidth = paragraph == null ? font.getStringWidth(line)
+                    : CjkTypographyRenderer.measuredWidth(font, paragraph);
             if (TooltipConfig.centerTitle && index < layout.titleLines) {
-                textX += (layout.width - font.getStringWidth(line)) / 2;
+                textX += Math.max(0, (layout.width - renderedWidth) / 2);
             }
-            if (TooltipConfig.textShadow) font.drawStringWithShadow(line, textX, textY, color);
-            else font.drawString(line, textX, textY, color);
+            if (!CjkTypographyRenderer.draw(font, paragraph, textX, textY,
+                    color, TooltipConfig.textShadow)) {
+                if (TooltipConfig.textShadow) font.drawStringWithShadow(line, textX, textY, color);
+                else font.drawString(line, textX, textY, color);
+            }
             textY += TooltipConfig.lineHeight;
             if (index + 1 == layout.titleLines && layout.lines.size() > layout.titleLines) {
                 textY += TooltipConfig.titleGap;

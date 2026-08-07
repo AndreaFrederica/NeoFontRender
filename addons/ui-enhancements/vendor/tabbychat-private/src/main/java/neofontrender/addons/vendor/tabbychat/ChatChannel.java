@@ -2,6 +2,7 @@ package neofontrender.addons.vendor.tabbychat;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import neofontrender.addons.chat.ChatMessageMetadataRegistry;
 import neofontrender.addons.vendor.tabbychat.api.Channel;
 import neofontrender.addons.vendor.tabbychat.api.ChannelStatus;
 import neofontrender.addons.vendor.tabbychat.api.Message;
@@ -163,6 +164,7 @@ public class ChatChannel implements Channel {
         if (event.text == null) {
             return;
         }
+        ChatMessageMetadataRegistry.copy(chat, event.text);
         if (TabbyChat.getInstance().settings.advanced.hideTag.get() && this != DEFAULT_CHANNEL) {
             ChannelPatterns pattern = TabbyChat.getInstance().serverSettings.general.channelPattern.get();
             Matcher matcher = pattern.getPattern().matcher(event.text.getUnformattedText());
@@ -172,6 +174,7 @@ public class ChatChannel implements Channel {
         }
 
         int uc = Minecraft.getMinecraft().ingameGUI.getUpdateCounter();
+        ChatMessageMetadataRegistry.copy(chat, event.text);
         Message msg = new ChatMessage(uc, event.text, id, true);
         this.getMessages().add(0, msg);
 

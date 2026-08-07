@@ -1,11 +1,17 @@
 package neofontrender.addons.chat;
 
+import neofontrender.addons.api.inline.InlineGlyph;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.OpenGlHelper;
+import neofontrender.addons.vendor.tabbychat.ChatManager;
+import neofontrender.addons.vendor.tabbychat.TabbyChat;
+import neofontrender.addons.vendor.tabbychat.api.Channel;
+import neofontrender.addons.vendor.tabbychat.api.Chat;
+import neofontrender.addons.vendor.tabbychat.gui.ChatTray;
 import neofontrender.addons.tooltips.AddonI18n;
 import org.lwjgl.opengl.GL11;
 
@@ -32,11 +38,24 @@ public final class ChatContextMenu {
     public void openHistory(String selectedText, int mouseX, int mouseY) {
         if (selectedText == null || selectedText.isEmpty()) return;
         List<Item> next = new ArrayList<>();
+        String player = ChatPlayerActions.findPlayer(selectedText);
+        if (player != null) {
+            next.add(item("private_message", () -> ChatPlayerActions.startPrivateMessage(player)));
+            next.add(item("mute_player", () -> ChatPlayerActions.mute(player)));
+        }
         next.add(item("copy", ChatKeyBindings.copyDisplayName(),
                 () -> ChatCopyController.copyToClipboard(selectedText)));
         next.add(item("copy_plain", () -> ChatCopyController.copyPlainToClipboard(selectedText)));
         next.add(item("copy_formatted", () -> ChatCopyController.copyFormattedToClipboard(selectedText, false)));
         next.add(item("copy_ampersand", () -> ChatCopyController.copyFormattedToClipboard(selectedText, true)));
+        open(next, mouseX, mouseY);
+    }
+
+    public void openHistoryRow(String text, int mouseX, int mouseY, Runnable delete) {
+        if (text == null || text.isEmpty()) return;
+        List<Item> next = new ArrayList<>();
+        next.add(item("copy", () -> ChatCopyController.copyToClipboard(text)));
+        next.add(item("delete", delete));
         open(next, mouseX, mouseY);
     }
 
@@ -50,6 +69,50 @@ public final class ChatContextMenu {
         next.add(item("paste", ChatKeyBindings.pasteDisplayName(), () -> pasteInput(field)));
         next.add(item("select_all", ChatKeyBindings.selectAllDisplayName(), () -> selectAllInput(field)));
         open(next, mouseX, mouseY);
+    }
+
+    public void openPlayer(String player, int mouseX, int mouseY) {
+        if (player == null || player.isEmpty()) return;
+        List<Item> next = new ArrayList<>();
+        next.add(item("private_message", () -> ChatPlayerActions.startPrivateMessage(player)));
+        next.add(item("mention_player", () -> ChatPlayerActions.mention(player)));
+        next.add(item("copy_player", () -> ChatPlayerActions.copyName(player)));
+        next.add(item("mute_player", () -> ChatPlayerActions.mute(player)));
+        open(next, mouseX, mouseY);
+    }
+
+    public void openImage(InlineGlyph glyph, int mouseX, int mouseY) {
+        if (glyph == null) return;
+        List<Item> next = new ArrayList<>();
+        next.add(item("copy_image", glyph::copyImageToClipboard));
+        open(next, mouseX, mouseY);
+    }
+
+    public void openChannel(Channel channel, int mouseX, int mouseY) {
+        if (channel == null) return;
+        List<Item> next = new ArrayList<>();
+        boolean pinned = ChatTabPinPolicy.isPinned(channel);
+        next.add(item(pinned ? "unpin" : "pin", () -> {
+            ChatTabPinPolicy.setPinned(channel, !pinned);
+            ChatTray tray = tray();
+            if (tray != null) refreshPins(tray);
+        }));
+        next.add(item("delete", () -> TabbyChat.getInstance().getChat().removeChannel(channel)));
+        next.add(item("settings", () -> channel.openSettings()));
+        open(next, mouseX, mouseY);
+    }
+
+    private static ChatTray tray() {
+        Chat chat = TabbyChat.getInstance().getChat();
+        return chat instanceof ChatManager ? ((ChatManager) chat).getChatBox().getTray() : null;
+    }
+
+    private static void refreshPins(ChatTray tray) {
+        Chat chat = TabbyChat.getInstance().getChat();
+        if (!(chat instanceof ChatManager)) return;
+        List<Channel> channels = chat.getChannels();
+        for (Channel channel : channels) tray.removeChannel(channel);
+        for (Channel channel : ChatTabPinPolicy.ordered(channels)) tray.addChannel(channel);
     }
 
     public boolean click(int mouseX, int mouseY) {

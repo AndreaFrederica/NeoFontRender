@@ -10,6 +10,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AddonI18nTest {
     @Test
@@ -18,9 +19,10 @@ class AddonI18nTest {
         Properties english = AddonI18n.loadLanguage("en_US");
         Properties chinese = AddonI18n.loadLanguage("zh_CN");
 
-        assertEquals(expected, english.stringPropertyNames());
-        assertEquals(expected, chinese.stringPropertyNames());
+        assertEquals(english.stringPropertyNames(), chinese.stringPropertyNames());
         for (String key : expected) {
+            assertTrue(english.stringPropertyNames().contains(key), key);
+            assertTrue(chinese.stringPropertyNames().contains(key), key);
             assertFalse(english.getProperty(key).trim().isEmpty(), key);
             assertFalse(chinese.getProperty(key).trim().isEmpty(), key);
         }

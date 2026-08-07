@@ -49,7 +49,11 @@ public class GuiPanel extends GuiComponent implements Iterable<GuiComponent> {
             return;
         }
         getLayout().ifPresent(layout -> layout.layoutComponents(this));
-        this.components.stream()
+        // Snapshot the component list: chat messages can land mid-render from another
+        // thread or from event handlers, and mutating the live list during iteration
+        // throws ConcurrentModificationException.
+        List<GuiComponent> snapshot = ImmutableList.copyOf(this.components);
+        snapshot.stream()
                 .filter(GuiComponent::isVisible)
                 .forEach(gc -> {
                     GlState.pushMatrix();
@@ -75,7 +79,8 @@ public class GuiPanel extends GuiComponent implements Iterable<GuiComponent> {
             getOverlay().get().drawCaption(mouseX, mouseY);
             return;
         }
-        this.components.stream()
+        List<GuiComponent> snapshot = ImmutableList.copyOf(this.components);
+        snapshot.stream()
                 .filter(GuiComponent::isVisible)
                 .forEach(gc -> {
                     GlState.pushMatrix();

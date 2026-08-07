@@ -20,6 +20,8 @@ class SplashProgressTransformerTest {
     private static final String DEOBFUSCATED_ENVIRONMENT = "fml.deobfuscatedEnvironment";
     private static final String TARGET =
             "cpw.mods.fml.client.SplashProgress$SplashFontRenderer";
+    private static final String RENDER_THREAD_TARGET =
+            "cpw.mods.fml.client.SplashProgress$3";
 
     @Test
     void addsForge1710SrgDrawAndWidthOverrides() {
@@ -88,5 +90,51 @@ class SplashProgressTransformerTest {
         byte[] transformed = new SplashProgressTransformer().transform(
                 "example.Unrelated", "example.Unrelated", fixture);
         assertEquals(fixture, transformed);
+    }
+
+    @Test
+    void injectsTipsBeforeEveryDisplayUpdate() {
+        ClassWriter fixture = new ClassWriter(0);
+        fixture.visit(Opcodes.V1_8, Opcodes.ACC_FINAL, RENDER_THREAD_TARGET, null,
+                "java/lang/Object", null);
+        MethodVisitor run = fixture.visitMethod(Opcodes.ACC_PUBLIC, "run", "()V", null, null);
+        run.visitCode();
+        run.visitMethodInsn(Opcodes.INVOKESTATIC, "org/lwjgl/opengl/Display",
+                "update", "()V", false);
+        run.visitMethodInsn(Opcodes.INVOKESTATIC, "org/lwjgl/opengl/Display",
+                "update", "()V", false);
+        run.visitInsn(Opcodes.RETURN);
+        run.visitMaxs(0, 0);
+        run.visitEnd();
+        fixture.visitEnd();
+
+        byte[] transformed = new SplashProgressTransformer().transform(
+                RENDER_THREAD_TARGET, RENDER_THREAD_TARGET, fixture.toByteArray());
+
+        final int[] calls = {0};
+        new ClassReader(transformed).accept(new ClassVisitor(Opcodes.ASM5) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String descriptor,
+                                             String signature, String[] exceptions) {
+                MethodVisitor delegate = super.visitMethod(
+                        access, name, descriptor, signature, exceptions);
+                if (!"run".equals(name)) return delegate;
+                return new MethodVisitor(Opcodes.ASM5, delegate) {
+                    @Override
+                    public void visitMethodInsn(int opcode, String owner, String calledName,
+                                                String calledDescriptor, boolean isInterface) {
+                        if ("neofontrender/splash/SplashTipsRenderer".equals(owner)
+                                && ("render".equals(calledName)
+                                        || "renderForge".equals(calledName))) {
+                            calls[0]++;
+                        }
+                        super.visitMethodInsn(
+                                opcode, owner, calledName, calledDescriptor, isInterface);
+                    }
+                };
+            }
+        }, 0);
+
+        assertEquals(2, calls[0]);
     }
 }

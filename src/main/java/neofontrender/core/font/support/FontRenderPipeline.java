@@ -42,7 +42,9 @@ public final class FontRenderPipeline {
         state.capture();
 
         GL11.glEnable(GL11.GL_TEXTURE_2D);
-        GL11.glEnable(GL11.GL_ALPHA_TEST);
+        // Alpha test runs before blending. It discards low-opacity antialiased texels and, for
+        // sampled soft shadows, can discard every sample until the requested opacity is ~90%.
+        GL11.glDisable(GL11.GL_ALPHA_TEST);
         GL11.glEnable(GL11.GL_BLEND);
         if (premultiplied) {
             OpenGlHelper.glBlendFunc(
@@ -187,6 +189,7 @@ public final class FontRenderPipeline {
 
         private final boolean noop;
         private boolean blendEnabled;
+        private boolean alphaTestEnabled;
         private int srcRgb;
         private int dstRgb;
         private int srcAlpha;
@@ -204,6 +207,7 @@ public final class FontRenderPipeline {
 
         private void capture() {
             this.blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
+            this.alphaTestEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
             this.srcRgb = getInteger(GL14.GL_BLEND_SRC_RGB, GL11.GL_SRC_ALPHA);
             this.dstRgb = getInteger(GL14.GL_BLEND_DST_RGB, GL11.GL_ONE_MINUS_SRC_ALPHA);
             this.srcAlpha = getInteger(GL14.GL_BLEND_SRC_ALPHA, GL11.GL_ONE);
@@ -223,6 +227,8 @@ public final class FontRenderPipeline {
             if (!blendEnabled) {
                 GL11.glDisable(GL11.GL_BLEND);
             }
+            if (alphaTestEnabled) GL11.glEnable(GL11.GL_ALPHA_TEST);
+            else GL11.glDisable(GL11.GL_ALPHA_TEST);
         }
 
         private static int getInteger(int key, int fallback) {

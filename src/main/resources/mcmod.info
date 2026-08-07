@@ -11,20 +11,27 @@
 		"authorList": ["AndreaFrederica"],
 		"credits": "",
 		"logoFile": "assets/neofontrender/logo.png",
+		"modProperties": {"issueTrackerUrl": "https://github.com/AndreaFrederica/NeoFontRender/issues"},
+		"clientSideOnly": true,
+		"requiredMods": ["modularui2"],
+		"dependencies": [],
 		"screenshots": [],
 		"parent": "",
-		"requiredMods": ["modularui2"],
-		"dependencies": ["modularui2"],
 		"dependants": [],
 		"useDependencyInformation": true
 	}, {
 		"modid": "neofontrender_resources",
-		"name": "Neo Font Render Resources",
+		"name": "Revo Font Resources",
 		"description": "Optional bundled fonts included by the full distribution.",
 		"version": "${modVersion}",
 		"mcversion": "${minecraftVersion}",
 		"url": "https://github.com/AndreaFrederica/NeoFontRender",
 		"authorList": ["AndreaFrederica"],
-		"logoFile": "assets/neofontrender/logo.png"
+		"credits": "Bundled font resources for Revo Font.",
+		"logoFile": "assets/neofontrender/logo.png",
+		"modProperties": {"issueTrackerUrl": "https://github.com/AndreaFrederica/NeoFontRender/issues"},
+		"clientSideOnly": true,
+		"requiredMods": ["${modId}@[${modVersion},)"],
+		"dependencies": []
 	}]
 }

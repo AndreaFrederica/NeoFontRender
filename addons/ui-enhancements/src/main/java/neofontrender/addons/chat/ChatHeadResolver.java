@@ -11,10 +11,11 @@ import net.minecraft.util.IChatComponent;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Resolves the sending player of a chat component to an online player name.
- * Minecraft 1.7.10 has no UUID-keyed NetworkPlayerInfo, so names from the tab-list
+ * Minecraft 1.7.10 has no UUID-keyed GuiPlayerInfo, so names from the tab-list
  * and the client world act as the identity source for skin lookups.
  */
 public final class ChatHeadResolver {
@@ -23,7 +24,13 @@ public final class ChatHeadResolver {
     private ChatHeadResolver() {}
 
     public static String detect(IChatComponent message) {
-        if (!EnhancedChatFeatures.playerHeads() || message == null) return null;
+        if (!EnhancedChatFeatures.playerHeads()) return null;
+        return detectName(message);
+    }
+
+    /** Resolves the sender name regardless of the player-heads render toggle. */
+    public static String detectName(IChatComponent message) {
+        if (message == null) return null;
         Minecraft minecraft = Minecraft.getMinecraft();
         NetHandlerPlayClient connection = minecraft.getNetHandler();
         if (connection == null) return null;
@@ -32,6 +39,26 @@ public final class ChatHeadResolver {
         String suggested = suggestedPlayer(message, names);
         if (suggested != null) return suggested;
         return ChatPlayerNameMatcher.find(clean(message.getUnformattedText()), names);
+    }
+
+    /** Resolves the sender UUID from the resolved name when the player entity is loaded. */
+    public static UUID detectSender(IChatComponent message) {
+        String name = detectName(message);
+        if (name == null || name.isEmpty()) return null;
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft.theWorld != null) {
+            for (Object entry : minecraft.theWorld.playerEntities) {
+                EntityPlayer player = (EntityPlayer) entry;
+                if (clean(player.getCommandSenderName()).equalsIgnoreCase(clean(name))) {
+                    return player.getUniqueID();
+                }
+            }
+        }
+        if (minecraft.thePlayer != null
+                && clean(minecraft.thePlayer.getCommandSenderName()).equalsIgnoreCase(clean(name))) {
+            return minecraft.thePlayer.getUniqueID();
+        }
+        return null;
     }
 
     public static void beginVanillaLine(IChatComponent message) {

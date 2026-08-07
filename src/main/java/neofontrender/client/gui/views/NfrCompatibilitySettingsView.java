@@ -2,6 +2,7 @@ package neofontrender.client.gui.views;
 
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import net.minecraft.client.resources.I18n;
+import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.client.gui.component.base.NfrLabeledTextField;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
 import neofontrender.client.gui.component.base.NfrStringValue;
@@ -20,6 +21,17 @@ public final class NfrCompatibilitySettingsView extends NfrContentView<NfrCompat
 
     private static NfrOptionsGrid options(NfrSettingsDraft d, NfrSettingsControls c) {
         return c.grid()
+                .add(c.dropdown("text_color_palette_provider",
+                        "neofontrender.gui.option.text_color_palette_provider",
+                        () -> d.textColorPaletteProvider,
+                        value -> d.textColorPaletteProvider = value,
+                        TextColorPaletteRegistry.providerIds(),
+                        NfrCompatibilitySettingsView::paletteProviderName).size(260, 24))
+                .add(new NfrLabeledTextField(
+                        I18n.format("neofontrender.gui.option.custom_text_color_palette"),
+                        new TextFieldWidget().setMaxLength(512)
+                                .value(new NfrStringValue(() -> d.customTextColorPalette,
+                                        value -> d.customTextColorPalette = value))))
                 .add(c.toggle("neofontrender.gui.option.compat_tinkers_construct",
                         "neofontrender.tooltip.compat_tinkers_construct",
                         () -> d.compatTinkersConstruct, value -> d.compatTinkersConstruct = value))
@@ -33,5 +45,11 @@ public final class NfrCompatibilitySettingsView extends NfrContentView<NfrCompat
                         new TextFieldWidget().setMaxLength(1024)
                                 .value(new NfrStringValue(() -> d.enchantmentFonts,
                                         value -> d.enchantmentFonts = value))));
+    }
+
+    private static String paletteProviderName(String value) {
+        String key = "neofontrender.gui.color_palette_provider." + value;
+        String translated = I18n.format(key);
+        return key.equals(translated) ? TextColorPaletteRegistry.displayName(value) : translated;
     }
 }

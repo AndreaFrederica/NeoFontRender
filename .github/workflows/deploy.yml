@@ -80,6 +80,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install Rust 1.91.1
         uses: dtolnay/rust-toolchain@1.91.1
@@ -153,6 +155,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Grant execute permission for Gradle wrapper
         run: |

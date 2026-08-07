@@ -12,6 +12,9 @@ public interface AccessorGuiNewChatFeatures {
     @Accessor("field_146253_i")
     List<ChatLine> nfrUi$getDrawnChatLines();
 
+    @Accessor("chatLines")
+    List<ChatLine> nfrUi$getChatLines();
+
     @Accessor("field_146250_j")
     int nfrUi$getScrollPos();
 }

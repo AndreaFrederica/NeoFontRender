@@ -1,0 +1,19 @@
+[
+  {
+    "modid": "neofontrender_ui_enhancements_server",
+    "name": "Revo UI Server Companion",
+    "description": "Optional server support for Revo UI chat features.",
+    "version": "${version}",
+    "mcversion": "1.7.10",
+    "url": "https://github.com/AndreaFrederica/NeoFontRender",
+    "authorList": ["AndreaFrederica"],
+    "credits": "Server-side support for UIE self-private-message capability negotiation.",
+    "logoFile": "assets/neofontrender_ui_enhancements/logo.png",
+    "modProperties": {"issueTrackerUrl": "${issueTracker}"},
+    "screenshots": [],
+    "serverSideOnly": true,
+    "requiredMods": [],
+    "dependencies": ["neofontrender_ui_enhancements"],
+    "useDependencyInformation": true
+  }
+]

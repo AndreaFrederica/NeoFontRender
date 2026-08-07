@@ -8,10 +8,17 @@ public final class TextPreprocessingPipeline {
     }
 
     public static PreprocessedText process(String rawText) {
+        boolean decodeTinkers = TinkersAntiqueTextPreprocessor.INSTANCE.enabled()
+                && TinkersAntiqueTextPreprocessor.INSTANCE.matches(rawText);
         boolean decodeHex = HexChatTextPreprocessor.INSTANCE.enabled()
                 && HexChatTextPreprocessor.INSTANCE.matches(rawText);
-        return decodeHex
-                ? LegacyColorTextParser.process(rawText)
+        return decodeTinkers || decodeHex
+                ? LegacyColorTextParser.process(rawText, decodeTinkers, decodeHex)
                 : PreprocessedText.unchanged(rawText);
+    }
+
+    public static boolean isInvisibleControlCharacter(char character) {
+        return TinkersAntiqueTextPreprocessor.INSTANCE.enabled()
+                && TinkersAntiqueTextPreprocessor.isMarker(character);
     }
 }

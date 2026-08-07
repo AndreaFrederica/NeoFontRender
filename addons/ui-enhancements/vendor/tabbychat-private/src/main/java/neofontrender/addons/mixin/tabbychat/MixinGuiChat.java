@@ -2,6 +2,8 @@ package neofontrender.addons.mixin.tabbychat;
 
 import com.google.common.collect.Lists;
 import neofontrender.addons.chat.ChatAnimationController;
+import neofontrender.addons.chat.ChatInlineImageInteraction;
+import neofontrender.addons.chat.ChatKeepOpenPolicy;
 import neofontrender.addons.chat.ChatKeyBindings;
 import neofontrender.addons.chat.EnhancedChatConfigAccess;
 import neofontrender.addons.chat.ExternalChatCompat;
@@ -26,6 +28,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.lwjgl.input.Keyboard;
 
 import java.util.List;
 
@@ -49,6 +52,9 @@ public abstract class MixinGuiChat extends GuiScreen {
     private String defaultInputFieldText;
 
     private boolean opened;
+    private boolean nfrUi$explicitInitialText;
+    private String nfrUi$historyDraft;
+    private Channel nfrUi$historyChannel;
 
     // Resolved lazily inside the tabbed-chat gate: the vendored TabbyChat is only started when
     // the embedded backend is active, and getInstance() throws before that.
@@ -57,19 +63,14 @@ public abstract class MixinGuiChat extends GuiScreen {
     @Inject(method = "<init>*", at = @At("RETURN"))
     private void onInitialization(CallbackInfo ci) {
         if (!EnhancedChatConfigAccess.tabbedChatEnabled()) return;
+        this.nfrUi$explicitInitialText = !this.defaultInputFieldText.isEmpty();
 
         this.tc = TabbyChat.getInstance();
         this.chatGui = tc.getChatGui();
         this.sentHistoryCursor = chatGui.getSentMessages().size();
         this.chat = chatGui.getChatManager();
+        this.nfrUi$historyChannel = this.chat.getActiveChannel();
         this.textBox = chat.getChatBox().getChatInput().getTextField();
-
-        Channel chan = chat.getActiveChannel();
-        if (this.defaultInputFieldText.isEmpty()
-                && !chan.isPrefixHidden()
-                && !chan.getPrefix().isEmpty()) {
-            defaultInputFieldText = chan.getPrefix() + " ";
-        }
 
         this.componentList.add(chat.getChatBox());
     }
@@ -87,8 +88,11 @@ public abstract class MixinGuiChat extends GuiScreen {
         this.inputField.setFocused(true);
         chatGui.getBus().post(new ChatInitEvent(that));
         if (!opened) {
-            textBox.setValue("");
-            textBox.getTextField().writeText(defaultInputFieldText);
+            boolean preservePrivateInput = nfrUi$explicitInitialText
+                    && "/".equals(defaultInputFieldText)
+                    && chat.hasActivePrivateCommandBlock();
+            chat.restoreActiveInput(preservePrivateInput ? "" :
+                    (nfrUi$explicitInitialText ? defaultInputFieldText : ""));
             this.opened = true;
             updateScreen();
         }
@@ -114,6 +118,8 @@ public abstract class MixinGuiChat extends GuiScreen {
 
     @Inject(method = "onGuiClosed()V", at = @At("RETURN"))
     private void onChatClosed(CallbackInfo ci) {
+        if (this.chat != null) this.chat.captureActiveDraft();
+        ChatInlineImageInteraction.clearTabbyHover();
         this.field_146410_g = "";
         ExternalChatCompat.removeSalutationInput(this.inputField);
         this.componentList.forEach(GuiComponent::onClosed);
@@ -123,6 +129,8 @@ public abstract class MixinGuiChat extends GuiScreen {
     public void handleKeyboardInput() {
         super.handleKeyboardInput();
         if (ChatKeyBindings.handledCurrentEvent()) return;
+        int key = Keyboard.getEventKey();
+        if (key == Keyboard.KEY_UP || key == Keyboard.KEY_DOWN) return;
         // Salutation's ChatScreen already writes this event into our substituted inputField and
         // immediately requests Brigadier completions for that value. Sending the same LWJGL event
         // through TabbyChat's GuiText afterwards types it a second time and makes the completion
@@ -130,6 +138,56 @@ public abstract class MixinGuiChat extends GuiScreen {
         // wrapper is open. Mouse/component drawing remains on the normal TabbyChat path.
         if (ExternalChatCompat.isSalutationChatScreen(that)) return;
         this.componentList.forEach(GuiComponent::handleKeyboardInput);
+    }
+
+    @Inject(method = "keyTyped(CI)V", at = @At("HEAD"), cancellable = true)
+    private void nfrUi$removePrivateCommandBlock(char key, int code, CallbackInfo ci) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled() || code != Keyboard.KEY_BACK
+                || this.chat == null || this.inputField == null) return;
+        if (this.inputField.getCursorPosition() == 0
+                && this.inputField.getSelectionEnd() == 0
+                && this.chat.removeActivePrivateCommandBlock()) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "keyTyped(CI)V", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/GuiChat;func_146403_a(Ljava/lang/String;)V",
+            shift = At.Shift.AFTER), require = 1)
+    private void nfrUi$resetPrivateInputAfterSend(char key, int code, CallbackInfo ci) {
+        ChatKeyBindings.resetPrivateInputAfterSend(this.inputField);
+    }
+
+    @Inject(method = "keyTyped(CI)V", at = @At("HEAD"), cancellable = true)
+    private void nfrUi$terminalHistory(char key, int code, CallbackInfo ci) {
+        if (!EnhancedChatConfigAccess.tabbedChatEnabled()
+                || code != Keyboard.KEY_UP && code != Keyboard.KEY_DOWN) return;
+        List<String> history = this.chatGui.getSentMessages();
+        int end = history.size();
+        Channel activeChannel = this.chat.getActiveChannel();
+        if (activeChannel != this.nfrUi$historyChannel) {
+            this.nfrUi$historyChannel = activeChannel;
+            this.sentHistoryCursor = end;
+            this.nfrUi$historyDraft = null;
+        }
+        this.sentHistoryCursor = Math.max(0, Math.min(this.sentHistoryCursor, end));
+        if (code == Keyboard.KEY_UP) {
+            if (this.sentHistoryCursor == end) {
+                this.nfrUi$historyDraft = this.inputField.getText();
+            }
+            if (this.sentHistoryCursor > 0) {
+                this.sentHistoryCursor--;
+                this.inputField.setText(this.chat.activeInputText(history.get(this.sentHistoryCursor)));
+                this.inputField.setCursorPositionEnd();
+            }
+        } else if (this.sentHistoryCursor < end) {
+            this.sentHistoryCursor++;
+            this.inputField.setText(this.sentHistoryCursor == end
+                    ? (this.nfrUi$historyDraft == null ? "" : this.nfrUi$historyDraft)
+                    : this.chat.activeInputText(history.get(this.sentHistoryCursor)));
+            this.inputField.setCursorPositionEnd();
+        }
+        ci.cancel();
     }
 
     @Inject(method = "handleMouseInput()V", at = @At("RETURN"))
@@ -160,9 +218,11 @@ public abstract class MixinGuiChat extends GuiScreen {
     private void keepChatOpen(char key, int code, CallbackInfo ci) {
         if (!EnhancedChatConfigAccess.tabbedChatEnabled()) return;
         this.chatGui.resetScroll();
-        this.textBox.setValue(this.defaultInputFieldText);
-        this.inputField.setText(this.defaultInputFieldText);
-        if (tc.settings.advanced.keepChatOpen.get()) {
+        this.chat.clearActiveDraft();
+        this.sentHistoryCursor = this.chatGui.getSentMessages().size();
+        this.nfrUi$historyDraft = null;
+        this.nfrUi$historyChannel = this.chat.getActiveChannel();
+        if (ChatKeepOpenPolicy.shouldKeepOpen(this.chat.getActiveChannel())) {
             ci.cancel();
         }
     }

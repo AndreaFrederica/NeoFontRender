@@ -16,6 +16,10 @@ public final class NfrLaboratorySettingsView extends NfrContentView<NfrLaborator
         return c.grid()
                 .add(c.toggle("neofontrender.gui.option.hex_chat", "neofontrender.tooltip.hex_chat",
                         () -> d.laboratoryHexChat, value -> d.laboratoryHexChat = value))
+                .add(c.toggle("neofontrender.gui.option.hex_chat_reset_styles",
+                        "neofontrender.tooltip.hex_chat_reset_styles",
+                        () -> d.laboratoryHexChatResetStyles,
+                        value -> d.laboratoryHexChatResetStyles = value))
                 .add(c.toggle("neofontrender.gui.option.text_undo_redo", "neofontrender.tooltip.text_undo_redo",
                         () -> d.laboratoryTextUndoRedo, value -> d.laboratoryTextUndoRedo = value))
                 .add(c.toggle("neofontrender.gui.option.splash_override", "neofontrender.tooltip.splash_override",

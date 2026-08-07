@@ -13,7 +13,7 @@ import neofontrender.client.gui.views.NfrContentView;
 
 import java.util.Arrays;
 
-/** Settings page for the vanilla chat module. */
+/** General chat behavior. Rules and visual options live on their own focused pages. */
 final class EnhancedChatSettingsPage implements NfrSettingsPage {
     @Override public String id() { return NfrUiEnhancements.MOD_ID + ":enhanced_chat"; }
     @Override public String titleKey() { return "neofontrender_ui_enhancements.gui.chat.category"; }
@@ -28,162 +28,93 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
         private final boolean originalPersistence = EnhancedChatConfig.persistence;
         private final boolean originalReceived = EnhancedChatConfig.persistReceived;
         private final boolean originalSent = EnhancedChatConfig.persistSent;
-        private final boolean originalPlayerHeads = EnhancedChatConfig.playerHeads;
-        private final boolean originalHeadShadow = EnhancedChatConfig.headShadow;
-        private final boolean originalItemIcons = EnhancedChatConfig.itemIcons;
         private final boolean originalCopySelection = EnhancedChatConfig.copySelection;
         private final boolean originalCopyFormattingCodes = EnhancedChatConfig.copyFormattingCodes;
         private final boolean originalAmpersandFormatting = EnhancedChatConfig.ampersandFormatting;
         private final boolean originalTabbed = EnhancedChatConfig.tabbedChat;
         private final boolean originalSmooth = SmoothScrollConfigAccess.chatConfigured();
-        private final boolean originalAnimateMessages = EnhancedChatConfig.animateMessages;
-        private final int originalMessageDuration = EnhancedChatConfig.messageAnimationDuration;
-        private final float originalMessageDistance = EnhancedChatConfig.messageAnimationDistance;
-        private final String originalMessageEasing = EnhancedChatConfig.messageAnimationEasing;
-        private final boolean originalAnimateInput = EnhancedChatConfig.animateInput;
-        private final int originalInputDuration = EnhancedChatConfig.inputAnimationDuration;
-        private final float originalInputDistance = EnhancedChatConfig.inputAnimationDistance;
-        private final String originalInputEasing = EnhancedChatConfig.inputAnimationEasing;
+        private final boolean originalSearch = EnhancedChatConfig.messageSearch;
+        private final boolean originalCommandCompletion = EnhancedChatConfig.commandCompletion;
+        private final boolean originalPrivateCommandBlock = EnhancedChatConfig.privateCommandBlock;
+        private final boolean originalForceServerTranslations =
+                EnhancedChatConfig.salutationForceServerTranslations;
+        private final boolean originalDisableSalutationOverride =
+                EnhancedChatConfig.salutationDisableOverride;
 
-        @Override
-        public IWidget createView(NfrSettingsPageContext context) {
-            NfrSettingsControls controls = context.controls();
-            NfrOptionsGrid grid = controls.grid()
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.enabled"),
-                            () -> tr("tooltip.chat.enabled"),
-                            () -> EnhancedChatConfig.enabled,
-                            value -> EnhancedChatConfig.enabled = value))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.extended_history"),
+        @Override public IWidget createView(NfrSettingsPageContext context) {
+            NfrSettingsControls c = context.controls();
+            NfrOptionsGrid core = c.grid()
+                    .add(c.toggleText(() -> tr("gui.chat.enabled"), () -> tr("tooltip.chat.enabled"),
+                            () -> EnhancedChatConfig.enabled, value -> EnhancedChatConfig.enabled = value))
+                    .add(c.toggleText(() -> tr("gui.chat.tabbed"), () -> tr("tooltip.chat.tabbed"),
+                            () -> EnhancedChatConfig.tabbedChat, value -> EnhancedChatConfig.tabbedChat = value))
+                    .add(c.toggleText(() -> tr("gui.chat.smooth_scrolling"),
+                            () -> tr("tooltip.chat.smooth_scrolling"),
+                            SmoothScrollConfigAccess::chatConfigured,
+                            SmoothScrollConfigAccess::setChatConfigured))
+                    .add(c.toggleText(() -> tr("gui.chat.search"), () -> tr("tooltip.chat.search"),
+                            () -> EnhancedChatConfig.messageSearch,
+                            value -> EnhancedChatConfig.messageSearch = value))
+                    .add(c.toggleText(() -> tr("gui.chat.command_completion"),
+                            () -> tr("tooltip.chat.command_completion"),
+                            () -> EnhancedChatConfig.commandCompletion,
+                            value -> EnhancedChatConfig.commandCompletion = value))
+                    .add(c.toggleText(() -> tr("gui.chat.private_command_block"),
+                            () -> tr("tooltip.chat.private_command_block"),
+                            () -> EnhancedChatConfig.privateCommandBlock,
+                            value -> EnhancedChatConfig.privateCommandBlock = value))
+                    .add(c.toggleText(() -> tr("gui.chat.salutation_force_server_translations"),
+                            () -> tr("tooltip.chat.salutation_force_server_translations"),
+                            () -> EnhancedChatConfig.salutationForceServerTranslations,
+                            value -> EnhancedChatConfig.salutationForceServerTranslations = value))
+                    .add(c.toggleText(() -> tr("gui.chat.salutation_disable_override"),
+                            () -> tr("tooltip.chat.salutation_disable_override"),
+                            () -> EnhancedChatConfig.salutationDisableOverride,
+                            value -> EnhancedChatConfig.salutationDisableOverride = value));
+            NfrOptionsGrid history = c.grid()
+                    .add(c.toggleText(() -> tr("gui.chat.extended_history"),
                             () -> tr("tooltip.chat.extended_history"),
                             () -> EnhancedChatConfig.extendedHistory,
                             value -> EnhancedChatConfig.extendedHistory = value))
-                    .add(controls.dropdownText(
-                            "chat_history_limit",
-                            () -> tr("gui.chat.history_limit"),
+                    .add(c.dropdownText("chat_history_limit", () -> tr("gui.chat.history_limit"),
                             () -> Integer.toString(EnhancedChatConfig.maxMessages),
                             value -> EnhancedChatConfig.maxMessages = Integer.parseInt(value),
                             Arrays.asList("100", "500", "1000", "4096", "8192", "16384", "32767"),
                             value -> value).size(260, 24))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.smooth_scrolling"),
-                            () -> tr("tooltip.chat.smooth_scrolling"),
-                            SmoothScrollConfigAccess::chatConfigured,
-                            SmoothScrollConfigAccess::setChatConfigured))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.tabbed"),
-                            () -> tr("tooltip.chat.tabbed"),
-                            () -> EnhancedChatConfig.tabbedChat,
-                            value -> EnhancedChatConfig.tabbedChat = value))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.persistence"),
+                    .add(c.toggleText(() -> tr("gui.chat.persistence"),
                             () -> tr("tooltip.chat.persistence"),
                             () -> EnhancedChatConfig.persistence,
                             value -> EnhancedChatConfig.persistence = value))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.persist_received"),
+                    .add(c.toggleText(() -> tr("gui.chat.persist_received"),
                             () -> tr("tooltip.chat.persist_received"),
                             () -> EnhancedChatConfig.persistReceived,
                             value -> EnhancedChatConfig.persistReceived = value))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.persist_sent"),
+                    .add(c.toggleText(() -> tr("gui.chat.persist_sent"),
                             () -> tr("tooltip.chat.persist_sent"),
                             () -> EnhancedChatConfig.persistSent,
-                            value -> EnhancedChatConfig.persistSent = value))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.player_heads"),
-                            () -> tr("tooltip.chat.player_heads"),
-                            () -> EnhancedChatConfig.playerHeads,
-                            value -> EnhancedChatConfig.playerHeads = value))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.head_shadow"),
-                            () -> "",
-                            () -> EnhancedChatConfig.headShadow,
-                            value -> EnhancedChatConfig.headShadow = value))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.item_icons"),
-                            () -> tr("tooltip.chat.item_icons"),
-                            () -> EnhancedChatConfig.itemIcons,
-                            value -> EnhancedChatConfig.itemIcons = value))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.copy_selection"),
+                            value -> EnhancedChatConfig.persistSent = value));
+            NfrOptionsGrid copying = c.grid()
+                    .add(c.toggleText(() -> tr("gui.chat.copy_selection"),
                             () -> tr("tooltip.chat.copy_selection"),
                             () -> EnhancedChatConfig.copySelection,
                             value -> EnhancedChatConfig.copySelection = value))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.copy_formatting"),
-                            () -> "",
+                    .add(c.toggleText(() -> tr("gui.chat.copy_formatting"),
+                            () -> tr("tooltip.chat.copy_formatting"),
                             () -> EnhancedChatConfig.copyFormattingCodes,
                             value -> EnhancedChatConfig.copyFormattingCodes = value))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.copy_ampersand"),
-                            () -> "",
+                    .add(c.toggleText(() -> tr("gui.chat.copy_ampersand"),
+                            () -> tr("tooltip.chat.copy_ampersand"),
                             () -> EnhancedChatConfig.ampersandFormatting,
-                            value -> EnhancedChatConfig.ampersandFormatting = value))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.animate_messages"),
-                            () -> tr("tooltip.chat.animate_messages"),
-                            () -> EnhancedChatConfig.animateMessages,
-                            value -> EnhancedChatConfig.animateMessages = value))
-                    .add(controls.dropdownText(
-                            "chat_message_animation_duration",
-                            () -> tr("gui.chat.message_duration"),
-                            () -> Integer.toString(EnhancedChatConfig.messageAnimationDuration),
-                            value -> EnhancedChatConfig.messageAnimationDuration = Integer.parseInt(value),
-                            Arrays.asList("75", "100", "150", "200", "300", "500"),
-                            value -> withUnit(value, "milliseconds")).size(260, 24))
-                    .add(controls.dropdownText(
-                            "chat_message_animation_distance",
-                            () -> tr("gui.chat.message_distance"),
-                            () -> Float.toString(EnhancedChatConfig.messageAnimationDistance),
-                            value -> EnhancedChatConfig.messageAnimationDistance = Float.parseFloat(value),
-                            Arrays.asList("3.0", "5.0", "7.0", "9.0", "12.0"),
-                            value -> withUnit(value, "pixels")).size(260, 24))
-                    .add(controls.dropdownText(
-                            "chat_message_animation_easing",
-                            () -> tr("gui.chat.message_easing"),
-                            () -> EnhancedChatConfig.messageAnimationEasing,
-                            value -> EnhancedChatConfig.messageAnimationEasing = value,
-                            Arrays.asList("linear", "sine", "quad", "cubic", "back"),
-                            EnhancedChatSettingsPage::easingLabel).size(260, 24))
-                    .add(controls.toggleText(
-                            () -> tr("gui.chat.animate_input"),
-                            () -> tr("tooltip.chat.animate_input"),
-                            () -> EnhancedChatConfig.animateInput,
-                            value -> EnhancedChatConfig.animateInput = value))
-                    .add(controls.dropdownText(
-                            "chat_input_animation_duration",
-                            () -> tr("gui.chat.input_duration"),
-                            () -> Integer.toString(EnhancedChatConfig.inputAnimationDuration),
-                            value -> EnhancedChatConfig.inputAnimationDuration = Integer.parseInt(value),
-                            Arrays.asList("75", "100", "150", "170", "200", "300", "500"),
-                            value -> withUnit(value, "milliseconds")).size(260, 24))
-                    .add(controls.dropdownText(
-                            "chat_input_animation_distance",
-                            () -> tr("gui.chat.input_distance"),
-                            () -> Float.toString(EnhancedChatConfig.inputAnimationDistance),
-                            value -> EnhancedChatConfig.inputAnimationDistance = Float.parseFloat(value),
-                            Arrays.asList("3.0", "5.0", "8.0", "10.0", "12.0"),
-                            value -> withUnit(value, "pixels")).size(260, 24))
-                    .add(controls.dropdownText(
-                            "chat_input_animation_easing",
-                            () -> tr("gui.chat.input_easing"),
-                            () -> EnhancedChatConfig.inputAnimationEasing,
-                            value -> EnhancedChatConfig.inputAnimationEasing = value,
-                            Arrays.asList("linear", "sine", "quad", "cubic", "back"),
-                            EnhancedChatSettingsPage::easingLabel).size(260, 24));
-            return new PageView(grid);
+                            value -> EnhancedChatConfig.ampersandFormatting = value));
+            return new PageView(core, history, copying);
         }
 
-        @Override
-        public void apply() {
+        @Override public void apply() {
             SmoothScrollConfigAccess.save();
             EnhancedChatConfig.save();
         }
 
-        @Override
-        public void cancel() {
+        @Override public void cancel() {
             restoreOriginal();
         }
 
@@ -200,44 +131,27 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
             EnhancedChatConfig.persistence = originalPersistence;
             EnhancedChatConfig.persistReceived = originalReceived;
             EnhancedChatConfig.persistSent = originalSent;
-            EnhancedChatConfig.playerHeads = originalPlayerHeads;
-            EnhancedChatConfig.headShadow = originalHeadShadow;
-            EnhancedChatConfig.itemIcons = originalItemIcons;
             EnhancedChatConfig.copySelection = originalCopySelection;
             EnhancedChatConfig.copyFormattingCodes = originalCopyFormattingCodes;
             EnhancedChatConfig.ampersandFormatting = originalAmpersandFormatting;
             EnhancedChatConfig.tabbedChat = originalTabbed;
-            EnhancedChatConfig.animateMessages = originalAnimateMessages;
-            EnhancedChatConfig.messageAnimationDuration = originalMessageDuration;
-            EnhancedChatConfig.messageAnimationDistance = originalMessageDistance;
-            EnhancedChatConfig.messageAnimationEasing = originalMessageEasing;
-            EnhancedChatConfig.animateInput = originalAnimateInput;
-            EnhancedChatConfig.inputAnimationDuration = originalInputDuration;
-            EnhancedChatConfig.inputAnimationDistance = originalInputDistance;
-            EnhancedChatConfig.inputAnimationEasing = originalInputEasing;
+            EnhancedChatConfig.messageSearch = originalSearch;
+            EnhancedChatConfig.commandCompletion = originalCommandCompletion;
+            EnhancedChatConfig.privateCommandBlock = originalPrivateCommandBlock;
+            EnhancedChatConfig.salutationForceServerTranslations = originalForceServerTranslations;
+            EnhancedChatConfig.salutationDisableOverride = originalDisableSalutationOverride;
             SmoothScrollConfigAccess.setChatConfigured(originalSmooth);
         }
     }
 
-    private static String tr(String suffix) {
-        return AddonI18n.tr("neofontrender_ui_enhancements." + suffix);
-    }
-
-    static String easingKey(String value) {
-        return "neofontrender_ui_enhancements.gui.chat.easing." + value;
-    }
-
-    private static String easingLabel(String value) {
-        return AddonI18n.tr(easingKey(value));
-    }
-
-    private static String withUnit(String value, String unit) {
-        return value + " " + tr("gui.unit." + unit);
+    private static String tr(String key) {
+        return AddonI18n.tr("neofontrender_ui_enhancements." + key);
     }
 
     private static final class PageView extends NfrContentView<PageView> {
-        private PageView(NfrOptionsGrid grid) {
-            super(section(grid, grid::preferredHeight));
+        private PageView(NfrOptionsGrid core, NfrOptionsGrid history, NfrOptionsGrid copying) {
+            super(section(core, core::preferredHeight), section(history, history::preferredHeight),
+                    section(copying, copying::preferredHeight));
         }
     }
 }

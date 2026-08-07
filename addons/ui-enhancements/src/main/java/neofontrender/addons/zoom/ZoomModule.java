@@ -7,6 +7,10 @@ import neofontrender.addons.ui.UiEnhancementModule;
 import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 
 public final class ZoomModule implements UiEnhancementModule {
+    public static boolean isZoomActive() {
+        return ZoomHandler.INSTANCE.isZoomActive();
+    }
+
     @Override public void preInit() { ZoomConfig.load(); }
 
     @Override public void init() {

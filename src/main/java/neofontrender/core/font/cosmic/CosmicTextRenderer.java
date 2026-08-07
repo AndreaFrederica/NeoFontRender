@@ -8,12 +8,16 @@ import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.NeoFontRender;
+import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.api.text.FontRenderSpec;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
+import neofontrender.core.font.support.ClientTextureDisposal;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.ModernShadowRasterizer;
+import neofontrender.core.font.support.ShadowColorPolicy;
+import neofontrender.core.font.support.ShadowColorRemapRules;
 import neofontrender.core.font.support.ShadowMaskRules;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -32,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** cosmic-text shaping/Swash rasterization with Minecraft's LWJGL2 texture submission. */
 public final class CosmicTextRenderer implements TextRenderBackend {
@@ -39,8 +44,6 @@ public final class CosmicTextRenderer implements TextRenderBackend {
     // Rust rejects either raster dimension above 8192. Keep a generous allowance for glyph
     // bearings, italic overhang, and native padding beyond cosmic-text's line advance.
     private static final float SEGMENT_RASTER_ADVANCE_LIMIT = 8192.0F - 1024.0F;
-    private static final int[] COLOR_CODES = createColorCodes();
-
     private final TextureManager textureManager;
     private final Map<RenderKey, CosmicRenderedText> renderCache = new LinkedHashMap<>(128, 0.75F, true);
     private final Map<MeasureKey, Float> measureCache = new LinkedHashMap<>(256, 0.75F, true);
@@ -55,6 +58,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
     private long measureCacheEvictions;
     private long nativeRasterCount;
     private long cacheOperations;
+    private volatile int[] legacyColorCodes = TextColorPaletteRegistry.vanillaColorCodes();
 
     public CosmicTextRenderer(TextureManager textureManager, IResourceManager resourceManager) throws IOException {
         this(textureManager, resourceManager, null);
@@ -117,6 +121,11 @@ public final class CosmicTextRenderer implements TextRenderBackend {
     }
 
     @Override
+    public void updateLegacyColorCodes(int[] colorCodes) {
+        legacyColorCodes = TextColorPaletteRegistry.normalizeColorCodes(colorCodes);
+    }
+
+    @Override
     public boolean shouldRenderShadow(String text) {
         String mode = NeofontrenderConfig.shadowMode();
         return "all".equals(mode) || (!"none".equals(mode) && !containsEmoji(text)
@@ -160,12 +169,20 @@ public final class CosmicTextRenderer implements TextRenderBackend {
 
     private TextRenderResult renderAtScale(String text, int argb, boolean bold, boolean italic,
                                            float fontSize, float scale) {
+        return renderAtScale(text, argb, bold, italic, false, false, fontSize, scale);
+    }
+
+    private TextRenderResult renderAtScale(String text, int argb, boolean bold, boolean italic,
+                                           boolean underline, boolean strikethrough,
+                                           float fontSize, float scale) {
         List<String> segments = renderingSegments(text, bold, italic, fontSize, scale);
         if (segments.size() > 1) {
-            return renderSegments(segments, argb, bold, italic, fontSize, scale);
+            return renderSegments(segments, argb, bold, italic, underline, strikethrough,
+                    fontSize, scale);
         }
         try {
-            return renderSingle(text, argb, bold, italic, fontSize, scale, false);
+            return renderSingle(text, argb, bold, italic, underline, strikethrough,
+                    fontSize, scale, false);
         } catch (IllegalStateException error) {
             if (!isRasterSizeError(error)) {
                 throw error;
@@ -176,18 +193,21 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             if (fallbackSegments.size() <= 1) {
                 throw error;
             }
-            return renderSegments(fallbackSegments, argb, bold, italic, fontSize, scale);
+            return renderSegments(fallbackSegments, argb, bold, italic, underline, strikethrough,
+                    fontSize, scale);
         }
     }
 
     private CosmicRenderedText renderSingle(String text, int argb, boolean bold, boolean italic,
-                                            float fontSize, float scale, boolean modernShadow) {
+                                             boolean underline, boolean strikethrough,
+                                             float fontSize, float scale, boolean modernShadow) {
         // Minecraft applies the caller alpha through vertex color during draw. Keeping the cached
         // raster opaque avoids multiplying that alpha a second time and also lets alpha variants
         // share the same native raster/GL texture.
         int rasterArgb = argb | 0xFF000000;
         int shadowProfile = modernShadow ? modernShadowProfile() : 0;
-        RenderKey key = new RenderKey(text, rasterArgb, effectiveFlags(bold, italic),
+        RenderKey key = new RenderKey(text, rasterArgb,
+                effectiveFlags(bold, italic, underline, strikethrough),
                 Float.floatToIntBits(fontSize), Float.floatToIntBits(scale), shadowProfile);
         CosmicRenderedText cached = renderCache.get(key);
         if (cached != null) {
@@ -200,7 +220,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         byte[] encoded = CosmicNative.renderSized(engine, text, rasterArgb, key.flags,
                 fontSize, scale);
         nativeRasterCount++;
-        CosmicRenderedText rendered = decode(encoded, modernShadow, fontSize);
+        CosmicRenderedText rendered = decode(encoded, modernShadow, fontSize, rasterArgb);
         renderCache.put(key, rendered);
         trimRenderCache();
         periodicCacheCleanup();
@@ -246,7 +266,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                 FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
         for (FormattedRun run : parseFormatted(text, baseArgb, shadow)) {
             TextRenderResult renderedRun = renderAtScale(run.text, run.argb, run.bold, run.italic,
-                    logicalSize, scale);
+                    run.underline, run.strikethrough, logicalSize, scale);
             results.add(new PositionedResult(x, renderedRun));
             x += renderedRun.advance();
         }
@@ -274,7 +294,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         for (FormattedRun run : parseFormatted(text, baseArgb, false)) {
             for (String segment : renderingSegments(run.text, run.bold, run.italic, fontSize, scale)) {
                 TextRenderResult renderedRun = renderSingle(segment, run.argb, run.bold, run.italic,
-                        fontSize, scale, true);
+                        run.underline, run.strikethrough, fontSize, scale, true);
                 results.add(new PositionedResult(x, renderedRun));
                 x += renderedRun.advance();
             }
@@ -290,11 +310,13 @@ public final class CosmicTextRenderer implements TextRenderBackend {
 
     private TextRenderResult renderSegments(List<String> segments, int argb,
                                             boolean bold, boolean italic,
+                                            boolean underline, boolean strikethrough,
                                             float fontSize, float scale) {
         List<PositionedResult> results = new ArrayList<>(segments.size());
         float x = 0.0F;
         for (String segment : segments) {
-            TextRenderResult rendered = renderAtScale(segment, argb, bold, italic, fontSize, scale);
+            TextRenderResult rendered = renderAtScale(segment, argb, bold, italic,
+                    underline, strikethrough, fontSize, scale);
             results.add(new PositionedResult(x, rendered));
             x += rendered.advance();
         }
@@ -311,7 +333,8 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         measure("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", false, false);
     }
 
-    private CosmicRenderedText decode(byte[] encoded, boolean modernShadow, float fontSize) {
+    private CosmicRenderedText decode(byte[] encoded, boolean modernShadow, float fontSize,
+                                      int foregroundArgb) {
         if (encoded == null || encoded.length < 32) {
             throw new IllegalStateException("cosmic-text returned a truncated raster");
         }
@@ -343,10 +366,17 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         int shadowOriginX = 0;
         int shadowOriginY = 0;
         if (modernShadow) {
+            float shadowGeometryScale = Math.max(1.0F, fontSize)
+                    / Math.max(1.0F, NeofontrenderConfig.fontSize());
             ModernShadowRasterizer.Result shadow = ModernShadowRasterizer.compose(
                     pixels, width, height, scale,
-                    NeofontrenderConfig.shadowOffsetX(), NeofontrenderConfig.shadowOffsetY(),
-                    NeofontrenderConfig.shadowBlurRadius(), NeofontrenderConfig.shadowColor(),
+                    NeofontrenderConfig.shadowOffsetX() * shadowGeometryScale,
+                    NeofontrenderConfig.shadowOffsetY() * shadowGeometryScale,
+                    NeofontrenderConfig.shadowBlurRadius() * shadowGeometryScale,
+                    ShadowColorPolicy.modernColor(
+                            foregroundArgb, NeofontrenderConfig.shadowColor(),
+                            NeofontrenderConfig.coloredShadowEnabled(),
+                            NeofontrenderConfig.shadowColorRemapRules(), legacyColorCodes),
                     NeofontrenderConfig.shadowOpacity(), true);
             pixels = shadow.pixels;
             width = shadow.width;
@@ -377,20 +407,16 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         hash = 31 * hash + Float.floatToIntBits(NeofontrenderConfig.shadowOffsetY());
         hash = 31 * hash + Float.floatToIntBits(NeofontrenderConfig.shadowBlurRadius());
         hash = 31 * hash + Float.floatToIntBits(NeofontrenderConfig.shadowOpacity());
-        return 31 * hash + NeofontrenderConfig.shadowColor();
+        hash = 31 * hash + (NeofontrenderConfig.coloredShadowEnabled() ? 1 : 0);
+        hash = 31 * hash + NeofontrenderConfig.shadowColor();
+        return 31 * hash + NeofontrenderConfig.shadowColorRemapRules().profileHash();
     }
 
     private List<LoadedFont> loadConfiguredFonts(IResourceManager resourceManager) throws IOException {
         LinkedHashMap<String, String> selectors = new LinkedHashMap<>();
         selectors.put(NeofontrenderConfig.fontName(), NeofontrenderConfig.primaryFontLocation());
-        for (File familyFile : NeofontrenderConfig.primaryFamilyFiles()) {
-            String location = NeofontrenderConfig.portableFontLocation(familyFile);
-            if (!selectors.containsValue(location)) {
-                // Use a unique source alias while preserving the internal family metadata. The
-                // Rust catalog groups these faces and chooses weight/style automatically.
-                selectors.put(location, location);
-            }
-        }
+        registerFamilySources(selectors, NeofontrenderConfig.fontName(),
+                localFamilyLocations(NeofontrenderConfig.fontName()));
         for (String name : NeofontrenderConfig.cosmicFaceOverrides()) {
             if (name != null && !name.trim().isEmpty()) {
                 selectors.putIfAbsent(name, name);
@@ -398,9 +424,10 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         }
         for (String name : NeofontrenderConfig.fontFamily()) {
             if (!name.equals(NeofontrenderConfig.primaryFontLocation())) {
-                // A fallback may have the same family name as the primary but point at a
-                // different style file. It must never replace the primary alias/source pair:
-                // native fontdb treats the first byte font as the primary face.
+                // Local fallback selections are stored as family names. Register every face in
+                // that family so cosmic-text can choose real bold/italic variants for fallback
+                // glyphs instead of being limited to whichever file sorts first.
+                registerFamilySources(selectors, name, localFamilyLocations(name));
                 selectors.putIfAbsent(name, name);
             }
         }
@@ -432,6 +459,30 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             }
         }
         return fonts;
+    }
+
+    private static List<String> localFamilyLocations(String family) {
+        List<String> locations = new ArrayList<>();
+        for (File file : NeofontrenderConfig.fontFamilyFiles(family)) {
+            locations.add(NeofontrenderConfig.portableFontLocation(file));
+        }
+        return locations;
+    }
+
+    static void registerFamilySources(LinkedHashMap<String, String> selectors, String family,
+                                      Iterable<String> locations) {
+        if (family == null || family.trim().isEmpty() || locations == null) {
+            return;
+        }
+        for (String location : locations) {
+            if (location == null || location.trim().isEmpty()) {
+                continue;
+            }
+            selectors.putIfAbsent(family, location);
+            if (!selectors.containsValue(location)) {
+                selectors.put(location, location);
+            }
+        }
     }
 
     private List<LoadedFont> loadScopedFonts(IResourceManager resourceManager,
@@ -477,41 +528,58 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         return output.toByteArray();
     }
 
-    private static List<FormattedRun> parseFormatted(String text, int baseArgb, boolean shadow) {
+    private List<FormattedRun> parseFormatted(String text, int baseArgb, boolean shadow) {
         List<FormattedRun> runs = new ArrayList<>();
         if (text == null || text.isEmpty()) {
             return runs;
         }
-        int color = normalizeAlpha(baseArgb);
+        int[] colorCodes = legacyColorCodes;
+        boolean coloredShadow = NeofontrenderConfig.coloredShadowEnabled();
+        ShadowColorRemapRules remapRules = NeofontrenderConfig.shadowColorRemapRules();
+        int color = shadow
+                ? ShadowColorPolicy.legacyColor(normalizeAlpha(baseArgb), coloredShadow,
+                        remapRules, colorCodes)
+                : normalizeAlpha(baseArgb);
         boolean bold = false;
         boolean italic = false;
+        boolean underline = false;
+        boolean strikethrough = false;
         int start = 0;
         for (int i = 0; i < text.length(); i++) {
             if (text.charAt(i) != '\u00a7' || i + 1 >= text.length()) {
                 continue;
             }
             if (i > start) {
-                runs.add(new FormattedRun(text.substring(start, i), shadowColor(color, shadow), bold, italic));
+                runs.add(new FormattedRun(text.substring(start, i), color, bold, italic,
+                        underline, strikethrough));
             }
             char code = Character.toLowerCase(text.charAt(++i));
             int colorIndex = "0123456789abcdef".indexOf(code);
             if (colorIndex >= 0) {
-                color = (baseArgb & 0xFF000000) | COLOR_CODES[colorIndex];
-                bold = false;
-                italic = false;
+                color = (normalizeAlpha(baseArgb) & 0xFF000000) | colorCodes[
+                        ShadowColorPolicy.paletteIndex(colorIndex, shadow, coloredShadow)];
+                if (shadow && coloredShadow) color = remapRules.remap(color, colorCodes);
+                bold = italic = underline = strikethrough = false;
             } else if (code == 'l') {
                 bold = true;
+            } else if (code == 'm') {
+                strikethrough = true;
+            } else if (code == 'n') {
+                underline = true;
             } else if (code == 'o') {
                 italic = true;
             } else if (code == 'r') {
-                color = normalizeAlpha(baseArgb);
-                bold = false;
-                italic = false;
+                color = shadow
+                        ? ShadowColorPolicy.legacyColor(normalizeAlpha(baseArgb), coloredShadow,
+                                remapRules, colorCodes)
+                        : normalizeAlpha(baseArgb);
+                bold = italic = underline = strikethrough = false;
             }
             start = i + 1;
         }
         if (start < text.length()) {
-            runs.add(new FormattedRun(text.substring(start), shadowColor(color, shadow), bold, italic));
+            runs.add(new FormattedRun(text.substring(start), color, bold, italic,
+                    underline, strikethrough));
         }
         return runs;
     }
@@ -520,29 +588,22 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         return (color & 0xFC000000) == 0 ? color | 0xFF000000 : color;
     }
 
-    private static int shadowColor(int color, boolean shadow) {
-        return shadow ? (color & 0xFF000000) | ((color & 0xFCFCFC) >> 2) : color;
-    }
-
-    private static int[] createColorCodes() {
-        int[] codes = new int[16];
-        for (int index = 0; index < 16; index++) {
-            int intensity = (index >> 3 & 1) * 85;
-            int red = (index >> 2 & 1) * 170 + intensity;
-            int green = (index >> 1 & 1) * 170 + intensity;
-            int blue = (index & 1) * 170 + intensity;
-            if (index == 6) {
-                red += 85;
-            }
-            codes[index] = red << 16 | green << 8 | blue;
-        }
-        return codes;
-    }
-
     private static int effectiveFlags(boolean bold, boolean italic) {
-        int configuredStyle = NeofontrenderConfig.fontStyle();
+        return effectiveFlags(bold, italic, false, false);
+    }
+
+    static int effectiveFlags(boolean bold, boolean italic,
+                              boolean underline, boolean strikethrough) {
+        return composeStyleFlags(NeofontrenderConfig.fontStyle(), bold, italic,
+                underline, strikethrough);
+    }
+
+    static int composeStyleFlags(int configuredStyle, boolean bold, boolean italic,
+                                 boolean underline, boolean strikethrough) {
         return (bold || (configuredStyle & 1) != 0 ? 1 : 0)
-                | (italic || (configuredStyle & 2) != 0 ? 2 : 0);
+                | (italic || (configuredStyle & 2) != 0 ? 2 : 0)
+                | (underline ? 4 : 0)
+                | (strikethrough ? 8 : 0);
     }
 
     private static boolean containsEmoji(String text) {
@@ -637,6 +698,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         private final float offsetX;
         private final float offsetY;
         private final float scale;
+        private final AtomicBoolean closed = new AtomicBoolean();
         private volatile long lastAccessMillis;
 
         private CosmicRenderedText(ResourceLocation location, DynamicTexture texture, float advance,
@@ -672,7 +734,8 @@ public final class CosmicTextRenderer implements TextRenderBackend {
 
         @Override
         public void draw(float x, float y, float alpha) {
-            if (location == null || texture == null || width <= 0.0F || height <= 0.0F) {
+            if (closed.get() || location == null || texture == null
+                    || width <= 0.0F || height <= 0.0F) {
                 return;
             }
             Minecraft.getMinecraft().getTextureManager().bindTexture(location);
@@ -685,7 +748,11 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
             GL11.glEnable(GL11.GL_TEXTURE_2D);
             GL11.glEnable(GL11.GL_ALPHA_TEST);
-            GL11.glColor4f(1.0F, 1.0F, 1.0F, alpha);
+            float tint = premultipliedOpacity(alpha);
+            // With GL_ONE premultiplied blending, global opacity must scale RGB and alpha
+            // together. Scaling alpha alone leaves full-strength RGB in every blur sample and
+            // repeated colored-shadow samples accumulate toward white/yellow/cyan.
+            GL11.glColor4f(tint, tint, tint, tint);
             float left = FontRenderTuning.alignToPixel(x + offsetX);
             float top = FontRenderTuning.alignToPixel(y + offsetY);
             // Cosmic textures are premultiplied in Rust before GL_LINEAR minification. Force the
@@ -694,7 +761,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             try (PremultipliedBlendState ignored = new PremultipliedBlendState()) {
                 Tessellator tessellator = Tessellator.instance;
                 tessellator.startDrawingQuads();
-                tessellator.setColorRGBA_F(1.0F, 1.0F, 1.0F, alpha);
+                tessellator.setColorRGBA_F(tint, tint, tint, tint);
                 tessellator.addVertexWithUV(left, top, 0.0D, 0.0D, 0.0D);
                 tessellator.addVertexWithUV(left, top + height, 0.0D, 0.0D, 1.0D);
                 tessellator.addVertexWithUV(left + width, top + height, 0.0D, 1.0D, 1.0D);
@@ -705,10 +772,14 @@ public final class CosmicTextRenderer implements TextRenderBackend {
 
         @Override
         public void close() {
-            if (location != null) {
-                Minecraft.getMinecraft().getTextureManager().deleteTexture(location);
+            if (location != null && closed.compareAndSet(false, true)) {
+                ClientTextureDisposal.delete(location);
             }
         }
+    }
+
+    static float premultipliedOpacity(float alpha) {
+        return Float.isFinite(alpha) ? Math.max(0.0F, Math.min(1.0F, alpha)) : 0.0F;
     }
 
     public static final class DebugState {
@@ -747,12 +818,14 @@ public final class CosmicTextRenderer implements TextRenderBackend {
 
     private static final class PremultipliedBlendState implements AutoCloseable {
         private final boolean blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
+        private final boolean alphaTestEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
         private final int srcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
         private final int dstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
         private final int srcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
         private final int dstAlpha = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
 
         private PremultipliedBlendState() {
+            GL11.glDisable(GL11.GL_ALPHA_TEST);
             GL11.glEnable(GL11.GL_BLEND);
             GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA,
                     GL11.GL_ONE, GL11.GL_ZERO);
@@ -764,6 +837,8 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             if (!blendEnabled) {
                 GL11.glDisable(GL11.GL_BLEND);
             }
+            if (alphaTestEnabled) GL11.glEnable(GL11.GL_ALPHA_TEST);
+            else GL11.glDisable(GL11.GL_ALPHA_TEST);
         }
     }
 
@@ -832,12 +907,17 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         private final int argb;
         private final boolean bold;
         private final boolean italic;
+        private final boolean underline;
+        private final boolean strikethrough;
 
-        private FormattedRun(String text, int argb, boolean bold, boolean italic) {
+        private FormattedRun(String text, int argb, boolean bold, boolean italic,
+                             boolean underline, boolean strikethrough) {
             this.text = text;
             this.argb = argb;
             this.bold = bold;
             this.italic = italic;
+            this.underline = underline;
+            this.strikethrough = strikethrough;
         }
     }
 

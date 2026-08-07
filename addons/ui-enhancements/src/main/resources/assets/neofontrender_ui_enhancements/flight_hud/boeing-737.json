@@ -1,0 +1,29 @@
+{
+  "schema": 3,
+  "id": "boeing-737",
+  "name": "Boeing 737 HGS-4000",
+  "style": "BOEING_737",
+  "canvasWidth": 520,
+  "canvasHeight": 320,
+  "crosshairMode": "HIDE_VANILLA",
+  "lineWidth": 1.15,
+  "textScale": 0.7,
+  "colors": {
+    "primary": "#FF71FF9E", "secondary": "#C45CEB84",
+    "horizon": "#FF86FFAB", "flightPath": "#FF7AFFB5",
+    "energy": "#FF7AFF9A", "reference": "#FFB3FFCA",
+    "selected": "#FFFFF17A", "warning": "#FFFF5A68", "halo": "#E0001506"
+  },
+  "stall": {"enabled": true, "referencePitch": -15, "margin": 1.12, "label": "MIN"},
+  "elements": [
+    {"id":"status","type":"STATUS","x":90,"y":23,"width":340,"scale":0.78,"variant":"BOEING"},
+    {"id":"flight-reference","type":"FLIGHT_REFERENCE","x":260,"y":138,"width":210,"scale":0.8,"pitchPixelsPerDegree":2.0,"driftPixelsPerDegree":2.1,"pitchRange":20,"pitchStep":5,"variant":"BOEING"},
+    {"id":"airspeed","type":"AIRSPEED_TAPE","x":120,"y":90,"height":122,"range":120,"majorStep":20,"minorStep":10,"boxWidth":34,"trendSeconds":5,"scale":0.8,"variant":"BOEING_DRUM"},
+    {"id":"altitude","type":"ALTITUDE_TAPE","x":400,"y":90,"height":122,"range":600,"majorStep":100,"minorStep":20,"boxWidth":40,"trendSeconds":5,"scale":0.8,"variant":"BOEING_DRUM"},
+    {"id":"vertical-speed","type":"VERTICAL_SPEED","x":455,"y":151,"height":72,"range":2000,"scale":0.72},
+    {"id":"ground-speed","type":"GROUND_SPEED","x":105,"y":245,"scale":0.72,"label":"GS"},
+    {"id":"datum","type":"DATUM","x":370,"y":245,"scale":0.72,"label":"Y REF"},
+    {"id":"input-stick","type":"INPUT_STICK","x":260,"y":253,"radius":7,"scale":0.72},
+    {"id":"heading-card","type":"HEADING_ARC","x":260,"y":307,"radius":58,"range":80,"majorStep":10,"minorStep":5,"scale":0.78}
+  ]
+}

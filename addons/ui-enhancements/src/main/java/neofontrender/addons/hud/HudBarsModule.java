@@ -1,6 +1,7 @@
 package neofontrender.addons.hud;
 
 import net.minecraftforge.common.MinecraftForge;
+import neofontrender.addons.hud.compositor.HudCompositorRenderHandler;
 import neofontrender.addons.ui.UiEnhancementModule;
 import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 
@@ -16,5 +17,6 @@ public final class HudBarsModule implements UiEnhancementModule {
     public void init() {
         NfrSettingsPageRegistry.register(new HudBarsSettingsPage());
         MinecraftForge.EVENT_BUS.register(new HudBarsHandler());
+        MinecraftForge.EVENT_BUS.register(HudCompositorRenderHandler.INSTANCE);
     }
 }

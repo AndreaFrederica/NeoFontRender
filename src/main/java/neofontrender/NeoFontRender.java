@@ -14,6 +14,7 @@ import neofontrender.common.CommonProxy;
         name = Tags.MOD_NAME,
         version = Tags.VERSION,
         dependencies = "required-after:modularui2",
+        guiFactory = "neofontrender.client.gui.NfrModGuiFactory",
         acceptedMinecraftVersions = "[1.7.10]",
         acceptableRemoteVersions = "*"
 )

@@ -38,4 +38,13 @@ class SmoothScrollControllerTest {
     void continuousStepDoesNotMoveWithoutElapsedTime() {
         assertEquals(7.0F, SmoothScrollController.continuousStep(7.0F, 20.0F, 0L, 200));
     }
+
+    @Test
+    void continuousStepRemainsSmoothWhenTargetChanges() {
+        float moving = SmoothScrollController.continuousStep(0.0F, 40.0F, 16_000_000L, 200);
+        float retargeted = SmoothScrollController.continuousStep(moving, 80.0F, 16_000_000L, 200);
+
+        assertTrue(retargeted > moving);
+        assertTrue(retargeted < 80.0F);
+    }
 }

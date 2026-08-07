@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
@@ -89,31 +90,41 @@ public final class NfrSettingsControls {
 
     public NfrOptionDropdown dropdown(String name, String labelKey, Supplier<String> getter,
                                       Consumer<String> setter, Iterable<String> values,
-                                      java.util.function.Function<String, String> display) {
+                                      Function<String, String> display) {
         return new NfrOptionDropdown(name, () -> tr(labelKey), getter, setter, values, display, false);
     }
 
     /** Localized-text overload for extension pages that own their translation lifecycle. */
     public NfrOptionDropdown dropdownText(String name, Supplier<String> label, Supplier<String> getter,
                                           Consumer<String> setter, Iterable<String> values,
-                                          java.util.function.Function<String, String> display) {
+                                          Function<String, String> display) {
         return new NfrOptionDropdown(name, label, getter, setter, values, display, false);
     }
 
     public NfrOptionDropdown compactDropdown(String name, Supplier<String> getter, Consumer<String> setter,
                                              Iterable<String> values,
-                                             java.util.function.Function<String, String> display) {
+                                             Function<String, String> display) {
         return new NfrOptionDropdown(name, () -> "", getter, setter, values, display, true);
     }
 
     /** Opens ModularUI's native RGB/HSV/hex picker in an NFR-styled dialog. */
     public NfrColorPickerButton colorText(String name, Supplier<String> label, IntSupplier getter,
                                           IntConsumer setter, boolean alpha) {
-        return new NfrColorPickerButton(name, label, getter, setter, alpha, preview);
+        return colorText(name, label, getter, setter, alpha, preview);
+    }
+
+    public NfrColorPickerButton colorText(String name, Supplier<String> label, IntSupplier getter,
+                                          IntConsumer setter, boolean alpha, Runnable afterChange) {
+        return new NfrColorPickerButton(name, label, getter, setter, alpha, afterChange);
     }
 
     public NfrTextButton action(String labelKey, int width, int height, Runnable action) {
-        return new NfrTextButton(() -> tr(labelKey), true)
+        return action(() -> tr(labelKey), width, height, action);
+    }
+
+    /** Addon-safe overload for namespaces that provide their own translation fallback. */
+    public NfrTextButton action(Supplier<String> label, int width, int height, Runnable action) {
+        return new NfrTextButton(label, true)
                 .size(width, height)
                 .onMousePressed(mouseButton -> {
                     action.run();
@@ -152,10 +163,14 @@ public final class NfrSettingsControls {
     }
 
     public IWidget shadowMode() {
+        return shadowMode(preview);
+    }
+
+    public IWidget shadowMode(Runnable afterChange) {
         return tooltip(dropdown("shadow_mode", "neofontrender.gui.option.shadow_mode",
                 () -> draft.shadowMode, value -> {
                     draft.shadowMode = value;
-                    preview.run();
+                    afterChange.run();
                 }, Arrays.asList("mask", "emoji", "all", "none"),
                 value -> tr("neofontrender.gui.shadow_mode." + value)).size(260, 24),
                 "neofontrender.tooltip.shadow_mode");
@@ -177,21 +192,42 @@ public final class NfrSettingsControls {
 
     public IWidget decimalSlider(String labelKey, Supplier<Float> getter, Consumer<Float> setter,
                                  float min, float max, float step) {
-        NfrDecimalSlider slider = new NfrDecimalSlider(() -> tr(labelKey),
+        return decimalSlider(labelKey, getter, setter, min, max, step, preview);
+    }
+
+    /** Addon-safe overload for namespaces that provide their own translation fallback. */
+    public IWidget decimalSlider(Supplier<String> label, Supplier<Float> getter, Consumer<Float> setter,
+                                 float min, float max, float step) {
+        return decimalSlider(label, getter, setter, min, max, step, preview);
+    }
+
+    public IWidget decimalSlider(String labelKey, Supplier<Float> getter, Consumer<Float> setter,
+                                 float min, float max, float step, Runnable afterChange) {
+        return decimalSlider(() -> tr(labelKey), getter, setter, min, max, step, afterChange);
+    }
+
+    /** Addon-safe overload for namespaces that provide their own translation fallback. */
+    public IWidget decimalSlider(Supplier<String> label, Supplier<Float> getter, Consumer<Float> setter,
+                                 float min, float max, float step, Runnable afterChange) {
+        NfrDecimalSlider slider = new NfrDecimalSlider(label,
                 () -> String.format(Locale.ROOT, step < 0.1F ? "%.2f" : "%.1f", getter.get()));
         slider.value(new NfrDoubleValue(() -> (double) getter.get(), value -> {
                     double clipped = Math.max(min, Math.min(max, value));
                     float rounded = (float) (Math.round(clipped / step) * step);
                     setter.accept(rounded);
-                    preview.run();
+                    afterChange.run();
                 }))
                 .bounds(min, max);
         return slider.size(260, 24);
     }
 
     public IWidget shadowColor() {
+        return shadowColor(preview);
+    }
+
+    public IWidget shadowColor(Runnable afterChange) {
         return colorText("shadow_color", () -> tr("neofontrender.gui.option.shadow_color"),
-                () -> draft.shadowColor, value -> draft.shadowColor = value, true).size(260, 24);
+                () -> draft.shadowColor, value -> draft.shadowColor = value, true, afterChange).size(260, 24);
     }
 
     public NfrLabeledSlider brightness() {

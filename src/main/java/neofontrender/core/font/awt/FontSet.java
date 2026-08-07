@@ -153,6 +153,18 @@ public class FontSet implements AutoCloseable {
         return loaded;
     }
 
+    /**
+     * Flush any atlas pages dirtied by recently baked glyphs to the GPU.
+     * Call before rendering so freshly added glyphs are visible.
+     */
+    public void flushAtlas() {
+        atlas.flushIfDirty();
+    }
+
+    public void replaceGlyph(int codePoint, BakedGlyph glyph) {
+        bakedGlyphs.put(codePoint, glyph);
+    }
+
     public void prewarmBasicLatin() {
         for (int cp = 32; cp <= 126; cp++) {
             prewarmGlyph(cp);

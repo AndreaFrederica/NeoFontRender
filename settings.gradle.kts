@@ -26,6 +26,10 @@ pluginManagement {
 
 plugins {
     id("com.gtnewhorizons.gtnhsettingsconvention") version("2.0.20")
+    id("org.jetbrains.kotlin.jvm") version "2.3.20" apply false
+    id("org.jetbrains.kotlin.multiplatform") version "2.3.20" apply false
 }
 
 include(":addons:ui-enhancements")
+include(":addons:ui-enhancements:tiqian-jvm")
+include(":addons:ui-enhancements-server")

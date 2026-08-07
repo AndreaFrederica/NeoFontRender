@@ -18,10 +18,11 @@ final class UiEnhancementsInfoContributions {
             @Override public NfrInfoPage page() { return NfrInfoPage.ABOUT; }
             @Override public List<NfrInfoLine> lines() {
                 return Arrays.asList(
-                        NfrInfoLine.spaced("NFR UI Enhancements", 0xFFFFFF),
+                        NfrInfoLine.spaced(NfrUiEnhancements.MOD_NAME, 0xFFFFFF),
                         NfrInfoLine.line(() -> tr("neofontrender_ui_enhancements.info.version") + ": "
                                 + NfrUiEnhancements.VERSION, 0xD8D8D8),
                         NfrInfoLine.line(() -> tr("neofontrender_ui_enhancements.info.description"), 0xBFC7D1),
+                        NfrInfoLine.line("Embeds TabbyChat 2 Reforged & Salutation 1.7.10", 0xBFC7D1),
                         NfrInfoLine.line("github.com/AndreaFrederica/NeoFontRender", 0x00DCE8));
             }
         });
@@ -30,8 +31,12 @@ final class UiEnhancementsInfoContributions {
             @Override public NfrInfoPage page() { return NfrInfoPage.LICENSES; }
             @Override public List<NfrInfoLine> lines() {
                 return Arrays.asList(
-                        NfrInfoLine.spaced("NFR UI Enhancements - MIT", 0xD8D8D8),
+                        NfrInfoLine.spaced(NfrUiEnhancements.MOD_NAME + " - LGPL-3.0", 0xD8D8D8),
+                        NfrInfoLine.line("Arc3D Core - LGPL-3.0-or-later", 0xD8D8D8),
+                        NfrInfoLine.line("ModularUI - LGPL-3.0", 0xD8D8D8),
                         NfrInfoLine.line("TabbyChat 2 Reforged - Apache-2.0", 0xD8D8D8),
+                        NfrInfoLine.line("Salutation 1.7.10 - Apache-2.0", 0xD8D8D8),
+                        NfrInfoLine.line("jieba-analysis - Apache-2.0", 0xD8D8D8),
                         NfrInfoLine.line("Jazzy spell checker - LGPL-2.1", 0xD8D8D8));
             }
         });

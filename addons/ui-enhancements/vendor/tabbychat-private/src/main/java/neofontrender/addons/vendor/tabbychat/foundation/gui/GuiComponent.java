@@ -1,6 +1,7 @@
 package neofontrender.addons.vendor.tabbychat.foundation.gui;
 
 import com.google.common.eventbus.EventBus;
+import neofontrender.addons.chat.ChatHudWindowController;
 import neofontrender.addons.vendor.tabbychat.foundation.Color;
 import neofontrender.addons.vendor.tabbychat.foundation.ILocation;
 import neofontrender.addons.vendor.tabbychat.foundation.Location;
@@ -154,9 +155,11 @@ public abstract class GuiComponent extends Gui {
             this.hovered = false;
             return;
         }
-        if (mc.currentScreen != null) {
+        if (mc.currentScreen != null || ChatHudWindowController.isHudInteractive()) {
             float scale = getActualScale();
-            Point point = scalePoint(new Point(Mouse.getX(), Mouse.getY()), mc.currentScreen);
+            Point point = mc.currentScreen == null
+                    ? scalePoint(new Point(Mouse.getX(), Mouse.getY()))
+                    : scalePoint(new Point(Mouse.getX(), Mouse.getY()), mc.currentScreen);
             ILocation actual = getActualLocation();
             // adjust for position and scale
             int x = (int) ((point.x - actual.getXPos()) / scale);
@@ -486,6 +489,15 @@ public abstract class GuiComponent extends Gui {
         Minecraft mc = Minecraft.getMinecraft();
         int x = point.x * screen.width / mc.displayWidth;
         int y = screen.height - point.y * screen.height / mc.displayHeight - 1;
+        return new Point(x, y);
+    }
+
+    private static Point scalePoint(Point point) {
+        Minecraft mc = Minecraft.getMinecraft();
+        ScaledResolution resolution = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
+        int x = point.x * resolution.getScaledWidth() / mc.displayWidth;
+        int y = resolution.getScaledHeight()
+                - point.y * resolution.getScaledHeight() / mc.displayHeight - 1;
         return new Point(x, y);
     }
 

@@ -42,7 +42,7 @@ public final class NeofontrenderCommand extends CommandBase {
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length == 0) {
             message(sender, EnumChatFormatting.GOLD,
-                    "Neo Font Render: " + getCommandUsage(sender));
+                    NeofontrenderBranding.displayName() + ": " + getCommandUsage(sender));
             return;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
@@ -89,7 +89,7 @@ public final class NeofontrenderCommand extends CommandBase {
         String engine = manager.isCosmicActive()
                 ? "cosmic" : manager.isSfrActive() ? "sfr" : "vanilla";
         message(sender, EnumChatFormatting.GOLD,
-                "Neo Font Render engine: " + engine);
+                NeofontrenderBranding.displayName() + " engine: " + engine);
         message(sender, EnumChatFormatting.WHITE,
                 "  configured: " + NeofontrenderConfig.renderingEngine());
         message(sender, EnumChatFormatting.WHITE,
@@ -140,7 +140,7 @@ public final class NeofontrenderCommand extends CommandBase {
                     "No modern text backend is available.");
             return;
         }
-        String sample = "NeoFontRender fi \u0627\u0644\u0639\u0631\u0628\u064a\u0629 "
+        String sample = NeofontrenderBranding.displayName() + " fi \u0627\u0644\u0639\u0631\u0628\u064a\u0629 "
                 + "\uD83D\uDE00";
         message(sender, EnumChatFormatting.AQUA,
                 "Measured sample width: "

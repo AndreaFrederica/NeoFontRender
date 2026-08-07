@@ -23,7 +23,9 @@ public class ClientProxy extends CommonProxy {
     public void init(FMLInitializationEvent event) {
         super.init(event);
 
-        NeofontrenderConfig.load();
+        if (!NeofontrenderConfig.isLoaded()) {
+            NeofontrenderConfig.load();
+        }
         if (ModernSplashDetector.isInstalled()) {
             if (SplashCompat.isInstalled()) {
                 NeoFontRender.LOGGER.info("ModernSplash font override is active");
@@ -33,6 +35,7 @@ public class ClientProxy extends CommonProxy {
                         "This usually means ModernSplash changed its internal structure; splash screen will use the default bitmap font.");
             }
         }
+        NeofontrenderBranding.applyModMetadata();
         NeofontrenderKeyHandler.init();
         MinecraftForge.EVENT_BUS.register(new NeofontrenderMainMenuBranding());
         MinecraftForge.EVENT_BUS.register(new NeofontrenderOptionsButtonHandler());

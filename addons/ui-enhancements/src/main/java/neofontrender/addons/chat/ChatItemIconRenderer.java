@@ -10,6 +10,7 @@ import net.minecraft.nbt.JsonToNBT;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTException;
 import net.minecraft.nbt.NBTTagCompound;
+import neofontrender.addons.cjk.PositionedTextLine;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatStyle;
 import net.minecraft.util.IChatComponent;
@@ -42,6 +43,19 @@ public final class ChatItemIconRenderer {
     public static void renderLine(IChatComponent component, int x, int y) {
         if (!EnhancedChatFeatures.itemIcons() || component == null) return;
         Minecraft minecraft = Minecraft.getMinecraft();
+        if (component instanceof PositionedTextLine) {
+            PositionedTextLine positioned = (PositionedTextLine) component;
+            for (Object partObject : component) {
+                IChatComponent part = (IChatComponent) partObject;
+                ItemStack stack = markerStack(part);
+                if (stack == null) continue;
+                float left = positioned.nfrUi$componentLeft(part);
+                float right = positioned.nfrUi$componentRight(part);
+                renderStack(stack, x + Math.max(0, Math.round((left + right - 8.0F) / 2.0F)), y);
+            }
+            restoreChatDrawingState();
+            return;
+        }
         int cursor = x;
         for (Iterator<?> parts = component.iterator(); parts.hasNext();) {
             IChatComponent part = (IChatComponent) parts.next();
@@ -73,7 +87,8 @@ public final class ChatItemIconRenderer {
             if (fade < 0.0D) fade = 0.0D;
             if (fade > 1.0D) fade = 1.0D;
             if (!open && fade * fade * minecraft.gameSettings.chatOpacity <= 0.02D) continue;
-            int y = -row * minecraft.fontRenderer.FONT_HEIGHT - 8;
+            int y = ChatInlineLayout.bottomAlignedY(lines, scrollPos, row, 8,
+                    minecraft.fontRenderer);
             renderLine(line.func_151461_a(), ChatHeadRenderer.textOffset(), y);
         }
         GL11.glPopMatrix();

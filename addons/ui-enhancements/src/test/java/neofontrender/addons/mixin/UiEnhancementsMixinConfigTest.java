@@ -37,15 +37,54 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"GuiCreateWorldAccessor\""));
         assertTrue(config.contains("\"MixinGuiMainMenuContinueGame\""));
         assertTrue(config.contains("\"MixinEntityRendererZoomMouse\""));
+        assertTrue(config.contains("\"MixinEntityRendererMouseInputEvent\""));
+        assertTrue(config.contains("\"MixinRenderPlayerFlightRoll\""));
+        assertTrue(config.contains("\"MixinGuiIngameForgeCrosshair\""));
         assertTrue(config.contains("\"AccessorGuiChatFeatures\""));
         assertTrue(config.contains("\"AccessorGuiNewChatFeatures\""));
         assertTrue(config.contains("\"MixinChatLineMetadata\""));
         assertTrue(config.contains("\"MixinGuiNewChatFeatures\""));
         assertTrue(config.contains("\"MixinGuiScreenResourcePacksProgress\""));
+        assertTrue(config.contains("\"MixinGuiScreenBookCjkTypography\""));
         assertTrue(config.contains("\"MixinProgressBarResourceReload\""));
         assertTrue(config.contains("\"MixinProgressManagerResourceReload\""));
         assertTrue(config.contains("\"MixinMinecraftResourceReloadProgress\""));
         assertTrue(config.contains("\"MixinTextureManagerResourceReloadPulse\""));
+    }
+
+    @Test
+    void shoulderSurfingCompatMixinsAreLateAndNonRequired() {
+        String shoulderSurfing = config(
+                "mixins.neofontrender_ui_enhancements_shouldersurfing.json");
+        String shoulderSurfingTconstruct = config(
+                "mixins.neofontrender_ui_enhancements_shouldersurfing_tconstruct.json");
+        String shoulderSurfingMatterOverdrive = config(
+                "mixins.neofontrender_ui_enhancements_shouldersurfing_matteroverdrive.json");
+
+        assertTrue(shoulderSurfing.contains("\"required\": false"));
+        assertTrue(shoulderSurfing.contains(
+                "\"compat.MixinShoulderSurfingCrosshairMatrix\""));
+        assertTrue(shoulderSurfing.contains(
+                "\"compat.MixinEntityRendererShoulderSurfingMouseOver\""));
+        assertTrue(shoulderSurfingTconstruct.contains("\"required\": false"));
+        assertTrue(shoulderSurfingTconstruct.contains(
+                "\"compat.MixinTConstructCrosshairOffset\""));
+        assertTrue(shoulderSurfingMatterOverdrive.contains("\"required\": false"));
+        assertTrue(shoulderSurfingMatterOverdrive.contains(
+                "\"compat.MixinMatterOverdriveCrosshairOffset\""));
+    }
+
+    @Test
+    void zoomMixinLeavesEntityPlayerTurnAvailableToOtherCoremods() {
+        InputStream stream = UiEnhancementsMixinConfigTest.class.getClassLoader().getResourceAsStream(
+                "neofontrender/addons/mixin/MixinEntityRendererZoomMouse.class");
+        assertNotNull(stream);
+        try (InputStream input = stream) {
+            String bytecode = new String(input.readAllBytes(), StandardCharsets.ISO_8859_1);
+            assertFalse(bytecode.contains("net/minecraft/client/entity/EntityPlayerSP"));
+        } catch (Exception error) {
+            throw new AssertionError("Failed to inspect zoom mixin bytecode", error);
+        }
     }
 
     @Test

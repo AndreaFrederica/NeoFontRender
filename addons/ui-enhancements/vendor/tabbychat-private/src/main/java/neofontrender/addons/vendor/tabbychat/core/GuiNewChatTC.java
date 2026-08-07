@@ -4,6 +4,9 @@ import com.google.common.collect.Sets;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.Runnables;
 import neofontrender.addons.chat.ChatAnimationController;
+import neofontrender.addons.chat.ChatHudWindowController;
+import neofontrender.addons.chat.ChatMessageMetadataRegistry;
+import neofontrender.addons.chat.ChatSourceChannels;
 import neofontrender.addons.vendor.tabbychat.ChatChannel;
 import neofontrender.addons.vendor.tabbychat.ChatManager;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
@@ -14,7 +17,9 @@ import neofontrender.addons.vendor.tabbychat.api.gui.ChatScreen;
 import neofontrender.addons.vendor.tabbychat.gui.ChatBox;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiNewChat;
+import net.minecraft.client.gui.ScaledResolution;
 import neofontrender.addons.vendor.tabbychat.foundation.render.GlState;
+import neofontrender.addons.vendor.tabbychat.foundation.ILocation;
 import net.minecraft.util.IChatComponent;
 import net.minecraftforge.common.MinecraftForge;
 import org.lwjglx.input.Mouse;
@@ -72,6 +77,10 @@ public class GuiNewChatTC extends GuiNewChat implements ChatScreen {
 
     @Override
     public void drawChat(int i) {
+        ChatHudWindowController.INSTANCE.queue(this, i);
+    }
+
+    public void nfrUi$drawChatSurface(int i) {
         if (prevScreenHeight != mc.displayHeight || prevScreenWidth != mc.displayWidth) {
 
             chat.getChatBox().onScreenHeightResize(prevScreenWidth, prevScreenHeight, mc.displayWidth, mc.displayHeight);
@@ -95,8 +104,17 @@ public class GuiNewChatTC extends GuiNewChat implements ChatScreen {
         // Make the upper left corner of the panel (0,0).
         GlState.translate(chatbox.getBounds().x, chatbox.getBounds().y, 0.0F);
 
-        int mouseX = Mouse.getEventX();
-        int mouseY = -Mouse.getEventY() - 1;
+        // getEventX/Y only describes the last queued mouse event and becomes stale while the
+        // pointer is stationary. Hover rendering needs the current cursor converted from display
+        // pixels into this scaled ChatBox's local coordinate system every frame.
+        ScaledResolution resolution = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
+        int screenMouseX = Mouse.getX() * resolution.getScaledWidth() / mc.displayWidth;
+        int screenMouseY = resolution.getScaledHeight()
+                - Mouse.getY() * resolution.getScaledHeight() / mc.displayHeight - 1;
+        ILocation actual = chatbox.getActualLocation();
+        float actualScale = Math.max(0.01F, chatbox.getScale());
+        int mouseX = Math.round((screenMouseX - actual.getXPos()) / actualScale);
+        int mouseY = Math.round((screenMouseY - actual.getYPos()) / actualScale);
         chatbox.drawComponent(mouseX, mouseY);
 
         GlState.popMatrix();
@@ -109,12 +127,15 @@ public class GuiNewChatTC extends GuiNewChat implements ChatScreen {
     }
 
     public void addMessage(IChatComponent ichat, int id) {
+        IChatComponent received = ichat;
         // chat listeners
         ChatReceivedEvent chatevent = new ChatReceivedEvent(ichat, id);
         chatevent.channels.add(ChatChannel.DEFAULT_CHANNEL);
         MinecraftForge.EVENT_BUS.post(chatevent);
         // chat filters
         ichat = chatevent.text;
+        ChatMessageMetadataRegistry.copy(received, ichat);
+        ChatSourceChannels.route(chatevent, ichat);
         id = chatevent.id;
         if (ichat != null && !ichat.getUnformattedText().isEmpty()) {
             ChatAnimationController.messageAdded();

@@ -23,6 +23,10 @@ public final class ZoomHandler {
 
     private ZoomHandler() {}
 
+    public boolean isZoomActive() {
+        return zooming;
+    }
+
     /**
      * Applies the zoom state machine to the given base FOV. 1.7.10 has no
      * EntityViewRenderEvent.FOVModifier event, so the EntityRenderer mixin calls this from

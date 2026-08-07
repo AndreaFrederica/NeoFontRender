@@ -4,4 +4,5 @@ package neofontrender.addons.chat;
 public interface ChatHeadLineMetadata {
     String nfrUi$getSenderName();
     boolean nfrUi$isFirstFragment();
+    ChatMessageMetadata nfrUi$getMessageMetadata();
 }

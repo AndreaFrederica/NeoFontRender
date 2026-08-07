@@ -1,6 +1,12 @@
 package neofontrender.addons.vendor.tabbychat.gui;
 
 import com.google.common.eventbus.Subscribe;
+import neofontrender.addons.chat.ChatContextMenu;
+import neofontrender.addons.chat.ChatHudWindowController;
+import neofontrender.addons.chat.ChatSourceChannels;
+import neofontrender.addons.chat.ChatStyleConfig;
+import neofontrender.addons.chat.ChatStyleRenderer;
+import neofontrender.addons.chat.EnhancedChatConfigAccess;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import neofontrender.addons.vendor.tabbychat.api.Channel;
 import neofontrender.addons.vendor.tabbychat.api.ChannelStatus;
@@ -45,8 +51,11 @@ public class ChatTab extends GuiButton {
                     TabbyChat.getInstance().getChat().setActiveChannel(this.channel);
                 }
             } else if (event.getButton() == 1) {
-                // Open channel options
-                this.channel.openSettings();
+                // Pin / delete / settings context menu
+                ILocation actual = getActualLocation();
+                ChatContextMenu.INSTANCE.openChannel(this.channel,
+                        actual.getXPos() + Math.round(event.getMouseX() * getActualScale()),
+                        actual.getYPos() + Math.round(event.getMouseY() * getActualScale()));
             } else if (event.getButton() == 2) {
                 // middle click
                 TabbyChat.getInstance().getChat().removeChannel(this.channel);
@@ -57,9 +66,12 @@ public class ChatTab extends GuiButton {
     @Override
     public void drawComponent(int mouseX, int mouseY) {
         ChannelStatus status = channel.getStatus();
-        if (GuiNewChatTC.getInstance().getChatOpen()
+        boolean chatOpen = ChatHudWindowController.isChatExpanded();
+        boolean sourceHudHidden = ChatSourceChannels.isSourceChannel(channel) && !chatOpen
+                && TabbyChat.getInstance().settings.advanced.visibility.get() != ChatVisibility.ALWAYS;
+        if (!sourceHudHidden && (chatOpen
                 || (status != null && (status.compareTo(ChannelStatus.PINGED) > 0) && (TabbyChat.getInstance().settings.general.unreadFlashing.get() == true))
-                || TabbyChat.getInstance().settings.advanced.visibility.get() == ChatVisibility.ALWAYS) {
+                || TabbyChat.getInstance().settings.advanced.visibility.get() == ChatVisibility.ALWAYS)) {
             ILocation loc = getLocation();
             GlState.enableBlend();
             GlState.color(1, 1, 1, mc.gameSettings.chatOpacity);
@@ -70,7 +82,10 @@ public class ChatTab extends GuiButton {
 
             Color primary = getPrimaryColorProperty();
             int color = Color.getColor(primary.getRed(), primary.getGreen(), primary.getBlue(), (int) (mc.gameSettings.chatOpacity * 255));
-            this.drawCenteredString(mc.fontRenderer, this.getText(), txtX, txtY, color);
+            String label = EnhancedChatConfigAccess.verticalTabsEnabled()
+                    ? mc.fontRenderer.trimStringToWidth(this.getText(), Math.max(4, loc.getWidth() - 6))
+                    : this.getText();
+            this.drawCenteredString(mc.fontRenderer, label, txtX, txtY, color);
             GlState.disableBlend();
         }
     }
@@ -119,6 +134,9 @@ public class ChatTab extends GuiButton {
     @Nonnull
     @Override
     public Dimension getMinimumSize() {
+        if (EnhancedChatConfigAccess.verticalTabsEnabled()) {
+            return new Dimension(ChatTray.VERTICAL_WIDTH, 16);
+        }
         return new Dimension(mc.fontRenderer.getStringWidth(getText()) + 8, 14);
     }
 }

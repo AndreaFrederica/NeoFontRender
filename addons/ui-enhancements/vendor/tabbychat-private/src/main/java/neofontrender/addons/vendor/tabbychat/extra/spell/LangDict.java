@@ -72,6 +72,15 @@ public class LangDict {
         String code = "en_US";
         if (lang != null)
             code = lang.getLanguageCode();
-        return new LangDict(code);
+        LangDict requested = new LangDict(code);
+        // Simplified Chinese is supplied by the embedded jieba-analysis dictionary.
+        // Other custom locale dictionaries still win, then unsupported languages
+        // retain TabbyChat's original English fallback.
+        return requested.isChinese() || requested.isClasspath() || requested.isConfig()
+                ? requested : ENGLISH;
+    }
+
+    public boolean isChinese() {
+        return "zh_cn".equalsIgnoreCase(language) || "zh_hans".equalsIgnoreCase(language);
     }
 }

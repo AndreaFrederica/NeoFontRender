@@ -1,5 +1,18 @@
 # Changelog
 
+## [uie/0.3.2]
+
+- Add independently toggleable desktop yaw control with remappable A/D bindings and sensitivity,
+  plus a separate coordinated-banking option matching newer flight-roll mods.
+- Add an opt-in flight-roll setting for retaining roll control in water; the default now restores
+  an upright water view immediately.
+
+## [0.5.2]
+
+- Fix a startup crash when loading-screen mods render text before Forge mod initialization by
+  sharing the early configuration-loading path with the regular font renderer and retaining safe
+  defaults if that early load fails.
+
 ## [0.4.0]
 
 - Remove the Skia/Skija renderer, runtime dependencies, package variant, settings, diagnostics,

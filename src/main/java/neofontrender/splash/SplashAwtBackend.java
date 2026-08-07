@@ -159,6 +159,20 @@ public final class SplashAwtBackend {
         try (TextGlState ignored = new TextGlState()) {
             GL11.glEnable(GL11.GL_TEXTURE_2D);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, rendered.textureId);
+            // Forge's splash texture can leave REPLACE enabled. In that mode the white AWT
+            // bitmap ignores the current color and becomes invisible on Forge's white canvas.
+            GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, GL11.GL_MODULATE);
+
+            int argb = color;
+            float red = ((argb >>> 16) & 0xFF) / 255.0F;
+            float green = ((argb >>> 8) & 0xFF) / 255.0F;
+            float blue = (argb & 0xFF) / 255.0F;
+            float alpha = ((argb >>> 24) & 0xFF) / 255.0F;
+            // A zero color is the legacy placeholder used by the splash font API. Keep the
+            // caller's theme color in that case (ModernSplash sets it before invoking us).
+            if ((argb & 0x00FFFFFF) != 0 || (argb & 0xFF000000) != 0) {
+                GL11.glColor4f(red, green, blue, alpha);
+            }
 
             // ModernSplash sets its configured theme color and fade alpha before calling the
             // renderer. The method's black color argument is only a bitmap-font placeholder.
@@ -361,6 +375,9 @@ public final class SplashAwtBackend {
         private final BlendFunctionPath blendFunctionPath;
         private final boolean blendEnabled;
         private final boolean alphaTestEnabled;
+        private final boolean depthTestEnabled;
+        private final boolean cullEnabled;
+        private final boolean lightingEnabled;
         private final int srcRgb;
         private final int dstRgb;
         private final int srcAlpha;
@@ -373,6 +390,9 @@ public final class SplashAwtBackend {
                         capabilities.OpenGL14, capabilities.GL_EXT_blend_func_separate);
                 this.blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
                 this.alphaTestEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
+                this.depthTestEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+                this.cullEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+                this.lightingEnabled = GL11.glIsEnabled(GL11.GL_LIGHTING);
                 this.srcRgb = GL11.glGetInteger(blendFunctionPath.srcRgbParameter);
                 this.dstRgb = GL11.glGetInteger(blendFunctionPath.dstRgbParameter);
                 this.srcAlpha = blendFunctionPath.separate
@@ -386,6 +406,9 @@ public final class SplashAwtBackend {
                 blendFunctionPath.apply(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
                         GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
                 GL11.glDisable(GL11.GL_ALPHA_TEST);
+                GL11.glDisable(GL11.GL_DEPTH_TEST);
+                GL11.glDisable(GL11.GL_CULL_FACE);
+                GL11.glDisable(GL11.GL_LIGHTING);
             } catch (RuntimeException | LinkageError e) {
                 NeoFontRender.LOGGER.error("Failed to configure splash text OpenGL state", e);
                 throw e;
@@ -409,7 +432,19 @@ public final class SplashAwtBackend {
                 try {
                     setCapability(GL11.GL_ALPHA_TEST, alphaTestEnabled);
                 } finally {
-                    setCapability(GL11.GL_BLEND, blendEnabled);
+                    try {
+                        setCapability(GL11.GL_BLEND, blendEnabled);
+                    } finally {
+                        try {
+                            setCapability(GL11.GL_DEPTH_TEST, depthTestEnabled);
+                        } finally {
+                            try {
+                                setCapability(GL11.GL_CULL_FACE, cullEnabled);
+                            } finally {
+                                setCapability(GL11.GL_LIGHTING, lightingEnabled);
+                            }
+                        }
+                    }
                 }
             }
         }

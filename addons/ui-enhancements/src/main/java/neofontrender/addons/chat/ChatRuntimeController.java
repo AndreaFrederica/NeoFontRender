@@ -27,6 +27,7 @@ final class ChatRuntimeController {
         replacement.getSentMessages().clear();
         replacement.getSentMessages().addAll(sent);
         ((IGuiIngame) mc.ingameGUI).setPersistantChatGUI(replacement);
+        if (wantTabbed) ChatSourceChannels.sync();
         // Both directions create or re-activate a different chat backend. Restore persisted
         // received and sent history whether TabbyChat is being enabled or disabled.
         ChatHistoryManager.INSTANCE.scheduleRestore();

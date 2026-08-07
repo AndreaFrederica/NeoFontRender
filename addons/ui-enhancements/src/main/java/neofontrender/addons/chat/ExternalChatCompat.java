@@ -2,6 +2,7 @@ package neofontrender.addons.chat;
 
 import cpw.mods.fml.common.Loader;
 import net.minecraft.client.gui.GuiTextField;
+import neofontrender.addons.bundled.BundledModRegistry;
 
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -15,7 +16,11 @@ public final class ExternalChatCompat {
     private ExternalChatCompat() {}
 
     public static boolean tabbyChatLoaded() {
-        return Loader.isModLoaded("tabbychat2");
+        return Loader.isModLoaded("tabbychat2") && !BundledModRegistry.isTabbyChatBundled();
+    }
+
+    public static boolean salutationLoaded() {
+        return Loader.isModLoaded("salutation") && !BundledModRegistry.isSalutationBundled();
     }
 
     /**
@@ -25,7 +30,7 @@ public final class ExternalChatCompat {
     public static boolean isSalutationChatScreen(Object screen) {
         return screen != null
                 && screen.getClass().getName().startsWith(SALUTATION_CHAT_PACKAGE)
-                && Loader.isModLoaded("salutation");
+                && salutationLoaded();
     }
 
     public static void updateSalutationInput(

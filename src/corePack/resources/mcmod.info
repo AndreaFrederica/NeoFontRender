@@ -3,9 +3,13 @@
     "name": "${modName} Core",
     "version": "${modVersion}",
     "mcversion": "${minecraftVersion}",
-    "description": "A high-quality font rendering mod for Minecraft 1.7.10.",
+    "description": "Neo Font Render renderer core without bundled font resources.",
     "authorList": ["AndreaFrederica"],
+    "credits": "",
     "url": "https://github.com/AndreaFrederica/NeoFontRender",
     "logoFile": "assets/neofontrender/logo.png",
-    "clientSideOnly": true
+    "modProperties": {"issueTrackerUrl": "https://github.com/AndreaFrederica/NeoFontRender/issues"},
+    "clientSideOnly": true,
+    "requiredMods": ["modularui2"],
+    "dependencies": []
 }]

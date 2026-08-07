@@ -5,6 +5,7 @@ import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.core.font.support.FontPixelUtils;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.ClientTextureDisposal;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -70,6 +71,16 @@ public class FontTexture implements AutoCloseable {
         return page.add(pixels, pw, ph, left, right, up, down, oversample);
     }
 
+    /**
+     * Flush any dirty pages to the GPU. Call this before rendering to ensure
+     * all recently added glyphs are visible.
+     */
+    public void flushIfDirty() {
+        for (Page page : pages) {
+            page.flushIfDirty();
+        }
+    }
+
     @Override
     public void close() {
         for (Page page : pages) {
@@ -86,6 +97,7 @@ public class FontTexture implements AutoCloseable {
         final float rasterScale;
         final List<Shelf> shelves = new ArrayList<>();
         int usedHeight = 0;
+        boolean dirty = false;
 
         Page(TextureManager textureManager, ResourceLocation location, int width, int height, float rasterScale) {
             this.texture = new DynamicTexture(width, height);
@@ -98,7 +110,7 @@ public class FontTexture implements AutoCloseable {
             for (int i = 0; i < data.length; i++) {
                 data[i] = FontPixelUtils.TRANSPARENT_WHITE;
             }
-            this.texture.updateDynamicTexture();
+            dirty = true;
             FontRenderTuning.applyFontTextureFilter(this.texture, rasterScale);
             textureManager.loadTexture(location, this.texture);
             FontRenderTuning.applyFontTextureFilter(this.texture, rasterScale);
@@ -159,9 +171,16 @@ public class FontTexture implements AutoCloseable {
             );
         }
 
+        void flushIfDirty() {
+            if (dirty) {
+                this.texture.updateDynamicTexture();
+                dirty = false;
+            }
+        }
+
         @Override
         public void close() {
-            this.texture.deleteGlTexture();
+            ClientTextureDisposal.delete(this.location);
         }
     }
 

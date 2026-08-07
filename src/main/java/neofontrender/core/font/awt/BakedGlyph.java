@@ -44,6 +44,10 @@ public class BakedGlyph {
         return textureLocation;
     }
 
+    public float getRasterScale() {
+        return rasterScale;
+    }
+
     public float visualLeft() {
         return left;
     }
@@ -89,13 +93,38 @@ public class BakedGlyph {
         try (FontRenderPipeline.State ignored = FontRenderPipeline.begin(rasterScale, false)) {
             Tessellator tessellator = Tessellator.instance;
             tessellator.startDrawingQuads();
-            tessellator.setColorRGBA_F(red, green, blue, alpha);
-            tessellator.addVertexWithUV(f + slant0, f4, 0.0D, this.u0, this.v0);
-            tessellator.addVertexWithUV(f + slant1, f5, 0.0D, this.u0, this.v1);
-            tessellator.addVertexWithUV(f1 + slant1, f5, 0.0D, this.u1, this.v1);
-            tessellator.addVertexWithUV(f1 + slant0, f4, 0.0D, this.u1, this.v0);
+            writeVertices(tessellator, italic, x, y, red, green, blue, alpha);
             tessellator.draw();
         }
+    }
+
+    /**
+     * Append this glyph's quad to an already-started 1.7.10 tessellator.
+     *
+     * @param tessellator the active tessellator
+     * @param italic      whether to apply italic slant
+     * @param x           base X position
+     * @param y           base Y position
+     * @param red         color red component [0,1]
+     * @param green       color green component [0,1]
+     * @param blue        color blue component [0,1]
+     * @param alpha       color alpha component [0,1]
+     */
+    public void writeVertices(Tessellator tessellator, boolean italic, float x, float y,
+                              float red, float green, float blue, float alpha) {
+        float f = FontRenderTuning.alignToPixel(x + this.left);
+        float f1 = FontRenderTuning.alignToPixel(x + this.right);
+        float f2 = this.up;
+        float f3 = this.down;
+        float f4 = FontRenderTuning.alignToPixel(y + f2);
+        float f5 = FontRenderTuning.alignToPixel(y + f3);
+        float slant0 = italic ? 1.0F - 0.25F * f2 : 0.0F;
+        float slant1 = italic ? 1.0F - 0.25F * f3 : 0.0F;
+        tessellator.setColorRGBA_F(red, green, blue, alpha);
+        tessellator.addVertexWithUV(f + slant0, f4, 0.0D, this.u0, this.v0);
+        tessellator.addVertexWithUV(f + slant1, f5, 0.0D, this.u0, this.v1);
+        tessellator.addVertexWithUV(f1 + slant1, f5, 0.0D, this.u1, this.v1);
+        tessellator.addVertexWithUV(f1 + slant0, f4, 0.0D, this.u1, this.v0);
     }
 
     /**

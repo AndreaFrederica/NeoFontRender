@@ -24,13 +24,68 @@ final class ChatStyleSettingsPage implements NfrSettingsPage {
 
         @Override public IWidget createView(NfrSettingsPageContext context) {
             NfrSettingsControls c = context.controls();
-            NfrOptionsGrid grid = c.grid()
+            NfrOptionsGrid messageElements = c.grid()
+                    .add(c.toggleText(() -> chatTr("player_heads"), () -> chatTooltip("player_heads"),
+                            () -> EnhancedChatConfig.playerHeads,
+                            value -> EnhancedChatConfig.playerHeads = value))
+                    .add(c.toggleText(() -> chatTr("head_shadow"), () -> chatTooltip("head_shadow"),
+                            () -> EnhancedChatConfig.headShadow,
+                            value -> EnhancedChatConfig.headShadow = value))
+                    .add(c.toggleText(() -> chatTr("item_icons"), () -> chatTooltip("item_icons"),
+                            () -> EnhancedChatConfig.itemIcons,
+                            value -> EnhancedChatConfig.itemIcons = value));
+            NfrOptionsGrid animations = c.grid()
+                    .add(c.toggleText(() -> chatTr("animate_messages"),
+                            () -> chatTooltip("animate_messages"),
+                            () -> EnhancedChatConfig.animateMessages,
+                            value -> EnhancedChatConfig.animateMessages = value))
+                    .add(c.dropdownText("chat_message_animation_duration",
+                            () -> chatTr("message_duration"),
+                            () -> Integer.toString(EnhancedChatConfig.messageAnimationDuration),
+                            value -> EnhancedChatConfig.messageAnimationDuration = Integer.parseInt(value),
+                            Arrays.asList("75", "100", "150", "200", "300", "500"),
+                            value -> value + " ms").size(260, 24))
+                    .add(c.dropdownText("chat_message_animation_distance",
+                            () -> chatTr("message_distance"),
+                            () -> Float.toString(EnhancedChatConfig.messageAnimationDistance),
+                            value -> EnhancedChatConfig.messageAnimationDistance = Float.parseFloat(value),
+                            Arrays.asList("3.0", "5.0", "7.0", "9.0", "12.0"),
+                            value -> value + " px").size(260, 24))
+                    .add(c.dropdownText("chat_message_animation_easing",
+                            () -> chatTr("message_easing"),
+                            () -> EnhancedChatConfig.messageAnimationEasing,
+                            value -> EnhancedChatConfig.messageAnimationEasing = value,
+                            Arrays.asList("linear", "sine", "quad", "cubic", "back"),
+                            value -> value).size(260, 24))
+                    .add(c.toggleText(() -> chatTr("animate_input"), () -> chatTooltip("animate_input"),
+                            () -> EnhancedChatConfig.animateInput,
+                            value -> EnhancedChatConfig.animateInput = value))
+                    .add(c.dropdownText("chat_input_animation_duration",
+                            () -> chatTr("input_duration"),
+                            () -> Integer.toString(EnhancedChatConfig.inputAnimationDuration),
+                            value -> EnhancedChatConfig.inputAnimationDuration = Integer.parseInt(value),
+                            Arrays.asList("75", "100", "150", "170", "200", "300", "500"),
+                            value -> value + " ms").size(260, 24))
+                    .add(c.dropdownText("chat_input_animation_distance",
+                            () -> chatTr("input_distance"),
+                            () -> Float.toString(EnhancedChatConfig.inputAnimationDistance),
+                            value -> EnhancedChatConfig.inputAnimationDistance = Float.parseFloat(value),
+                            Arrays.asList("3.0", "5.0", "8.0", "10.0", "12.0"),
+                            value -> value + " px").size(260, 24))
+                    .add(c.dropdownText("chat_input_animation_easing",
+                            () -> chatTr("input_easing"),
+                            () -> EnhancedChatConfig.inputAnimationEasing,
+                            value -> EnhancedChatConfig.inputAnimationEasing = value,
+                            Arrays.asList("linear", "sine", "quad", "cubic", "back"),
+                            value -> value).size(260, 24));
+            NfrOptionsGrid theme = c.grid()
                     .add(c.toggleText(() -> tr("enabled"), () -> tr("enabled.tooltip"),
                             () -> ChatStyleConfig.enabled, value -> ChatStyleConfig.enabled = value))
                     .add(c.dropdownText("chat_style_border_width", () -> tr("border_width"),
                             () -> Integer.toString(ChatStyleConfig.borderWidth),
                             value -> ChatStyleConfig.borderWidth = Integer.parseInt(value),
-                            Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8"), value -> value).size(260, 24))
+                            Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8"),
+                            value -> value).size(260, 24))
                     .add(c.dropdownText("chat_style_opacity", () -> tr("opacity"),
                             () -> Integer.toString(ChatStyleConfig.opacityPercent),
                             value -> ChatStyleConfig.opacityPercent = Integer.parseInt(value),
@@ -47,10 +102,14 @@ final class ChatStyleSettingsPage implements NfrSettingsPage {
                     .add(color(c, "chat_style_hovered", "hovered_tab", () -> ChatStyleConfig.hoveredTab, value -> ChatStyleConfig.hoveredTab = value))
                     .add(color(c, "chat_style_scrollbar", "scrollbar", () -> ChatStyleConfig.scrollbar, value -> ChatStyleConfig.scrollbar = value))
                     .add(color(c, "chat_style_text", "text", () -> ChatStyleConfig.text, value -> ChatStyleConfig.text = value));
-            return new PageView(grid);
+            return new PageView(messageElements, animations, theme);
         }
 
-        @Override public void apply() { ChatStyleConfig.save(); }
+        @Override public void apply() {
+            EnhancedChatConfig.save();
+            ChatStyleConfig.save();
+        }
+
         @Override public void cancel() { original.restore(); }
 
         private static IWidget color(NfrSettingsControls c, String id, String key,
@@ -61,6 +120,17 @@ final class ChatStyleSettingsPage implements NfrSettingsPage {
     }
 
     private static final class Snapshot {
+        private final boolean playerHeads = EnhancedChatConfig.playerHeads;
+        private final boolean headShadow = EnhancedChatConfig.headShadow;
+        private final boolean itemIcons = EnhancedChatConfig.itemIcons;
+        private final boolean animateMessages = EnhancedChatConfig.animateMessages;
+        private final int messageDuration = EnhancedChatConfig.messageAnimationDuration;
+        private final float messageDistance = EnhancedChatConfig.messageAnimationDistance;
+        private final String messageEasing = EnhancedChatConfig.messageAnimationEasing;
+        private final boolean animateInput = EnhancedChatConfig.animateInput;
+        private final int inputDuration = EnhancedChatConfig.inputAnimationDuration;
+        private final float inputDistance = EnhancedChatConfig.inputAnimationDistance;
+        private final String inputEasing = EnhancedChatConfig.inputAnimationEasing;
         private final boolean enabled = ChatStyleConfig.enabled;
         private final int[] colors = {ChatStyleConfig.background, ChatStyleConfig.border, ChatStyleConfig.inputBackground,
                 ChatStyleConfig.trayBackground, ChatStyleConfig.tabBackground, ChatStyleConfig.activeTab,
@@ -70,6 +140,17 @@ final class ChatStyleSettingsPage implements NfrSettingsPage {
         private final int opacity = ChatStyleConfig.opacityPercent;
 
         private void restore() {
+            EnhancedChatConfig.playerHeads = playerHeads;
+            EnhancedChatConfig.headShadow = headShadow;
+            EnhancedChatConfig.itemIcons = itemIcons;
+            EnhancedChatConfig.animateMessages = animateMessages;
+            EnhancedChatConfig.messageAnimationDuration = messageDuration;
+            EnhancedChatConfig.messageAnimationDistance = messageDistance;
+            EnhancedChatConfig.messageAnimationEasing = messageEasing;
+            EnhancedChatConfig.animateInput = animateInput;
+            EnhancedChatConfig.inputAnimationDuration = inputDuration;
+            EnhancedChatConfig.inputAnimationDistance = inputDistance;
+            EnhancedChatConfig.inputAnimationEasing = inputEasing;
             ChatStyleConfig.enabled = enabled;
             ChatStyleConfig.background = colors[0]; ChatStyleConfig.border = colors[1];
             ChatStyleConfig.inputBackground = colors[2]; ChatStyleConfig.trayBackground = colors[3];
@@ -81,8 +162,23 @@ final class ChatStyleSettingsPage implements NfrSettingsPage {
         }
     }
 
-    private static String tr(String key) { return AddonI18n.tr("neofontrender_ui_enhancements.gui.chat_style." + key); }
+    private static String tr(String key) {
+        return AddonI18n.tr("neofontrender_ui_enhancements.gui.chat_style." + key);
+    }
+
+    private static String chatTr(String key) {
+        return AddonI18n.tr("neofontrender_ui_enhancements.gui.chat." + key);
+    }
+
+    private static String chatTooltip(String key) {
+        return AddonI18n.tr("neofontrender_ui_enhancements.tooltip.chat." + key);
+    }
+
     private static final class PageView extends NfrContentView<PageView> {
-        private PageView(NfrOptionsGrid grid) { super(section(grid, grid::preferredHeight)); }
+        private PageView(NfrOptionsGrid messageElements, NfrOptionsGrid animations, NfrOptionsGrid theme) {
+            super(section(messageElements, messageElements::preferredHeight),
+                    section(animations, animations::preferredHeight),
+                    section(theme, theme::preferredHeight));
+        }
     }
 }

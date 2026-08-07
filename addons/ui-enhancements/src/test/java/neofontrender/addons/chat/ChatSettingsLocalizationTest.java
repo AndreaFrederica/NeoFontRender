@@ -10,14 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ChatSettingsLocalizationTest {
     @Test
-    void easingValuesMapToStableTranslationKeysWithoutChangingStoredValues() {
-        for (String value : Arrays.asList("linear", "sine", "quad", "cubic", "back")) {
-            assertEquals("neofontrender_ui_enhancements.gui.chat.easing." + value,
-                    EnhancedChatSettingsPage.easingKey(value));
-        }
-    }
-
-    @Test
     void visibilityEnumsMapToLowercaseTranslationKeysWithoutChangingEnumNames() {
         for (ChatVisibility visibility : ChatVisibility.values()) {
             assertEquals("neofontrender_ui_enhancements.gui.tabby.visibility."

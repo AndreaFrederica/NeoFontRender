@@ -21,6 +21,7 @@ public abstract class MixinGuiSlotSmoothScroll {
     @Shadow private float initialClickY;
     @Shadow public abstract int func_148135_f();
     @Unique private final SmoothScrollController nfrUi$scroller = new SmoothScrollController();
+    @Unique private Boolean nfrUi$continuousInterpolation;
 
     @Inject(method = "drawScreen", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/gui/GuiSlot;bindAmountScrolled()V"), require = 1)
@@ -36,7 +37,7 @@ public abstract class MixinGuiSlotSmoothScroll {
             nfrUi$scroller.sync(amountScrolled);
             return;
         }
-        amountScrolled = (Object) this instanceof LanguageListSearchAccess
+        amountScrolled = nfrUi$usesContinuousInterpolation()
                 ? nfrUi$scroller.updateContinuous(amountScrolled, func_148135_f())
                 : nfrUi$scroller.update(amountScrolled, func_148135_f());
     }
@@ -74,5 +75,15 @@ public abstract class MixinGuiSlotSmoothScroll {
     @Inject(method = "drawScreen", at = @At("RETURN"))
     private void nfrUi$syncDrag(int mouseX, int mouseY, float partialTicks, CallbackInfo callback) {
         if (Mouse.isButtonDown(0) && initialClickY >= 0.0F) nfrUi$scroller.sync(amountScrolled);
+    }
+
+    @Unique
+    private boolean nfrUi$usesContinuousInterpolation() {
+        if (nfrUi$continuousInterpolation == null) {
+            String className = getClass().getName();
+            nfrUi$continuousInterpolation = (Object) this instanceof LanguageListSearchAccess
+                    || className.startsWith("com.cleanroommc.client.modlist.");
+        }
+        return nfrUi$continuousInterpolation;
     }
 }

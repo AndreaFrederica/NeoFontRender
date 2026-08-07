@@ -1,12 +1,19 @@
 package neofontrender.addons.vendor.tabbychat.gui;
 
 import com.google.common.eventbus.Subscribe;
+import neofontrender.addons.api.inline.InlineGlyphHit;
+import neofontrender.addons.api.inline.InlineTextEngine;
+import neofontrender.addons.api.inline.InlineTextLayout;
+import neofontrender.addons.api.inline.InlineTextWrapping;
 import neofontrender.addons.chat.ChatAnimationController;
 import neofontrender.addons.chat.ChatContextMenu;
+import neofontrender.addons.chat.ChatHudWindowController;
+import neofontrender.addons.chat.ChatStyleConfig;
+import neofontrender.addons.chat.ChatStyleRenderer;
+import neofontrender.addons.chat.EnhancedChatFeatures;
 import neofontrender.addons.vendor.tabbychat.ChatManager;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import neofontrender.addons.vendor.tabbychat.api.gui.ChatInput;
-import neofontrender.addons.vendor.tabbychat.core.GuiNewChatTC;
 import neofontrender.addons.vendor.tabbychat.extra.spell.Spellcheck;
 import neofontrender.addons.vendor.tabbychat.extra.spell.SpellingFormatter;
 import neofontrender.addons.vendor.tabbychat.foundation.Color;
@@ -14,15 +21,17 @@ import neofontrender.addons.vendor.tabbychat.foundation.ILocation;
 import neofontrender.addons.vendor.tabbychat.foundation.TexturedModal;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.GuiComponent;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.GuiText;
+import neofontrender.addons.vendor.tabbychat.foundation.gui.events.GuiKeyboardEvent;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.events.GuiMouseEvent;
 import neofontrender.addons.vendor.tabbychat.foundation.gui.events.GuiMouseEvent.MouseEvent;
+import neofontrender.addons.vendor.tabbychat.foundation.render.GlState;
 import neofontrender.addons.vendor.tabbychat.foundation.text.FancyFontRenderer;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiTextField;
-import neofontrender.addons.vendor.tabbychat.foundation.render.GlState;
 import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.util.IChatComponent;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.IChatComponent;
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.Dimension;
@@ -34,9 +43,10 @@ import javax.annotation.Nonnull;
 public class TextBox extends GuiComponent implements ChatInput {
 
     private static final TexturedModal MODAL = new TexturedModal(ChatBox.GUI_LOCATION, 0, 219, 254, 37);
+    private static final int BLOCK_LEFT = 3;
+    private static final int BLOCK_PADDING = 4;
 
     private FontRenderer fr = mc.fontRenderer;
-    // Dummy textField
     private GuiText textField = new GuiText(new GuiTextField(fr, 0, 0, 0, 0) {
         @Override
         public void drawTextBox() {
@@ -56,7 +66,6 @@ public class TextBox extends GuiComponent implements ChatInput {
 
     @Override
     public void onClosed() {
-        this.textField.setValue("");
         super.onClosed();
     }
 
@@ -69,38 +78,34 @@ public class TextBox extends GuiComponent implements ChatInput {
             GlState.translate(0.0F, inputOffset, 0.0F);
         }
         GlState.enableBlend();
-        drawModalCorners(MODAL);
+        if (ChatStyleConfig.enabled) {
+            ChatStyleRenderer.panel(getBounds().width, getBounds().height,
+                    ChatStyleConfig.inputBackground, ChatStyleConfig.border, mc.gameSettings.chatOpacity);
+        } else {
+            drawModalCorners(MODAL);
+        }
         GlState.disableBlend();
 
+        drawPrivateCommandBlock(mouseX, mouseY);
         drawText();
         drawCursor();
+        drawGlyphHover(mouseX, mouseY);
+
         if (translated) GlState.popMatrix();
     }
 
     private void drawCursor() {
         GuiTextField textField = this.textField.getTextField();
-
-        // keeps track of all the characters. Used to compensate for spaces
         int totalPos = 0;
-
-        // The current pixel row. adds FONT_HEIGHT each iteration
         int line = 0;
-
-        // The position of the cursor
         int pos = textField.getCursorPosition();
-        // the position of the selection
         int sel = textField.getSelectionEnd();
-
-        // make the position and selection in order
         int start = Math.min(pos, sel);
         int end = Math.max(pos, sel);
 
         for (String text : getWrappedLines()) {
-
-            // cursor drawing
             if (pos >= 0 && pos <= text.length()) {
-                // cursor is on this line
-                int c = fr.getStringWidth(text.substring(0, pos));
+                int c = InlineTextEngine.width(fr, text.substring(0, pos)) + inputInset();
                 boolean cursorBlink = this.cursorCounter / 6 % 3 != 0;
                 if (cursorBlink) {
                     if (textField.getCursorPosition() < this.textField.getValue().length()) {
@@ -108,60 +113,44 @@ public class TextBox extends GuiComponent implements ChatInput {
                     } else {
                         fr.drawString("_", c + 2, line + 1, getPrimaryColorProperty().getHex());
                     }
-
                 }
             }
 
-            // selection highlighting
-
-            // the start of the highlight.
             int x = -1;
-            // the end of the highlight.
             int w = -1;
-
-            // test the start
             if (start >= 0 && start <= text.length()) {
-                x = fr.getStringWidth(text.substring(0, start));
+                x = InlineTextEngine.width(fr, text.substring(0, start)) + inputInset();
             }
-
-            // test the end
             if (end >= 0 && end <= text.length()) {
-                w = fr.getStringWidth(text.substring(start < 0 ? 0 : start, end)) + 2;
+                w = InlineTextEngine.width(fr, text.substring(start < 0 ? 0 : start, end)) + 2;
             }
 
             final int LINE_Y = line + fr.FONT_HEIGHT + 2;
 
             if (w != 0) {
                 if (x >= 0 && w > 0) {
-                    // start and end on same line
                     drawSelectionBox(x + 2, line, x + w, LINE_Y);
                 } else {
                     if (x >= 0) {
-                        // started on this line
-                        drawSelectionBox(x + 2, line, x + fr.getStringWidth(text.substring(start)) + 1, LINE_Y);
+                        drawSelectionBox(x + 2, line,
+                                x + InlineTextEngine.width(fr, text.substring(start)) + 1, LINE_Y);
                     }
                     if (w >= 0) {
-                        // ends on this line
-                        drawSelectionBox(2, line, w, LINE_Y);
+                        drawSelectionBox(2 + inputInset(), line, w + inputInset(), LINE_Y);
                     }
                     if (start < 0 && end > text.length()) {
-                        // full line
-                        drawSelectionBox(1, line, fr.getStringWidth(text), LINE_Y);
+                        drawSelectionBox(1 + inputInset(), line,
+                                InlineTextEngine.width(fr, text) + inputInset(), LINE_Y);
                     }
                 }
             }
 
-            // keep track of the lines
             totalPos += text.length();
             boolean space = getText().length() > totalPos && getText().charAt(totalPos) == ' ';
-
-            // prepare all the markers for the next line.
             pos -= text.length();
             start -= text.length();
             end -= text.length();
-
             if (space) {
-                // compensate for spaces
                 pos--;
                 start--;
                 end--;
@@ -169,7 +158,6 @@ public class TextBox extends GuiComponent implements ChatInput {
             }
             line = LINE_Y;
         }
-
     }
 
     private void drawText() {
@@ -177,11 +165,41 @@ public class TextBox extends GuiComponent implements ChatInput {
         int yPos = 1;
         List<IChatComponent> lines = getFormattedLines();
         for (IChatComponent line : lines) {
-            Color color = Color.WHITE;
-            ffr.drawChat(line, 3, yPos, color.getHex(), false);
+            int color = ChatStyleConfig.enabled
+                    ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity)
+                    : Color.WHITE.getHex();
+            String formatted = line.getFormattedText();
+            InlineTextLayout layout = InlineTextEngine.layout(fr, formatted);
+            if (layout.hasGlyphs()) layout.draw(fr, 3 + inputInset(), yPos, color, false);
+            else ffr.drawChat(line, 3 + inputInset(), yPos, color, false);
             yPos += fr.FONT_HEIGHT + 2;
         }
+    }
 
+    private void drawGlyphHover(int mouseX, int mouseY) {
+        if (!EnhancedChatFeatures.imageGlyphHover()) return;
+        int visualY = mouseY - Math.round(ChatAnimationController.inputOffset());
+        int rowHeight = fr.FONT_HEIGHT + 2;
+        int row = visualY / rowHeight;
+        List<String> lines = getWrappedLines();
+        if (row < 0 || row >= lines.size()) return;
+        int textX = 3 + inputInset();
+        InlineTextLayout layout = InlineTextEngine.layout(fr, lines.get(row));
+        InlineGlyphHit hit = layout.glyphAt(mouseX - textX);
+        if (hit == null) return;
+
+        final int preview = 56;
+        String description = fr.trimStringToWidth(hit.match().glyph().description(), 180);
+        int panelWidth = Math.max(preview + 10, fr.getStringWidth(description) + 10);
+        int panelHeight = preview + fr.FONT_HEIGHT + 13;
+        int x = Math.max(2, Math.min(mouseX + 12, getBounds().width - panelWidth - 2));
+        int y = -panelHeight - 5;
+        drawRect(x, y, x + panelWidth, y + panelHeight, 0xF0181D24);
+        drawRect(x + 1, y + 1, x + panelWidth - 1, y + panelHeight - 1, 0xF02B3440);
+        hit.match().glyph().drawPreview(x + (panelWidth - preview) / 2,
+                y + 5, preview, 0xFFFFFFFF);
+        fr.drawStringWithShadow(description, x + 5, y + preview + 8, 0xFFF2F5F7);
+        GlState.color(1, 1, 1, 1);
     }
 
     /**
@@ -193,13 +211,11 @@ public class TextBox extends GuiComponent implements ChatInput {
             x1 = x2;
             x2 = i;
         }
-
         if (y1 < y2) {
             int j = y1;
             y1 = y2;
             y2 = j;
         }
-
         x2 = Math.min(x2, this.getLocation().getXWidth());
         x1 = Math.min(x1, this.getLocation().getXWidth());
 
@@ -218,7 +234,6 @@ public class TextBox extends GuiComponent implements ChatInput {
         GlState.enableTexture2D();
     }
 
-
     @Override
     public void updateComponent() {
         this.cursorCounter++;
@@ -226,7 +241,8 @@ public class TextBox extends GuiComponent implements ChatInput {
 
     @Override
     public List<String> getWrappedLines() {
-        return fr.listFormattedStringToWidth(textField.getValue(), getBounds().width);
+        return InlineTextWrapping.wrap(fr, textField.getValue(),
+                Math.max(8, getBounds().width - inputInset()));
     }
 
     private List<IChatComponent> getFormattedLines() {
@@ -265,6 +281,10 @@ public class TextBox extends GuiComponent implements ChatInput {
     @Subscribe
     public void onMouseClick(GuiMouseEvent event) {
         if (event.getType() == MouseEvent.CLICK && event.getButton() == 0) {
+            if (inputInset() > 0 && event.getMouseX() < inputInset()) {
+                textField.getTextField().setCursorPositionZero();
+                return;
+            }
             setMousePosition(event.getMouseX(), event.getMouseY(), false);
         } else if (event.getType() == MouseEvent.DRAG && event.getButton() == 0) {
             setMousePosition(event.getMouseX(), event.getMouseY(), true);
@@ -274,6 +294,15 @@ public class TextBox extends GuiComponent implements ChatInput {
             ChatContextMenu.INSTANCE.openInput(textField.getTextField(),
                     actual.getXPos() + Math.round(event.getMouseX() * scale),
                     actual.getYPos() + Math.round(event.getMouseY() * scale));
+        }
+    }
+
+    @Subscribe
+    public void removePrivateCommandBlock(GuiKeyboardEvent event) {
+        GuiTextField field = textField.getTextField();
+        if (event.getKey() == Keyboard.KEY_BACK && Keyboard.isKeyDown(event.getKey())
+                && field.getCursorPosition() == 0 && field.getSelectionEnd() == 0) {
+            manager().removeActivePrivateCommandBlock();
         }
     }
 
@@ -288,10 +317,10 @@ public class TextBox extends GuiComponent implements ChatInput {
         int index = 0;
         for (int i = 0; i < row; i++) {
             index += lines.get(i).length();
-            // listFormattedStringToWidth trims the wrapping space from the visual line.
             if (index < getText().length() && getText().charAt(index) == ' ') index++;
         }
-        index += fr.trimStringToWidth(lines.get(row), Math.max(0, x - 3)).length();
+        index += InlineTextEngine.layout(fr, lines.get(row)).sourceIndexAt(fr,
+                Math.max(0, x - 3 - inputInset()));
         index = Math.max(0, Math.min(index, getText().length()));
         if (extendSelection) textField.getTextField().setSelectionPos(index);
         else textField.getTextField().setCursorPosition(index);
@@ -304,6 +333,38 @@ public class TextBox extends GuiComponent implements ChatInput {
 
     @Override
     public boolean isVisible() {
-        return super.isVisible() && GuiNewChatTC.getInstance().getChatOpen();
+        return super.isVisible() && ChatHudWindowController.isChatExpanded();
+    }
+
+    private ChatManager manager() {
+        return (ChatManager) TabbyChat.getInstance().getChat();
+    }
+
+    private int inputInset() {
+        String prefix = manager().getActivePrivateCommandPrefix();
+        return prefix.isEmpty() ? 0 : commandBlockWidth() + BLOCK_LEFT + 4;
+    }
+
+    private int commandBlockWidth() {
+        String prefix = manager().getActivePrivateCommandPrefix();
+        return prefix.isEmpty() ? 0 : BLOCK_PADDING + fr.getStringWidth(prefix)
+                + BLOCK_PADDING;
+    }
+
+    private void drawPrivateCommandBlock(int mouseX, int mouseY) {
+        String prefix = manager().getActivePrivateCommandPrefix();
+        if (prefix.isEmpty()) return;
+        int width = commandBlockWidth();
+        int right = BLOCK_LEFT + width;
+        int bottom = Math.min(getBounds().height - 1, fr.FONT_HEIGHT + 4);
+        int alpha = Math.max(48, Math.min(255,
+                Math.round(238.0F * mc.gameSettings.chatOpacity)));
+        int border = alpha << 24 | 0x8295A8;
+        int fill = alpha << 24 | 0x303A45;
+        drawRect(BLOCK_LEFT, 1, right, bottom, border);
+        drawRect(BLOCK_LEFT + 1, 2, right - 1, bottom - 1, fill);
+        int textColor = alpha << 24 | 0xF2F5F7;
+        int textY = Math.max(1, (bottom - fr.FONT_HEIGHT) / 2);
+        fr.drawString(prefix, BLOCK_LEFT + BLOCK_PADDING, textY, textColor, false);
     }
 }

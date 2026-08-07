@@ -36,7 +36,7 @@ final class TabbedChatSettingsPage implements NfrSettingsPage {
         private final boolean logChat = general.logChat.get();
         private final boolean splitLog = general.splitLog.get();
         private final boolean timestamps = general.timestampChat.get();
-        private final TimeStamps timestampStyle = general.timestampStyle.get();
+        private final TimeStamps timestampChatStyle = general.timestampStyle.get();
         private final boolean antiSpam = general.antiSpam.get();
         private final double antiSpamPrejudice = general.antiSpamPrejudice.get();
         private final boolean unreadFlashing = general.unreadFlashing.get();
@@ -94,7 +94,7 @@ final class TabbedChatSettingsPage implements NfrSettingsPage {
             general.logChat.set(logChat);
             general.splitLog.set(splitLog);
             general.timestampChat.set(timestamps);
-            general.timestampStyle.set(timestampStyle);
+            general.timestampStyle.set(timestampChatStyle);
             general.antiSpam.set(antiSpam);
             general.antiSpamPrejudice.set(antiSpamPrejudice);
             general.unreadFlashing.set(unreadFlashing);

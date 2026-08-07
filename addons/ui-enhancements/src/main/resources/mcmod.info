@@ -6,9 +6,42 @@
     "version": "${version}",
     "mcversion": "1.7.10",
     "url": "https://github.com/AndreaFrederica/NeoFontRender",
-    "authorList": ["AndreaFrederica", "baka-gourd"],
+    "authorList": ["AndreaFrederica", "baka-gourd", "DHJComical"],
     "logoFile": "assets/neofontrender_ui_enhancements/logo.png",
+    "modProperties": {"issueTrackerUrl": "${issueTracker}"},
     "clientSideOnly": true,
-    "requiredMods": ["neofontrender"]
+    "requiredMods": ["neofontrender"],
+    "dependencies": ["neofontrender", "modularui2", "NotEnoughItems"],
+    "useDependencyInformation": true
+  },
+  {
+    "modid": "tabbychat2",
+    "name": "TabbyChat 2 Reforged (UIE Embedded)",
+    "version": "2.0.0-uie",
+    "mcversion": "1.7.10",
+    "description": "Organises chat messages into separate channel columns with filters and manageable history. Bundled from TabbyChat 2 Reforged.",
+    "authorList": ["MNM", "UIE"],
+    "credits": "Embedded by NFR UI Enhancements; original TabbyChat 2 Reforged sources are Apache-2.0.",
+    "logoFile": "assets/neofontrender_ui_enhancements/logo.png",
+    "modProperties": {"issueTrackerUrl": "${issueTracker}"},
+    "clientSideOnly": true,
+    "requiredMods": ["neofontrender_ui_enhancements"],
+    "dependencies": ["neofontrender_ui_enhancements"],
+    "useDependencyInformation": true
+  },
+  {
+    "modid": "salutation",
+    "name": "Salutation (UIE Embedded)",
+    "version": "1.0.0-uie",
+    "mcversion": "1.7.10",
+    "description": "Chunk Pregenerators backport of the Command System made open source. Bundled from Salutation 1.12.2.",
+    "authorList": ["Speiger", "UIE"],
+    "credits": "Embedded by NFR UI Enhancements; original Salutation sources are Apache-2.0.",
+    "logoFile": "assets/salutation/logo.png",
+    "modProperties": {"issueTrackerUrl": "${issueTracker}"},
+    "clientSideOnly": true,
+    "requiredMods": ["neofontrender_ui_enhancements"],
+    "dependencies": ["neofontrender_ui_enhancements"],
+    "useDependencyInformation": true
   }
 ]

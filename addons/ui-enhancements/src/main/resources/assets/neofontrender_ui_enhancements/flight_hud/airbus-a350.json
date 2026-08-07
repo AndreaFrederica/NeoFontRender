@@ -1,0 +1,29 @@
+{
+  "schema": 3,
+  "id": "airbus-a350",
+  "name": "Airbus A350 Dual HUD",
+  "style": "AIRBUS_A350",
+  "canvasWidth": 600,
+  "canvasHeight": 340,
+  "crosshairMode": "HIDE_VANILLA",
+  "lineWidth": 0.9,
+  "textScale": 0.73,
+  "colors": {
+    "primary": "#FF8EFFAE", "secondary": "#B875E193",
+    "horizon": "#E895FFB2", "flightPath": "#FF8CFFAE",
+    "energy": "#FFB4FF96", "reference": "#E895FFB2",
+    "selected": "#FFFF62D6", "warning": "#FFFF5068", "halo": "#D0001508"
+  },
+  "stall": {"enabled": true, "referencePitch": -15, "margin": 1.15, "label": "VLS"},
+  "elements": [
+    {"id":"status","type":"STATUS","x":145,"y":25,"width":310,"scale":0.78,"variant":"AIRBUS_A350"},
+    {"id":"heading","type":"HEADING_RIBBON","x":300,"y":52,"width":365,"range":60,"majorStep":10,"minorStep":5,"scale":0.75},
+    {"id":"flight-reference","type":"FLIGHT_REFERENCE","x":300,"y":181,"width":285,"scale":0.75,"pitchPixelsPerDegree":2.25,"driftPixelsPerDegree":2.15,"pitchRange":20,"pitchStep":5,"variant":"AIRBUS_A350"},
+    {"id":"airspeed","type":"AIRSPEED_TAPE","x":104,"y":119,"height":126,"range":100,"majorStep":20,"minorStep":10,"boxWidth":44,"trendSeconds":5,"scale":0.72,"variant":"AIRBUS_A350_SPEED_DRUM"},
+    {"id":"altitude","type":"ALTITUDE_TAPE","x":496,"y":119,"height":126,"range":600,"majorStep":100,"minorStep":20,"boxWidth":48,"trendSeconds":5,"scale":0.72,"variant":"AIRBUS_A350_ALTITUDE_DRUM"},
+    {"id":"vertical-speed","type":"VERTICAL_SPEED","x":514,"y":182,"height":88,"range":2000,"scale":0.66,"variant":"AIRBUS_A350"},
+    {"id":"ground-speed","type":"GROUND_SPEED","x":88,"y":282,"scale":0.66,"label":"GS"},
+    {"id":"datum","type":"DATUM","x":463,"y":282,"scale":0.66,"label":"ALT"},
+    {"id":"input-stick","type":"INPUT_STICK","x":300,"y":309,"radius":7,"scale":0.65}
+  ]
+}

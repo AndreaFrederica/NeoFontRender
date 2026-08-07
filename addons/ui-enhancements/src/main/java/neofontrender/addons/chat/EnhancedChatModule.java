@@ -14,6 +14,7 @@ public final class EnhancedChatModule implements UiEnhancementModule {
     public void preInit() {
         EnhancedChatConfig.load();
         ChatStyleConfig.load();
+        EmojiAndImageConfig.load();
         ChatHistoryManager.INSTANCE.initialize();
     }
 
@@ -27,10 +28,20 @@ public final class EnhancedChatModule implements UiEnhancementModule {
             TabbyChat.start(new MinecraftTabbyChatHost(Minecraft.getMinecraft()));
         }
         NfrSettingsPageRegistry.register(new EnhancedChatSettingsPage());
+        NfrSettingsPageRegistry.register(new ChatRulesSettingsPage());
+        NfrSettingsPageRegistry.register(new EmojiAndImageSettingsPage());
         if (!ExternalChatCompat.tabbyChatLoaded()) NfrSettingsPageRegistry.register(new TabbedChatSettingsPage());
         if (!ExternalChatCompat.tabbyChatLoaded()) NfrSettingsPageRegistry.register(new ChatStyleSettingsPage());
         FMLCommonHandler.instance().bus().register(ChatHistoryManager.INSTANCE);
+        FMLCommonHandler.instance().bus().register(ChatMessageProcessor.INSTANCE);
+        FMLCommonHandler.instance().bus().register(ChatHudWindowController.INSTANCE);
         MinecraftForge.EVENT_BUS.register(ChatCopyController.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(ChatMessageProcessor.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(ChatSearchController.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(EmojiCompletionController.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(MentionCompletionController.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(ChatCommandCompletionController.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(ChatHudWindowController.INSTANCE);
         ChatKeyBindings.register();
     }
 }

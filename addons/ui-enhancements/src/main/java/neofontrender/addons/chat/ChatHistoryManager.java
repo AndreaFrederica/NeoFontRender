@@ -10,6 +10,8 @@ import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.IChatComponent;
 import neofontrender.addons.ui.NfrUiEnhancements;
 
+import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -25,6 +27,7 @@ public enum ChatHistoryManager {
 
     private final Map<String, ChatHistoryBuffer> histories = new LinkedHashMap<>();
     private ChatHistoryStorage storage;
+    private ChatHistoryStore store;
     private String activeScope;
     private ChatHistoryBuffer activeHistory;
     private boolean restoring;
@@ -38,6 +41,15 @@ public enum ChatHistoryManager {
                 Minecraft.getMinecraft().mcDataDir.toPath()
                         .resolve("config")
                         .resolve("neofontrender-ui-chat-history.json"));
+        try {
+            Path database = Minecraft.getMinecraft().mcDataDir.toPath()
+                    .resolve("config")
+                    .resolve("neofontrender-ui-chat-history");
+            store = new ChatHistoryStore(database);
+        } catch (SQLException exception) {
+            NfrUiEnhancements.LOGGER.error("Could not open chat history store", exception);
+            store = null;
+        }
         histories.clear();
         for (Map.Entry<String, ChatHistoryData> entry : storage.load().entrySet()) {
             ChatHistoryBuffer buffer = new ChatHistoryBuffer();
@@ -62,8 +74,9 @@ public enum ChatHistoryManager {
     }
 
     public void recordSent(String message) {
-        if (restoring || !persistenceEnabled() || !EnhancedChatConfig.persistSent
-                || message == null || !ensureActiveScope()) return;
+        if (restoring || message == null) return;
+        ChatMessageProcessor.recordOutgoing(message);
+        if (!persistenceEnabled() || !EnhancedChatConfig.persistSent || !ensureActiveScope()) return;
         activeHistory.recordSent(message, EnhancedChatConfig.maxMessages);
         dirty = true;
     }
@@ -86,6 +99,10 @@ public enum ChatHistoryManager {
 
     public void scheduleRestore() {
         pendingRestore = persistenceEnabled() && ensureActiveScope();
+    }
+
+    public ChatHistoryStore store() {
+        return store;
     }
 
     @SubscribeEvent

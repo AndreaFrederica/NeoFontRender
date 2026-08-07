@@ -1,5 +1,9 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+
 plugins {
     id 'java-library'
+    id 'org.jetbrains.kotlin.jvm'
 }
 
 group = 'neofontrender.addons'
@@ -26,7 +30,10 @@ repositories {
 sourceSets {
     main {
         java.srcDir 'vendor/tabbychat-private/src/main/java'
+        java.srcDir '../ui-enhancements-common/src/main/java'
+        java.srcDir 'vendor/salutation-upstream/src/main/java'
         resources.srcDir 'vendor/tabbychat-private/src/main/resources'
+        resources.srcDir 'vendor/salutation-upstream/src/main/resources'
     }
 }
 
@@ -48,6 +55,9 @@ dependencies {
     compileOnly('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
 
     contain 'net.sf.jazzy:jazzy:0.5.2-rtext-1.4.1-2'
+    contain 'com.h2database:h2:2.3.232'
+    contain('com.huaban:jieba-analysis:1.0.2') { transitive = false }
+    contain project(path: ':addons:ui-enhancements:tiqian-jvm', configuration: 'jvmRuntimeElements')
 
     annotationProcessor files(provider {
         rootProject.configurations.compileClasspath.findAll { it.name.startsWith('unimixins-') }
@@ -79,6 +89,22 @@ tasks.withType(JavaCompile).configureEach {
     targetCompatibility = JavaVersion.VERSION_25
 }
 
+tasks.withType(KotlinCompilationTask).configureEach {
+    compilerOptions.jvmTarget = JvmTarget.JVM_25
+}
+
+kotlin {
+    target {
+        compilations {
+            main {
+                compileDependencyFiles = rootProject.sourceSets.patchedMc.output +
+                        rootProject.tasks.named('compileJava').get().classpath +
+                        compileDependencyFiles
+            }
+        }
+    }
+}
+
 def reobfuscatedJarType = rootProject.ext.reobfuscatedJarType
 def rootReobfJar = rootProject.tasks.named('reobfJar', reobfuscatedJarType)
 def mixinSrg = layout.buildDirectory.file('tmp/mixins/mixins.srg')
@@ -94,12 +120,14 @@ tasks.named('compileJava', JavaCompile) {
 }
 
 def resourceVersion = project.version.toString()
+def issueTracker = rootProject.mod_issue_tracker
 processResources {
     exclude 'mixin.tabbychat2.json'
     exclude 'litemod.json'
     inputs.property('version', resourceVersion)
+    inputs.property('issueTracker', issueTracker)
     filesMatching('mcmod.info') {
-        expand(version: resourceVersion)
+        expand(version: resourceVersion, issueTracker: issueTracker)
     }
     from(rootProject.file('src/main/resources/META-INF/LICENSE-Arc3D.txt')) {
         into 'META-INF'
@@ -108,6 +136,33 @@ processResources {
     from('vendor/tabbychat-private/LICENSE-APACHE-2.0.txt') {
         into 'META-INF'
         rename { 'LICENSE-TabbyChat-2-Reforged.txt' }
+    }
+    from('vendor/salutation-upstream/LICENSE') {
+        into 'META-INF'
+        rename { 'LICENSE-Salutation.txt' }
+    }
+    from('vendor/tiqian/LICENSE') {
+        into 'META-INF'
+        rename { 'LICENSE-Tiqian.txt' }
+    }
+    from('TIQIAN-NOTICE.md') {
+        into 'META-INF'
+        rename { 'NOTICE-Tiqian.md' }
+    }
+    from('LICENSE-Gosling-Emojicord') {
+        into 'META-INF'
+        rename { 'LICENSE-Gosling-Emojicord.txt' }
+    }
+    from('src/main/resources/META-INF/licenses/Jieba-Analysis.txt') {
+        into 'META-INF'
+        rename { 'LICENSE-Jieba-Analysis.txt' }
+    }
+    from('vendor/salutation-upstream/CFImage.png') {
+        into ''
+    }
+    from('vendor/salutation-upstream/CFImage.png') {
+        into 'assets/salutation'
+        rename { 'logo.png' }
     }
 }
 
