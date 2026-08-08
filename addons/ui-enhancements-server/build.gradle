@@ -84,6 +84,10 @@ test {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
 }
 
+tasks.named('genSources') {
+    enabled = false
+}
+
 // Unimined wires Minecraft and Forge to main after source-set creation.
 sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
 sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath

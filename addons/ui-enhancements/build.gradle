@@ -184,6 +184,10 @@ tasks.register('stageUiEnhancementsRelease', Sync) {
     into rootProject.layout.buildDirectory.dir('release/uie')
 }
 
+tasks.named('genSources') {
+    enabled = false
+}
+
 jar {
     from('NOTICE.md') {
         into 'META-INF'
