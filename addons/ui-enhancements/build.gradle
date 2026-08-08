@@ -65,6 +65,7 @@ dependencies {
     // Chinese segmentation and dictionary used by TabbyChat spell checking.
     // Cleanroom already supplies a compatible commons-lang3, so avoid embedding 3.3.1.
     contain('com.huaban:jieba-analysis:1.0.2') { transitive = false }
+    annotationProcessor 'com.cleanroommc:sponge-mixin:0.20.13+mixin.0.8.7'
     // Embedded SQL database backing the chat-history persistence layer.
     contain 'com.h2database:h2:2.3.232'
 
@@ -81,6 +82,22 @@ dependencies {
     testImplementation('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
     testImplementation 'org.lwjgl:lwjgl:3.4.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+def mixinRefMap = layout.buildDirectory.file('tmp/mixins/mixins.neofontrender_ui_enhancements-refmap.json')
+def mixinSrg = layout.buildDirectory.file('tmp/mixins/mixins.srg')
+def gradleUserHome = providers.environmentVariable('GRADLE_USER_HOME')
+        .getOrElse(System.getProperty('user.home') + '/.gradle')
+def mcpSrg = file("${gradleUserHome}/caches/minecraft/de/oceanlabs/mcp/mcp_stable/39/rfg_srgs/mcp-srg.srg")
+
+tasks.named('compileJava', JavaCompile).configure {
+    def mcpSrgFile = mcpSrg.absoluteFile
+    inputs.file(mcpSrgFile)
+    outputs.files(mixinSrg, mixinRefMap)
+    options.compilerArgs.addAll(
+            "-AreobfSrgFile=${mcpSrgFile.absolutePath}",
+            "-AoutSrgFile=${mixinSrg.get().asFile.absolutePath}",
+            "-AoutRefMapFile=${mixinRefMap.get().asFile.absolutePath}")
 }
 
 processResources {
@@ -136,6 +153,7 @@ jar {
     archiveClassifier = 'dev'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(configurations.contain) { into '/' }
+    from(mixinRefMap)
     doFirst {
         def attributes = [
                 'ModType': 'CRL',
