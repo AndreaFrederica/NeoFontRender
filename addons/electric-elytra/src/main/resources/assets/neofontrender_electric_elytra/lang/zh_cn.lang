@@ -1,0 +1,33 @@
+item.neofontrender_electric_elytra.vanilla_electric_elytra.name=电动鞘翅
+item.neofontrender_electric_elytra.creative_vanilla_electric_elytra.name=创造型电动鞘翅
+item.neofontrender_electric_elytra.electric_elytra.name=电动飞翼
+item.neofontrender_electric_elytra.advanced_electric_elytra.name=SAS 电动飞翼
+item.neofontrender_electric_elytra.advanced_flap_electric_elytra.name=SAS 襟翼电动飞翼
+item.neofontrender_electric_elytra.creative_electric_elytra.name=创造型 SAS 襟翼电动飞翼
+key.categories.neofontrender_electric_elytra=电动鞘翅
+key.neofontrender_electric_elytra.toggle_engine=开关鞘翅引擎
+key.neofontrender_electric_elytra.increase_throttle=增加鞘翅推力
+key.neofontrender_electric_elytra.decrease_throttle=降低鞘翅推力
+key.neofontrender_electric_elytra.toggle_sas=开关 SAS 稳定辅助
+key.neofontrender_electric_elytra.flap_up=襟翼收上一级
+key.neofontrender_electric_elytra.flap_down=襟翼放下一级
+key.neofontrender_electric_elytra.edit_hud=移动电动鞘翅 HUD
+gui.neofontrender_electric_elytra.hud_editor=拖动电动鞘翅仪表面板 · 按 Esc 保存并退出
+tooltip.neofontrender_electric_elytra.energy=电量：%,d / %,d FE
+tooltip.neofontrender_electric_elytra.energy_infinite=电量：∞ FE（创造模式测试型）
+tooltip.neofontrender_electric_elytra.controls=G 引擎 · -/= 推力 · H SAS · [/] 襟翼 · J 移动 HUD · 跳跃起飞
+tooltip.neofontrender_electric_elytra.vanilla_controls=G 引擎 · -/= 推力 · 其余操作完全使用原版鞘翅控制
+tooltip.neofontrender_electric_elytra.vanilla_flight=原版鞘翅飞行模型；仅叠加沿视线方向的电动推力
+tooltip.neofontrender_electric_elytra.aerodynamic_flight=独立气动飞翼模型完全接管；不使用原版鞘翅飞行物理
+tooltip.neofontrender_electric_elytra.sas_on=SAS：稳定辅助（允许手动操纵）
+tooltip.neofontrender_electric_elytra.sas_off=SAS：关闭（按 H 接通稳定辅助）
+tooltip.neofontrender_electric_elytra.flap=襟翼：%s
+message.neofontrender_electric_elytra.engine_on=电动鞘翅引擎已启动
+message.neofontrender_electric_elytra.engine_off=电动鞘翅引擎已关闭，切换为滑翔
+message.neofontrender_electric_elytra.empty=电动鞘翅电量耗尽
+message.neofontrender_electric_elytra.throttle=鞘翅推力：%s%%
+message.neofontrender_electric_elytra.sas_on=SAS 已接通：保持稳定，手动输入可覆盖
+message.neofontrender_electric_elytra.sas_off=SAS 已断开
+message.neofontrender_electric_elytra.flap_0=襟翼：UP（收上）
+message.neofontrender_electric_elytra.flap_1=襟翼：TO（起飞）
+message.neofontrender_electric_elytra.flap_2=襟翼：LDG（着陆）

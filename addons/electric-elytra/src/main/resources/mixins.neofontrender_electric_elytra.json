@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "neofontrender.addons.electricelytra.mixin",
+  "refmap": "mixins.neofontrender_electric_elytra.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "target": "@env(DEFAULT)",
+  "mixins": [
+    "MixinEntityLivingBaseElectricFlight",
+    "MixinEntityFireworkRocketElectricBoost"
+  ],
+  "server": [],
+  "client": []
+}

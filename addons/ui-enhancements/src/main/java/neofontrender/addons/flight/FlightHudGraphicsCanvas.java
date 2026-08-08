@@ -11,6 +11,9 @@ final class FlightHudGraphicsCanvas implements FlightHudCanvas {
                                int color, float width) {
         FlightHudGraphics.line(x1, y1, x2, y2, color, width);
     }
+    @Override public void polyline(float[] points, int color, float width) {
+        FlightHudGraphics.polyline(points, color, width);
+    }
     @Override public void outline(float left, float top, float right, float bottom,
                                   int color, float width) {
         FlightHudGraphics.outline(left, top, right, bottom, color, width);

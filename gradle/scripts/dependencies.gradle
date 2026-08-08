@@ -15,7 +15,9 @@ dependencies {
     relocate 'com.electronwill.night-config:core:3.8.3'
     relocate 'com.electronwill.night-config:toml:3.8.3'
     // Shared LGPL component. Keep the upstream icyllis.arc3d packages intact and expose the
-    // integration boundary as neofontrender.api.arc3d rather than relocating its identity.
+    // complete upstream API transitively to addon developers. The contained copy remains the
+    // single runtime provider, so addons must not embed another Arc3D JAR.
+    api('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
     contain('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
     // Unimined must treat ModularUI as a mod dependency so its core plugin and
     // early Mixin configuration are available during the LaunchWrapper phase.

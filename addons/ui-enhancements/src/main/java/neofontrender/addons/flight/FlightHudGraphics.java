@@ -173,6 +173,19 @@ final class FlightHudGraphics {
         tessellator.draw();
     }
 
+    static void polyline(float[] points, int color, float width) {
+        if (points == null || points.length < 4) return;
+        GlStateManager.disableTexture2D();
+        GL11.glLineWidth(Math.max(1.0F, width));
+        Tessellator tessellator = Tessellator.getInstance();
+        BufferBuilder buffer = tessellator.getBuffer();
+        buffer.begin(GL11.GL_LINE_STRIP, DefaultVertexFormats.POSITION_COLOR);
+        for (int i = 0; i + 1 < points.length; i += 2) {
+            vertex(buffer, points[i], points[i + 1], color);
+        }
+        tessellator.draw();
+    }
+
     static void centeredText(String value, float centerX, float y, float scale,
                              int color, int shadow) {
         text(value, centerX - textWidth(value, scale) * 0.5F, y, scale, color, shadow);

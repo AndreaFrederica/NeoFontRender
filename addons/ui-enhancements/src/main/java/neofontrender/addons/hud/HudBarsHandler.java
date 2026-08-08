@@ -19,7 +19,10 @@ final class HudBarsHandler {
     private final Arc3DHudBarRenderer renderer = new Arc3DHudBarRenderer();
     private boolean loggedClassicBar;
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    // Mantle's extra-heart renderer claims HEALTH at LOW. Run before compatibility
+    // renderers so our replacement can cancel the layer before they paint over it.
+    // Higher-priority HUD owners (including the flight HUD) can still cancel first.
+    @SubscribeEvent(priority = EventPriority.NORMAL)
     public void render(RenderGameOverlayEvent.Pre event) {
         if (!HudBarsConfig.enabled || event.isCanceled()) return;
         if (HudBarsConfig.yieldToClassicBar && Loader.isModLoaded("classicbar")) {

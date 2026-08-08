@@ -8,6 +8,8 @@ package neofontrender.addons.api.flight;
  */
 public interface FlightHudCanvas {
     void line(float x1, float y1, float x2, float y2, int color, float width);
+    /** Draws x/y pairs as one continuous, host-context line strip. */
+    void polyline(float[] points, int color, float width);
     void outline(float left, float top, float right, float bottom, int color, float width);
     void fill(float left, float top, float right, float bottom, int color);
     void triangle(float tipX, float tipY, float directionX, float directionY,

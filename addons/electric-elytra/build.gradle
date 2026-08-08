@@ -1,0 +1,91 @@
+plugins {
+    id 'java'
+    id 'xyz.wagyourtail.unimined' version '1.4.26-kappa'
+}
+
+group = 'neofontrender.addons'
+version = providers.gradleProperty('electric_elytra_version').get()
+
+base { archivesName = 'neofontrender-electric-elytra' }
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.cleanroommc.com/releases' }
+    maven { url = 'https://maven.minecraftforge.net/' }
+}
+
+unimined.minecraft {
+    version '1.12.2'
+    mappings { mcp('stable', '39-1.12') }
+    cleanroom {
+        loader '0.6.1-alpha'
+        accessTransformer project.file('src/main/resources/neofontrender_electric_elytra_at.cfg')
+        runs.off = true
+    }
+    defaultRemapJar = false
+    remap(tasks.named('jar').get())
+}
+
+dependencies {
+    compileOnly project(':')
+    compileOnly project(':addons:ui-enhancements')
+    testImplementation project(':addons:ui-enhancements')
+    compileOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+processResources {
+    rename '(.+_at.cfg)', 'META-INF/$1'
+    inputs.property('version', project.version)
+    inputs.property('uieVersion', providers.gradleProperty('ui_enhancements_version').get())
+    filesMatching('mcmod.info') {
+        expand(version: project.version,
+                uieVersion: providers.gradleProperty('ui_enhancements_version').get())
+    }
+}
+
+jar {
+    archiveClassifier = 'dev'
+    from('ELECTRIC_AIRCRAFT_API.md') {
+        into 'META-INF'
+    }
+    manifest.attributes(
+            'ModType': 'CRL',
+            'FMLAT': 'neofontrender_electric_elytra_at.cfg',
+            'FMLCorePlugin': 'neofontrender.addons.electricelytra.mixin.ElectricElytraMixinLoader',
+            'FMLCorePluginContainsFMLMod': true)
+    finalizedBy tasks.named('remapJar')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
+}
+
+test {
+    useJUnitPlatform()
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+}
+
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+tasks.register('prepareCombinedClientRun', Copy) {
+    dependsOn tasks.named('jar')
+    from(tasks.named('jar').flatMap { it.archiveFile })
+    into rootProject.layout.projectDirectory.dir('run/client/mods')
+    rename { 'neofontrender-electric-elytra-dev.jar' }
+}
+
+tasks.register('stageElectricElytraRelease', Sync) {
+    group = 'distribution'
+    description = 'Stages the installable Electric Elytra submod JAR.'
+    dependsOn tasks.named('build'), tasks.named('remapJar')
+    from(layout.buildDirectory.file("libs/neofontrender-electric-elytra-${project.version}.jar"))
+    into rootProject.layout.buildDirectory.dir('release/electric-elytra')
+}

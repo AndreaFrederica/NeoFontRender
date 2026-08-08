@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "RIR",
+    "IEI",
+    "RBR"
+  ],
+  "key": {
+    "R": { "item": "minecraft:redstone_block" },
+    "I": { "item": "minecraft:iron_ingot" },
+    "E": { "item": "minecraft:elytra" },
+    "B": { "item": "minecraft:blaze_rod" }
+  },
+  "result": {
+    "item": "neofontrender_electric_elytra:vanilla_electric_elytra"
+  }
+}

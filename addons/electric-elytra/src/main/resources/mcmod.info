@@ -1,0 +1,14 @@
+[
+  {
+    "modid": "neofontrender_electric_elytra",
+    "name": "Revo Electric Elytra",
+    "version": "${version}",
+    "mcversion": "1.12.2",
+    "description": "Vanilla-control Electric Elytra and aerodynamic powered-wing tiers with Forge Energy, SAS/flaps, flight HUD/debug telemetry, and a public third-party aircraft API.",
+    "authorList": ["Revo UI contributors"],
+    "url": "https://sirrus.cc",
+    "clientSideOnly": false,
+    "requiredMods": ["neofontrender_ui_enhancements@[${uieVersion},)"],
+    "dependencies": []
+  }
+]
