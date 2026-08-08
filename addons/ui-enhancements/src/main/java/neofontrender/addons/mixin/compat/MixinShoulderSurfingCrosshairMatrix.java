@@ -13,7 +13,7 @@ import neofontrender.addons.flight.ShoulderSurfingMatrixFix;
 
 /** Leaves Shoulder Surfing's coordinate calculation intact without modifying the global HUD matrix. */
 @Pseudo
-@Mixin(targets = "com.teamderpy.shouldersurfing.client.ShoulderRenderer", remap = false)
+@Mixin(targets = "com.teamderpy.shouldersurfing.client.ShoulderRenderer")
 public abstract class MixinShoulderSurfingCrosshairMatrix {
     @Inject(method = "offsetCrosshair", at = @At("HEAD"))
     private void uie$markMatrixHookInstalled(ScaledResolution resolution, float partialTicks,
@@ -22,16 +22,13 @@ public abstract class MixinShoulderSurfingCrosshairMatrix {
     }
 
     @Redirect(method = "offsetCrosshair", at = @At(value = "INVOKE",
-            // Shoulder Surfing 2.9.6 is distributed in SRG form. This optional mixin has
-            // remap=false because its target is a third-party class, so name the invoked
-            // Minecraft method exactly as it appears in the installed 1.12.2 jar.
-            target = "Lnet/minecraft/client/renderer/GlStateManager;func_179094_E()V"))
+            target = "Lnet/minecraft/client/renderer/GlStateManager;pushMatrix()V"))
     private void uie$confineCrosshairPush() {
         if (!ShoulderSurfingFixConfig.enabled()) GlStateManager.pushMatrix();
     }
 
     @Redirect(method = "offsetCrosshair", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/GlStateManager;func_179109_b(FFF)V"))
+            target = "Lnet/minecraft/client/renderer/GlStateManager;translate(FFF)V"))
     private void uie$confineCrosshairTranslation(float x, float y, float z) {
         if (!ShoulderSurfingFixConfig.enabled()) GlStateManager.translate(x, y, z);
     }
