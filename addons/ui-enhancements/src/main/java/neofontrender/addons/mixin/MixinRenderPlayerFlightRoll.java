@@ -3,6 +3,9 @@ package neofontrender.addons.mixin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.renderer.entity.RenderPlayer;
+import neofontrender.addons.api.flight.FlightApi;
+import neofontrender.addons.api.flight.FlightBodyPose;
+import neofontrender.addons.api.flight.FlightAttitude;
 import neofontrender.addons.flight.FlightRollRenderState;
 import org.lwjgl.opengl.GL11;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,6 +29,7 @@ public abstract class MixinRenderPlayerFlightRoll {
                                              double z, float entityYaw, float partialTicks,
                                              CallbackInfo ci) {
         nfrUi$poseOverridden = false;
+        if (FlightApi.queryBodyPose(player, partialTicks) != null) return;
         if (Minecraft.getMinecraft().thePlayer != player
                 || Math.abs(FlightRollRenderState.roll(player, partialTicks)) < 0.001F) return;
         nfrUi$poseOverridden = true;
@@ -58,7 +62,24 @@ public abstract class MixinRenderPlayerFlightRoll {
     private void nfrUi$applyLongitudinalRoll(AbstractClientPlayer player,
                                              float ageInTicks, float rotationYaw,
                                              float partialTicks, CallbackInfo ci) {
+        FlightBodyPose bodyPose = FlightApi.queryBodyPose(player, partialTicks);
         float roll = FlightRollRenderState.roll(player, partialTicks);
+        if (bodyPose == null && Math.abs(roll) <= 0.001F) return;
+        if (bodyPose != null) {
+            FlightAttitude attitude = bodyPose.attitude;
+            double clampedW = Math.max(-1.0D, Math.min(1.0D, attitude.w));
+            double halfSine = Math.sqrt(Math.max(0.0D, 1.0D - clampedW * clampedW));
+            if (halfSine > 1.0E-9D) {
+                GL11.glRotatef((float) Math.toDegrees(2.0D * Math.acos(clampedW)),
+                        (float) (attitude.x / halfSine),
+                        (float) (attitude.y / halfSine),
+                        (float) (attitude.z / halfSine));
+            }
+            GL11.glRotatef(180.0F, 0.0F, 1.0F, 0.0F);
+            GL11.glRotatef(-90.0F, 1.0F, 0.0F, 0.0F);
+            ci.cancel();
+            return;
+        }
         if (Math.abs(roll) > 0.001F) GL11.glRotatef(roll, 0.0F, 0.0F, 1.0F);
     }
 

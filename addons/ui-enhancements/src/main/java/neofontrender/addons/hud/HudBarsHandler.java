@@ -25,7 +25,7 @@ public final class HudBarsHandler {
     private final Set<String> failedProviders = new HashSet<String>();
     private boolean loggedClassicBar;
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    @SubscribeEvent(priority = EventPriority.NORMAL)
     public void render(RenderGameOverlayEvent.Pre event) {
         if (!HudBarsConfig.enabled || event.isCanceled()) return;
         if (HudBarsConfig.yieldToClassicBar && Loader.isModLoaded("classicbar")) {

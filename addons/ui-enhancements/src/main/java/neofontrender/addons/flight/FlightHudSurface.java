@@ -5,8 +5,12 @@ import net.minecraft.client.gui.ScaledResolution;
 import neofontrender.addons.hud.compositor.HudSurface;
 import neofontrender.addons.api.flight.FlightApi;
 import neofontrender.addons.api.flight.FlightHudCrosshairMode;
+import neofontrender.addons.api.flight.FlightHudEditorScreen;
+import neofontrender.addons.api.flight.FlightHudAttitude;
+import neofontrender.addons.api.flight.FlightEulerAngles;
 import neofontrender.addons.api.flight.FlightHudRenderContext;
 import neofontrender.addons.api.flight.FlightHudRenderEvent;
+import neofontrender.addons.api.flight.FlightRenderPose;
 import neofontrender.addons.api.flight.FlightState;
 import neofontrender.addons.api.flight.FlightTelemetryEvent;
 import net.minecraftforge.common.MinecraftForge;
@@ -39,7 +43,9 @@ final class FlightHudSurface implements HudSurface {
     public boolean visible() {
         Minecraft mc = Minecraft.getMinecraft();
         return FlightRollConfig.flightHud && !mc.gameSettings.hideGUI
-                && mc.currentScreen == null && FlightRollController.hudVisible();
+                && (mc.currentScreen == null
+                || mc.currentScreen instanceof FlightHudEditorScreen)
+                && FlightRollController.hudVisible();
     }
 
     boolean hidesVanillaCrosshair() {
@@ -52,7 +58,25 @@ final class FlightHudSurface implements HudSurface {
         FlightHudTheme theme = FlightHudThemeManager.INSTANCE.current();
         Rectangle bounds = bounds();
         Minecraft mc = Minecraft.getMinecraft();
-        FlightHudTelemetry.Sample sample = telemetry.sample(mc.thePlayer, partialTicks, theme);
+        FlightRenderPose renderPose = FlightApi.getRenderPose(mc.thePlayer, partialTicks);
+        FlightHudAttitude attitude = renderPose == null
+                ? FlightApi.queryHudAttitude(mc.thePlayer, partialTicks) : null;
+        float pitch = FlightRollController.hudPitch();
+        float yaw = FlightRollController.hudYaw(partialTicks);
+        float roll = FlightRollController.hudRoll(partialTicks);
+        if (renderPose != null) {
+            FlightEulerAngles angles = renderPose.getCameraAngles();
+            pitch = angles.pitchDegrees;
+            yaw = angles.yawDegrees;
+            roll = angles.rollDegrees;
+        } else if (attitude != null) {
+            FlightEulerAngles angles = attitude.getAttitude().toMinecraftEuler(pitch, yaw, roll);
+            pitch = angles.pitchDegrees;
+            yaw = angles.yawDegrees;
+            roll = angles.rollDegrees;
+        }
+        FlightHudTelemetry.Sample sample = telemetry.sample(mc.thePlayer, partialTicks, theme,
+                pitch, yaw);
         FlightTelemetryEvent telemetryEvent = new FlightTelemetryEvent(
                 mc.thePlayer, partialTicks, sample.publicSnapshot());
         MinecraftForge.EVENT_BUS.post(telemetryEvent);
@@ -65,8 +89,8 @@ final class FlightHudSurface implements HudSurface {
                 theme.publicColors(),
                 FlightHudGraphicsCanvas.INSTANCE);
         if (MinecraftForge.EVENT_BUS.post(new FlightHudRenderEvent.Pre(context))) return;
-        renderer.draw(bounds, theme, sample, FlightRollController.hudRoll(partialTicks),
-                FlightRollController.hudPitch(), FlightRollController.hudInputX(),
+        renderer.draw(bounds, theme, sample, roll,
+                pitch, FlightRollController.hudInputX(),
                 FlightRollController.hudInputY(), context);
         MinecraftForge.EVENT_BUS.post(new FlightHudRenderEvent.Post(context));
     }

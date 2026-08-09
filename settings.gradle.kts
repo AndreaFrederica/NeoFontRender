@@ -33,3 +33,4 @@ plugins {
 include(":addons:ui-enhancements")
 include(":addons:ui-enhancements:tiqian-jvm")
 include(":addons:ui-enhancements-server")
+include(":addons:electric-elytra")

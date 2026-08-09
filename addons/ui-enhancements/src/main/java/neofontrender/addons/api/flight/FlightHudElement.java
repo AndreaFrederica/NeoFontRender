@@ -1,12 +1,7 @@
 package neofontrender.addons.api.flight;
 
 import com.google.gson.JsonObject;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonPrimitive;
-import java.util.Map;
+import com.google.gson.JsonParser;
 
 /** Public, renderer-neutral snapshot of one schema-3 HUD element. */
 public final class FlightHudElement {
@@ -43,7 +38,7 @@ public final class FlightHudElement {
         this.pitchRange = pitchRange; this.pitchStep = pitchStep; this.decimals = decimals;
         this.pitchMode = java.util.Objects.requireNonNull(pitchMode, "pitchMode");
         this.variant = variant; this.label = label; this.color = color;
-        this.data = copyJsonObject(data);
+        this.data = copy(data);
         this.showBankScale = showBankScale;
         this.showFlightPathVector = showFlightPathVector;
         this.showEnergyCue = showEnergyCue;
@@ -73,30 +68,14 @@ public final class FlightHudElement {
     public String getVariant() { return variant; }
     public String getLabel() { return label; }
     public String getColor() { return color; }
-    public JsonObject getData() { return copyJsonObject(data); }
+    public JsonObject getData() { return copy(data); }
     public boolean isBankScaleVisible() { return showBankScale; }
     public boolean isFlightPathVectorVisible() { return showFlightPathVector; }
     public boolean isEnergyCueVisible() { return showEnergyCue; }
     public boolean isAircraftReferenceVisible() { return showAircraftReference; }
 
-    private static JsonObject copyJsonObject(JsonObject source) {
-        JsonObject copy = new JsonObject();
-        if (source == null) return copy;
-        for (Map.Entry<String, JsonElement> entry : source.entrySet()) {
-            copy.add(entry.getKey(), copyElement(entry.getValue()));
-        }
-        return copy;
-    }
-
-    private static JsonElement copyElement(JsonElement element) {
-        if (element == null || element.isJsonNull()) return JsonNull.INSTANCE;
-        if (element.isJsonPrimitive()) return element.getAsJsonPrimitive();
-        if (element.isJsonArray()) {
-            JsonArray copy = new JsonArray();
-            for (JsonElement child : element.getAsJsonArray()) copy.add(copyElement(child));
-            return copy;
-        }
-        if (element.isJsonObject()) return copyJsonObject(element.getAsJsonObject());
-        return new JsonPrimitive(element.toString());
+    private static JsonObject copy(JsonObject source) {
+        return source == null ? new JsonObject()
+                : new JsonParser().parse(source.toString()).getAsJsonObject();
     }
 }

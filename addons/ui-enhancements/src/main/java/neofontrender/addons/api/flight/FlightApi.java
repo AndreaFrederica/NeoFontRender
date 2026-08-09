@@ -1,6 +1,7 @@
 package neofontrender.addons.api.flight;
 
 import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.util.ResourceLocation;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,13 +24,21 @@ import java.util.function.Predicate;
  * Soft dependencies may use the matching Forge events instead of linking this class.</p>
  */
 public final class FlightApi {
-    public static final int API_VERSION = 2;
+    public static final int API_VERSION = 9;
     private static final Logger LOGGER = LogManager.getLogger("Revo UI Flight API");
     private static final java.util.Set<String> REPORTED_FAILURES = ConcurrentHashMap.newKeySet();
 
     private static final CopyOnWriteArrayList<CapabilityEntry> CAPABILITIES =
             new CopyOnWriteArrayList<>();
     private static final CopyOnWriteArrayList<ControlEntry> CONTROLS =
+            new CopyOnWriteArrayList<>();
+    private static final CopyOnWriteArrayList<BodyPoseEntry> BODY_POSES =
+            new CopyOnWriteArrayList<>();
+    private static final CopyOnWriteArrayList<HudAttitudeEntry> HUD_ATTITUDES =
+            new CopyOnWriteArrayList<>();
+    private static final CopyOnWriteArrayList<ManeuverEntry> MANEUVER_HANDLERS =
+            new CopyOnWriteArrayList<>();
+    private static final CopyOnWriteArrayList<CameraTrackingEntry> CAMERA_TRACKERS =
             new CopyOnWriteArrayList<>();
     private static final Map<String, FlightHudComponent> HUD_COMPONENTS =
             Collections.synchronizedMap(new LinkedHashMap<>());
@@ -59,6 +68,51 @@ public final class FlightApi {
         CONTROLS.sort(Comparator.comparingInt((ControlEntry value) -> value.priority)
                 .reversed().thenComparing(value -> value.id));
         return once(() -> CONTROLS.remove(entry));
+    }
+
+    public static FlightRegistration registerBodyPoseProvider(ResourceLocation id, int priority,
+                                                               FlightBodyPoseProvider provider) {
+        Objects.requireNonNull(id, "id"); Objects.requireNonNull(provider, "provider");
+        BodyPoseEntry entry = new BodyPoseEntry(id.toString(), priority, provider);
+        BODY_POSES.removeIf(value -> value.id.equals(entry.id));
+        BODY_POSES.add(entry);
+        BODY_POSES.sort(Comparator.comparingInt((BodyPoseEntry value) -> value.priority)
+                .reversed().thenComparing(value -> value.id));
+        return once(() -> BODY_POSES.remove(entry));
+    }
+
+    /** Registers a body/vehicle attitude source that replaces camera attitude in the HUD. */
+    public static FlightRegistration registerHudAttitudeProvider(
+            ResourceLocation id, int priority, FlightHudAttitudeProvider provider) {
+        Objects.requireNonNull(id, "id"); Objects.requireNonNull(provider, "provider");
+        HudAttitudeEntry entry = new HudAttitudeEntry(id.toString(), priority, provider);
+        HUD_ATTITUDES.removeIf(value -> value.id.equals(entry.id));
+        HUD_ATTITUDES.add(entry);
+        HUD_ATTITUDES.sort(Comparator.comparingInt((HudAttitudeEntry value) -> value.priority)
+                .reversed().thenComparing(value -> value.id));
+        return once(() -> HUD_ATTITUDES.remove(entry));
+    }
+
+    public static FlightRegistration registerManeuverHandler(
+            ResourceLocation id, int priority, FlightManeuverHandler handler) {
+        Objects.requireNonNull(id, "id"); Objects.requireNonNull(handler, "handler");
+        ManeuverEntry entry = new ManeuverEntry(id.toString(), priority, handler);
+        MANEUVER_HANDLERS.removeIf(value -> value.id.equals(entry.id));
+        MANEUVER_HANDLERS.add(entry);
+        MANEUVER_HANDLERS.sort(Comparator.comparingInt((ManeuverEntry value) -> value.priority)
+                .reversed().thenComparing(value -> value.id));
+        return once(() -> MANEUVER_HANDLERS.remove(entry));
+    }
+
+    public static FlightRegistration registerCameraTrackingProvider(
+            ResourceLocation id, int priority, FlightCameraTrackingProvider provider) {
+        Objects.requireNonNull(id, "id"); Objects.requireNonNull(provider, "provider");
+        CameraTrackingEntry entry = new CameraTrackingEntry(id.toString(), priority, provider);
+        CAMERA_TRACKERS.removeIf(value -> value.id.equals(entry.id));
+        CAMERA_TRACKERS.add(entry);
+        CAMERA_TRACKERS.sort(Comparator.comparingInt((CameraTrackingEntry value) -> value.priority)
+                .reversed().thenComparing(value -> value.id));
+        return once(() -> CAMERA_TRACKERS.remove(entry));
     }
 
     /** Convenience registration for vehicles or custom flight states that want the whole stack. */
@@ -109,7 +163,13 @@ public final class FlightApi {
 
     public static int getApiVersion() { return API_VERSION; }
     public static boolean isAvailable() { return backend != Backend.NOOP; }
+    /** Returns UIE's state-safe HUD canvas, or null before the backend is installed. */
+    public static FlightHudCanvas getHudCanvas() { return backend.hudCanvas(); }
     public static FlightState getState(float partialTicks) { return backend.state(partialTicks); }
+    /** Returns UIE's single cached quaternion render sample for the current camera frame. */
+    public static FlightRenderPose getRenderPose(EntityPlayerSP player, float partialTicks) {
+        return backend.renderPose(player, Math.max(0.0F, Math.min(1.0F, partialTicks)));
+    }
     public static boolean isActive() { return getState(1.0F).isActive(); }
     public static void setRoll(float degrees) { backend.setRoll(finite(degrees)); }
     public static void rotateView(float pitchDegrees, float yawDegrees, float rollDegrees) {
@@ -161,6 +221,55 @@ public final class FlightApi {
             try { entry.provider.update(input); }
             catch (RuntimeException error) { reportOnce("control:" + entry.id, error); }
         }
+    }
+
+    public static FlightBodyPose queryBodyPose(AbstractClientPlayer player, float partialTicks) {
+        for (BodyPoseEntry entry : BODY_POSES) {
+            try {
+                FlightBodyPose pose = entry.provider.pose(player, partialTicks);
+                if (pose != null) return pose;
+            } catch (RuntimeException error) {
+                reportOnce("body-pose:" + entry.id, error);
+            }
+        }
+        return null;
+    }
+
+    public static FlightHudAttitude queryHudAttitude(EntityPlayerSP player, float partialTicks) {
+        for (HudAttitudeEntry entry : HUD_ATTITUDES) {
+            try {
+                FlightHudAttitude attitude = entry.provider.attitude(player, partialTicks);
+                if (attitude != null) return attitude;
+            } catch (RuntimeException error) {
+                reportOnce("hud-attitude:" + entry.id, error);
+            }
+        }
+        return null;
+    }
+
+    public static boolean dispatchManeuverInput(FlightManeuverInput input) {
+        Objects.requireNonNull(input, "input");
+        for (ManeuverEntry entry : MANEUVER_HANDLERS) {
+            try {
+                if (entry.handler.handle(input)) return true;
+            } catch (RuntimeException error) {
+                reportOnce("maneuver:" + entry.id, error);
+            }
+        }
+        return false;
+    }
+
+    public static FlightCameraTracking queryCameraTracking(EntityPlayerSP player,
+                                                            float partialTicks) {
+        for (CameraTrackingEntry entry : CAMERA_TRACKERS) {
+            try {
+                FlightCameraTracking tracking = entry.provider.tracking(player, partialTicks);
+                if (tracking != null) return tracking;
+            } catch (RuntimeException error) {
+                reportOnce("camera-tracking:" + entry.id, error);
+            }
+        }
+        return null;
     }
 
     public static boolean renderHudComponent(String type, FlightHudRenderContext context,
@@ -233,6 +342,34 @@ public final class FlightApi {
         }
     }
 
+    private static final class BodyPoseEntry {
+        final String id; final int priority; final FlightBodyPoseProvider provider;
+        BodyPoseEntry(String id, int priority, FlightBodyPoseProvider provider) {
+            this.id = id; this.priority = priority; this.provider = provider;
+        }
+    }
+
+    private static final class HudAttitudeEntry {
+        final String id; final int priority; final FlightHudAttitudeProvider provider;
+        HudAttitudeEntry(String id, int priority, FlightHudAttitudeProvider provider) {
+            this.id = id; this.priority = priority; this.provider = provider;
+        }
+    }
+
+    private static final class ManeuverEntry {
+        final String id; final int priority; final FlightManeuverHandler handler;
+        ManeuverEntry(String id, int priority, FlightManeuverHandler handler) {
+            this.id = id; this.priority = priority; this.handler = handler;
+        }
+    }
+
+    private static final class CameraTrackingEntry {
+        final String id; final int priority; final FlightCameraTrackingProvider provider;
+        CameraTrackingEntry(String id, int priority, FlightCameraTrackingProvider provider) {
+            this.id = id; this.priority = priority; this.provider = provider;
+        }
+    }
+
     /** Implemented by UIE; exposed for loader-neutral bootstrapping and test doubles. */
     public interface Backend {
         Backend NOOP = new Backend() {};
@@ -247,5 +384,7 @@ public final class FlightApi {
         default boolean selectHudTheme(String id) { return false; }
         default float playerRoll(int entityId, float partialTicks) { return 0.0F; }
         default void updateRemotePlayerRoll(int entityId, boolean rolling, float degrees) {}
+        default FlightHudCanvas hudCanvas() { return null; }
+        default FlightRenderPose renderPose(EntityPlayerSP player, float partialTicks) { return null; }
     }
 }

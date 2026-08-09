@@ -166,6 +166,18 @@ final class FlightHudGraphics {
         tessellator.draw();
     }
 
+    static void polyline(float[] points, int color, float width) {
+        if (points == null || points.length < 4) return;
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        GL11.glLineWidth(Math.max(1.0F, width));
+        Tessellator tessellator = Tessellator.instance;
+        tessellator.startDrawing(GL11.GL_LINE_STRIP);
+        for (int i = 0; i + 1 < points.length; i += 2) {
+            vertex(tessellator, points[i], points[i + 1], color);
+        }
+        tessellator.draw();
+    }
+
     static void centeredText(String value, float centerX, float y, float scale,
                              int color, int shadow) {
         text(value, centerX - textWidth(value, scale) * 0.5F, y, scale, color, shadow);

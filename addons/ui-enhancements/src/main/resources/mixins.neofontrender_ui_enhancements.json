@@ -15,6 +15,7 @@
     "GuiCreateWorldAccessor",
     "MixinChatLineMetadata",
     "MixinEntityRendererScreenEffects",
+    "MixinEntityRendererCameraRoll",
     "MixinEntityRendererZoomMouse",
     "MixinForgeGuiScrollingListSmoothScroll",
     "MixinForgeGuiUtilsButtonAlpha",
