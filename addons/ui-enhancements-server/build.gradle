@@ -39,7 +39,10 @@ dependencies {
 unimined.minecraft {
     version '1.12.2'
     mappings { mcp('stable', '39-1.12') }
-    cleanroom { loader '0.6.1-alpha' }
+    cleanroom {
+        loader '0.6.1-alpha'
+        runs.off = true
+    }
     defaultRemapJar = false
     remap(tasks.named('jar').get())
 }
@@ -84,6 +87,18 @@ test {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
 }
 
+tasks.named('genSources') {
+    enabled = false
+}
+
 // Unimined wires Minecraft and Forge to main after source-set creation.
 sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
 sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+tasks.register('stageUiEnhancementsServerRelease', Sync) {
+    group = 'distribution'
+    description = 'Stages only the remapped, installable UI Enhancements Server JAR.'
+    dependsOn tasks.named('build'), tasks.named('remapJar')
+    from(layout.buildDirectory.file("libs/neofontrender-ui-enhancements-server-${project.version}.jar"))
+    into rootProject.layout.buildDirectory.dir('release/uie-server')
+}

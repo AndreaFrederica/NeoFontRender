@@ -50,9 +50,9 @@ unimined.minecraft {
         runs.preLaunch('client', ':addons:electric-elytra:prepareCombinedClientRun')
         runs.all {
             args += ['--username', minecraft_username]
-            // ModularUI's early Minecraft mixin is required for its key-binding accessors,
-            // while keeping development launches deterministic across loader updates.
-            // This applies only to Gradle development runs, never to the packaged mod.
+            // Dev runs use MCP-mapped classes, so reference-map remapping must stay disabled.
+            // Packaged jars still ship and use the refmap, so production SRG remapping is unaffected.
+            systemProperty('mixin.env.disableRefMap', 'true')
             systemProperty('fml.noSplash', 'true')
             if (extra_jvm_args?.trim()) jvmArgs += extra_jvm_args.split('\\s+').toList()
             if (enable_foundation_debug.toBoolean()) {
