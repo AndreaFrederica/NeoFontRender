@@ -34,6 +34,7 @@ final class ScreenEffectsSettingsPage implements NfrSettingsPage {
         private final boolean gradient = ScreenEffectsConfig.gradient;
         private final boolean gradientMenus = ScreenEffectsConfig.gradientMenus;
         private final boolean gradientContainers = ScreenEffectsConfig.gradientContainers;
+        private final boolean gradientChat = ScreenEffectsConfig.gradientChat;
         private final int[] colors = ScreenEffectsConfig.colors.clone();
 
         @Override public IWidget createView(NfrSettingsPageContext context) {
@@ -71,7 +72,9 @@ final class ScreenEffectsSettingsPage implements NfrSettingsPage {
                     .add(c.toggleText(() -> scoped("gui.effects.gradient", "gui.effects.scope.menus"), () -> tr("tooltip.effects.scope"),
                             () -> ScreenEffectsConfig.gradientMenus, value -> ScreenEffectsConfig.gradientMenus = value))
                     .add(c.toggleText(() -> scoped("gui.effects.gradient", "gui.effects.scope.containers"), () -> tr("tooltip.effects.scope"),
-                            () -> ScreenEffectsConfig.gradientContainers, value -> ScreenEffectsConfig.gradientContainers = value));
+                            () -> ScreenEffectsConfig.gradientContainers, value -> ScreenEffectsConfig.gradientContainers = value))
+                    .add(c.toggleText(() -> scoped("gui.effects.gradient", "gui.effects.scope.chat"), () -> tr("tooltip.effects.scope"),
+                            () -> ScreenEffectsConfig.gradientChat, value -> ScreenEffectsConfig.gradientChat = value));
             String[] corners = {"ul", "ur", "lr", "ll"};
             for (int i = 0; i < 4; i++) {
                 final int corner = i;
@@ -99,6 +102,7 @@ final class ScreenEffectsSettingsPage implements NfrSettingsPage {
             ScreenEffectsConfig.gradient = gradient;
             ScreenEffectsConfig.gradientMenus = gradientMenus;
             ScreenEffectsConfig.gradientContainers = gradientContainers;
+            ScreenEffectsConfig.gradientChat = gradientChat;
             ScreenEffectsConfig.colors = colors.clone();
         }
     }

@@ -27,6 +27,7 @@ final class ScreenEffectsConfig {
     static boolean gradient = true;
     static boolean gradientMenus = true;
     static boolean gradientContainers = true;
+    static boolean gradientChat = true;
     static int[] colors = DEFAULT_COLORS.clone();
 
     private ScreenEffectsConfig() {}
@@ -50,6 +51,7 @@ final class ScreenEffectsConfig {
                 .define("effects.gradient", true, "Draw a four-corner color gradient over the blurred world.")
                 .define("effects.gradientMenus", legacyMenus, "Apply the dark overlay to menu screens.")
                 .define("effects.gradientContainers", legacyContainers, "Apply the dark overlay to inventory and container screens.")
+                .define("effects.gradientChat", legacyChat, "Apply the dark overlay to chat screens.")
                 .define("effects.gradientColors", colorStrings(DEFAULT_COLORS), "Four ARGB colors: UL, UR, LR, LL.");
         enabled = file.getBoolean("effects.enabled", true);
         fade = file.getBoolean("effects.fade", true);
@@ -65,8 +67,8 @@ final class ScreenEffectsConfig {
         gradient = file.getBoolean("effects.gradient", true);
         gradientMenus = file.getBoolean("effects.gradientMenus", legacyMenus);
         gradientContainers = file.getBoolean("effects.gradientContainers", legacyContainers);
+        gradientChat = file.getBoolean("effects.gradientChat", legacyChat);
         colors = parseColors(file.getStringList("effects.gradientColors", colorStrings(DEFAULT_COLORS)));
-        file.remove("effects.gradientChat");
         file.remove("effects.applyToMenus");
         file.remove("effects.applyToContainers");
         file.remove("effects.applyToChat");
@@ -89,6 +91,7 @@ final class ScreenEffectsConfig {
                 .set("effects.gradient", gradient)
                 .set("effects.gradientMenus", gradientMenus)
                 .set("effects.gradientContainers", gradientContainers)
+                .set("effects.gradientChat", gradientChat)
                 .set("effects.gradientColors", colorStrings(colors))
                 .save();
         ScreenEffectsRenderer.INSTANCE.configChanged();
