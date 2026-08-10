@@ -29,6 +29,8 @@ class UiEnhancementsMixinConfigTest {
                 "mixins.neofontrender_ui_enhancements_shouldersurfing_tconstruct.json");
         String shoulderSurfingMatterOverdrive = config(
                 "mixins.neofontrender_ui_enhancements_shouldersurfing_matteroverdrive.json");
+        String betterCombat = config(
+                "mixins.neofontrender_ui_enhancements_bettercombat.json");
 
         assertTrue(hei.contains("\"required\": false"));
         assertTrue(hei.contains("\"compat.MixinJeiIngredientRendererHover\""));
@@ -54,6 +56,9 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(shoulderSurfingMatterOverdrive.contains("\"required\": false"));
         assertTrue(shoulderSurfingMatterOverdrive.contains(
                 "\"compat.MixinMatterOverdriveCrosshairOffset\""));
+        assertTrue(betterCombat.contains("\"required\": false"));
+        assertTrue(betterCombat.contains(
+                "\"compat.MixinBetterCombatShoulderCrosshair\""));
     }
 
     @Test
@@ -61,6 +66,7 @@ class UiEnhancementsMixinConfigTest {
         String config = config("mixins.neofontrender_ui_enhancements.json");
 
         assertTrue(config.contains("\"MixinGuiLanguageResourceReload\""));
+        assertTrue(config.contains("\"MixinLocaleAddonTranslations\""));
         assertTrue(config.contains("\"MixinGuiLanguageSearch\""));
         assertTrue(config.contains("\"MixinGuiLanguageListFavorites\""));
         assertTrue(config.contains("\"MixinGuiSlotLanguageFavorites\""));
@@ -70,6 +76,14 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinGuiMainMenuContinueGame\""));
         assertTrue(config.contains("\"MixinEntityRendererZoomMouse\""));
         assertTrue(config.contains("\"MixinEntityRendererMouseInputEvent\""));
+        assertTrue(config.contains("\"MixinEntityRendererCameraPresentation\""));
+        assertTrue(config.contains("\"AccessorEntityRendererCameraDistance\""));
+        assertTrue(config.contains("\"MixinMinecraftPerspectiveCycle\""));
+        assertTrue(config.contains("\"MixinMinecraftDroneInputGate\""));
+        assertTrue(config.contains("\"MixinMovementInputFromOptionsDroneGate\""));
+        assertTrue(config.contains("\"MixinRenderPlayerCameraTransparency\""));
+        assertTrue(config.contains("\"MixinRenderLivingBaseCameraViewIdentity\""));
+        assertTrue(config.contains("\"MixinGlStateManagerCameraTransparency\""));
         assertTrue(config.contains("\"MixinRenderPlayerFlightRoll\""));
         assertTrue(config.contains("\"MixinGuiIngameForgeCrosshair\""));
         assertTrue(config.contains("\"InvokerGuiIngameCrosshair\""));
@@ -90,6 +104,31 @@ class UiEnhancementsMixinConfigTest {
     }
 
     @Test
+    void movementInputStateIsAccessedOnItsDeclaringSuperclass() {
+        String config = config("mixins.neofontrender_ui_enhancements.json");
+        String gateBytecode = bytecode(
+                "neofontrender/addons/mixin/MixinMovementInputFromOptionsDroneGate.class");
+        String accessorBytecode = bytecode(
+                "neofontrender/addons/mixin/AccessorMovementInputState.class");
+
+        assertTrue(config.contains("\"AccessorMovementInputState\""));
+        assertFalse(gateBytecode.contains("Lorg/spongepowered/asm/mixin/Shadow;"));
+        assertTrue(accessorBytecode.contains("net/minecraft/util/MovementInput"));
+    }
+
+    @Test
+    void cameraPresentationUsesRequiredTargetedInjections() {
+        String bytecode = bytecode(
+                "neofontrender/addons/mixin/MixinEntityRendererCameraPresentation.class");
+
+        assertTrue(bytecode.contains("orientCamera"));
+        assertTrue(bytecode.contains("thirdPersonDistancePrev"));
+        assertTrue(bytecode.contains("suppressesVanillaThirdPersonDisplacement"));
+        assertTrue(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/Redirect;"));
+        assertTrue(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/ModifyConstant;"));
+    }
+
+    @Test
     void zoomMixinLeavesEntityPlayerTurnAvailableToOtherCoremods() {
         InputStream stream = UiEnhancementsMixinConfigTest.class.getClassLoader().getResourceAsStream(
                 "neofontrender/addons/mixin/MixinEntityRendererZoomMouse.class");
@@ -107,6 +146,17 @@ class UiEnhancementsMixinConfigTest {
         assertNotNull(stream, name);
         try (InputStream input = stream) {
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception error) {
+            throw new AssertionError("Failed to read " + name, error);
+        }
+    }
+
+    private static String bytecode(String name) {
+        InputStream stream = UiEnhancementsMixinConfigTest.class.getClassLoader()
+                .getResourceAsStream(name);
+        assertNotNull(stream, name);
+        try (InputStream input = stream) {
+            return new String(input.readAllBytes(), StandardCharsets.ISO_8859_1);
         } catch (Exception error) {
             throw new AssertionError("Failed to read " + name, error);
         }

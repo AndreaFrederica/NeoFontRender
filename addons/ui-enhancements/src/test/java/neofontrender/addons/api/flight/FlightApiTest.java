@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class FlightApiTest {
     @Test
@@ -165,5 +166,30 @@ class FlightApiTest {
         assertEquals(-1.0F, left.getKeyboardYaw());
         assertEquals(0.7F, right.getYaw());
         assertEquals(-0.7F, left.getYaw());
+    }
+
+    @Test
+    void callbackFailurePropagatesAndDiagnosticsExposeSelectedProvider() {
+        FlightRegistration selected = FlightApi.registerCapabilityProvider(
+                new ResourceLocation("test", "diagnostic_capability"), 100,
+                (player, capability, builtIn) -> FlightDecision.ALLOW);
+        try {
+            assertEquals(FlightDecision.ALLOW, FlightApi.queryCapability(null,
+                    FlightCapability.CAMERA_ROTATION, false));
+            assertEquals("test:diagnostic_capability", FlightApi.diagnostics().capabilityProviderId());
+            assertTrue(FlightApi.capabilityProviderIds().contains("test:diagnostic_capability"));
+        } finally {
+            selected.close();
+        }
+        FlightRegistration failing = FlightApi.registerCapabilityProvider(
+                new ResourceLocation("test", "failing_capability"), 100,
+                (player, capability, builtIn) -> { throw new IllegalStateException("capability failure"); });
+        try {
+            IllegalStateException error = assertThrows(IllegalStateException.class,
+                    () -> FlightApi.queryCapability(null, FlightCapability.CAMERA_ROTATION, false));
+            assertEquals("capability failure", error.getMessage());
+        } finally {
+            failing.close();
+        }
     }
 }

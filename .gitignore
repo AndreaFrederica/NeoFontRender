@@ -36,3 +36,6 @@ src/main/java/io/
 
 # vendored arc3d scratch (not wired into any build; use the dev.icyllis:arc3d-core dependency)
 /icyllis/
+
+# decompiled Minecraft sources (DMCA)
+.out-of-code-insights/mc-src/

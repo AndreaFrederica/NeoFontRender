@@ -25,6 +25,7 @@ import neofontrender.addons.zoom.ZoomModule;
 import neofontrender.addons.flight.FlightRollModule;
 import neofontrender.addons.hover.HoverEffectsModule;
 import neofontrender.addons.cjk.CjkTypographyModule;
+import neofontrender.addons.camera.CameraModule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -59,6 +60,7 @@ public final class NfrUiEnhancements {
             new WorldLoadingModule(),
             new ResourceReloadModule(),
             new ZoomModule(),
+            new CameraModule(),
             new FlightRollModule(),
             new HoverEffectsModule(),
             new MainMenuModule(),

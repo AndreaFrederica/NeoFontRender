@@ -25,6 +25,7 @@ import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.mixin.InvokerGuiIngameCrosshair;
 import neofontrender.addons.zoom.ZoomModule;
+import neofontrender.addons.camera.CameraRuntime;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 
@@ -58,52 +59,97 @@ public final class CrosshairController {
         if (event.getType() != RenderGameOverlayEvent.ElementType.CROSSHAIRS) return;
         boolean claimed = claimedLayer == event;
         claimedLayer = null;
-        if (ShoulderSurfingMatrixFix.dualCursorMode()
-                && CrosshairConfig.customEnabled && isVisible()) {
-            drawBlockInteractionCursor(event.getResolution());
+        if ((ShoulderSurfingMatrixFix.dualCursorMode() || CameraRuntime.shoulderCrosshairDual())
+                && isVisible()) {
+            drawBlockInteractionCursor(event.getResolution(),
+                    CameraRuntime.shoulderSecondaryCrosshairOffset(event.getPartialTicks()));
+        }
+        if (CameraRuntime.isDroneActive()) {
+            drawDroneCameraCursor(event.getResolution());
         }
         if (event.isCanceled() && !claimed) return;
-        if (!CrosshairConfig.customEnabled || FlightRollController.suppressVanillaCrosshair()) return;
+        boolean flightSuppressesCrosshair = FlightRollController.suppressVanillaCrosshair();
+        if (ModCrosshairRouting.shouldRenderFlightAim(flightSuppressesCrosshair,
+                holdsPlayerAimItem(MC.player), isVisible(true))) {
+            if (!event.isCanceled()) event.setCanceled(true);
+            drawFlightAimCrosshair(event.getResolution(), event.getPartialTicks());
+            return;
+        }
+        if (!CrosshairConfig.customEnabled || flightSuppressesCrosshair) return;
         // In mod-priority mode an item mod gets the first chance to cancel the layer. Reaching
         // LOWEST means nobody took it, so UIE becomes the renderer and suppresses vanilla.
         if (!event.isCanceled()) event.setCanceled(true);
-        if (!isVisible()) return;
+        if (!isVisible() || !cameraCrosshairVisible(event.getPartialTicks())) return;
 
         ScaledResolution resolution = event.getResolution();
         float centerX = resolution.getScaledWidth() * 0.5F;
         float centerY = resolution.getScaledHeight() * 0.5F;
-        float[] shoulderOffset = ShoulderSurfingCompat.crosshairOffset();
+        float[] shoulderOffset = cameraCrosshairOffset(event.getPartialTicks());
         if (shoulderOffset != null) {
             centerX += shoulderOffset[0];
             centerY += shoulderOffset[1];
         }
+        drawSelectedCrosshair(resolution, centerX, centerY, event.getPartialTicks());
+    }
+
+    private static void drawFlightAimCrosshair(ScaledResolution resolution, float partialTicks) {
+        float centerX = resolution.getScaledWidth() * 0.5F;
+        float centerY = resolution.getScaledHeight() * 0.5F;
+        float[] projected = flightAimCrosshairOffset(partialTicks);
+        if (projected == null) {
+            if (CameraRuntime.isFreeLookActive() || CameraRuntime.isShoulderActive()
+                    || ShoulderSurfingCompat.isActive()) return;
+        } else {
+            centerX += projected[0];
+            centerY += projected[1];
+        }
+        if (CrosshairConfig.customEnabled) {
+            drawSelectedCrosshair(resolution, centerX, centerY, partialTicks);
+        } else {
+            drawVanillaCrosshair(resolution, centerX, centerY, partialTicks, false);
+        }
+    }
+
+    private static void drawSelectedCrosshair(ScaledResolution resolution,
+                                              float centerX, float centerY,
+                                              float partialTicks) {
         boolean debug = "debug".equals(CrosshairConfig.style)
                 || (CrosshairConfig.keepDebugCrosshair && MC.gameSettings.showDebugInfo);
         if (debug) {
-            boolean previousDebug = MC.gameSettings.showDebugInfo;
-            MC.gameSettings.showDebugInfo = true;
-            try {
-                GlStateManager.pushMatrix();
-                try {
-                    GlStateManager.translate(centerX - resolution.getScaledWidth() * 0.5F,
-                            centerY - resolution.getScaledHeight() * 0.5F, 0.0F);
-                    ((InvokerGuiIngameCrosshair) MC.ingameGUI)
-                            .nfrUi$renderVanillaCrosshair(event.getPartialTicks(), resolution);
-                } finally {
-                    GlStateManager.popMatrix();
-                }
-            } finally {
-                MC.gameSettings.showDebugInfo = previousDebug;
-            }
+            drawVanillaCrosshair(resolution, centerX, centerY, partialTicks, true);
             return;
         }
-        draw(centerX, centerY, event.getPartialTicks());
+        draw(centerX, centerY, partialTicks);
+    }
+
+    private static void drawVanillaCrosshair(ScaledResolution resolution,
+                                             float centerX, float centerY,
+                                             float partialTicks, boolean forceDebug) {
+        boolean previousDebug = MC.gameSettings.showDebugInfo;
+        int previousPerspective = MC.gameSettings.thirdPersonView;
+        if (forceDebug) MC.gameSettings.showDebugInfo = true;
+        MC.gameSettings.thirdPersonView = 0;
+        try {
+            GlStateManager.pushMatrix();
+            try {
+                GlStateManager.translate(centerX - resolution.getScaledWidth() * 0.5F,
+                        centerY - resolution.getScaledHeight() * 0.5F, 0.0F);
+                ((InvokerGuiIngameCrosshair) MC.ingameGUI)
+                        .nfrUi$renderVanillaCrosshair(partialTicks, resolution);
+            } finally {
+                GlStateManager.popMatrix();
+            }
+        } finally {
+            MC.gameSettings.thirdPersonView = previousPerspective;
+            MC.gameSettings.showDebugInfo = previousDebug;
+        }
     }
 
     /** Orange bracket marker for the camera-origin block/entity interaction ray in dual mode. */
-    private static void drawBlockInteractionCursor(ScaledResolution resolution) {
+    private static void drawBlockInteractionCursor(ScaledResolution resolution, float[] offset) {
         float cx = resolution.getScaledWidth() * 0.5F;
         float cy = resolution.getScaledHeight() * 0.5F;
+        if (offset != null) { cx += offset[0]; cy += offset[1]; }
         GlSnapshot state = new GlSnapshot();
         try {
             GlStateManager.pushMatrix();
@@ -136,6 +182,41 @@ public final class CrosshairController {
         quad(-1.25F, -1.25F, 1.25F, 1.25F, color);
     }
 
+    /** Additive camera-origin reticle shown even when the normal UIE crosshair is disabled. */
+    private static void drawDroneCameraCursor(ScaledResolution resolution) {
+        float cx = resolution.getScaledWidth() * 0.5F;
+        float cy = resolution.getScaledHeight() * 0.5F;
+        GlSnapshot state = new GlSnapshot();
+        try {
+            GlStateManager.pushMatrix();
+            try {
+                GlStateManager.translate(cx, cy, 0.0F);
+                GlStateManager.disableDepth();
+                GlStateManager.disableTexture2D();
+                GlStateManager.enableBlend();
+                GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA,
+                        GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                        GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+                int color = 0xB040E9FF;
+                float outer = 13.0F;
+                float inner = 7.0F;
+                line(-outer, -outer, -inner, -outer, color, 1.25F);
+                line(-outer, -outer, -outer, -inner, color, 1.25F);
+                line(inner, -outer, outer, -outer, color, 1.25F);
+                line(outer, -outer, outer, -inner, color, 1.25F);
+                line(-outer, inner, -outer, outer, color, 1.25F);
+                line(-outer, outer, -inner, outer, color, 1.25F);
+                line(outer, inner, outer, outer, color, 1.25F);
+                line(inner, outer, outer, outer, color, 1.25F);
+                quad(-1.0F, -1.0F, 1.0F, 1.0F, color);
+            } finally {
+                GlStateManager.popMatrix();
+            }
+        } finally {
+            state.restore();
+        }
+    }
+
     /** Used by the Forge-GUI mixin; deliberately does not cancel the CROSSHAIRS event. */
     public static boolean suppressVanillaCrosshair() {
         return CrosshairConfig.customEnabled || FlightRollController.suppressVanillaCrosshair();
@@ -145,22 +226,58 @@ public final class CrosshairController {
         return CrosshairConfig.customEnabled && CrosshairConfig.preferModCrosshair;
     }
 
+    /** Unified offset consumed by UIE, vanilla and supported mod crosshair renderers. */
+    public static float[] cameraCrosshairOffset(float partialTicks) {
+        float[] offset = ShoulderSurfingCompat.crosshairOffset();
+        return offset != null ? offset : CameraRuntime.shoulderCrosshairOffset(partialTicks);
+    }
+
+    private static float[] flightAimCrosshairOffset(float partialTicks) {
+        float[] offset = ShoulderSurfingCompat.crosshairOffset();
+        return offset != null ? offset : CameraRuntime.playerAimCrosshairOffset(partialTicks);
+    }
+
+    /** Unified visibility decision for the active built-in camera mode. */
+    public static boolean cameraCrosshairVisible(float partialTicks) {
+        return CameraRuntime.shoulderCrosshairVisible(partialTicks);
+    }
+
+    /** Offset for optional item-mod renderers, sourced from either legacy or built-in Shoulder. */
+    public static float[] preferredModCrosshairOffset(float partialTicks) {
+        if (!ModCrosshairRouting.shouldOffset(CrosshairConfig.customEnabled,
+                CrosshairConfig.preferModCrosshair)) return null;
+        return cameraCrosshairOffset(partialTicks);
+    }
+
     private static boolean overridesOrdinaryThirdPersonVisibility() {
         return CrosshairConfig.customEnabled && CrosshairConfig.visibleInThirdPerson
                 && MC.gameSettings.thirdPersonView != 0 && !ShoulderSurfingCompat.isActive();
     }
 
-    private static boolean isVisible() {
+    private static boolean isVisible() { return isVisible(false); }
+
+    private static boolean isVisible(boolean ignoreThirdPerson) {
         EntityPlayer player = MC.player;
         if (player == null || !CrosshairConfig.visibleByDefault) return false;
         if (!CrosshairConfig.visibleWithHiddenGui && MC.gameSettings.hideGUI) return false;
         if (!CrosshairConfig.visibleInDebug && MC.gameSettings.showDebugInfo) return false;
         if (!CrosshairConfig.visibleAsSpectator && player.isSpectator()) return false;
-        if (!CrosshairConfig.visibleInThirdPerson && MC.gameSettings.thirdPersonView != 0
+        if (!ignoreThirdPerson && !CrosshairConfig.visibleInThirdPerson
+                && MC.gameSettings.thirdPersonView != 0
                 && !ShoulderSurfingCompat.isActive()) return false;
         if (!CrosshairConfig.visibleHoldingRanged && holdsRanged(player)) return false;
         if (!CrosshairConfig.visibleHoldingThrowable && holdsThrowable(player)) return false;
         return CrosshairConfig.visibleUsingSpyglass || !usingSpyglass(player);
+    }
+
+    private static boolean holdsPlayerAimItem(EntityPlayer player) {
+        if (player == null) return false;
+        if (player.isHandActive()
+                && BackportCrosshairCompat.usesPlayerAim(player.getActiveItemStack())) return true;
+        ItemStack main = player.getHeldItemMainhand();
+        if (BackportCrosshairCompat.usesPlayerAim(main)) return true;
+        return main.isEmpty()
+                && BackportCrosshairCompat.usesPlayerAim(player.getHeldItemOffhand());
     }
 
     private static boolean holdsThrowable(EntityPlayer player) {

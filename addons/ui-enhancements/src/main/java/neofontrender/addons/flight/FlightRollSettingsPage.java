@@ -30,6 +30,7 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
         private final boolean originalEnabled = FlightRollConfig.enabled;
         private final boolean originalAllowInWater = FlightRollConfig.allowInWater;
         private final boolean originalKeyboardYaw = FlightRollConfig.keyboardYaw;
+        private final boolean originalWsPitch = FlightRollConfig.wsPitch;
         private final boolean originalBanking = FlightRollConfig.banking;
         private final boolean originalMomentum = FlightRollConfig.momentumMouse;
         private final float originalRollSensitivity = FlightRollConfig.rollSensitivity;
@@ -84,6 +85,10 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
                             () -> tr("tooltip.flight_roll.keyboard_yaw"),
                             () -> FlightRollConfig.keyboardYaw,
                             value -> FlightRollConfig.keyboardYaw = value))
+                    .add(c.toggleText(() -> tr("gui.flight_roll.ws_pitch"),
+                            () -> tr("tooltip.flight_roll.ws_pitch"),
+                            () -> FlightRollConfig.wsPitch,
+                            value -> FlightRollConfig.wsPitch = value))
                     .add(c.toggleText(() -> tr("gui.flight_roll.banking"),
                             () -> tr("tooltip.flight_roll.banking"),
                             () -> FlightRollConfig.banking,
@@ -241,6 +246,7 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
             FlightRollConfig.enabled = originalEnabled;
             FlightRollConfig.allowInWater = originalAllowInWater;
             FlightRollConfig.keyboardYaw = originalKeyboardYaw;
+            FlightRollConfig.wsPitch = originalWsPitch;
             FlightRollConfig.banking = originalBanking;
             FlightRollConfig.momentumMouse = originalMomentum;
             FlightRollConfig.rollSensitivity = originalRollSensitivity;

@@ -3,7 +3,6 @@ package neofontrender.addons.mixin.compat;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraft.client.renderer.GlStateManager;
 import neofontrender.addons.flight.CrosshairController;
-import neofontrender.addons.flight.ShoulderSurfingMatrixFix;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Unique;
@@ -19,9 +18,7 @@ public abstract class MixinMatterOverdriveCrosshairOffset {
 
     @Inject(method = "renderCrosshair", at = @At("HEAD"))
     private void uie$pushWeaponCrosshairOffset(RenderGameOverlayEvent event, CallbackInfo callback) {
-        if (!CrosshairController.preferModCrosshairs()
-                || !ShoulderSurfingMatrixFix.isTakingOver()) return;
-        float[] offset = ShoulderSurfingMatrixFix.crosshairOffset();
+        float[] offset = CrosshairController.preferredModCrosshairOffset(event.getPartialTicks());
         if (offset == null) return;
         GlStateManager.pushMatrix();
         GlStateManager.translate(offset[0], offset[1], 0.0F);

@@ -1,0 +1,37 @@
+package neofontrender.addons.api.input;
+
+/** Logical input actions. They deliberately describe intent rather than a physical device. */
+public enum InputAction {
+    CAMERA_LOOK_X,
+    CAMERA_LOOK_Y,
+    CAMERA_ROLL,
+    CAMERA_ZOOM,
+    CAMERA_TRANSLATE_X,
+    CAMERA_TRANSLATE_Y,
+    CAMERA_TRANSLATE_Z,
+
+    FLIGHT_PITCH,
+    FLIGHT_YAW,
+    FLIGHT_ROLL,
+    FLIGHT_RUDDER,
+
+    PLAYER_MOVE_FORWARD,
+    PLAYER_MOVE_STRAFE,
+    PLAYER_JUMP,
+    PLAYER_SNEAK,
+    PLAYER_SPRINT,
+    PLAYER_ATTACK,
+    PLAYER_USE,
+    PLAYER_PICK_BLOCK,
+    PLAYER_DROP,
+    PLAYER_INVENTORY,
+    PLAYER_SWAP_HANDS,
+    PLAYER_HOTBAR,
+
+    CAMERA_TOGGLE_DRONE,
+    CAMERA_EXIT_DRONE,
+    CAMERA_TOGGLE_FREELOOK,
+    CAMERA_TOGGLE_SHOULDER,
+    CAMERA_SWAP_SHOULDER,
+    CAMERA_TOGGLE_FREELOOK_CONTROL
+}

@@ -12,6 +12,10 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import neofontrender.addons.api.input.CameraMouseInputEvent;
+import neofontrender.addons.api.input.InputAction;
+import neofontrender.addons.api.input.InputApi;
+import neofontrender.addons.api.camera.CameraApi;
+import neofontrender.addons.compat.CameraExternalCompat;
 import neofontrender.addons.api.flight.FlightApi;
 import neofontrender.addons.api.flight.FlightCapability;
 import neofontrender.addons.api.flight.FlightCapabilityEvent;
@@ -76,10 +80,35 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void mouseInput(CameraMouseInputEvent event) {
+        if (InputApi.isBlocked(InputAction.FLIGHT_PITCH)
+                || InputApi.isBlocked(InputAction.FLIGHT_YAW)
+                || InputApi.isBlocked(InputAction.FLIGHT_ROLL)
+                || InputApi.isBlocked(InputAction.FLIGHT_RUDDER)) {
+            // A modal camera such as Drone disconnects physical flight control. Clearing the
+            // persistent spring here prevents a held mouse/controller value leaking on exit.
+            resetMouseControl();
+            event.consumeBodyHorizontal();
+            event.consumeBodyVertical();
+            return;
+        }
         if (!active(event.getPlayer())) {
             resetMouseControl();
             return;
         }
+        // Free-look owns physical LOOK while independent controller providers may still publish
+        // FLIGHT_* virtual-stick actions for the player's body.
+        if (InputApi.getFrame(0.0F).disposition(InputAction.CAMERA_LOOK_X)
+                == neofontrender.addons.api.input.InputDisposition.CLAIM) {
+            resetMouseControl();
+            event.consumeBodyHorizontal();
+        }
+        if (InputApi.getFrame(0.0F).disposition(InputAction.CAMERA_LOOK_Y)
+                == neofontrender.addons.api.input.InputDisposition.CLAIM) {
+            event.consumeBodyVertical();
+        }
+        float virtualPitch = FlightInputAdapter.pitch(event.getDeltaY());
+        float virtualRoll = FlightInputAdapter.roll(event.getDeltaX());
+        float virtualYaw = FlightInputAdapter.yaw();
 
         float sensitivity = ZoomMouseScaling.adjustedSensitivity(mc.gameSettings.mouseSensitivity);
         float base = sensitivity * 0.6F + 0.2F;
@@ -126,6 +155,17 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
             hudInputX = clampAxis(event.getDeltaX() * vanillaScale / 20.0F);
             hudInputY = clampAxis(event.getDeltaY() * vanillaScale / 20.0F);
         }
+        maneuverPitch += virtualPitch;
+        maneuverRoll += virtualRoll;
+        maneuverYaw += virtualYaw;
+        pitchDegrees += virtualPitch * FlightRollConfig.maximumRollSpeed * elapsed
+                * FlightRollConfig.controllerPitchSensitivity;
+        yawDegrees += virtualYaw * FlightRollConfig.maximumRollSpeed * elapsed
+                * FlightRollConfig.controllerYawSensitivity;
+        rollDegrees += virtualRoll * effectiveMaximumRollSpeed() * elapsed
+                * FlightRollConfig.controllerRollSensitivity;
+        if (Math.abs(virtualRoll) > Math.abs(hudInputX)) hudInputX = virtualRoll;
+        if (Math.abs(virtualPitch) > Math.abs(hudInputY)) hudInputY = virtualPitch;
 
         // A/D is always part of the public virtual-stick sample. The keyboardYaw option and
         // KEYBOARD_YAW capability control only UIE's legacy direct camera/body yaw application;
@@ -138,6 +178,18 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
                 yawDegrees += keyboardYaw * FlightRollConfig.maximumRollSpeed * elapsed
                         * FlightRollConfig.yawSensitivity;
             }
+        }
+
+        // W/S always joins the public virtual-stick sample, mirroring keyboard yaw above.
+        // The wsPitch option gates only UIE's own direct pitch application: forward (W)
+        // pushes the nose down and back (S) pulls it up, like a flight stick.
+        float keyboardPitch = (Minecraft.getMinecraft().gameSettings.keyBindForward.isKeyDown()
+                ? 1.0F : 0.0F)
+                - (Minecraft.getMinecraft().gameSettings.keyBindBack.isKeyDown() ? 1.0F : 0.0F);
+        maneuverPitch += keyboardPitch * FlightRollConfig.pitchSensitivity;
+        if (FlightRollConfig.wsPitch) {
+            pitchDegrees += keyboardPitch * FlightRollConfig.maximumRollSpeed * elapsed
+                    * FlightRollConfig.pitchSensitivity;
         }
 
         FlightControllerInputEvent controller = new FlightControllerInputEvent(
@@ -170,13 +222,13 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
         if (FlightApi.dispatchManeuverInput(maneuver)) {
             hudInputX = maneuver.getRoll();
             hudInputY = -maneuver.getPitch();
-            event.consumeHorizontal();
-            event.consumeVertical();
+            event.consumeBodyHorizontal();
+            event.consumeBodyVertical();
             return;
         }
         if (!capability(event.getPlayer(), FlightCapability.CAMERA_ROTATION, true)) {
-            event.consumeHorizontal();
-            event.consumeVertical();
+            event.consumeBodyHorizontal();
+            event.consumeBodyVertical();
             return;
         }
         if (FlightRollConfig.banking) {
@@ -189,8 +241,8 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
         applyLocalRotation(event.getPlayer(), pitchDegrees, yawDegrees, rollDegrees,
                 interpolatedBarrel(event.getPartialTicks()));
         // The transformed local-axis rotation replaces vanilla yaw/pitch for this frame.
-        event.consumeHorizontal();
-        event.consumeVertical();
+        event.consumeBodyHorizontal();
+        event.consumeBodyVertical();
     }
 
     @SubscribeEvent
@@ -237,16 +289,22 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
 
     @SubscribeEvent
     public void cameraSetup(EntityViewRenderEvent.CameraSetup event) {
+        if (CameraExternalCompat.omnilookPresent()) return;
+        // CameraRuntime already sampled FlightCameraTracking for this render frame. Its LOWEST
+        // bridge applies that exact quaternion after event compatibility listeners have run.
+        // Shoulder and free-look cameras do NOT use a quaternion — they rely on vanilla's
+        // event-post rotations to apply the player's orientation. So we must still set the
+        // flight roll in the event for these modes.
+        // Drone mode uses a full quaternion, so we skip for drone only.
+        if (CameraApi.isRenderOverrideActive() && CameraApi.isDroneActive()) return;
         FlightRenderPose pose = resolveRenderPose(mc.player,
                 (float) event.getRenderPartialTicks());
         if (pose != null) {
             FlightEulerAngles angles = pose.getCameraAngles();
-            // Forge's CameraSetup yaw is the OpenGL view rotation, not Entity.rotationYaw.
-            // Vanilla supplies interpolated entity yaw + 180 degrees here; omitting that half
-            // turn makes the camera look out of the aircraft tail while physics still thrusts
-            // along its correct local +Z forward axis.
-            event.setYaw(FlightOrientationMath.cameraEventYaw(angles.yawDegrees));
-            event.setPitch(angles.pitchDegrees);
+            // FlightCameraTracking is active: trackCamera() already syncs player.rotationYaw/Pitch
+            // to the aircraft attitude every tick. orientCamera's vanilla rotations use those
+            // synced values, so setting event yaw/pitch would double-rotate.
+            // Only set the event roll for barrel roll effects.
             event.setRoll(angles.rollDegrees);
             return;
         }

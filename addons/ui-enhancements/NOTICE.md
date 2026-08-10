@@ -56,3 +56,12 @@ https://github.com/Darkhax-Minecraft/Tips.
 The optional experimental image-glyph middleware includes the emoji and picker dictionaries
 from TeamFruit's Emojicord/Gosling project and retains compatibility with its message tags.
 Those portions are distributed under the MIT License in `LICENSE-Gosling-Emojicord.txt`.
+
+# Camera platform sources
+
+The internal Shoulder Surfing-derived camera rig and collision sampling are
+distributed under the MIT License; the complete notice is in
+`META-INF/licenses/ShoulderSurfing.txt`.
+
+The internal Omnilook-compatible free-look behavior is based on public-domain
+source; the attribution and disclaimer are in `META-INF/licenses/Omnilook.txt`.

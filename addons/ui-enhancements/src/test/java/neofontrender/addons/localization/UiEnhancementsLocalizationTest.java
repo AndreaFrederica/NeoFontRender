@@ -34,6 +34,24 @@ class UiEnhancementsLocalizationTest {
     }
 
     @Test
+    void everyCameraToggleHasLocalizedTooltip() throws Exception {
+        Properties english = lang("en_us");
+        Properties chinese = lang("zh_cn");
+        for (String name : new String[]{
+                "f5_enabled", "f5_shoulder", "f5_freelook", "f5_drone",
+                "f5_replace_third", "f5_skip_front", "f5_remember", "freelook_toggle",
+                "freelook_collision", "drone_collision", "drone_interaction",
+                "shoulder_unlimited_x", "shoulder_unlimited_y", "shoulder_unlimited_z",
+                "shoulder_valkyrien_collision", "shoulder_collision", "shoulder_climbing",
+                "shoulder_dynamic_offsets", "shoulder_limit_reach", "shoulder_custom_ray",
+                "shoulder_transparency", "shoulder_hide_player"}) {
+            String key = "neofontrender_ui_enhancements.tooltip.camera." + name;
+            assertTrue(english.containsKey(key), "Missing English camera tooltip: " + key);
+            assertTrue(chinese.containsKey(key), "Missing Chinese camera tooltip: " + key);
+        }
+    }
+
+    @Test
     void everyTipTranslationExistsInBothJsonLocales() throws Exception {
         JsonObject english = json(ROOT + "lang/en_us.json");
         JsonObject chinese = json(ROOT + "lang/zh_cn.json");
