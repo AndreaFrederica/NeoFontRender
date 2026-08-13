@@ -1,8 +1,9 @@
 <p align="center">
-  <img src="logo.svg" alt="Neo Font Render" width="200">
+  <img src="logo.png" alt="Neo Font Render" width="200">
+  <img src="addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png" alt="Neo Font Render" width="200">
 </p>
 
-<h1 align="center">Neo Font Render</h1>
+<h1 align="center">The Revo UI Component Pack<br>(Neo Font Render/NFR-UIEnhancements)</h1>
 
 <p align="center">
   Modern text shaping and font rendering for Minecraft 1.12.2 on Cleanroom.<br>
