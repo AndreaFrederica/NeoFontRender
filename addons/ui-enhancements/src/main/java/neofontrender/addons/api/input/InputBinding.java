@@ -29,7 +29,8 @@ public final class InputBinding {
     public ResourceLocation getControl() { return control; }
     public InputAction getAction() { return action; }
 
-    InputValue map(InputValue raw) {
+    /** Maps one raw control sample; public so optional controller addons can reuse UIE's stages. */
+    public InputValue map(InputValue raw) {
         float magnitude = Math.abs(raw.getAxis());
         float axis = magnitude <= deadzone ? 0.0F
                 : Math.copySign((magnitude - deadzone) / (1.0F - deadzone), raw.getAxis());

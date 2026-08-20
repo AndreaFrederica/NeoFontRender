@@ -10,7 +10,7 @@
     "logoFile": "assets/neofontrender_ui_enhancements/logo.png",
     "modProperties": {"issueTrackerUrl": "${issueTracker}"},
     "clientSideOnly": true,
-    "requiredMods": ["neofontrender@[${nfrVersion},)", "modularui@[3.1.6,)"],
+    "requiredMods": ["neofontrender@[${nfrVersion},)", "modularui@[3.2.0-nfr.1,)"],
     "dependencies": ["applecore", "chunkpregenerator", "classicbar", "jei", "legendarytooltips", "obscure_tooltips", "optifine", "quark"]
   },
   {

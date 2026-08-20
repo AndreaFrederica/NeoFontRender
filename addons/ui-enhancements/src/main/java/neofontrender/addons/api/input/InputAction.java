@@ -28,6 +28,21 @@ public enum InputAction {
     PLAYER_SWAP_HANDS,
     PLAYER_HOTBAR,
 
+    /** GUI-only actions consumed by optional device adapters. */
+    GUI_CURSOR_X,
+    GUI_CURSOR_Y,
+    GUI_SCROLL_Y,
+    GUI_ACCEPT,
+    GUI_BACK,
+    GUI_SECONDARY,
+    GUI_QUICK_MOVE,
+    GUI_NAV_UP,
+    GUI_NAV_DOWN,
+    GUI_NAV_LEFT,
+    GUI_NAV_RIGHT,
+    GUI_PAGE_PREVIOUS,
+    GUI_PAGE_NEXT,
+
     CAMERA_TOGGLE_DRONE,
     CAMERA_EXIT_DRONE,
     CAMERA_TOGGLE_FREELOOK,
