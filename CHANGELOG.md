@@ -10,6 +10,8 @@
 
 ## [uie/0.6.0]
 
+- Add loading-time prompt arbitration so Forge startup queries and modded confirmation screens
+  remain visible and interactive, with a scrollable modern skin for Forge confirmations.
 - Expand the Flight API to v9 with shared quaternion attitude, body-pose and camera-tracking
   providers, maneuver input handling, and HUD attitude surfaces for aircraft-style addons.
 - Rework the flight-roll controller around the new attitude model and extend the HUD telemetry
