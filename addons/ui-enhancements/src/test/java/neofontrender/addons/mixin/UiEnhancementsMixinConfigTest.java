@@ -76,6 +76,8 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinGuiMainMenuContinueGame\""));
         assertTrue(config.contains("\"MixinEntityRendererZoomMouse\""));
         assertTrue(config.contains("\"MixinEntityRendererMouseInputEvent\""));
+        assertTrue(config.contains("\"MixinEntityRendererUiNavigationPointer\""));
+        assertTrue(config.contains("\"MixinGuiScreenSyntheticMouseInput\""));
         assertTrue(config.contains("\"MixinEntityRendererCameraPresentation\""));
         assertTrue(config.contains("\"AccessorEntityRendererCameraDistance\""));
         assertTrue(config.contains("\"MixinMinecraftPerspectiveCycle\""));
@@ -94,7 +96,17 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinGuiButtonHover\""));
         assertTrue(config.contains("\"MixinGuiButtonExtHover\""));
         assertTrue(config.contains("\"MixinForgeGuiUtilsButtonAlpha\""));
+        assertTrue(config.contains("\"MixinForgeGuiConfirmationModern\""));
+        assertTrue(config.contains("\"MixinForgeGuiNotificationModern\""));
         assertTrue(config.contains("\"MixinGuiContainerSlotHover\""));
+        assertTrue(config.contains("\"AccessorGuiScreenNavigation\""));
+        assertTrue(config.contains("\"AccessorGuiSlotNavigation\""));
+        assertTrue(config.contains("\"AccessorGuiScrollingListNavigation\""));
+        assertTrue(config.contains("\"AccessorGuiKeyBindingEntryNavigation\""));
+        assertTrue(config.contains("\"AccessorGuiTextFieldNavigation\""));
+        assertTrue(config.contains("\"AccessorGuiOptionSliderNavigation\""));
+        assertTrue(config.contains("\"MixinGuiListExtendedNavigationCapture\""));
+        assertTrue(config.contains("\"MixinCustomGuiButtonNavigationCapture\""));
         assertTrue(config.contains("\"MixinModularItemSlotHover\""));
         assertTrue(config.contains("\"MixinGuiScreenResourcePacksProgress\""));
         assertTrue(config.contains("\"MixinGuiScreenBookCjkTypography\""));
@@ -139,6 +151,17 @@ class UiEnhancementsMixinConfigTest {
         } catch (Exception error) {
             throw new AssertionError("Failed to inspect zoom mixin bytecode", error);
         }
+    }
+
+    @Test
+    void controllerLookRoutingRemainsInTheMouseBoundary() {
+        String bytecode = bytecode(
+                "neofontrender/addons/mixin/MixinEntityRendererMouseInputEvent.class");
+
+        assertTrue(bytecode.contains("CAMERA_LOOK_X"));
+        assertTrue(bytecode.contains("CAMERA_LOOK_Y"));
+        assertTrue(bytecode.contains("FlightApi"));
+        assertTrue(bytecode.contains("resolveCameraDelta"));
     }
 
     private static String config(String name) {
