@@ -21,7 +21,7 @@ dependencies {
     contain('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
     // Unimined must treat ModularUI as a mod dependency so its core plugin and
     // early Mixin configuration are available during the LaunchWrapper phase.
-    modImplementation('com.cleanroommc:modularui:3.1.6') { transitive = false }
+    modImplementation('com.cleanroommc:modularui:3.2.0-nfr.1') { transitive = false }
     compileOnly 'org.lwjgl:lwjgl-glfw:3.3.6'
     compileOnly 'org.lwjgl:lwjgl:3.3.6'
 }

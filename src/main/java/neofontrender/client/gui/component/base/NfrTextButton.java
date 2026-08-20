@@ -4,6 +4,9 @@ import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.utils.Platform;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
+import com.cleanroommc.modularui.api.navigation.NavigationAction;
+import com.cleanroommc.modularui.api.navigation.NavigationInfo;
+import com.cleanroommc.modularui.api.navigation.NavigationRole;
 import net.minecraft.client.Minecraft;
 
 import java.util.function.Supplier;
@@ -16,6 +19,10 @@ public class NfrTextButton extends ButtonWidget<NfrTextButton> {
     public NfrTextButton(Supplier<String> label, boolean centered) {
         this.label = label;
         this.centered = centered;
+        navigationInfo(NavigationInfo.builder(NavigationRole.BUTTON)
+                .label(label)
+                .actions(NavigationAction.ACTIVATE, NavigationAction.SECONDARY)
+                .build());
     }
 
     @Override

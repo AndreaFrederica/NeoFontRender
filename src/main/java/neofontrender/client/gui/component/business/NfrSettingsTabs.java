@@ -8,6 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntConsumer;
 import com.cleanroommc.modularui.widget.ScrollWidget;
+import com.cleanroommc.modularui.api.navigation.NavigationAction;
+import com.cleanroommc.modularui.api.navigation.NavigationAxis;
+import com.cleanroommc.modularui.api.navigation.NavigationInfo;
+import com.cleanroommc.modularui.api.navigation.NavigationRole;
 
 /** Reusable vertical settings-tab navigation with one selected route. */
 public final class NfrSettingsTabs extends ParentWidget<NfrSettingsTabs> implements ILayoutWidget {
@@ -16,8 +20,21 @@ public final class NfrSettingsTabs extends ParentWidget<NfrSettingsTabs> impleme
     private final List<NfrCategoryButton> buttons = new ArrayList<>();
 
     public NfrSettingsTabs(List<Tab> tabs, IntConsumer scrollListener) {
+        navigationInfo(NavigationInfo.builder(NavigationRole.TAB_LIST)
+                .group("settings.tabs")
+                .primaryAxis(NavigationAxis.VERTICAL)
+                .focusable(false)
+                .build());
+        int order = 0;
         for (Tab tab : tabs) {
             NfrCategoryButton button = new NfrCategoryButton(tab.label, tab.selected);
+            button.navigationInfo(NavigationInfo.builder(NavigationRole.TAB)
+                    .label(tab.label)
+                    .actions(NavigationAction.ACTIVATE)
+                    .group("settings.tabs")
+                    .order(order++)
+                    .primaryAxis(NavigationAxis.VERTICAL)
+                    .build());
             button.onMousePressed(mouseButton -> {
                 if (getParent() instanceof ScrollWidget) {
                     ScrollWidget<?> scroll = (ScrollWidget<?>) getParent();

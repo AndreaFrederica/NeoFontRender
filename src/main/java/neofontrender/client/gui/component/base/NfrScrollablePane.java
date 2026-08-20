@@ -4,6 +4,10 @@ import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.api.layout.ILayoutWidget;
 import com.cleanroommc.modularui.widget.ScrollWidget;
 import com.cleanroommc.modularui.widget.scroll.VerticalScrollData;
+import com.cleanroommc.modularui.api.navigation.NavigationAction;
+import com.cleanroommc.modularui.api.navigation.NavigationAxis;
+import com.cleanroommc.modularui.api.navigation.NavigationInfo;
+import com.cleanroommc.modularui.api.navigation.NavigationRole;
 
 /** Reusable scroll viewport that restores its initial position exactly once. */
 public final class NfrScrollablePane extends ScrollWidget<NfrScrollablePane> implements ILayoutWidget {
@@ -15,6 +19,11 @@ public final class NfrScrollablePane extends ScrollWidget<NfrScrollablePane> imp
     public NfrScrollablePane(IWidget content) {
         super(new VerticalScrollData());
         this.content = content;
+        navigationInfo(NavigationInfo.builder(NavigationRole.SCROLL_VIEW)
+                .actions(NavigationAction.SCROLL_UP, NavigationAction.SCROLL_DOWN)
+                .primaryAxis(NavigationAxis.VERTICAL)
+                .focusable(false)
+                .build());
         child(content);
     }
 

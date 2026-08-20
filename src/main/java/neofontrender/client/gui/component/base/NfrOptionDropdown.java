@@ -11,6 +11,9 @@ import com.cleanroommc.modularui.widgets.menu.Menu;
 import com.cleanroommc.modularui.widget.AbstractScrollWidget;
 import com.cleanroommc.modularui.widget.sizer.Area;
 import com.cleanroommc.modularui.widget.sizer.AreaResizer;
+import com.cleanroommc.modularui.api.navigation.NavigationAction;
+import com.cleanroommc.modularui.api.navigation.NavigationInfo;
+import com.cleanroommc.modularui.api.navigation.NavigationRole;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 
@@ -47,6 +50,12 @@ public final class NfrOptionDropdown extends ContextMenuButton<NfrOptionDropdown
         for (String value : values) this.values.add(value);
         this.display = display;
         this.compact = compact;
+        navigationInfo(NavigationInfo.builder(NavigationRole.DROPDOWN)
+                .id(name)
+                .label(() -> compact ? display.apply(getter.get())
+                        : label.get() + ": " + display.apply(getter.get()))
+                .actions(NavigationAction.ACTIVATE)
+                .build());
         requiresClick();
         // We provide the menu's relative anchor ourselves because ModularUI's widget Area does
         // not contain the render-time translation applied by ancestor scroll widgets.

@@ -18,6 +18,7 @@
 		"MixinReagenchantGuiReagentTable",
 		"MixinGuiScreen",
 		"MixinGuiTextField",
+		"MixinKeyBindingControllerInput",
 		"MixinMinecraft",
 		"MixinModularRichTooltip",
 		"MixinModularTextField",

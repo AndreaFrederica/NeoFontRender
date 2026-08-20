@@ -8,6 +8,10 @@ import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import net.minecraft.client.Minecraft;
+import com.cleanroommc.modularui.api.navigation.NavigationAction;
+import com.cleanroommc.modularui.api.navigation.NavigationAxis;
+import com.cleanroommc.modularui.api.navigation.NavigationInfo;
+import com.cleanroommc.modularui.api.navigation.NavigationRole;
 
 import java.util.function.Supplier;
 
@@ -20,6 +24,12 @@ public final class NfrLabeledSlider extends ParentWidget<NfrLabeledSlider>
     public NfrLabeledSlider(Supplier<String> text, SliderWidget slider) {
         this.label = new TextWidget(IKey.dynamic(text)).alignment(Alignment.CenterLeft).color(0xA9B5C5);
         this.slider = slider;
+        navigationInfo(NavigationInfo.builder(NavigationRole.GROUP).focusable(false).build());
+        slider.navigationInfo(NavigationInfo.builder(NavigationRole.SLIDER)
+                .label(text)
+                .actions(NavigationAction.INCREMENT, NavigationAction.DECREMENT)
+                .primaryAxis(NavigationAxis.HORIZONTAL)
+                .build());
         child(label);
         child(slider);
     }

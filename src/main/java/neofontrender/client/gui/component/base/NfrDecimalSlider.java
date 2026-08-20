@@ -5,6 +5,10 @@ import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.utils.Platform;
 import com.cleanroommc.modularui.widgets.SliderWidget;
+import com.cleanroommc.modularui.api.navigation.NavigationAction;
+import com.cleanroommc.modularui.api.navigation.NavigationAxis;
+import com.cleanroommc.modularui.api.navigation.NavigationInfo;
+import com.cleanroommc.modularui.api.navigation.NavigationRole;
 import net.minecraft.client.Minecraft;
 
 import java.util.function.Supplier;
@@ -22,6 +26,11 @@ public final class NfrDecimalSlider extends SliderWidget {
     public NfrDecimalSlider(Supplier<String> label, Supplier<String> displayValue) {
         this.label = label;
         this.displayValue = displayValue;
+        navigationInfo(NavigationInfo.builder(NavigationRole.SLIDER)
+                .label(label)
+                .actions(NavigationAction.INCREMENT, NavigationAction.DECREMENT)
+                .primaryAxis(NavigationAxis.HORIZONTAL)
+                .build());
         background(new Rectangle().color(0xB0000000));
         hoverBackground(new Rectangle().color(0xB8333333));
     }
