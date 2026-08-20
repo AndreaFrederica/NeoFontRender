@@ -4,6 +4,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.EntityRenderer;
 import neofontrender.addons.api.input.CameraMouseInputEvent;
 import neofontrender.addons.api.input.InputApi;
+import neofontrender.addons.api.input.InputAction;
+import neofontrender.addons.api.input.InputFrame;
 import neofontrender.addons.api.input.InputFlushReason;
 import neofontrender.addons.camera.CameraRuntime;
 import neofontrender.addons.input.VanillaInputBridge;
@@ -49,7 +51,7 @@ public abstract class MixinEntityRendererMouseInputEvent {
         int rawDeltaX = mc.mouseHelper.deltaX;
         int rawDeltaY = mc.mouseHelper.deltaY;
         VanillaInputBridge.capture(mc, rawDeltaX, rawDeltaY);
-        InputApi.beginFrame(partialTicks, mc.inGameHasFocus);
+        InputFrame input = InputApi.beginFrame(partialTicks, mc.inGameHasFocus);
         CameraMouseInputEvent event = new CameraMouseInputEvent(
                 mc.player, partialTicks, rawDeltaX, rawDeltaY);
         boolean eventCanceled = MinecraftForge.EVENT_BUS.post(event);
@@ -60,15 +62,26 @@ public abstract class MixinEntityRendererMouseInputEvent {
             mc.mouseHelper.deltaX = event.getDeltaX();
             mc.mouseHelper.deltaY = event.getDeltaY();
         }
-        if (CameraRuntime.updateViewInput(rawDeltaX, rawDeltaY,
+        boolean cameraOwnsLook = CameraRuntime.updateViewInput(rawDeltaX, rawDeltaY,
                 event.getCameraDeltaX(), event.getCameraDeltaY(), eventCanceled,
                 mc.gameSettings.invertMouse, mc.gameSettings.keyBindForward.isKeyDown(),
                 mc.gameSettings.keyBindBack.isKeyDown(), mc.gameSettings.keyBindLeft.isKeyDown(),
                 mc.gameSettings.keyBindRight.isKeyDown(), mc.gameSettings.keyBindJump.isKeyDown(),
-                mc.gameSettings.keyBindSneak.isKeyDown(), System.nanoTime())) {
+                mc.gameSettings.keyBindSneak.isKeyDown(), System.nanoTime());
+        if (cameraOwnsLook) {
             // Drone owns LOOK, so vanilla must not rotate the player's physical body afterward.
             mc.mouseHelper.deltaX = 0;
             mc.mouseHelper.deltaY = 0;
+        } else if (!nfrUi$isFlightActive()) {
+            double seconds = input.getContext().getFrameSeconds();
+            mc.mouseHelper.deltaX = VanillaInputBridge.resolveCameraDelta(
+                    rawDeltaX, mc.mouseHelper.deltaX, eventCanceled,
+                    input.get(InputAction.CAMERA_LOOK_X),
+                    input.disposition(InputAction.CAMERA_LOOK_X), seconds);
+            mc.mouseHelper.deltaY = VanillaInputBridge.resolveCameraDelta(
+                    rawDeltaY, mc.mouseHelper.deltaY, eventCanceled,
+                    input.get(InputAction.CAMERA_LOOK_Y),
+                    input.disposition(InputAction.CAMERA_LOOK_Y), seconds);
         }
         // Do not sample the frame here. Vanilla applies player.turn() after this injection;
         // getMouseOver/rendering will take the authoritative sample once that rotation is current.
@@ -77,5 +90,10 @@ public abstract class MixinEntityRendererMouseInputEvent {
     @Inject(method = "getMouseOver", at = @At("RETURN"), require = 1)
     private void nfrUi$synchronizeCameraPicking(float partialTicks, CallbackInfo ci) {
         CameraRuntime.synchronizePicking(partialTicks);
+    }
+
+    @Unique
+    private boolean nfrUi$isFlightActive() {
+        return neofontrender.addons.api.flight.FlightApi.isActive();
     }
 }

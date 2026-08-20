@@ -23,7 +23,8 @@ final class FlightInputAdapter {
 
     static float yaw() {
         InputFrame frame = InputApi.getFrame(0.0F);
-        return frame.get(InputAction.FLIGHT_YAW).getAxis();
+        return clamp(frame.get(InputAction.FLIGHT_YAW).getAxis()
+                + frame.get(InputAction.FLIGHT_RUDDER).getAxis());
     }
 
     static boolean isNeutral() {
@@ -32,5 +33,10 @@ final class FlightInputAdapter {
                 && frame.get(InputAction.FLIGHT_YAW).getAxis() == 0.0F
                 && frame.get(InputAction.FLIGHT_ROLL).getAxis() == 0.0F
                 && frame.get(InputAction.FLIGHT_RUDDER).getAxis() == 0.0F;
+    }
+
+    private static float clamp(float value) {
+        return Math.max(-1.0F, Math.min(1.0F,
+                Float.isFinite(value) ? value : 0.0F));
     }
 }

@@ -637,17 +637,24 @@ public final class CameraRuntime {
         int routedDeltaX = neofontrender.addons.input.VanillaInputBridge.resolveCameraDelta(
                 originalDeltaX, adjustedDeltaX, eventCanceled,
                 routedInput.get(InputAction.CAMERA_LOOK_X),
-                routedInput.disposition(InputAction.CAMERA_LOOK_X));
+                routedInput.disposition(InputAction.CAMERA_LOOK_X),
+                routedInput.getContext().getFrameSeconds());
         int routedDeltaY = neofontrender.addons.input.VanillaInputBridge.resolveCameraDelta(
                 originalDeltaY, adjustedDeltaY, eventCanceled,
                 routedInput.get(InputAction.CAMERA_LOOK_Y),
-                routedInput.disposition(InputAction.CAMERA_LOOK_Y));
+                routedInput.disposition(InputAction.CAMERA_LOOK_Y),
+                routedInput.getContext().getFrameSeconds());
         if (droneMotion != null) {
             // Keyboard yaw rotation for drone camera
             int keyboardYaw = 0;
             if (CameraKeyBindings.DRONE_ROTATE_LEFT.isKeyDown()) keyboardYaw -= 1;
             if (CameraKeyBindings.DRONE_ROTATE_RIGHT.isKeyDown()) keyboardYaw += 1;
-            droneMotion.look(routedDeltaX + keyboardYaw * 50, routedDeltaY, invertMouse);
+            int droneLookX = neofontrender.addons.input.VanillaInputBridge.resolveDroneCameraDeltaX(
+                    originalDeltaX, adjustedDeltaX, eventCanceled,
+                    routedInput.get(InputAction.CAMERA_LOOK_X),
+                    routedInput.disposition(InputAction.CAMERA_LOOK_X),
+                    routedInput.getContext().getFrameSeconds());
+            droneMotion.look(droneLookX + keyboardYaw * 50, routedDeltaY, invertMouse);
         }
         if (freeLookController != null) freeLookController.look(routedDeltaX, routedDeltaY,
                 invertMouse, MC.gameSettings.mouseSensitivity);

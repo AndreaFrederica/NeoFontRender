@@ -17,6 +17,8 @@ import neofontrender.addons.camera.CameraKeyBindings;
  * only publishes raw intent; routing remains owned by {@link InputApi} contexts.
  */
 public final class VanillaInputBridge {
+    private static final double VIRTUAL_LOOK_UNITS_PER_SECOND = 1200.0D;
+    private static final double DEFAULT_FRAME_SECONDS = 1.0D / 60.0D;
     private static final ResourceLocation ID = new ResourceLocation("neofontrender_ui_enhancements", "vanilla");
     private static final ResourceLocation LOOK_X = control("look_x");
     private static final ResourceLocation LOOK_Y = control("look_y");
@@ -123,10 +125,24 @@ public final class VanillaInputBridge {
     /** Resolves one detached-camera axis without losing exact physical mouse deltas. */
     public static int resolveCameraDelta(int originalMouseDelta, int adjustedMouseDelta,
                                          boolean eventCanceled, InputValue routed,
-                                         InputDisposition disposition) {
+                                         InputDisposition disposition, double frameSeconds) {
         if (eventCanceled || disposition == InputDisposition.BLOCK) return 0;
         if (originalMouseDelta != 0 || adjustedMouseDelta != 0) return adjustedMouseDelta;
-        return Math.round((routed == null ? 0.0F : routed.getAxis()) * 100.0F);
+        double seconds = Double.isFinite(frameSeconds) && frameSeconds > 0.0D
+                ? Math.min(0.1D, frameSeconds) : DEFAULT_FRAME_SECONDS;
+        return (int) Math.round((routed == null ? 0.0F : routed.getAxis())
+                * VIRTUAL_LOOK_UNITS_PER_SECOND * seconds);
+    }
+
+    /** Drone keeps its legacy mouse sign; virtual controller look uses the opposite rig sign. */
+    public static int resolveDroneCameraDeltaX(int originalMouseDelta, int adjustedMouseDelta,
+                                               boolean eventCanceled, InputValue routed,
+                                               InputDisposition disposition, double frameSeconds) {
+        int delta = resolveCameraDelta(originalMouseDelta, adjustedMouseDelta, eventCanceled,
+                routed, disposition, frameSeconds);
+        if (originalMouseDelta == 0 && adjustedMouseDelta == 0 && routed != null
+                && Math.abs(routed.getAxis()) > 1.0E-6F) return -delta;
+        return delta;
     }
 
     private static ResourceLocation control(String path) { return new ResourceLocation(ID.getNamespace(), path); }

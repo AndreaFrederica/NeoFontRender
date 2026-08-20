@@ -10,6 +10,8 @@ import neofontrender.addons.ui.UiEnhancementModule;
 import neofontrender.addons.api.camera.CameraApi;
 import neofontrender.addons.api.camera.CameraRigRequest;
 import neofontrender.addons.input.VanillaInputBridge;
+import neofontrender.addons.input.PlayerMovementInputBridge;
+import neofontrender.addons.input.InputCommandEdges;
 import neofontrender.addons.api.input.InputAction;
 import neofontrender.addons.api.input.InputApi;
 import neofontrender.addons.api.input.InputFrame;
@@ -19,8 +21,8 @@ import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 /** Boots camera bridges without enabling a camera mode by default. */
 public final class CameraModule implements UiEnhancementModule {
     private final CameraSessionOwner interactiveSession = new CameraSessionOwner();
+    private final InputCommandEdges commandEdges = new InputCommandEdges();
     private net.minecraft.util.ResourceLocation interactiveRigId;
-    private long lastCommandSample = Long.MIN_VALUE;
     @Override public void preInit() {
         ShoulderCameraConfig.load();
         FreeLookConfig.load();
@@ -56,6 +58,7 @@ public final class CameraModule implements UiEnhancementModule {
         ClientRegistry.registerKeyBinding(CameraKeyBindings.DRONE_ROTATE_RIGHT);
         CameraPerspectiveController.initialize();
         NfrSettingsPageRegistry.register(new CameraSettingsPage());
+        MinecraftForge.EVENT_BUS.register(PlayerMovementInputBridge.INSTANCE);
         MinecraftForge.EVENT_BUS.register(CameraRenderBridge.INSTANCE);
         MinecraftForge.EVENT_BUS.register(this);
     }
@@ -79,21 +82,26 @@ public final class CameraModule implements UiEnhancementModule {
         // Match Shoulder Surfing's key handler: opening a screen must not toggle modes or
         // consume its adjustment keys while the player is typing or navigating a UI.
         InputFrame input = InputApi.getFrame(0.0F);
-        boolean freshInput = input.getSampleId() != lastCommandSample;
-        lastCommandSample = input.getSampleId();
+        boolean exitPressed = commandEdges.pressed(input, InputAction.CAMERA_EXIT_DRONE);
+        boolean dronePressed = commandEdges.pressed(input, InputAction.CAMERA_TOGGLE_DRONE);
+        boolean freeLookPressed = commandEdges.pressed(input, InputAction.CAMERA_TOGGLE_FREELOOK);
+        boolean shoulderPressed = commandEdges.pressed(input, InputAction.CAMERA_TOGGLE_SHOULDER);
+        boolean swapShoulderPressed = commandEdges.pressed(input, InputAction.CAMERA_SWAP_SHOULDER);
+        boolean freeLookControlPressed = commandEdges.pressed(
+                input, InputAction.CAMERA_TOGGLE_FREELOOK_CONTROL);
         if (net.minecraft.client.Minecraft.getMinecraft().currentScreen != null) {
             CameraRuntime.advanceCameraTick();
             return;
         }
         if (CameraKeyBindings.EXIT_CAMERA.isPressed()
-                || pressed(input, InputAction.CAMERA_EXIT_DRONE, freshInput)) closeInteractiveSession();
+                || exitPressed) closeInteractiveSession();
         if (CameraKeyBindings.TOGGLE_DRONE.isPressed()
-                || pressed(input, InputAction.CAMERA_TOGGLE_DRONE, freshInput)) {
+                || dronePressed) {
             toggle(CameraRigRequest.drone(100));
         }
         if (FreeLookConfig.toggleMode) {
             if (CameraKeyBindings.TOGGLE_FREE_LOOK.isPressed()
-                    || pressed(input, InputAction.CAMERA_TOGGLE_FREELOOK, freshInput)) {
+                    || freeLookPressed) {
                 toggle(CameraRigRequest.freeLook(100));
             }
         } else {
@@ -108,11 +116,11 @@ public final class CameraModule implements UiEnhancementModule {
             }
         }
         if (CameraKeyBindings.TOGGLE_SHOULDER.isPressed()
-                || pressed(input, InputAction.CAMERA_TOGGLE_SHOULDER, freshInput)) {
+                || shoulderPressed) {
             toggle(CameraRigRequest.shoulder(100));
         }
         if (CameraKeyBindings.SWAP_SHOULDER.isPressed()
-                || pressed(input, InputAction.CAMERA_SWAP_SHOULDER, freshInput)) {
+                || swapShoulderPressed) {
             CameraRuntime.swapShoulder();
         }
         if (CameraRuntime.isShoulderActive()) {
@@ -125,7 +133,7 @@ public final class CameraModule implements UiEnhancementModule {
         }
         if (CameraRuntime.isFreeLookActive()
                 && (CameraKeyBindings.FREELOOK_TOGGLE_CONTROL.isPressed()
-                || pressed(input, InputAction.CAMERA_TOGGLE_FREELOOK_CONTROL, freshInput))) {
+                || freeLookControlPressed)) {
             CameraRuntime.toggleFreeLookControl();
         }
         if (CameraRuntime.isFreeLookActive()) {
@@ -147,6 +155,7 @@ public final class CameraModule implements UiEnhancementModule {
     public void worldUnload(WorldEvent.Unload event) {
         if (event.getWorld() != null && event.getWorld().isRemote) {
             closeInteractiveSession();
+            commandEdges.clear();
             CameraRuntime.releaseApiViewProxy();
             VanillaInputBridge.reset();
             InputApi.flush(InputFlushReason.WORLD_CHANGE);
@@ -156,6 +165,7 @@ public final class CameraModule implements UiEnhancementModule {
     @SubscribeEvent
     public void disconnected(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
         closeInteractiveSession();
+        commandEdges.clear();
         CameraRuntime.releaseApiViewProxy();
         VanillaInputBridge.reset();
         InputApi.flush(InputFlushReason.DISCONNECT);
@@ -204,7 +214,4 @@ public final class CameraModule implements UiEnhancementModule {
         if (failure != null) throw failure;
     }
 
-    private static boolean pressed(InputFrame frame, InputAction action, boolean fresh) {
-        return fresh && frame.get(action).isPressed();
-    }
 }

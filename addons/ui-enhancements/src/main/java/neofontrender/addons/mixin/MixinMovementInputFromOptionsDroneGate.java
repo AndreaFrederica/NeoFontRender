@@ -32,9 +32,6 @@ public abstract class MixinMovementInputFromOptionsDroneGate {
     }
 
     private static boolean isFlightActive() {
-        net.minecraft.client.entity.EntityPlayerSP player = Minecraft.getMinecraft().player;
-        if (player == null) return false;
-        return player.isElytraFlying()
-                || FlightApi.queryCameraTracking(player, 1.0F) != null;
+        return FlightApi.isActive();
     }
 }
