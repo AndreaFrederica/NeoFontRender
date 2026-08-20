@@ -1,0 +1,17 @@
+[
+  {
+    "modid": "neofontrender_ui_enhancements_controller",
+    "name": "Revo UI Controller Support",
+    "version": "${version}",
+    "mcversion": "1.12.2",
+    "description": "Optional SDL3 controller input support for Revo UI.",
+    "authorList": ["Revo UI contributors"],
+    "url": "https://sirrus.cc",
+    "clientSideOnly": true,
+    "requiredMods": [
+      "neofontrender@[${nfrVersion},)",
+      "neofontrender_ui_enhancements@[${uieVersion},)"
+    ],
+    "dependencies": []
+  }
+]

@@ -28,6 +28,7 @@ run
 hs_err_pid*.log
 src/main/java/io/
 /addons/ui-enhancements/logs
+/addons/ui-enhancements-controller/logs
 /logs
 
 # local agent tooling

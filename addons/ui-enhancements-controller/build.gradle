@@ -1,0 +1,215 @@
+plugins {
+    id 'java'
+    id 'xyz.wagyourtail.unimined' version '1.4.26-kappa'
+}
+
+group = 'neofontrender.addons'
+version = providers.gradleProperty('ui_enhancements_controller_version').get()
+
+base { archivesName = 'neofontrender-ui-enhancements-controller' }
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = 'https://repo.cleanroommc.com/releases' }
+    maven { url = 'https://maven.minecraftforge.net/' }
+    maven { url = 'https://maven.isxander.dev/releases' }
+}
+
+configurations {
+    contain
+    implementation.extendsFrom(contain)
+    sdlNativeLinuxAarch64
+    sdlNativeLinuxX86_64
+    sdlNativeMacAarch64
+    sdlNativeMacX86_64
+    sdlNativeWindowsAarch64
+    sdlNativeWindowsX86_64
+}
+
+def sdlJavaVersion = 'release-3.4.14-7'
+def sdlNativeVersion = 'release-3.4.14'
+
+unimined.minecraft {
+    version '1.12.2'
+    mappings { mcp('stable', '39-1.12') }
+    cleanroom {
+        loader '0.6.1-alpha'
+        runs.off = true
+    }
+    defaultRemapJar = false
+    remap(tasks.named('jar').get())
+}
+
+dependencies {
+    compileOnly project(':')
+    compileOnly project(':addons:ui-enhancements')
+    compileOnly('com.cleanroommc:modularui:3.2.0-nfr.1') { transitive = false }
+    compileOnly 'com.cleanroommc:lwjglxx:1.1.21'
+    compileOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
+    compileOnly 'org.lwjgl:lwjgl:3.4.1'
+    annotationProcessor 'com.cleanroommc:sponge-mixin:0.20.13+mixin.0.8.7'
+
+    // SDL stays entirely inside this optional addon; UIE itself has no controller runtime cost.
+    contain "dev.isxander.sdl:sdl-api:${sdlJavaVersion}"
+    contain "dev.isxander.sdl:sdl-backend-ffm:${sdlJavaVersion}"
+
+    sdlNativeLinuxAarch64 "dev.isxander.sdl:sdl-natives:${sdlNativeVersion}:linux-aarch64@so"
+    sdlNativeLinuxX86_64 "dev.isxander.sdl:sdl-natives:${sdlNativeVersion}:linux-x86_64@so"
+    sdlNativeMacAarch64 "dev.isxander.sdl:sdl-natives:${sdlNativeVersion}:macos-aarch64@dylib"
+    sdlNativeMacX86_64 "dev.isxander.sdl:sdl-natives:${sdlNativeVersion}:macos-x86_64@dylib"
+    sdlNativeWindowsAarch64 "dev.isxander.sdl:sdl-natives:${sdlNativeVersion}:windows-aarch64@dll"
+    sdlNativeWindowsX86_64 "dev.isxander.sdl:sdl-natives:${sdlNativeVersion}:windows-x86_64@dll"
+
+    testImplementation project(':')
+    testImplementation project(':addons:ui-enhancements')
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+def mixinRefMap = layout.buildDirectory.file(
+        'tmp/mixins/mixins.neofontrender_ui_enhancements_controller-refmap.json')
+def mixinSrg = layout.buildDirectory.file('tmp/mixins/mixins.srg')
+def gradleUserHome = providers.environmentVariable('GRADLE_USER_HOME')
+        .getOrElse(System.getProperty('user.home') + '/.gradle')
+def mcpSrg = file("${gradleUserHome}/caches/minecraft/de/oceanlabs/mcp/mcp_stable/39/rfg_srgs/mcp-srg.srg")
+
+tasks.named('compileJava', JavaCompile).configure {
+    def mcpSrgFile = mcpSrg.absoluteFile
+    inputs.file(mcpSrgFile)
+    outputs.files(mixinSrg, mixinRefMap)
+    options.compilerArgs.addAll(
+            "-AreobfSrgFile=${mcpSrgFile.absolutePath}",
+            "-AoutSrgFile=${mixinSrg.get().asFile.absolutePath}",
+            "-AoutRefMapFile=${mixinRefMap.get().asFile.absolutePath}")
+}
+
+processResources {
+    inputs.property('version', project.version)
+    inputs.property('nfrVersion', rootProject.version)
+    inputs.property('uieVersion', providers.gradleProperty('ui_enhancements_version').get())
+    filesMatching('mcmod.info') {
+        expand(version: project.version,
+                nfrVersion: rootProject.version,
+                uieVersion: providers.gradleProperty('ui_enhancements_version').get())
+    }
+    from('vendor/controlify-upstream/LICENSE') {
+        into 'META-INF'
+        rename { 'LICENSE-Controlify.txt' }
+    }
+    from(rootProject.file('addons/ui-enhancements/vendor/tiqian/LICENSE')) {
+        into 'META-INF'
+        rename { 'LICENSE-controlify-sdl.txt' }
+    }
+    from('LICENSE-SDL3') {
+        into 'META-INF'
+        rename { 'LICENSE-SDL3.txt' }
+    }
+    from('THIRD-PARTY-NOTICE.md') {
+        into 'META-INF'
+        rename { 'NOTICE-controller-runtime.md' }
+    }
+    from('vendor/controlify-upstream/src-main/resources/assets/controlify/controllers/gamecontrollerdb-sdl3.txt') {
+        into 'assets/neofontrender_ui_enhancements_controller/controllers'
+    }
+    from('vendor/controlify-upstream/src-main/resources/assets/controlify/textures/gui/virtual_mouse.png') {
+        into 'assets/neofontrender_ui_enhancements_controller/textures/gui'
+    }
+    from(configurations.sdlNativeLinuxAarch64) {
+        into 'linux-aarch64'
+        rename { 'libSDL3.so' }
+    }
+    from(configurations.sdlNativeLinuxX86_64) {
+        into 'linux-x86-64'
+        rename { 'libSDL3.so' }
+    }
+    from(configurations.sdlNativeMacAarch64) {
+        into 'darwin-aarch64'
+        rename { 'libSDL3.dylib' }
+    }
+    from(configurations.sdlNativeMacX86_64) {
+        into 'darwin-x86-64'
+        rename { 'libSDL3.dylib' }
+    }
+    from(configurations.sdlNativeWindowsAarch64) {
+        into 'win32-aarch64'
+        rename { 'SDL3.dll' }
+    }
+    from(configurations.sdlNativeWindowsX86_64) {
+        into 'win32-x86-64'
+        rename { 'SDL3.dll' }
+    }
+}
+
+jar {
+    archiveClassifier = 'dev'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(configurations.contain) { into '/' }
+    from(mixinRefMap)
+    doFirst {
+        manifest.attributes(
+                'ModType': 'CRL',
+                'FMLCorePlugin': 'neofontrender.addons.controller.mixin.ControllerMixinLoader',
+                'FMLCorePluginContainsFMLMod': true,
+                'ContainedDeps': configurations.contain.collect { it.name }.join(' '),
+                'NonModDeps': true)
+    }
+    finalizedBy tasks.named('remapJar')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
+}
+
+test {
+    useJUnitPlatform()
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+}
+
+tasks.register('smokeTestBundledSdl', JavaExec) {
+    group = 'verification'
+    description = 'Extracts and initializes the bundled SDL3 native for the current platform.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'neofontrender.addons.controller.sdl.SdlNativeSmoke'
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+tasks.register('probeGamepad', JavaExec) {
+    group = 'verification'
+    description = 'Opens a Swing UI to verify every button/axis of a connected gamepad via SDL.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'neofontrender.addons.controller.sdl.SdlGamepadProbe'
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+
+tasks.register('prepareCombinedClientRun', Copy) {
+    dependsOn tasks.named('jar')
+    from(tasks.named('jar').flatMap { it.archiveFile })
+    into rootProject.layout.projectDirectory.dir('run/client/mods')
+    rename { 'neofontrender-ui-enhancements-controller-dev.jar' }
+}
+
+tasks.register('stageUiEnhancementsControllerRelease', Sync) {
+    group = 'distribution'
+    description = 'Stages the installable UIE controller support addon JAR.'
+    dependsOn tasks.named('build'), tasks.named('remapJar')
+    from(layout.buildDirectory.file(
+            "libs/neofontrender-ui-enhancements-controller-${project.version}.jar"))
+    into rootProject.layout.buildDirectory.dir('release/uie-controller')
+}
+
+tasks.named('genSources') {
+    enabled = false
+}
