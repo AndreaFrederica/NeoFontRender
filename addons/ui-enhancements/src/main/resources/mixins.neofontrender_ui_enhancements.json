@@ -1,5 +1,5 @@
 {
-  "required": true,
+  "required": false,
   "minVersion": "0.8.5",
   "compatibilityLevel": "JAVA_11",
   "package": "neofontrender.addons.mixin",
