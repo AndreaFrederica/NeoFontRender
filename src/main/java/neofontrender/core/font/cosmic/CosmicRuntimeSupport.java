@@ -63,6 +63,7 @@ public final class CosmicRuntimeSupport {
     private static Platform detectPlatform() {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+        String version = System.getProperty("os.version", "").toLowerCase(Locale.ROOT);
         String normalizedArch;
         if (arch.equals("amd64") || arch.equals("x86_64")) {
             normalizedArch = "x86_64";
@@ -77,8 +78,12 @@ public final class CosmicRuntimeSupport {
             return new Platform("windows-" + normalizedArch, "neofontrender_cosmic.dll");
         }
         if (os.contains("linux")) {
-            return new Platform("linux-" + normalizedArch + "-" + detectLinuxLibc(normalizedArch),
-                    "libneofontrender_cosmic.so");
+            if (version.contains("android")) {
+                return new Platform("android-" + normalizedArch, "libneofontrender_cosmic.so");
+            } else {
+                return new Platform("linux-" + normalizedArch + "-" + detectLinuxLibc(normalizedArch),
+                        "libneofontrender_cosmic.so");
+            }
         }
         if (os.contains("mac") || os.contains("darwin")) {
             return new Platform("macos-" + normalizedArch, "libneofontrender_cosmic.dylib");

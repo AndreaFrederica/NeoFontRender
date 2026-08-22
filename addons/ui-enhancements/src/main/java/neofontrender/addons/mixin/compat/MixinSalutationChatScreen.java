@@ -11,13 +11,14 @@ import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import speiger.src.salutation.client.gui.chat.ChatScreen;
 
 /** Keeps Salutation's custom keyTyped path compatible with TabbyChat's removable PM prefix. */
 @Pseudo
-@Mixin(targets = "speiger.src.salutation.client.gui.chat.ChatScreen", remap = false)
+@Mixin(value = ChatScreen.class)
 public abstract class MixinSalutationChatScreen {
-    @Inject(method = {"keyTyped(CI)V", "func_73869_a(CI)V"}, at = @At("HEAD"), cancellable = true,
-            require = 1, remap = false)
+    @Inject(method = "keyTyped(CI)V", at = @At("HEAD"), cancellable = true,
+            require = 1)
     private void nfrUi$removePrivateCommandBlock(char typedChar, int keyCode, CallbackInfo ci) {
         GuiTextField inputField = nfrUi$inputField();
         if (keyCode == Keyboard.KEY_BACK && inputField != null
@@ -28,10 +29,10 @@ public abstract class MixinSalutationChatScreen {
         }
     }
 
-    @Inject(method = {"keyTyped(CI)V", "func_73869_a(CI)V"},
+    @Inject(method = "keyTyped(CI)V",
             at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/client/Minecraft;func_147108_a(Lnet/minecraft/client/gui/GuiScreen;)V",
-                    ordinal = 1), cancellable = true, require = 1, remap = false)
+                    target = "Lnet/minecraft/client/Minecraft;displayGuiScreen(Lnet/minecraft/client/gui/GuiScreen;)V",
+                    ordinal = 1), cancellable = true, require = 1)
     private void nfrUi$keepChatOpenAfterSend(char typedChar, int keyCode, CallbackInfo ci) {
         if (neofontrender.addons.chat.EnhancedChatConfigAccess.tabbedChatEnabled()
                 && TabbyChat.getInstance().getChat() != null

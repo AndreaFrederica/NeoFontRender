@@ -68,6 +68,10 @@ jobs:
             resource: linux-loongarch64-musl
             library: libneofontrender_cosmic.so
             libc: musl
+          - runner: ubuntu-latest
+            target: aarch64-linux-android
+            resource: android-aarch64
+            library: libneofontrender_cosmic.so
           - runner: macos-15-intel
             target: x86_64-apple-darwin
             resource: macos-x86_64
@@ -204,6 +208,7 @@ jobs:
             linux-loongarch64-musl/libneofontrender_cosmic.so
             macos-x86_64/libneofontrender_cosmic.dylib
             macos-aarch64/libneofontrender_cosmic.dylib
+            android-aarch64/libneofontrender_cosmic.so
           )
           for library in "${expected[@]}"; do
             test -s "cosmic-natives/${library}" || {
@@ -268,7 +273,8 @@ jobs:
             assets/neofontrender/natives/linux-loongarch64-gnu/libneofontrender_cosmic.so \
             assets/neofontrender/natives/linux-loongarch64-musl/libneofontrender_cosmic.so \
             assets/neofontrender/natives/macos-x86_64/libneofontrender_cosmic.dylib \
-            assets/neofontrender/natives/macos-aarch64/libneofontrender_cosmic.dylib; do
+            assets/neofontrender/natives/macos-aarch64/libneofontrender_cosmic.dylib \
+            assets/neofontrender/natives/android-aarch64/libneofontrender_cosmic.so; do
             grep -Fxq "$entry" <<<"$full_entries" || {
               echo "Full JAR is missing $entry" >&2
               exit 1
