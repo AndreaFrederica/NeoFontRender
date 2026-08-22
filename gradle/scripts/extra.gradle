@@ -47,7 +47,7 @@ tasks.register('coreJar', Jar) {
                 'neofontrender/resources/**'
     }
     from('src/corePack/resources') {
-        expand(mod_id: mod_id, mod_name: mod_name, mod_version: mod_version, mod_description: mod_description, mod_authors: mod_authors, mod_credits: mod_credits, mod_url: mod_url, mod_update_json: mod_update_json, mod_issue_tracker: mod_issue_tracker, mod_logo_path: mod_logo_path)
+        expand(mod_id: mod_id, mod_name: mod_name, mod_version: mod_version, mod_description: mod_description, mod_authors: mod_authors, mod_credits: mod_credits, mod_url: mod_url, mod_update_json: mod_update_json, mod_issue_tracker: mod_issue_tracker, mod_logo_path: mod_logo_path, modularui_version: modularui_version)
     }
     doFirst {
         def contained = coreContainedJars.get()

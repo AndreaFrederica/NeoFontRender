@@ -12,7 +12,7 @@ on:
           - main
           - uie
       publish:
-        description: Publish to GitHub Releases and CurseForge
+        description: Publish the selected target (UIE is currently GitHub-only)
         required: true
         default: false
         type: boolean
@@ -259,15 +259,19 @@ jobs:
           sed -i 's/\r$//' gradlew
           chmod +x gradlew
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build pinned ModularUI dependency
+        id: modularui
+        uses: ./.github/actions/prepare-modularui
+
       - name: Setup Java 25
         uses: actions/setup-java@v4
         with:
           java-version: '25'
           distribution: zulu
           cache: gradle
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
 
       - name: Download all Cosmic natives
         uses: actions/download-artifact@v4
@@ -305,9 +309,13 @@ jobs:
 
       - name: Verify staged main distributions
         shell: bash
+        env:
+          MODULARUI_VERSION: ${{ steps.modularui.outputs.version }}
         run: |
           set -euo pipefail
           directory="build/release/main"
+          modularui="build/release/modularui/modularui-${MODULARUI_VERSION}.jar"
+          test -s "$modularui" || { echo "Missing ModularUI release JAR: $modularui" >&2; exit 1; }
           shopt -s nullglob
           archives=("$directory"/*.jar)
           cores=("$directory"/*-core.jar)
@@ -354,11 +362,25 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: neofontrender-${{ needs.release-meta.outputs.version || 'ci' }}
-          path: build/release/main/*.jar
+          path: |
+            build/release/main/*.jar
+            build/release/modularui/*.jar
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish main release to GitHub and CurseForge
+      - name: Publish main release to GitHub
+        if: needs.release-meta.outputs.kind == 'main' && needs.release-meta.outputs.publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-meta.outputs.tag }}
+          name: Revo Font ${{ needs.release-meta.outputs.version }}
+          files: |
+            build/release/main/*.jar
+            build/release/modularui/*.jar
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+      - name: Publish main release to CurseForge
         if: needs.release-meta.outputs.kind == 'main' && needs.release-meta.outputs.publish == 'true'
         uses: Kira-NT/mc-publish@v3
         with:
@@ -372,9 +394,6 @@ jobs:
           environment: client
           curseforge-id: 1617673
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          github-tag: ${{ needs.release-meta.outputs.tag }}
-          github-generate-changelog: true
-          github-token: ${{ github.token }}
           retry-attempts: 2
           retry-delay: 10000
           fail-mode: fail
