@@ -171,7 +171,42 @@ jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     // Unpack contained dependencies flat into the jar. The ContainedDeps nested-jar mechanism
     // does not come online for this dev-launched coremod on 1.7.10, leaving classes unreadable.
-    from(provider { configurations.contain.collect { it.isDirectory() ? it : zipTree(it) } })
+    //
+    // CurseForge rejected the bundle because the full H2 engine ships unused capabilities
+    // (TCP/PG/Web servers, Console/Shell/RunScript tools, JNDI DataSource, full-text, external
+    // auth). Only the embedded file-database JDBC subset is used for chat-history persistence,
+    // so drop those classes while unpacking H2. Classes the core engine actually references
+    // (Csv, CompressTool, SimpleResultSet, TriggerAdapter, Recover, DeleteDbFiles) are kept.
+    from(provider {
+        configurations.contain.collect { file ->
+            if (file.isDirectory()) return file
+            if (file.name.startsWith('h2-')) {
+                return zipTree(file).matching {
+                    exclude 'org/h2/server/**'
+                    exclude 'org/h2/tools/Server*'
+                    exclude 'org/h2/fulltext/**'
+                    exclude 'org/h2/jdbcx/**'
+                    exclude 'org/h2/bnf/**'
+                    exclude 'org/h2/jmx/**'
+                    exclude 'org/h2/security/auth/impl/**'
+                    exclude 'org/h2/tools/Console*'
+                    exclude 'org/h2/tools/GUIConsole*'
+                    exclude 'org/h2/tools/Shell*'
+                    exclude 'org/h2/tools/RunScript*'
+                    exclude 'org/h2/tools/Script*'
+                    exclude 'org/h2/tools/CreateCluster*'
+                    exclude 'org/h2/tools/Backup*'
+                    exclude 'org/h2/tools/Restore*'
+                    exclude 'org/h2/tools/ChangeFileEncryption*'
+                    exclude 'org/h2/tools/ConvertTraceFile*'
+                    exclude 'org/h2/tools/MultiDimension*'
+                    exclude 'org/h2/tools/Upgrade*'
+                    exclude 'org/h2/util/OsgiDataSourceFactory*'
+                }
+            }
+            return zipTree(file)
+        }
+    })
     from(mixinRefMap)
     from('NOTICE.md') {
         into 'META-INF'
