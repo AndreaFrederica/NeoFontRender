@@ -189,7 +189,7 @@ UIE 包含多个第三方 Mod 的兼容性修复：
 
 - Minecraft 1.12.2 与 Cleanroom。
 - Java 25。
-- [ModularUI 3.1.6+](https://github.com/CleanroomMC/ModularUI)。
+- [发行包内的 ModularUI 3.2.0-nfr.1 分支](https://github.com/AndreaFrederica/ModularUI)。
 
 下载适合安装方式的发行包并放入 `mods` 文件夹。一般建议直接使用 `full` 包。
 
@@ -203,7 +203,9 @@ UIE 包含多个第三方 Mod 的兼容性修复：
 
 ### 焕新UI
 
-将 `neofontrender-ui-enhancements-<version>.jar` 与本体一起放入 `mods`。服务端伴侣可选。
+将 `neofontrender-ui-enhancements-<version>.jar`、发行包内的自定义
+`modularui-<version>.jar` 与本体一起放入 `mods`。同一 Release 中的手柄支持、服务端伴侣和
+Electric Elytra JAR 均为可选组件。
 
 - [焕新UI Release 下载](https://github.com/AndreaFrederica/NeoFontRender/releases?q=uie%2F)
 - [附属说明与构建方法](addons/ui-enhancements/README.md)

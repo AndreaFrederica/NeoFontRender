@@ -1,0 +1,71 @@
+name: Prepare custom ModularUI
+description: Builds the pinned ModularUI fork, installs its development artifact, and stages its distributable JAR.
+
+outputs:
+  version:
+    description: ModularUI version read from gradle.properties
+    value: ${{ steps.coordinates.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read pinned ModularUI coordinates
+      id: coordinates
+      shell: bash
+      run: |
+        set -euo pipefail
+        read_property() {
+          sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" gradle.properties | tr -d '\r' | xargs
+        }
+
+        repository="$(read_property modularui_repository)"
+        ref="$(read_property modularui_ref)"
+        version="$(read_property modularui_version)"
+        test -n "$repository"
+        test -n "$ref"
+        test -n "$version"
+        echo "repository=$repository" >> "$GITHUB_OUTPUT"
+        echo "ref=$ref" >> "$GITHUB_OUTPUT"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Checkout pinned ModularUI fork
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ steps.coordinates.outputs.repository }}
+        ref: ${{ steps.coordinates.outputs.ref }}
+        path: .dependencies/modularui
+
+    - name: Setup Java 21 for ModularUI
+      uses: actions/setup-java@v4
+      with:
+        distribution: zulu
+        java-version: '21'
+
+    - name: Build and install ModularUI
+      shell: bash
+      run: |
+        set -euo pipefail
+        sed -i 's/\r$//' .dependencies/modularui/gradlew
+        chmod +x .dependencies/modularui/gradlew
+        .dependencies/modularui/gradlew \
+          -p .dependencies/modularui \
+          build publishToMavenLocal \
+          --no-daemon
+
+    - name: Validate and stage ModularUI
+      shell: bash
+      env:
+        VERSION: ${{ steps.coordinates.outputs.version }}
+      run: |
+        set -euo pipefail
+        installable=".dependencies/modularui/build/libs/modularui-${VERSION}.jar"
+        local_pom="$HOME/.m2/repository/com/cleanroommc/modularui/${VERSION}/modularui-${VERSION}.pom"
+        local_development="$HOME/.m2/repository/com/cleanroommc/modularui/${VERSION}/modularui-${VERSION}-dev.jar"
+        test -s "$installable"
+        test -s "$local_pom"
+        test -s "$local_development"
+        entries="$(jar tf "$installable")"
+        grep -Fxq 'mcmod.info' <<<"$entries"
+        grep -q '^com/cleanroommc/modularui/' <<<"$entries"
+        mkdir -p build/release/modularui
+        cp "$installable" build/release/modularui/

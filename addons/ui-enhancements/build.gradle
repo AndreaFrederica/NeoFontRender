@@ -51,7 +51,7 @@ unimined.minecraft {
 
 dependencies {
     compileOnly project(':')
-    compileOnly('com.cleanroommc:modularui:3.2.0-nfr.1') { transitive = false }
+    compileOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
     compileOnly('curse.maven:neverenoughanimation-1062347:6533650-sources-6533651') { transitive = false }
 
     // Cleanroom exposes the real LWJGL 3 API and translates Minecraft's old LWJGL 2 calls
@@ -78,7 +78,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
     testImplementation 'com.h2database:h2:2.3.232'
     testImplementation project(':')
-    testRuntimeOnly('com.cleanroommc:modularui:3.2.0-nfr.1') { transitive = false }
+    testRuntimeOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
     testImplementation 'org.lwjgl:lwjgl:3.4.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
@@ -106,9 +106,11 @@ processResources {
     exclude 'assets/salutation/lang/en_US.lang'
     inputs.property('version', project.version)
     inputs.property('nfrVersion', rootProject.version)
+    inputs.property('modularuiVersion', providers.gradleProperty('modularui_version').get())
     inputs.property('issueTracker', rootProject.mod_issue_tracker)
     filesMatching('mcmod.info') {
         expand(version: project.version, nfrVersion: rootProject.version,
+                modularuiVersion: providers.gradleProperty('modularui_version').get(),
                 issueTracker: rootProject.mod_issue_tracker)
     }
     from(rootProject.file('src/main/resources/META-INF/LICENSE-Arc3D.txt')) {

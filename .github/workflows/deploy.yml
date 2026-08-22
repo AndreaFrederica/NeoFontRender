@@ -390,6 +390,13 @@ jobs:
           sed -i 's/\r$//' gradlew
           chmod +x gradlew
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build pinned ModularUI dependency
+        id: modularui
+        uses: ./.github/actions/prepare-modularui
+
       - name: Setup Java 25
         uses: actions/setup-java@v4
         with:
@@ -397,22 +404,38 @@ jobs:
           java-version: '25'
           cache: gradle
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - name: Build and stage Revo UI bundle
+        run: >-
+          ./gradlew
+          :addons:ui-enhancements:stageUiEnhancementsRelease
+          :addons:ui-enhancements-controller:stageUiEnhancementsControllerRelease
+          :addons:ui-enhancements-server:stageUiEnhancementsServerRelease
+          :addons:electric-elytra:stageElectricElytraRelease
+          --no-daemon
 
-      - name: Build and stage Revo UI
-        run: ./gradlew :addons:ui-enhancements:stageUiEnhancementsRelease --no-daemon
-
-      - name: Verify staged Revo UI JAR
+      - name: Verify staged Revo UI bundle
         shell: bash
+        env:
+          MODULARUI_VERSION: ${{ steps.modularui.outputs.version }}
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          archives=(build/release/uie/*.jar)
-          [[ ${#archives[@]} -eq 1 ]] || { echo "Expected exactly one Revo UI release JAR" >&2; exit 1; }
-          jar="${archives[0]}"
-          test -s "$jar"
-          [[ "$jar" != *-dev.jar && "$jar" != *-sources.jar && "$jar" != *-shadow.jar ]]
+          read_property() {
+            sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" gradle.properties | tr -d '\r' | xargs
+          }
+          UIE_VERSION="$(read_property ui_enhancements_version)"
+          expected=(
+            "build/release/modularui/modularui-${MODULARUI_VERSION}.jar"
+            "build/release/uie/neofontrender-ui-enhancements-${UIE_VERSION}.jar"
+            "build/release/uie-controller/neofontrender-ui-enhancements-controller-$(read_property ui_enhancements_controller_version).jar"
+            "build/release/uie-server/neofontrender-ui-enhancements-server-$(read_property ui_enhancements_server_version).jar"
+            "build/release/electric-elytra/neofontrender-electric-elytra-$(read_property electric_elytra_version).jar"
+          )
+          for jar in "${expected[@]}"; do
+            test -s "$jar" || { echo "Missing release JAR: $jar" >&2; exit 1; }
+            [[ "$jar" != *-dev.jar && "$jar" != *-sources.jar && "$jar" != *-shadow.jar ]]
+          done
+
+          jar="build/release/uie/neofontrender-ui-enhancements-${UIE_VERSION}.jar"
           entries="$(jar tf "$jar")"
           grep -Fxq 'mcmod.info' <<<"$entries"
           grep -Fxq 'mixins.neofontrender_ui_enhancements.json' <<<"$entries"
@@ -421,31 +444,30 @@ jobs:
           grep -Fxq 'META-INF/NOTICE-Tiqian.md' <<<"$entries"
           grep -q 'nfr-tiqian-jvm' <<<"$entries"
 
-      - name: Upload Revo UI workflow artifact
+      - name: Upload Revo UI bundle workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: neofontrender-ui-enhancements-${{ needs.release-meta.outputs.version }}
-          path: build/release/uie/*.jar
+          name: revo-ui-bundle-${{ needs.release-meta.outputs.version }}
+          path: |
+            build/release/modularui/*.jar
+            build/release/uie/*.jar
+            build/release/uie-controller/*.jar
+            build/release/uie-server/*.jar
+            build/release/electric-elytra/*.jar
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish Revo UI to GitHub and CurseForge
+      - name: Publish Revo UI bundle to GitHub
         if: needs.release-meta.outputs.publish == 'true'
-        uses: Kira-NT/mc-publish@v3
+        uses: softprops/action-gh-release@v2
         with:
-          files: build/release/uie/*.jar
+          tag_name: ${{ needs.release-meta.outputs.tag }}
           name: Revo UI ${{ needs.release-meta.outputs.version }}
-          version: ${{ needs.release-meta.outputs.version }}
-          version-type: release
-          loaders: forge
-          game-versions: 1.12.2
-          game-version-filter: none
-          environment: client
-          curseforge-id: 1620532
-          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          github-tag: ${{ needs.release-meta.outputs.tag }}
-          github-generate-changelog: true
-          github-token: ${{ github.token }}
-          retry-attempts: 2
-          retry-delay: 10000
-          fail-mode: fail
+          files: |
+            build/release/modularui/*.jar
+            build/release/uie/*.jar
+            build/release/uie-controller/*.jar
+            build/release/uie-server/*.jar
+            build/release/electric-elytra/*.jar
+          generate_release_notes: true
+          fail_on_unmatched_files: true

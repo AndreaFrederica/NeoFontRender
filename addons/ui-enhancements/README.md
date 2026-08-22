@@ -153,9 +153,11 @@ git submodule update --init addons/ui-enhancements/vendor/tiqian
 The distributable jar is written to `addons/ui-enhancements/build/libs/` without
 the `-dev` classifier.
 
-GitHub Actions builds the addon independently for relevant pushes and pull requests. Releases use
-tags in the form `ui-enhancements-v<version>` (for example `ui-enhancements-v0.1.0`) and attach the
-installable remapped JAR plus its SHA-256 checksum to the repository's GitHub Release.
+GitHub Actions builds the pinned `AndreaFrederica/ModularUI` fork first, installs its development
+artifact into Maven Local for compilation, and exports its remapped JAR with the Revo UI bundle.
+Tags use the form `uie/<version>` (for example `uie/0.6.0`). The GitHub Release contains ModularUI,
+Revo UI, the optional controller and server companions, and Electric Elytra. CurseForge publishing
+for this bundle will be enabled separately after each project and dependency relationship is ready.
 
 ## Configuration
 

@@ -18,6 +18,7 @@ layout.json
 # gradle
 build
 .gradle
+.dependencies/
 
 # Rust native build output; Cargo.lock remains tracked for reproducible JNI binaries.
 native/**/target/

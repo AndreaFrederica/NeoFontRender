@@ -48,7 +48,7 @@ unimined.minecraft {
 dependencies {
     compileOnly project(':')
     compileOnly project(':addons:ui-enhancements')
-    compileOnly('com.cleanroommc:modularui:3.2.0-nfr.1') { transitive = false }
+    compileOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
     compileOnly 'com.cleanroommc:lwjglxx:1.1.21'
     compileOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
     compileOnly 'org.lwjgl:lwjgl:3.4.1'
