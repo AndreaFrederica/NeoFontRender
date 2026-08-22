@@ -177,6 +177,10 @@ jobs:
             target: aarch64-apple-darwin
             resource: macos-aarch64
             library: libneofontrender_cosmic.dylib
+          - runner: ubuntu-latest
+            target: aarch64-linux-android
+            resource: android-aarch64
+            library: libneofontrender_cosmic.so
 
     steps:
       - name: Checkout repository
@@ -287,6 +291,7 @@ jobs:
             linux-loongarch64-musl/libneofontrender_cosmic.so
             macos-x86_64/libneofontrender_cosmic.dylib
             macos-aarch64/libneofontrender_cosmic.dylib
+            android-aarch64/libneofontrender_cosmic.so
           )
           for library in "${expected[@]}"; do
             test -s "cosmic-natives/$library" || { echo "Missing Cosmic native: $library" >&2; exit 1; }
@@ -335,7 +340,8 @@ jobs:
             assets/neofontrender/natives/linux-loongarch64-gnu/libneofontrender_cosmic.so \
             assets/neofontrender/natives/linux-loongarch64-musl/libneofontrender_cosmic.so \
             assets/neofontrender/natives/macos-x86_64/libneofontrender_cosmic.dylib \
-            assets/neofontrender/natives/macos-aarch64/libneofontrender_cosmic.dylib; do
+            assets/neofontrender/natives/macos-aarch64/libneofontrender_cosmic.dylib \
+            assets/neofontrender/natives/android-aarch64/libneofontrender_cosmic.so; do
             grep -Fxq "$entry" <<<"$full_entries" || { echo "Full JAR is missing $entry" >&2; exit 1; }
             grep -Fxq "$entry" <<<"$core_entries" || { echo "Core JAR is missing $entry" >&2; exit 1; }
           done
