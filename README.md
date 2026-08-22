@@ -182,7 +182,9 @@ for version-specific documentation and releases.
 
 - Minecraft 1.12.2 with Cleanroom.
 - Java 25.
-- [The bundled ModularUI 3.2.0-nfr.1 fork](https://github.com/AndreaFrederica/ModularUI).
+- Revo UI requires [our ModularUI 3.2.0-nfr.1 fork](https://github.com/AndreaFrederica/ModularUI),
+  which provides the device-neutral navigation API used by UI navigation and controller support.
+  Upstream ModularUI 3.1.6 does not provide this API and is not compatible with this Revo UI build.
 
 Download the distribution that fits your installation and put it in the `mods` folder. The `full` package is the usual choice.
 

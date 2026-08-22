@@ -189,7 +189,9 @@ UIE 包含多个第三方 Mod 的兼容性修复：
 
 - Minecraft 1.12.2 与 Cleanroom。
 - Java 25。
-- [发行包内的 ModularUI 3.2.0-nfr.1 分支](https://github.com/AndreaFrederica/ModularUI)。
+- 焕新UI 必须使用[我们修改的 ModularUI 3.2.0-nfr.1 分支](https://github.com/AndreaFrederica/ModularUI)，
+  其中提供了 UI 导航与手柄支持所需的设备无关导航 API。上游 ModularUI 3.1.6 不包含这些 API，
+  与当前焕新UI 构建不兼容。
 
 下载适合安装方式的发行包并放入 `mods` 文件夹。一般建议直接使用 `full` 包。
 
