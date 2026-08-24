@@ -164,11 +164,9 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
         GlStateManager.setActiveTexture(OpenGlHelper.defaultTexUnit);
         GlStateManager.bindTexture(0);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        // framebufferRenderExt / shader passes change a lot of GL state while blitting the final
-        // composite. Restore the state that vanilla GUI code (including TC6's Thaumonomicon)
-        // expects to find active before it starts drawing its own background.
-        GlStateManager.enableDepth();
-        GlStateManager.depthFunc(GL11.GL_LEQUAL);
+        // Match vanilla's post-shader state: GUI rendering starts with depth testing disabled.
+        // Re-enabling it here makes legacy screens such as TC6's Thaumonomicon test against the
+        // world's depth attachment and reject their own background pass.
         GlStateManager.depthMask(true);
         GlStateManager.disableAlpha();
         GlStateManager.alphaFunc(GL11.GL_GREATER, 0.1F);
