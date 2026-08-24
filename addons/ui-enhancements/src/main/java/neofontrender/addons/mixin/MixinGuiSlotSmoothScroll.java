@@ -2,9 +2,11 @@ package neofontrender.addons.mixin;
 
 import net.minecraft.client.gui.GuiSlot;
 import net.minecraft.client.renderer.GlStateManager;
+import neofontrender.addons.api.ui.navigation.UiNavigationApi;
 import neofontrender.addons.language.LanguageListSearchAccess;
 import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
 import neofontrender.addons.scrolling.SmoothScrollController;
+import neofontrender.addons.scrolling.SyntheticScrollAccess;
 import org.lwjgl.input.Mouse;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -15,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(GuiSlot.class)
-public abstract class MixinGuiSlotSmoothScroll {
+public abstract class MixinGuiSlotSmoothScroll implements SyntheticScrollAccess {
     @Shadow protected float amountScrolled;
     @Shadow protected int initialClickY;
     @Shadow public abstract int getMaxScroll();
@@ -53,17 +55,36 @@ public abstract class MixinGuiSlotSmoothScroll {
     @Redirect(method = "handleMouseInput", at = @At(value = "INVOKE", target = "Lorg/lwjgl/input/Mouse;getEventDWheel()I"))
     private int nfrUi$smoothWheel() {
         int wheel = Mouse.getEventDWheel();
-        if (SmoothScrollConfigAccess.vanillaListsEnabled() && wheel != 0) {
-            nfrUi$scroller.scrollBy(wheel > 0 ? -SmoothScrollConfigAccess.wheelStep() : SmoothScrollConfigAccess.wheelStep(),
-                    getMaxScroll(), amountScrolled);
+        if (SmoothScrollConfigAccess.vanillaListsEnabled() && nfrUi$scrollWheel(wheel)) {
             return 0;
         }
         return wheel;
     }
 
+    @Redirect(method = "handleMouseInput", at = @At(value = "INVOKE",
+            target = "Lorg/lwjgl/input/Mouse;isButtonDown(I)Z", remap = false))
+    private boolean nfrUi$syntheticButtonState(int button) {
+        return UiNavigationApi.isPointerButtonDown(button);
+    }
+
+    @Override
+    public boolean nfrUi$scrollWheel(int wheel) {
+        if (wheel == 0) return false;
+        if (!SmoothScrollConfigAccess.vanillaListsEnabled()) {
+            amountScrolled = Math.max(0.0F, Math.min(getMaxScroll(), amountScrolled
+                    + (wheel > 0 ? -SmoothScrollConfigAccess.wheelStep()
+                    : SmoothScrollConfigAccess.wheelStep())));
+            nfrUi$scroller.sync(amountScrolled);
+            return true;
+        }
+        nfrUi$scroller.scrollBy(wheel > 0 ? -SmoothScrollConfigAccess.wheelStep()
+                : SmoothScrollConfigAccess.wheelStep(), getMaxScroll(), amountScrolled);
+        return true;
+    }
+
     @Inject(method = "handleMouseInput", at = @At("RETURN"))
     private void nfrUi$syncDrag(CallbackInfo ci) {
-        if (Mouse.isButtonDown(0) && initialClickY >= 0) nfrUi$scroller.sync(amountScrolled);
+        if (UiNavigationApi.isPointerButtonDown(0) && initialClickY >= 0) nfrUi$scroller.sync(amountScrolled);
     }
 
     @Unique

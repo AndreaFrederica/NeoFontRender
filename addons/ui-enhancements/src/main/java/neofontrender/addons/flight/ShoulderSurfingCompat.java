@@ -10,11 +10,15 @@ import net.minecraft.util.math.RayTraceResult;
 import net.minecraftforge.fml.common.Loader;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /** Optional, linkage-free bridge for Shoulder Surfing 1.12.2. */
 final class ShoulderSurfingCompat {
+    private static final Logger LOGGER = LogManager.getLogger("UIE Shoulder Surfing Compat");
     private static boolean resolved;
     private static Method getInstance;
     private static Method isActive;
@@ -31,12 +35,11 @@ final class ShoulderSurfingCompat {
     static boolean isActive() {
         if (!Loader.isModLoaded("shouldersurfing")) return false;
         resolve();
-        if (getInstance == null || isActive == null) return false;
         try {
             Object instance = getInstance.invoke(null);
             return Boolean.TRUE.equals(isActive.invoke(instance));
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-            return false;
+        } catch (ReflectiveOperationException | LinkageError error) {
+            throw compatibilityFailure("query active camera state", error);
         }
     }
 
@@ -66,8 +69,8 @@ final class ShoulderSurfingCompat {
             registrarType.getMethod("registerAdaptiveItemCallback", callbackType)
                     .invoke(registrar, callback);
             adaptiveCallbackRegistered = true;
-        } catch (ReflectiveOperationException | LinkageError | RuntimeException ignored) {
-            // Optional compatibility: Shoulder Surfing remains usable if its API changes.
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException error) {
+            throw compatibilityFailure("register adaptive-item callback", error);
         }
     }
 
@@ -99,8 +102,7 @@ final class ShoulderSurfingCompat {
     }
 
     private static RayTraceResult trace(float partialTicks, boolean shoulderCamera) {
-        if (!isActive() || getRendererInstance == null || getPlayerReach == null
-                || traceBlocksAndEntities == null) return null;
+        if (!isActive()) return null;
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft.getRenderViewEntity() == null || minecraft.playerController == null) return null;
         try {
@@ -109,17 +111,17 @@ final class ShoulderSurfingCompat {
             Object result = traceBlocksAndEntities.invoke(null,
                     minecraft.getRenderViewEntity(), minecraft.playerController, reach,
                     false, partialTicks, true, shoulderCamera);
-            return result instanceof RayTraceResult ? (RayTraceResult) result : null;
-        } catch (ReflectiveOperationException | ClassCastException | LinkageError ignored) {
-            return null;
+            if (result == null || result instanceof RayTraceResult) return (RayTraceResult) result;
+            throw new IllegalStateException("Shoulder Surfing ray trace returned "
+                    + result.getClass().getName() + " instead of RayTraceResult");
+        } catch (ReflectiveOperationException | ClassCastException | LinkageError error) {
+            throw compatibilityFailure("trace Shoulder camera ray", error);
         }
     }
 
     /** Returns the projected shoulder target in GUI space without changing the global GL matrix. */
     static float[] crosshairOffset() {
-        if (!ShoulderSurfingMatrixFix.isTakingOver() || !isActive()
-                || getRendererInstance == null || rendererProjected == null
-                || translationX == null || translationY == null) return null;
+        if (!ShoulderSurfingMatrixFix.isTakingOver() || !isActive()) return null;
         if (ShoulderSurfingFixConfig.staticMode()) return null;
         if (ShoulderSurfingFixConfig.adaptive() && !usesPlayerAim()) return null;
         try {
@@ -128,7 +130,10 @@ final class ShoulderSurfingCompat {
             if (projected == null) return null;
             float projectedX = ((Number) translationX.invoke(projected)).floatValue();
             float projectedY = ((Number) translationY.invoke(projected)).floatValue();
-            if (!Float.isFinite(projectedX) || !Float.isFinite(projectedY)) return null;
+            if (!Float.isFinite(projectedX) || !Float.isFinite(projectedY)) {
+                throw new IllegalStateException("Shoulder Surfing produced a non-finite crosshair projection: "
+                        + projectedX + ", " + projectedY);
+            }
 
             Minecraft minecraft = Minecraft.getMinecraft();
             if (minecraft.displayWidth <= 0 || minecraft.displayHeight <= 0) return null;
@@ -138,8 +143,8 @@ final class ShoulderSurfingCompat {
             float x = (projectedX - minecraft.displayWidth * 0.5F) * scaleX;
             float y = -(projectedY - minecraft.displayHeight * 0.5F) * scaleY;
             return new float[]{x, y};
-        } catch (ReflectiveOperationException | LinkageError | RuntimeException ignored) {
-            return null;
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException error) {
+            throw compatibilityFailure("read projected crosshair", error);
         }
     }
 
@@ -171,17 +176,12 @@ final class ShoulderSurfingCompat {
 
     private static synchronized void resolve() {
         if (resolved) return;
-        resolved = true;
         try {
             Class<?> type = Class.forName("com.teamderpy.shouldersurfing.client.ShoulderInstance", false,
                     ShoulderSurfingCompat.class.getClassLoader());
             getInstance = type.getMethod("getInstance");
             isActive = type.getMethod("doShoulderSurfing");
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-            getInstance = null;
-            isActive = null;
-        }
-        try {
+
             Class<?> renderer = Class.forName("com.teamderpy.shouldersurfing.client.ShoulderRenderer", false,
                     ShoulderSurfingCompat.class.getClassLoader());
             getRendererInstance = renderer.getMethod("getInstance");
@@ -199,14 +199,20 @@ final class ShoulderSurfingCompat {
             traceBlocksAndEntities = helper.getMethod("traceBlocksAndEntities",
                     Entity.class, PlayerControllerMP.class, double.class, boolean.class,
                     float.class, boolean.class, boolean.class);
-
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-            getRendererInstance = null;
-            getPlayerReach = null;
-            rendererProjected = null;
-            translationX = null;
-            translationY = null;
-            traceBlocksAndEntities = null;
+            resolved = true;
+        } catch (ReflectiveOperationException | LinkageError error) {
+            throw compatibilityFailure("resolve required Shoulder Surfing 1.12.2 API", error);
         }
+    }
+
+    private static RuntimeException compatibilityFailure(String operation, Throwable error) {
+        Throwable cause = error instanceof InvocationTargetException
+                && ((InvocationTargetException) error).getCause() != null
+                ? ((InvocationTargetException) error).getCause() : error;
+        LOGGER.error("Installed Shoulder Surfing compatibility failed while attempting to {}",
+                operation, cause);
+        if (cause instanceof RuntimeException) return (RuntimeException) cause;
+        return new IllegalStateException("Installed Shoulder Surfing compatibility failed: "
+                + operation, cause);
     }
 }

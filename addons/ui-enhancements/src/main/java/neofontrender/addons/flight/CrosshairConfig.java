@@ -151,7 +151,7 @@ final class CrosshairConfig {
         visibleAsSpectator = file.getBoolean("crosshair.visible.spectator", true);
         visibleHoldingRanged = file.getBoolean("crosshair.visible.holdingRanged", true);
         visibleHoldingThrowable = file.getBoolean("crosshair.visible.holdingThrowable", true);
-        visibleUsingSpyglass = file.getBoolean("crosshair.visible.usingSpyglass", false);
+        visibleUsingSpyglass = file.getBoolean("crosshair.visible.usingSpyglass", true);
 
         outlineEnabled = file.getBoolean("crosshair.outline.enabled", true);
         outlineColor = parseColor(file.getString("crosshair.outline.color", "#FF000000"), 0xFF000000);

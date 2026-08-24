@@ -2,6 +2,7 @@ package neofontrender.addons.loading;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -69,5 +70,21 @@ final class WorldLoadingProgressTest {
         assertEquals(0.5F,
                 WorldLoadingRenderer.authoritativeSpawnProgress(false, -1, 312, 50),
                 0.002F);
+    }
+
+    @Test
+    void loadingYieldsItsFramebufferToAnyForeignPromptScreen() {
+        assertTrue(WorldLoadingRenderer.shouldPresentLoadingScreen(true, false, true));
+        assertTrue(WorldLoadingRenderer.shouldPresentLoadingScreen(false, true, true));
+        assertFalse(WorldLoadingRenderer.shouldPresentLoadingScreen(true, false, false));
+        assertFalse(WorldLoadingRenderer.shouldPresentLoadingScreen(false, true, false));
+    }
+
+    @Test
+    void acceptedForgePromptKeepsOnlyItsSyntheticMainMenuInTheLoadingPresentation() {
+        assertTrue(WorldLoadingRenderer.shouldOwnAcceptedPromptReturn(true, true, true));
+        assertFalse(WorldLoadingRenderer.shouldOwnAcceptedPromptReturn(false, true, true));
+        assertFalse(WorldLoadingRenderer.shouldOwnAcceptedPromptReturn(true, false, true));
+        assertFalse(WorldLoadingRenderer.shouldOwnAcceptedPromptReturn(true, true, false));
     }
 }

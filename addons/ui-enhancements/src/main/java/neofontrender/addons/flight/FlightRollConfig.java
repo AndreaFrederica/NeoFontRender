@@ -7,6 +7,7 @@ final class FlightRollConfig {
     static boolean enabled = false;
     static boolean allowInWater = false;
     static boolean keyboardYaw = false;
+    static boolean wsPitch = true;
     static boolean banking = false;
     static boolean momentumMouse = true;
     static float rollSensitivity = 1.0F;
@@ -51,6 +52,8 @@ final class FlightRollConfig {
                         "Keep flight-roll control active while the player is in water.")
                 .define("flightRoll.keyboardYaw", false,
                         "Enable the remappable left/right keyboard yaw bindings.")
+                .define("flightRoll.wsPitch", true,
+                        "Map the forward/back movement keys (W/S) to the pitch axis while flying.")
                 .define("flightRoll.banking", false,
                         "Automatically coordinate turns from the current roll attitude.")
                 .define("flightRoll.momentumMouse", true,
@@ -109,6 +112,7 @@ final class FlightRollConfig {
         enabled = file.getBoolean("flightRoll.enabled", false);
         allowInWater = file.getBoolean("flightRoll.allowInWater", false);
         keyboardYaw = file.getBoolean("flightRoll.keyboardYaw", false);
+        wsPitch = file.getBoolean("flightRoll.wsPitch", true);
         banking = file.getBoolean("flightRoll.banking", false);
         momentumMouse = file.getBoolean("flightRoll.momentumMouse", true);
         rollSensitivity = (float) file.getDouble("flightRoll.rollSensitivity", 1.0D, 0.1D, 4.0D);
@@ -170,6 +174,7 @@ final class FlightRollConfig {
                 .set("flightRoll.enabled", enabled)
                 .set("flightRoll.allowInWater", allowInWater)
                 .set("flightRoll.keyboardYaw", keyboardYaw)
+                .set("flightRoll.wsPitch", wsPitch)
                 .set("flightRoll.banking", banking)
                 .set("flightRoll.momentumMouse", momentumMouse)
                 .set("flightRoll.rollSensitivity", (double) rollSensitivity)

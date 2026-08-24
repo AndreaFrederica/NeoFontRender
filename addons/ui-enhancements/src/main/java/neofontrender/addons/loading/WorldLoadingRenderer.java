@@ -5,6 +5,8 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiDownloadTerrain;
 import net.minecraft.client.gui.GuiIngameMenu;
+import net.minecraft.client.gui.GuiMainMenu;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiScreenWorking;
 import net.minecraft.client.multiplayer.ChunkProviderClient;
 import net.minecraft.client.multiplayer.WorldClient;
@@ -21,6 +23,7 @@ import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.event.world.ChunkEvent;
 import net.minecraftforge.event.world.WorldEvent;
+import net.minecraftforge.fml.client.GuiNotification;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -30,8 +33,10 @@ import neofontrender.addons.tips.TipsConfig;
 import neofontrender.addons.mixin.AccessorChunkProviderClient;
 import neofontrender.addons.tooltips.AddonI18n;
 import neofontrender.api.text.ModernTextApi;
+import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -80,6 +85,8 @@ public enum WorldLoadingRenderer {
     private int rendererChunksTotal;
     private long lastRendererFrameNanos;
     private boolean rendererFrameInProgress;
+    private GuiScreen loadingHostScreen;
+    private boolean resumeAfterAcceptedPrompt;
     private volatile String vanillaStage = "";
     private volatile String vanillaDetail = "";
 
@@ -111,6 +118,7 @@ public enum WorldLoadingRenderer {
             WorldLoadingSnapshotManager.INSTANCE.requestCleanExitFrame();
         }
         if (event.getGui() instanceof GuiDownloadTerrain) {
+            resumeAfterAcceptedPrompt = false;
             begin(Minecraft.getMinecraft(), System.nanoTime());
             vanillaStage = I18n.format("multiplayer.downloadingTerrain");
             vanillaDetail = "";
@@ -171,6 +179,7 @@ public enum WorldLoadingRenderer {
         }
         if (mc.world == null || mc.player == null || mc.currentScreen instanceof GuiDownloadTerrain) return;
         integratedLaunchActive = false;
+        resumeAfterAcceptedPrompt = false;
         stableDimension = mc.player.dimension;
         hasStableWorld = true;
     }
@@ -181,10 +190,12 @@ public enum WorldLoadingRenderer {
      */
     public void beginIntegratedWorldLaunch() {
         long now = System.nanoTime();
+        loadingHostScreen = Minecraft.getMinecraft().currentScreen;
         integratedLaunchActive = WorldLoadingConfig.enabled && WorldLoadingConfig.worldJoin;
         integratedLaunchStartedNanos = now;
         renderedIntegratedServer = null;
         integratedDisplayedProgress = 0.02F;
+        resumeAfterAcceptedPrompt = false;
         exactPreparedSpawnChunks = -1;
         exactSpawnCounterObserved = false;
         arc3dBar.reset(now);
@@ -195,7 +206,75 @@ public enum WorldLoadingRenderer {
     }
 
     public boolean isLoadingScreenPresentationActive() {
-        return integratedLaunchActive || rendererPreparationActive;
+        GuiScreen current = Minecraft.getMinecraft().currentScreen;
+        return shouldPresentLoadingScreen(
+                integratedLaunchActive,
+                rendererPreparationActive,
+                loadingOwns(current));
+    }
+
+    public boolean shouldModernizeCurrentPrompt() {
+        return WorldLoadingConfig.enabled
+                && WorldLoadingConfig.modernPrompts
+                && (integratedLaunchActive || rendererPreparationActive);
+    }
+
+    /**
+     * Forge closes a startup query with displayGuiScreen(null). Before a world exists Minecraft
+     * substitutes GuiMainMenu for null, even when the accepted query is about to resume loading.
+     */
+    public void answerLoadingPrompt(boolean continueLoading) {
+        resumeAfterAcceptedPrompt = continueLoading
+                && (integratedLaunchActive || rendererPreparationActive);
+    }
+
+    public void renderPromptBackdrop(int width, int height) {
+        float amount = Math.max(0.02F, Math.min(0.99F, integratedDisplayedProgress));
+        render(width, height, amount, 1.0F, System.nanoTime());
+        Gui.drawRect(0, 0, width, height, 0x78000000);
+    }
+
+    /** Drives modded prompt screens while launchIntegratedServer is blocking Minecraft's run loop. */
+    public void renderForeignPrompt(int width, int height) {
+        if (!(integratedLaunchActive || rendererPreparationActive)) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        GuiScreen screen = mc.currentScreen;
+        if (loadingOwns(screen) || screen instanceof GuiNotification) return;
+        int mouseX = Mouse.getX() * width / Math.max(1, mc.displayWidth);
+        int mouseY = height - Mouse.getY() * height / Math.max(1, mc.displayHeight) - 1;
+        try {
+            screen.drawScreen(mouseX, mouseY, 0.0F);
+            screen.handleInput();
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "Could not drive loading-time prompt screen " + screen.getClass().getName(), exception);
+        }
+    }
+
+    private boolean loadingOwns(GuiScreen screen) {
+        return screen == null
+                || screen == loadingHostScreen
+                || screen instanceof GuiScreenWorking
+                || screen instanceof GuiDownloadTerrain
+                || shouldOwnAcceptedPromptReturn(resumeAfterAcceptedPrompt,
+                        screen instanceof GuiMainMenu, acceptedPromptCanResumeLoading());
+    }
+
+    private boolean acceptedPromptCanResumeLoading() {
+        if (rendererPreparationActive) return true;
+        IntegratedServer server = Minecraft.getMinecraft().getIntegratedServer();
+        return integratedLaunchActive && server != null && !server.isServerStopped();
+    }
+
+    static boolean shouldOwnAcceptedPromptReturn(boolean acceptedPrompt, boolean mainMenu,
+                                                 boolean loadingCanResume) {
+        return acceptedPrompt && mainMenu && loadingCanResume;
+    }
+
+    static boolean shouldPresentLoadingScreen(boolean integratedLaunch,
+                                              boolean rendererPreparation,
+                                              boolean loadingOwnsCurrentScreen) {
+        return (integratedLaunch || rendererPreparation) && loadingOwnsCurrentScreen;
     }
 
     /** Starts the client-only renderer phase shared by singleplayer, multiplayer, and dimensions. */
@@ -216,6 +295,8 @@ public enum WorldLoadingRenderer {
             rendererPreparationThread = null;
             return;
         }
+        loadingHostScreen = mc.currentScreen;
+        resumeAfterAcceptedPrompt = false;
 
         long now = System.nanoTime();
         rendererPreparationIntegrated = integratedLaunchActive && !dimensionChange;
@@ -331,6 +412,7 @@ public enum WorldLoadingRenderer {
         if (!WorldLoadingConfig.enabled) {
             active = false;
             fading = false;
+            resumeAfterAcceptedPrompt = false;
             cancelClientRendererPreparation();
             WorldLoadingSnapshotManager.INSTANCE.releaseActive();
         } else if (!WorldLoadingConfig.lastExitSnapshot) {

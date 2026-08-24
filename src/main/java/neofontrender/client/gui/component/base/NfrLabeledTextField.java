@@ -7,6 +7,9 @@ import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import com.cleanroommc.modularui.utils.Alignment;
 import net.minecraft.client.Minecraft;
+import com.cleanroommc.modularui.api.navigation.NavigationAction;
+import com.cleanroommc.modularui.api.navigation.NavigationInfo;
+import com.cleanroommc.modularui.api.navigation.NavigationRole;
 
 /** A settings-form field with a consistently styled label above the editor. */
 public final class NfrLabeledTextField extends ParentWidget<NfrLabeledTextField>
@@ -19,6 +22,12 @@ public final class NfrLabeledTextField extends ParentWidget<NfrLabeledTextField>
     public NfrLabeledTextField(String text, TextFieldWidget field) {
         this.label = new TextWidget(IKey.str(text)).alignment(Alignment.CenterLeft).color(0xA9B5C5);
         this.field = field;
+        navigationInfo(NavigationInfo.builder(NavigationRole.GROUP).focusable(false).build());
+        field.navigationInfo(NavigationInfo.builder(NavigationRole.TEXT_INPUT)
+                .label(() -> text)
+                .actions(NavigationAction.ACTIVATE, NavigationAction.BEGIN_EDIT,
+                        NavigationAction.END_EDIT)
+                .build());
         child(label);
         child(field);
     }

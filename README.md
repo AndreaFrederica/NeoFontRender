@@ -182,7 +182,9 @@ for version-specific documentation and releases.
 
 - Minecraft 1.12.2 with Cleanroom.
 - Java 25.
-- [ModularUI 3.1.6+](https://github.com/CleanroomMC/ModularUI).
+- Revo UI requires [our ModularUI 3.2.0-nfr.1 fork](https://github.com/AndreaFrederica/ModularUI),
+  which provides the device-neutral navigation API used by UI navigation and controller support.
+  Upstream ModularUI 3.1.6 does not provide this API and is not compatible with this Revo UI build.
 
 Download the distribution that fits your installation and put it in the `mods` folder. The `full` package is the usual choice.
 
@@ -196,7 +198,9 @@ Do not install `full` together with the split `core` or `resources` packages.
 
 ### Revo UI
 
-Install `neofontrender-ui-enhancements-<version>.jar` alongside the main mod. The server companion is optional.
+Install `neofontrender-ui-enhancements-<version>.jar` and the bundled custom
+`modularui-<version>.jar` alongside the main mod. The controller support, server companion, and
+Electric Elytra JARs on the same release are optional.
 
 - [Revo UI releases](https://github.com/AndreaFrederica/NeoFontRender/releases?q=uie%2F)
 - [Addon documentation and build instructions](addons/ui-enhancements/README.md)

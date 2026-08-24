@@ -18,7 +18,35 @@ class CameraMouseInputEventTest {
         assertEquals(-7, event.getOriginalDeltaY());
         assertEquals(4, event.getDeltaX());
         assertEquals(0, event.getDeltaY());
+        assertEquals(4, event.getCameraDeltaX());
+        assertEquals(0, event.getCameraDeltaY());
         assertEquals(0.5F, event.getPartialTicks());
+    }
+
+    @Test
+    void flightCanConsumeBodyAxesWithoutStealingDetachedCameraInput() {
+        CameraMouseInputEvent event = new CameraMouseInputEvent(null, 0.5F, 12, -7);
+
+        event.consumeBodyHorizontal();
+        event.consumeBodyVertical();
+
+        assertEquals(0, event.getDeltaX());
+        assertEquals(0, event.getDeltaY());
+        assertEquals(12, event.getCameraDeltaX());
+        assertEquals(-7, event.getCameraDeltaY());
+    }
+
+    @Test
+    void handlersCanAdjustDetachedCameraAxesExplicitly() {
+        CameraMouseInputEvent event = new CameraMouseInputEvent(null, 0.5F, 12, -7);
+
+        event.setCameraDeltaX(3);
+        event.setCameraDeltaY(9);
+
+        assertEquals(12, event.getDeltaX());
+        assertEquals(-7, event.getDeltaY());
+        assertEquals(3, event.getCameraDeltaX());
+        assertEquals(9, event.getCameraDeltaY());
     }
 
     @Test

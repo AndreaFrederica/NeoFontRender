@@ -5,6 +5,7 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiCreateWorld;
 import neofontrender.addons.worldcreation.CreateWorldConfig;
+import neofontrender.addons.worldcreation.CreateWorldTabIds;
 import neofontrender.addons.hover.HoverAnimationAccess;
 import neofontrender.addons.hover.HoverEffectsRenderer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -32,7 +33,7 @@ public abstract class MixinGuiButtonCreateWorldStyle {
                 && mouseX < button.x + button.width && mouseY < button.y + button.height;
         ((HoverAnimationAccess) button).nfrUi$updateHoverAnimation(hovered && button.enabled);
         float hoverProgress = HoverEffectsRenderer.visualProgress(button);
-        boolean tab = button.id == 28640 || button.id == 28641;
+        boolean tab = CreateWorldTabIds.isTab(button.id);
         boolean selectedTab = tab && !button.enabled;
 
         int fill;

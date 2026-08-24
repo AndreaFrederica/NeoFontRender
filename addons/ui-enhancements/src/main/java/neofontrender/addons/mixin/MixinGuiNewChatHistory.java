@@ -13,7 +13,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(GuiNewChat.class)
 public abstract class MixinGuiNewChatHistory {
-    @ModifyConstant(method = "setChatLine", constant = @Constant(intValue = 100), require = 2)
+    /**
+     * Raise the chat history limit. Anchored to the two {@code > 100} constants in
+     * {@code setChatLine} (one per list). Fail-soft: if another mod overwrites
+     * {@code setChatLine} or already replaced the constant, Mixin logs a warning instead of
+     * crashing, and the limit silently falls back to the vanilla 100.
+     */
+    @ModifyConstant(method = "setChatLine", constant = @Constant(intValue = 100), expect = 2, require = 0)
     private int nfrUi$historyLimit(int original) {
         return EnhancedChatConfigAccess.messageLimit();
     }

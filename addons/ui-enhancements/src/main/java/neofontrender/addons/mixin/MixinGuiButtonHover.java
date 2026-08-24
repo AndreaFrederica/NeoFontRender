@@ -7,6 +7,7 @@ import neofontrender.addons.hover.HoverAnimationAccess;
 import neofontrender.addons.hover.HoverAnimationState;
 import neofontrender.addons.hover.HoverEffectsConfigAccess;
 import neofontrender.addons.hover.HoverEffectsRenderer;
+import neofontrender.addons.navigation.vanilla.VanillaWidgetCapture;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -27,6 +28,7 @@ public abstract class MixinGuiButtonHover implements HoverAnimationAccess {
             target = "Lnet/minecraft/client/renderer/GlStateManager;enableBlend()V"))
     private void nfrUi$updateVanillaHover(Minecraft minecraft, int mouseX, int mouseY,
                                           float partialTicks, CallbackInfo ci) {
+        VanillaWidgetCapture.widgetDrawn((GuiButton) (Object) this);
         nfrUi$updateHoverAnimation(hovered && enabled);
     }
 

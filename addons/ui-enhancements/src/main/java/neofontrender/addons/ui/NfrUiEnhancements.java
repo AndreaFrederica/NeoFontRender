@@ -11,6 +11,7 @@ import neofontrender.addons.server.MultiTargetMessageCommand;
 import neofontrender.addons.server.ServerChatHistoryManager;
 import neofontrender.addons.tips.TipsModule;
 import neofontrender.addons.tooltips.TooltipModule;
+import neofontrender.addons.diagnostics.DiagnosticsModule;
 import neofontrender.addons.scrolling.SmoothScrollingModule;
 import neofontrender.addons.input.TextInputModule;
 import neofontrender.addons.effects.ScreenEffectsModule;
@@ -24,6 +25,8 @@ import neofontrender.addons.zoom.ZoomModule;
 import neofontrender.addons.flight.FlightRollModule;
 import neofontrender.addons.hover.HoverEffectsModule;
 import neofontrender.addons.cjk.CjkTypographyModule;
+import neofontrender.addons.camera.CameraModule;
+import neofontrender.addons.navigation.UiNavigationModule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -45,12 +48,13 @@ public final class NfrUiEnhancements {
     public static final String VERSION = "0.6.0";
     public static final String DEPENDENCIES =
             "required-after:" + Tags.MOD_ID + "@[" + Tags.VERSION + ",);"
-                    + "required-after:modularui@[3.1.6,);"
+                    + "required-after:modularui@[3.2.0-nfr.1,);"
                     + "after:applecore;after:chunkpregenerator;after:classicbar;after:jei;"
                     + "after:legendarytooltips;after:obscure_tooltips;after:optifine;after:quark";
     public static final Logger LOGGER = LogManager.getLogger(MOD_NAME);
 
     private static final List<UiEnhancementModule> MODULES = Arrays.asList(
+            new UiNavigationModule(),
             new SmoothScrollingModule(),
             new CjkTypographyModule(),
             new TextInputModule(),
@@ -58,6 +62,7 @@ public final class NfrUiEnhancements {
             new WorldLoadingModule(),
             new ResourceReloadModule(),
             new ZoomModule(),
+            new CameraModule(),
             new FlightRollModule(),
             new HoverEffectsModule(),
             new MainMenuModule(),
@@ -65,7 +70,8 @@ public final class NfrUiEnhancements {
             new HudBarsModule(),
             new EnhancedChatModule(),
             new TooltipModule(),
-            new TipsModule()
+            new TipsModule(),
+            new DiagnosticsModule()
     );
 
     @Mod.EventHandler

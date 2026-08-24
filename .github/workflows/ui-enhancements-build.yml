@@ -1,10 +1,14 @@
-name: Revo UI / Build
+name: Revo UI Bundle / Build
 
 on:
   workflow_dispatch:
   pull_request:
     paths:
       - 'addons/ui-enhancements/**'
+      - 'addons/ui-enhancements-common/**'
+      - 'addons/ui-enhancements-controller/**'
+      - 'addons/ui-enhancements-server/**'
+      - 'addons/electric-elytra/**'
       - '.gitmodules'
       - 'src/main/java/icyllis/arc3d/**'
       - 'src/main/java/neofontrender/api/**'
@@ -17,11 +21,16 @@ on:
       - 'gradlew.bat'
       - '.github/workflows/ui-enhancements-build.yml'
       - '.github/workflows/deploy.yml'
+      - '.github/actions/prepare-modularui/**'
   push:
     branches:
       - '**'
     paths:
       - 'addons/ui-enhancements/**'
+      - 'addons/ui-enhancements-common/**'
+      - 'addons/ui-enhancements-controller/**'
+      - 'addons/ui-enhancements-server/**'
+      - 'addons/electric-elytra/**'
       - '.gitmodules'
       - 'src/main/java/icyllis/arc3d/**'
       - 'src/main/java/neofontrender/api/**'
@@ -34,6 +43,7 @@ on:
       - 'gradlew.bat'
       - '.github/workflows/ui-enhancements-build.yml'
       - '.github/workflows/deploy.yml'
+      - '.github/actions/prepare-modularui/**'
 
 permissions:
   contents: read
@@ -44,7 +54,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build remapped addon
+    name: Build distributable bundle
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -57,6 +67,13 @@ jobs:
           sed -i 's/\r$//' gradlew
           chmod +x gradlew
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build pinned ModularUI dependency
+        id: modularui
+        uses: ./.github/actions/prepare-modularui
+
       - name: Setup Java 25
         uses: actions/setup-java@v4
         with:
@@ -64,29 +81,38 @@ jobs:
           java-version: '25'
           cache: gradle
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - name: Build and stage bundle
+        run: >-
+          ./gradlew
+          :addons:ui-enhancements:stageUiEnhancementsRelease
+          :addons:ui-enhancements-controller:stageUiEnhancementsControllerRelease
+          :addons:ui-enhancements-server:stageUiEnhancementsServerRelease
+          :addons:electric-elytra:stageElectricElytraRelease
+          --no-daemon
 
-      - name: Read addon version
-        id: version
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(sed -n 's/^ui_enhancements_version[[:space:]]*=[[:space:]]*//p' gradle.properties | tr -d '\r' | xargs)"
-          test -n "$version"
-          echo "value=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Build and test addon
-        run: ./gradlew :addons:ui-enhancements:build --no-daemon
-
-      - name: Validate installable JAR
+      - name: Validate installable JARs
         shell: bash
         env:
-          VERSION: ${{ steps.version.outputs.value }}
+          MODULARUI_VERSION: ${{ steps.modularui.outputs.version }}
         run: |
           set -euo pipefail
-          jar="addons/ui-enhancements/build/libs/neofontrender-ui-enhancements-${VERSION}.jar"
-          test -s "$jar"
+          read_property() {
+            sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" gradle.properties | tr -d '\r' | xargs
+          }
+          UIE_VERSION="$(read_property ui_enhancements_version)"
+          expected=(
+            "build/release/modularui/modularui-${MODULARUI_VERSION}.jar"
+            "build/release/uie/neofontrender-ui-enhancements-${UIE_VERSION}.jar"
+            "build/release/uie-controller/neofontrender-ui-enhancements-controller-$(read_property ui_enhancements_controller_version).jar"
+            "build/release/uie-server/neofontrender-ui-enhancements-server-$(read_property ui_enhancements_server_version).jar"
+            "build/release/electric-elytra/neofontrender-electric-elytra-$(read_property electric_elytra_version).jar"
+          )
+          for jar in "${expected[@]}"; do
+            test -s "$jar" || { echo "Missing release JAR: $jar" >&2; exit 1; }
+            [[ "$jar" != *-dev.jar && "$jar" != *-sources.jar && "$jar" != *-shadow.jar ]]
+          done
+
+          jar="build/release/uie/neofontrender-ui-enhancements-${UIE_VERSION}.jar"
           entries="$(jar tf "$jar")"
           grep -Fxq 'mcmod.info' <<<"$entries"
           grep -Fxq 'mixins.neofontrender_ui_enhancements.json' <<<"$entries"
@@ -94,14 +120,16 @@ jobs:
           grep -Fxq 'META-INF/LICENSE-Tiqian.txt' <<<"$entries"
           grep -Fxq 'META-INF/NOTICE-Tiqian.md' <<<"$entries"
           grep -q 'nfr-tiqian-jvm' <<<"$entries"
-          if [[ -e "addons/ui-enhancements/build/libs/neofontrender-ui-enhancements-${VERSION}-dev.jar" ]]; then
-            test "$jar" -nt "addons/ui-enhancements/build/libs/neofontrender-ui-enhancements-${VERSION}-dev.jar" || true
-          fi
 
-      - name: Upload addon artifact
+      - name: Upload bundle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: neofontrender-ui-enhancements-${{ steps.version.outputs.value }}
-          path: addons/ui-enhancements/build/libs/neofontrender-ui-enhancements-${{ steps.version.outputs.value }}.jar
+          name: revo-ui-bundle
+          path: |
+            build/release/modularui/*.jar
+            build/release/uie/*.jar
+            build/release/uie-controller/*.jar
+            build/release/uie-server/*.jar
+            build/release/electric-elytra/*.jar
           if-no-files-found: error
           retention-days: 14

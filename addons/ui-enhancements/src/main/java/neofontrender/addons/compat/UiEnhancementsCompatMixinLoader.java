@@ -25,12 +25,14 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
             "mixins.neofontrender_ui_enhancements_shouldersurfing_tconstruct.json";
     static final String SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG =
             "mixins.neofontrender_ui_enhancements_shouldersurfing_matteroverdrive.json";
+    static final String BETTER_COMBAT_CONFIG =
+            "mixins.neofontrender_ui_enhancements_bettercombat.json";
 
     @Override
     public List<String> getMixinConfigs() {
         return Arrays.asList(HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG,
                 SHOULDER_SURFING_CONFIG, SHOULDER_SURFING_TCONSTRUCT_CONFIG,
-                SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG);
+                SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG, BETTER_COMBAT_CONFIG);
     }
 
     @Override
@@ -65,18 +67,19 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
                             "com/teamderpy/shouldersurfing/client/ShoulderRenderer.class");
         }
         if (SHOULDER_SURFING_TCONSTRUCT_CONFIG.equals(config)) {
-            return context.isModPresent("shouldersurfing") && context.isModPresent("tconstruct")
-                    && classResourcePresent(
-                            "com/teamderpy/shouldersurfing/client/ShoulderRenderer.class")
+            return context.isModPresent("tconstruct")
                     && classResourcePresent(
                             "slimeknights/tconstruct/library/client/crosshair/CrosshairRenderEvents.class");
         }
         if (SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG.equals(config)) {
-            return context.isModPresent("shouldersurfing")
-                    && context.isModPresent("matteroverdrive")
-                    && classResourcePresent(
-                            "com/teamderpy/shouldersurfing/client/ShoulderRenderer.class")
+            return context.isModPresent("matteroverdrive")
                     && classResourcePresent("matteroverdrive/gui/GuiAndroidHud.class");
+        }
+        if (BETTER_COMBAT_CONFIG.equals(config)) {
+            return !context.isModPresent("shouldersurfing")
+                    && !classResourcePresent(
+                            "com/teamderpy/shouldersurfing/client/ShoulderRenderer.class")
+                    && classResourcePresent("bettercombat/mod/client/gui/GuiCrosshairsBC.class");
         }
         return false;
     }
