@@ -31,8 +31,6 @@ class UiEnhancementsMixinConfigTest {
                 "mixins.neofontrender_ui_enhancements_shouldersurfing_matteroverdrive.json");
         String betterCombat = config(
                 "mixins.neofontrender_ui_enhancements_bettercombat.json");
-        String thaumcraft = config(
-                "mixins.neofontrender_ui_enhancements_thaumcraft.json");
 
         assertTrue(hei.contains("\"required\": false"));
         assertTrue(hei.contains("\"compat.MixinJeiIngredientRendererHover\""));
@@ -61,20 +59,6 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(betterCombat.contains("\"required\": false"));
         assertTrue(betterCombat.contains(
                 "\"compat.MixinBetterCombatShoulderCrosshair\""));
-        assertTrue(thaumcraft.contains("\"required\": false"));
-        assertTrue(thaumcraft.contains(
-                "\"compat.MixinThaumcraftResearchBrowserBackground\""));
-    }
-
-    @Test
-    void thaumcraftDepthPatchTargetsFixedPreOnly() {
-        String bytecode = bytecode(
-                "neofontrender/addons/mixin/compat/MixinThaumcraftResearchBrowserBackground.class");
-
-        assertTrue(bytecode.contains("genResearchBackgroundFixedPre"));
-        assertTrue(bytecode.contains("ScreenEffectsRenderer"));
-        assertTrue(bytecode.contains("drawBackground"));
-        assertFalse(bytecode.contains("drawScreen"));
     }
 
     @Test
@@ -129,6 +113,20 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinProgressBarResourceReload\""));
         assertTrue(config.contains("\"MixinProgressManagerResourceReload\""));
         assertTrue(config.contains("\"MixinViewFrustumLoadingProgress\""));
+    }
+
+    @Test
+    void screenBlurCompositesColorWithoutWritingMainFramebufferDepth() {
+        String shader = config(
+                "assets/neofontrender_ui_enhancements/shaders/post/ui_blur.json");
+        String renderer = bytecode(
+                "neofontrender/addons/effects/ScreenEffectsRenderer.class");
+
+        assertTrue(shader.contains("\"composite\""));
+        assertTrue(shader.contains("\"outtarget\": \"composite\""));
+        assertFalse(shader.contains("\"outtarget\": \"minecraft:main\""));
+        assertTrue(renderer.contains("getFramebufferRaw"));
+        assertTrue(renderer.contains("framebufferRenderExt"));
     }
 
     @Test
