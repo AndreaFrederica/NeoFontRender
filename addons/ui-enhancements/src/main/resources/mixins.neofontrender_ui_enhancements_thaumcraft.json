@@ -8,6 +8,7 @@
   "mixins": [],
   "server": [],
   "client": [
-    "compat.MixinThaumcraftResearchBrowserBackground"
+    "compat.MixinThaumcraftResearchBrowserBackground",
+    "compat.MixinThaumcraftCustomTooltip"
   ]
 }

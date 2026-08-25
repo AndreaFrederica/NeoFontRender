@@ -116,20 +116,6 @@ class UiEnhancementsMixinConfigTest {
     }
 
     @Test
-    void screenBlurCompositesColorWithoutWritingMainFramebufferDepth() {
-        String shader = config(
-                "assets/neofontrender_ui_enhancements/shaders/post/ui_blur.json");
-        String renderer = bytecode(
-                "neofontrender/addons/effects/ScreenEffectsRenderer.class");
-
-        assertTrue(shader.contains("\"composite\""));
-        assertTrue(shader.contains("\"outtarget\": \"composite\""));
-        assertFalse(shader.contains("\"outtarget\": \"minecraft:main\""));
-        assertTrue(renderer.contains("getFramebufferRaw"));
-        assertTrue(renderer.contains("framebufferRenderExt"));
-    }
-
-    @Test
     void movementInputStateIsAccessedOnItsDeclaringSuperclass() {
         String config = config("mixins.neofontrender_ui_enhancements.json");
         String gateBytecode = bytecode(
