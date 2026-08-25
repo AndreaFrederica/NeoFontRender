@@ -3,6 +3,7 @@ package neofontrender.addons.mixin;
 import net.minecraft.client.LoadingScreenRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import neofontrender.addons.tips.TipManager;
 import neofontrender.addons.tips.TipRenderer;
@@ -28,8 +29,9 @@ public abstract class MixinLoadingScreenRendererTips {
         long now = System.nanoTime();
         TipManager.INSTANCE.update(now, TipsConfig.cycleTimeMillis);
 
-        int width = mc.displayWidth;
-        int height = mc.displayHeight;
+        ScaledResolution resolution = new ScaledResolution(mc);
+        int width = resolution.getScaledWidth();
+        int height = resolution.getScaledHeight();
         int margin = Math.max(12, Math.min(28, width / 32));
 
         GlStateManager.pushMatrix();

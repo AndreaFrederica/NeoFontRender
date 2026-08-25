@@ -30,7 +30,8 @@ final class Arc3DHudBarRenderer {
         float current = animated(id, sample.current);
         float ratio = clamp(current / sample.maximum);
         float secondary = clamp(sample.secondary / sample.maximum);
-        float preview = clamp(sample.preview / sample.maximum);
+        float previewEnd = clamp((sample.current + sample.preview) / sample.maximum);
+        float secondaryPreviewEnd = clamp((sample.secondary + sample.secondaryPreview) / sample.maximum);
         float depletion = clamp(sample.depletion / sample.maximum);
         float left = x;
         float top = y;
@@ -39,6 +40,7 @@ final class Arc3DHudBarRenderer {
         HudBarTheme theme = HudBarTheme.parse(HudBarsConfig.theme);
         float radius = radius(theme);
         float inset = theme == HudBarTheme.MINIMAL ? 0.0F : 1.0F;
+        int previewAlpha = sample.animatePreview ? HudBarPulseAnimation.alpha(System.nanoTime()) : 255;
 
         boolean lighting = GL11.glIsEnabled(GL11.GL_LIGHTING);
         boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
@@ -83,12 +85,13 @@ final class Arc3DHudBarRenderer {
                 else fill(innerLeft, innerTop, innerLeft + span * secondary, innerBottom,
                         Math.min(radius - inset, span * secondary * 0.5F), sample.secondaryColor, theme);
             }
-            if (preview > 0.0F && ratio < 1.0F) {
-                float end = Math.min(1.0F, ratio + preview);
-                if (side == HudBarSide.RIGHT) quad(innerRight - span * end, innerTop,
-                        innerRight - span * ratio, innerBottom, sample.previewColor);
-                else quad(innerLeft + span * ratio, innerTop,
-                        innerLeft + span * end, innerBottom, sample.previewColor);
+            if (sample.preview > 0.0F) {
+                drawPreview(side, innerLeft, innerTop, innerRight, innerBottom, span,
+                        previewEnd, multiplyAlpha(sample.previewColor, previewAlpha));
+            }
+            if (sample.secondaryPreview > 0.0F) {
+                drawPreview(side, innerLeft, innerTop, innerRight, innerBottom, span,
+                        secondaryPreviewEnd, multiplyAlpha(sample.secondaryColor, previewAlpha));
             }
             if (depletion > 0.0F) {
                 float stripeBottom = Math.min(innerBottom, innerTop + 1.25F);
@@ -143,6 +146,16 @@ final class Arc3DHudBarRenderer {
 
     private static int withAlpha(int color, int alpha) {
         return color & 0x00FFFFFF | (Math.max(0, Math.min(255, alpha)) << 24);
+    }
+
+    private static int multiplyAlpha(int color, int alpha) {
+        return withAlpha(color, Color.alpha(color) * Math.max(0, Math.min(255, alpha)) / 255);
+    }
+
+    private static void drawPreview(HudBarSide side, float left, float top, float right, float bottom,
+                                    float span, float end, int color) {
+        if (side == HudBarSide.RIGHT) quad(right - span * end, top, right, bottom, color);
+        else quad(left, top, left + span * end, bottom, color);
     }
 
     private static void drawClassicBevel(float left, float top, float right, float bottom) {
