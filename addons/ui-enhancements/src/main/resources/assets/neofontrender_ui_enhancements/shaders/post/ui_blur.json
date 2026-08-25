@@ -1,5 +1,5 @@
 {
-  "targets": ["scene", "blur_swap", "blurred", "composite"],
+  "targets": ["scene", "blur_swap", "blurred"],
   "passes": [
     {
       "name": "neofontrender_ui_enhancements:ui_copy",
@@ -27,7 +27,7 @@
     {
       "name": "neofontrender_ui_enhancements:ui_blur_composite",
       "intarget": "scene",
-      "outtarget": "composite",
+      "outtarget": "minecraft:main",
       "auxtargets": [
         { "name": "BlurredSampler", "id": "blurred" }
       ],

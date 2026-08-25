@@ -13,7 +13,6 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.client.resources.IResourceManagerReloadListener;
-import net.minecraft.client.shader.Framebuffer;
 import net.minecraft.client.shader.Shader;
 import net.minecraft.client.shader.ShaderGroup;
 import net.minecraft.client.shader.ShaderUniform;
@@ -23,7 +22,6 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.mixin.AccessorShaderGroup;
-import org.lwjgl.opengl.GL11;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import org.apache.logging.log4j.Level;
 
@@ -131,7 +129,6 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
         try {
             updateParameters(group, effectiveBlurRadius(ScreenEffectsConfig.blurRadius), progress);
             group.render(partialTicks);
-            compositeColorOnly(mc, group);
         } catch (Throwable throwable) {
             NfrUiEnhancements.LOGGER.log(Level.WARN,
                     "UI blur pass failed; disabling it until the next resource reload", throwable);
@@ -142,20 +139,6 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
         }
     }
 
-    /**
-     * Keep the world's depth attachment intact while publishing the post-processed color. The
-     * vanilla ShaderGroup path would render its last pass directly into the main framebuffer;
-     * that pass may clear or otherwise invalidate depth data needed by legacy GUI renderers.
-     */
-    private static void compositeColorOnly(Minecraft mc, ShaderGroup group) {
-        Framebuffer composite = group.getFramebufferRaw("composite");
-        if (composite == null) {
-            throw new IllegalStateException("UI blur composite framebuffer is unavailable");
-        }
-        mc.getFramebuffer().bindFramebuffer(true);
-        composite.framebufferRenderExt(mc.displayWidth, mc.displayHeight, false);
-    }
-
     private static void restoreMainTarget(Minecraft mc) {
         // EntityRenderer performs the normal overlay projection and state setup immediately after
         // this hook. ShaderManager leaves the active texture at its final sampler unit; our
@@ -164,21 +147,6 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
         GlStateManager.setActiveTexture(OpenGlHelper.defaultTexUnit);
         GlStateManager.bindTexture(0);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        // framebufferRenderExt / shader passes change a lot of GL state while blitting the final
-        // composite. Restore the state that vanilla GUI code (including TC6's Thaumonomicon)
-        // expects to find active before it starts drawing its own background.
-        GlStateManager.enableDepth();
-        GlStateManager.depthFunc(GL11.GL_LEQUAL);
-        GlStateManager.depthMask(true);
-        GlStateManager.disableAlpha();
-        GlStateManager.alphaFunc(GL11.GL_GREATER, 0.1F);
-        GlStateManager.disableBlend();
-        GlStateManager.enableTexture2D();
-        GlStateManager.disableLighting();
-        GlStateManager.colorMask(true, true, true, true);
-        if (OpenGlHelper.shadersSupported) {
-            OpenGlHelper.glUseProgram(0);
-        }
     }
 
     private ShaderGroup ensureShader(Minecraft mc) {
