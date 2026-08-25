@@ -1,9 +1,11 @@
 package neofontrender.addons.mixin;
 
 import net.minecraft.world.GameRules;
+import net.minecraft.world.EnumDifficulty;
 import net.minecraft.world.WorldSettings;
 import net.minecraft.world.storage.WorldInfo;
 import neofontrender.addons.worldcreation.CreateWorldGameRulesState;
+import neofontrender.addons.worldcreation.CreateWorldDifficultyState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,6 +24,8 @@ public abstract class MixinWorldInfoCreateGameRules {
     @Inject(method = "<init>(Lnet/minecraft/world/WorldSettings;Ljava/lang/String;)V",
             at = @At("RETURN"))
     private void nfrUi$applyCreateWorldGameRules(WorldSettings settings, String name, CallbackInfo ci) {
+        EnumDifficulty difficulty = CreateWorldDifficultyState.consumePending();
+        if (difficulty != null) ((WorldInfo) (Object) this).setDifficulty(difficulty);
         Map<String, String> pending = CreateWorldGameRulesState.consumePending();
         if (pending == null || pending.isEmpty()) return;
         GameRules rules = ((WorldInfo) (Object) this).getGameRulesInstance();

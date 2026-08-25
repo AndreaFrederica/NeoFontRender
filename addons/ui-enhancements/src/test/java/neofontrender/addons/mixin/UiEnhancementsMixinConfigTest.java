@@ -70,7 +70,7 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinGuiLanguageSearch\""));
         assertTrue(config.contains("\"MixinGuiLanguageListFavorites\""));
         assertTrue(config.contains("\"MixinGuiSlotLanguageFavorites\""));
-        assertTrue(config.contains("\"MixinGuiCreateWorldModernLayout\""));
+        assertTrue(config.contains("\"MixinGuiCreateWorldModularBridge\""));
         assertTrue(config.contains("\"MixinGuiButtonCreateWorldStyle\""));
         assertTrue(config.contains("\"GuiCreateWorldAccessor\""));
         assertTrue(config.contains("\"MixinGuiMainMenuContinueGame\""));
