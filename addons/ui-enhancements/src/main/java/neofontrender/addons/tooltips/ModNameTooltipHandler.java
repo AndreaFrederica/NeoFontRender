@@ -23,7 +23,7 @@ final class ModNameTooltipHandler {
     }
 
     @Nullable
-    private static String getModName(ItemStack stack) {
+    static String getModName(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return null;
         Item item = stack.getItem();
         String modId = item.getCreatorModId(stack);

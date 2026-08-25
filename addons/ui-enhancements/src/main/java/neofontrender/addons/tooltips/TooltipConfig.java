@@ -4,8 +4,10 @@ import neofontrender.api.config.NfrConfigFile;
 import neofontrender.addons.ui.UiEnhancementsConfig;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 final class TooltipConfig {
     private static final int[] DEFAULT_FILL = defaults(0xE6101018);
@@ -15,6 +17,7 @@ final class TooltipConfig {
     static boolean enabled = true;
     static String renderStyle = "modernui";
     static boolean lowBrightnessMicaEnhancement = false;
+    static boolean micaSampleUi = false;
     static boolean yieldToLegendaryTooltips = true;
     static boolean yieldToObscureTooltips = false;
     static boolean heiCustomTooltips = true;
@@ -49,6 +52,11 @@ final class TooltipConfig {
     static int maxWidth = 0;
     static int[] fillColors = DEFAULT_FILL.clone();
     static int[] borderColors = DEFAULT_BORDER.clone();
+    // Complete preview selector registry; typography controls are limited by the settings page.
+    private static final String[] PROFILE_IDS = {
+            "vanilla", "thaumcraft", "hei", "obscure", "quark"
+    };
+    private static final Map<String, Profile> PROFILES = new LinkedHashMap<>();
 
     private TooltipConfig() {}
 
@@ -59,6 +67,7 @@ final class TooltipConfig {
         renderStyle = normalizeStyle(config.getString("tooltip.style", "modernui"));
         lowBrightnessMicaEnhancement = config.getBoolean(
                 "tooltip.lowBrightnessMicaEnhancement", false);
+        micaSampleUi = config.getBoolean("tooltip.micaSampleUi", false);
         yieldToLegendaryTooltips = config.getBoolean("tooltip.yieldToLegendaryTooltips", true);
         yieldToObscureTooltips = config.getBoolean("tooltip.yieldToObscureTooltips", false);
         heiCustomTooltips = config.getBoolean("tooltip.heiCustomTooltips", true);
@@ -93,6 +102,14 @@ final class TooltipConfig {
         maxWidth = config.getInt("layout.maxWidth", 0, 0, 1024);
         fillColors = parseColors(config.getStringList("tooltip.fillColors", colorStrings(DEFAULT_FILL)), DEFAULT_FILL);
         borderColors = parseColors(config.getStringList("tooltip.borderColors", colorStrings(DEFAULT_BORDER)), DEFAULT_BORDER);
+        PROFILES.clear();
+        for (String id : PROFILE_IDS) {
+            Profile profile = new Profile();
+            profile.textScale = (float) config.getDouble(profileKey(id, "textScale"), 1.0D, 0.5D, 2.0D);
+            profile.offsetX = (float) config.getDouble(profileKey(id, "offsetX"), 0.0D, -12.0D, 12.0D);
+            profile.offsetY = (float) config.getDouble(profileKey(id, "offsetY"), 0.0D, -12.0D, 12.0D);
+            PROFILES.put(id, profile);
+        }
         config.save();
     }
 
@@ -100,6 +117,7 @@ final class TooltipConfig {
         config.set("tooltip.enabled", enabled)
                 .set("tooltip.style", renderStyle)
                 .set("tooltip.lowBrightnessMicaEnhancement", lowBrightnessMicaEnhancement)
+                .set("tooltip.micaSampleUi", micaSampleUi)
                 .set("tooltip.yieldToLegendaryTooltips", yieldToLegendaryTooltips)
                 .set("tooltip.yieldToObscureTooltips", yieldToObscureTooltips)
                 .set("tooltip.heiCustomTooltips", heiCustomTooltips)
@@ -134,6 +152,12 @@ final class TooltipConfig {
                 .set("layout.maxWidth", maxWidth)
                 .set("tooltip.fillColors", colorStrings(fillColors))
                 .set("tooltip.borderColors", colorStrings(borderColors));
+        for (String id : PROFILE_IDS) {
+            Profile profile = profile(id);
+            config.set(profileKey(id, "textScale"), profile.textScale)
+                    .set(profileKey(id, "offsetX"), profile.offsetX)
+                    .set(profileKey(id, "offsetY"), profile.offsetY);
+        }
         config.save();
     }
 
@@ -144,6 +168,8 @@ final class TooltipConfig {
                 .define("tooltip.style", "modernui", "Renderer style: modernui, mica or legacy.")
                 .define("tooltip.lowBrightnessMicaEnhancement", false,
                         "Use alternate Mica capture and compositing for better legibility in low-brightness scenes.")
+                .define("tooltip.micaSampleUi", false,
+                        "Capture already-rendered GUI content behind Mica tooltips; false samples only the world and HUD.")
                 .define("tooltip.yieldToLegendaryTooltips", true, "Yield when LegendaryTooltips is installed.")
                 .define("tooltip.yieldToObscureTooltips", false, "Let Obscure Tooltips draw its own panel and frame instead of combining its effects with NFR's modern panel.")
                 .define("tooltip.heiCustomTooltips", true, "Apply NFR's panel and frame to HEI tooltips that contain custom-rendered ingredient grids.")
@@ -178,6 +204,50 @@ final class TooltipConfig {
                 .define("layout.maxWidth", 0, "Maximum text width; zero uses Forge/screen limits.")
                 .define("tooltip.fillColors", colorStrings(DEFAULT_FILL), "Four ARGB colors: UL, UR, LR, LL.")
                 .define("tooltip.borderColors", colorStrings(DEFAULT_BORDER), "Four ARGB colors: UL, UR, LR, LL.");
+        for (String id : PROFILE_IDS) {
+            config.define(profileKey(id, "textScale"), 1.0D,
+                    "Tooltip text scale for the " + id + " renderer.")
+                    .define(profileKey(id, "offsetX"), 0.0D,
+                            "Tooltip text horizontal offset for the " + id + " renderer.")
+                    .define(profileKey(id, "offsetY"), 0.0D,
+                            "Tooltip text vertical baseline offset for the " + id + " renderer.");
+        }
+    }
+
+    static Profile profile(String id) {
+        String normalized = normalizeProfile(id);
+        Profile profile = PROFILES.get(normalized);
+        if (profile == null) {
+            profile = new Profile();
+            PROFILES.put(normalized, profile);
+        }
+        return profile;
+    }
+
+    static String normalizeProfile(String id) {
+        if (id != null) {
+            String normalized = id.trim().toLowerCase(Locale.ROOT);
+            for (String allowed : PROFILE_IDS) if (allowed.equals(normalized)) return normalized;
+        }
+        return PROFILE_IDS[0];
+    }
+
+    private static String profileKey(String id, String field) {
+        return "tooltip.profiles." + id + "." + field;
+    }
+
+    static final class Profile {
+        float textScale = 1.0F;
+        float offsetX;
+        float offsetY;
+
+        Profile copy() {
+            Profile copy = new Profile();
+            copy.textScale = textScale;
+            copy.offsetX = offsetX;
+            copy.offsetY = offsetY;
+            return copy;
+        }
     }
 
     private static int[] parseColors(List<String> values, int[] fallback) {
@@ -241,6 +311,7 @@ final class TooltipConfig {
         private final boolean originalEnabled = enabled;
         private final String originalRenderStyle = renderStyle;
         private final boolean originalLowBrightnessMicaEnhancement = lowBrightnessMicaEnhancement;
+        private final boolean originalMicaSampleUi = micaSampleUi;
         private final boolean originalYield = yieldToLegendaryTooltips;
         private final boolean originalYieldObscure = yieldToObscureTooltips;
         private final boolean originalHeiCustomTooltips = heiCustomTooltips;
@@ -275,10 +346,13 @@ final class TooltipConfig {
         private final int originalMaxWidth = maxWidth;
         private final int[] originalFill = fillColors.clone();
         private final int[] originalBorderColors = borderColors.clone();
+        private final Map<String, Profile> originalProfiles = copyProfiles();
 
         void restore() {
-            enabled = originalEnabled; renderStyle = originalRenderStyle;
+            enabled = originalEnabled;
+            renderStyle = originalRenderStyle;
             lowBrightnessMicaEnhancement = originalLowBrightnessMicaEnhancement;
+            micaSampleUi = originalMicaSampleUi;
             yieldToLegendaryTooltips = originalYield; rounded = originalRounded;
             yieldToObscureTooltips = originalYieldObscure;
             heiCustomTooltips = originalHeiCustomTooltips;
@@ -295,6 +369,16 @@ final class TooltipConfig {
             verticalPadding = originalVerticalPadding; lineHeight = originalLineHeight; titleGap = originalTitleGap;
             cursorOffset = originalCursorOffset; maxWidth = originalMaxWidth;
             fillColors = originalFill.clone(); borderColors = originalBorderColors.clone();
+            PROFILES.clear();
+            for (Map.Entry<String, Profile> entry : originalProfiles.entrySet()) {
+                PROFILES.put(entry.getKey(), entry.getValue().copy());
+            }
+        }
+
+        private static Map<String, Profile> copyProfiles() {
+            Map<String, Profile> copy = new LinkedHashMap<>();
+            for (String id : PROFILE_IDS) copy.put(id, profile(id).copy());
+            return copy;
         }
     }
 }

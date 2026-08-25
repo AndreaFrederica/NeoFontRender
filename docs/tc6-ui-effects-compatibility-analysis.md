@@ -55,7 +55,9 @@ TC6 的研究提示不经过 Forge 的标准 tooltip 事件，而是直接调用
 `thaumcraft.client.lib.UtilsFX.drawCustomTooltip`。`MixinThaumcraftCustomTooltip` 在现代
 tooltip 功能可用时拦截这两个重载，并转发到 `GuiUtils.drawHoveringText`，从而复用 UIE
 现有的 `RenderTooltipEvent`、CJK 文本和现代面板渲染链路。现代 tooltip 被关闭或 Arc3D
-不可用时，Mixin 不取消原调用，TC6 原始 tooltip 保持不变。
+不可用时，Mixin 不取消原调用，TC6 原始 tooltip 保持不变。兼容性设置页中的“Thaumcraft 6 工具提示兼容”开关关闭时也采用同样的回退路径。
+
+TC6 的 `@@` 是 `UtilsFX` 私有控制标记，不是 vanilla `FontRenderer` 语义。在非 Unicode 字体路径中，它表示半尺寸、约 7 像素行距的紧凑行；普通行仍使用约 10 像素行距。Unicode 字体路径同样移除标记，但按普通尺寸和行距绘制。中间件只把标记解码为线程局部的紧凑行元数据，布局阶段据此计算宽度、换行、面板高度和标题分隔线，绘制阶段用 0.5 倍矩阵缩放文字。因此不会把 `@@` 扩散到全局 ModernText API，也不会影响普通 tooltip。
 
 ## 验证重点
 
@@ -63,10 +65,10 @@ tooltip 功能可用时拦截这两个重载，并转发到 `GuiUtils.drawHoveri
 - UIE 效果关闭、TC6 存在：专用 Mixin 不应改变 vanilla 研究界面。
 - TC6 不存在：Thaumcraft 配置不排队，相关目标类不会被加载。
 - 现代 tooltip 开启：研究提示进入 UIE 的现代 tooltip 事件路径。
-- 现代 tooltip 关闭或 Arc3D 不可用：TC6 原始 `UtilsFX` tooltip 继续绘制。
+- 现代 tooltip 或 Thaumcraft 兼容开关关闭，或 Arc3D 不可用：TC6 原始 `UtilsFX` tooltip 继续绘制。
 
 ## 未解决事项
 
 当前实现仍需要在实际 Cleanroom + TC6 客户端中验证研究背景、缩放、搜索界面和 tooltip
-边缘位置。若研究背景仍缺失，应优先记录 `genResearchBackgroundFixedPre` 返回后和
+边缘位置，尤其是多行 `@@` 文本的视觉基线。若研究背景仍缺失，应优先记录 `genResearchBackgroundFixedPre` 返回后和
 `genResearchBackgroundZoomable` 入口处的实际 GL 状态，而不是继续扩大 TC6 专用注入范围。

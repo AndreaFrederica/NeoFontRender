@@ -502,6 +502,10 @@ public final class NeofontrenderConfig {
         return cached.compatTinkersAntique;
     }
 
+    public static boolean compatThaumcraftTooltip() {
+        return cached.compatThaumcraftTooltip;
+    }
+
     /** auto, vanilla, runtime, custom, or an API-registered provider id. */
     public static String textColorPaletteProvider() {
         CommentedFileConfig current = config;
@@ -710,6 +714,10 @@ public final class NeofontrenderConfig {
 
     public static void setCompatTinkersAntique(boolean value) {
         setValue("compat.tinkersantique.enabled", value);
+    }
+
+    public static void setCompatThaumcraftTooltip(boolean value) {
+        setValue("compat.thaumcraft.tooltip.enabled", value);
     }
 
     public static void setTextColorPaletteProvider(String value) {
@@ -1188,6 +1196,7 @@ public final class NeofontrenderConfig {
         config.setComment("compat", "Compatibility options for third-party mods.");
         config.setComment("compat.modernsplash.enabled", "Allow the loading-screen font override to patch ModernSplash when it is installed. Requires splash.enabled and a restart.");
         config.setComment("compat.tinkersantique.enabled", "Handle Tinkers' Construct / TinkersAntique custom PUA color markers (\\uE700-\\uE7FF) as invisible color-change characters instead of rendering them as glyphs.");
+        config.setComment("compat.thaumcraft.tooltip.enabled", "Use UIE's modern tooltip renderer for Thaumcraft 6 custom tooltips and decode its @@ compact lines.");
         config.setComment("compat.colorPalette.provider", "Legacy text color palette: auto, vanilla, runtime, custom, or an API-registered provider id. Runtime reads the final FontRenderer.colorCode modified by other mods.");
         config.setComment("compat.colorPalette.custom", "Custom palette as 16 or 32 comma-separated RRGGBB values. Sixteen entries derive Minecraft-style shadow colors; 32 entries set them explicitly.");
         config.setComment("splash", "Forge loading-screen font replacement options.");
@@ -1285,6 +1294,7 @@ public final class NeofontrenderConfig {
         private final boolean laboratoryTextUndoRedo;
         private final boolean compatModernSplash;
         private final boolean compatTinkersAntique;
+        private final boolean compatThaumcraftTooltip;
         private final boolean splashFontOverrideEnabled;
         private final int fontStyle;
         private final int fontVariableWeight;
@@ -1367,6 +1377,7 @@ public final class NeofontrenderConfig {
             laboratoryTextUndoRedo = false;
             compatModernSplash = true;
             compatTinkersAntique = true;
+            compatThaumcraftTooltip = true;
             splashFontOverrideEnabled = true;
             fontStyle = 0;
             fontVariableWeight = 0;
@@ -1451,6 +1462,7 @@ public final class NeofontrenderConfig {
             laboratoryTextUndoRedo = config.getOrElse("laboratory.textUndoRedo", false);
             compatModernSplash = config.getOrElse("compat.modernsplash.enabled", true);
             compatTinkersAntique = config.getOrElse("compat.tinkersantique.enabled", true);
+            compatThaumcraftTooltip = config.getOrElse("compat.thaumcraft.tooltip.enabled", true);
             splashFontOverrideEnabled = config.getOrElse("splash.enabled", true);
             fontStyle = config.getOrElse("font.style", 0);
             fontVariableWeight = Math.max(0, Math.min(1000, getInt(config, "font.variableWeight", 0)));

@@ -32,7 +32,8 @@ public final class TooltipModule implements UiEnhancementModule {
     /** Preserve the original Mica source immediately before the current GuiScreen is drawn. */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void captureOriginalMicaScene(GuiScreenEvent.DrawScreenEvent.Pre event) {
-        if (!TooltipConfig.lowBrightnessMicaEnhancement && isMicaEnabled()) {
+        if (!TooltipConfig.micaSampleUi
+                && !TooltipConfig.lowBrightnessMicaEnhancement && isMicaEnabled()) {
             MicaBackdrop.captureScene();
         }
     }
@@ -40,6 +41,7 @@ public final class TooltipModule implements UiEnhancementModule {
     /** Preserve world and HUD before UIE's screen gradient for low-brightness enhancement. */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void captureMicaSceneAfterHud(RenderGameOverlayEvent.Post event) {
+        if (TooltipConfig.micaSampleUi) return;
         if (!TooltipConfig.lowBrightnessMicaEnhancement) return;
         if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
         if (isMicaEnabled()) MicaBackdrop.captureScene();

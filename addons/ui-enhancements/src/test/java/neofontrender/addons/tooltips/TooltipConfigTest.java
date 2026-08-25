@@ -29,18 +29,23 @@ class TooltipConfigTest {
     }
 
     @Test
-    void snapshotRestoresLowBrightnessMicaEnhancement() {
+    void snapshotRestoresMicaOptions() {
         boolean original = TooltipConfig.lowBrightnessMicaEnhancement;
+        boolean originalSampleUi = TooltipConfig.micaSampleUi;
         try {
             TooltipConfig.lowBrightnessMicaEnhancement = true;
+            TooltipConfig.micaSampleUi = true;
             TooltipConfig.Snapshot snapshot = TooltipConfig.snapshot();
             TooltipConfig.lowBrightnessMicaEnhancement = false;
+            TooltipConfig.micaSampleUi = false;
 
             snapshot.restore();
 
             assertTrue(TooltipConfig.lowBrightnessMicaEnhancement);
+            assertTrue(TooltipConfig.micaSampleUi);
         } finally {
             TooltipConfig.lowBrightnessMicaEnhancement = original;
+            TooltipConfig.micaSampleUi = originalSampleUi;
         }
     }
 

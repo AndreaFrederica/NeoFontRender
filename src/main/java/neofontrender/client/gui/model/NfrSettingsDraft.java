@@ -80,6 +80,7 @@ public final class NfrSettingsDraft {
     public final boolean originalLaboratoryTextUndoRedo = NeofontrenderConfig.laboratoryTextUndoRedo();
     public final boolean originalCompatModernSplash = NeofontrenderConfig.compatModernSplash();
     public final boolean originalCompatTinkersAntique = NeofontrenderConfig.compatTinkersAntique();
+    public final boolean originalCompatThaumcraftTooltip = NeofontrenderConfig.compatThaumcraftTooltip();
     public final String originalTextColorPaletteProvider =
             NeofontrenderConfig.textColorPaletteProvider();
     public final String originalCustomTextColorPalette =
@@ -129,6 +130,7 @@ public final class NfrSettingsDraft {
     public boolean laboratoryTextUndoRedo = originalLaboratoryTextUndoRedo;
     public boolean compatModernSplash = originalCompatModernSplash;
     public boolean compatTinkersAntique = originalCompatTinkersAntique;
+    public boolean compatThaumcraftTooltip = originalCompatThaumcraftTooltip;
     public String textColorPaletteProvider = originalTextColorPaletteProvider;
     public String customTextColorPalette = originalCustomTextColorPalette;
     public String enchantmentBackend = originalEnchantmentBackend;
@@ -285,6 +287,7 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryTextUndoRedo(laboratoryTextUndoRedo);
         NeofontrenderConfig.setCompatModernSplash(compatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(compatTinkersAntique);
+        NeofontrenderConfig.setCompatThaumcraftTooltip(compatThaumcraftTooltip);
         NeofontrenderConfig.setTextColorPaletteProvider(textColorPaletteProvider);
         NeofontrenderConfig.setCustomTextColorPalette(customTextColorPalette);
         NeofontrenderConfig.setEnchantmentFontBackend(enchantmentBackend);
@@ -356,6 +359,7 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryTextUndoRedo(originalLaboratoryTextUndoRedo);
         NeofontrenderConfig.setCompatModernSplash(originalCompatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(originalCompatTinkersAntique);
+        NeofontrenderConfig.setCompatThaumcraftTooltip(originalCompatThaumcraftTooltip);
         NeofontrenderConfig.setTextColorPaletteProvider(originalTextColorPaletteProvider);
         NeofontrenderConfig.setCustomTextColorPalette(originalCustomTextColorPalette);
         NeofontrenderConfig.setEnchantmentFontBackend(originalEnchantmentBackend);

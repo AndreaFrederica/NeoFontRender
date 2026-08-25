@@ -40,7 +40,7 @@ final class MicaBackdrop {
 
     private MicaBackdrop() {}
 
-    /** Copies the framebuffer at the capture point selected by {@link TooltipModule}. */
+    /** Copies the framebuffer at the capture point selected by the active Mica sampling mode. */
     static void captureScene() {
         if (unavailable) return;
         Minecraft mc = Minecraft.getMinecraft();
@@ -62,7 +62,7 @@ final class MicaBackdrop {
         } catch (Throwable t) {
             sceneValid = false;
             unavailable = true;
-            TooltipModule.LOGGER.warn("Could not capture the pre-GUI scene for Mica", t);
+            TooltipModule.LOGGER.warn("Could not capture the configured framebuffer source for Mica", t);
         } finally {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, oldTexture);
             GL13.glActiveTexture(oldActiveTexture);
@@ -71,6 +71,13 @@ final class MicaBackdrop {
 
     static void invalidateScene() {
         sceneValid = false;
+    }
+
+    /** Captures the already-rendered screen immediately before a Mica tooltip is composited. */
+    static void captureUiIfEnabled() {
+        if (TooltipConfig.micaSampleUi && "mica".equals(TooltipConfig.renderStyle)) {
+            captureScene();
+        }
     }
 
     static Capture capture(float left, float top, float right, float bottom) {
