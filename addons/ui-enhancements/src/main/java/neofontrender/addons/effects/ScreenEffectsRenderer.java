@@ -152,26 +152,7 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
         if (composite == null) {
             throw new IllegalStateException("UI blur composite framebuffer is unavailable");
         }
-
-        // ShaderManager.endShader() leaves the last sampler unit active and may leave several
-        // fixed-function texture units enabled. Framebuffer.framebufferRenderExt() is a
-        // fixed-function blit and assumes a single texture unit, so establish that state
-        // explicitly before publishing the private color buffer to the main target.
         mc.getFramebuffer().bindFramebuffer(true);
-        GlStateManager.disableDepth();
-        GlStateManager.depthMask(false);
-        GlStateManager.disableBlend();
-        GlStateManager.disableAlpha();
-        GlStateManager.disableLighting();
-        GlStateManager.disableColorMaterial();
-        // The private chain has exactly two samplers (DiffuseSampler and BlurredSampler), so
-        // unit 1 is the only auxiliary unit it can leave enabled. Avoid probing higher units:
-        // older hardware is only required to expose two fixed-function texture units.
-        GlStateManager.setActiveTexture(OpenGlHelper.defaultTexUnit + 1);
-        GlStateManager.disableTexture2D();
-        GlStateManager.bindTexture(0);
-        GlStateManager.setActiveTexture(OpenGlHelper.defaultTexUnit);
-        GlStateManager.enableTexture2D();
         composite.framebufferRenderExt(mc.displayWidth, mc.displayHeight, false);
     }
 
@@ -184,16 +165,9 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
         GlStateManager.bindTexture(0);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         // Match vanilla's post-shader state: GUI rendering starts with depth testing disabled.
-        // Legacy screens can change depth through raw GL11 calls, which bypass GlStateManager's
-        // cache. Toggle through a known enabled state first so both the driver and the cache agree.
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
-        GlStateManager.enableDepth();
-        GlStateManager.disableDepth();
-        GL11.glDepthFunc(GL11.GL_LEQUAL);
-        GlStateManager.depthFunc(GL11.GL_LEQUAL);
-        GL11.glDepthMask(true);
+        // Re-enabling it here makes legacy screens such as TC6's Thaumonomicon test against the
+        // world's depth attachment and reject their own background pass.
         GlStateManager.depthMask(true);
-        GlStateManager.disableColorMaterial();
         GlStateManager.disableAlpha();
         GlStateManager.alphaFunc(GL11.GL_GREATER, 0.1F);
         GlStateManager.disableBlend();
