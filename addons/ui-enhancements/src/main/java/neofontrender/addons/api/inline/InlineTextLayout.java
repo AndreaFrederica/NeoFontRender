@@ -32,6 +32,16 @@ public final class InlineTextLayout {
         return false;
     }
 
+    /** Whether a raw source interval overlaps an inline glyph token. */
+    public boolean hasGlyphInSourceRange(int sourceStart, int sourceEnd) {
+        int start = Math.max(0, Math.min(source.length(), sourceStart));
+        int end = Math.max(start, Math.min(source.length(), sourceEnd));
+        for (Run run : runs) {
+            if (run.glyph != null && start < run.end && end > run.start) return true;
+        }
+        return false;
+    }
+
     public int draw(FontRenderer font, float x, float y, int argb, boolean shadow) {
         for (Run run : runs) {
             if (run.glyph == null) {

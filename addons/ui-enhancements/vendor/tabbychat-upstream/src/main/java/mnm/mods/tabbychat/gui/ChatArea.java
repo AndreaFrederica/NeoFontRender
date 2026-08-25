@@ -21,7 +21,6 @@ import net.minecraft.client.gui.GuiUtilRenderComponents;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import org.lwjgl.BufferUtils;
@@ -41,6 +40,7 @@ import neofontrender.addons.chat.ChatItemIconRenderer;
 import neofontrender.addons.chat.ChatInlineImageInteraction;
 import neofontrender.addons.chat.ChatMessageMetadata;
 import neofontrender.addons.chat.ChatPlayerLinks;
+import neofontrender.addons.chat.ChatPixelScrollLayout;
 import neofontrender.addons.chat.ChatSelectionModel;
 import neofontrender.addons.chat.ChatSource;
 import neofontrender.addons.chat.EnhancedChatFeatures;
@@ -54,6 +54,7 @@ import org.lwjgl.input.Mouse;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -72,6 +73,15 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     private float nfrUi$displayScroll;
     private final ChatSelectionModel<Message> nfrUi$selection = new ChatSelectionModel<>();
     private boolean nfrUi$selecting;
+    private Map<Message, CachedRow> nfrUi$rowCache = new IdentityHashMap<>();
+    private ChatPixelScrollLayout.Index nfrUi$pixelIndex;
+    private boolean nfrUi$layoutDirty = true;
+    private int nfrUi$splitWidth = Integer.MIN_VALUE;
+    private boolean nfrUi$splitPrivate;
+    private int nfrUi$layoutFeatureMask = -1;
+    private int nfrUi$fontHeight = -1;
+    private Object nfrUi$fontRenderer;
+    private long nfrUi$layoutGeneration = -1L;
 
     public ChatArea() {
         this.setMinimumSize(new Dimension(300, 160));
@@ -139,9 +149,12 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         // top/left edge (TabbyChat only limits the visible row count, it never clips).
         boolean clipped = beginClip();
 
-        int maxScroll = Math.max(0, getChat().size() - lineCapacity());
+        float maxScroll = maximumPixelScroll();
         nfrUi$displayScroll = SmoothScrollConfigAccess.chatEnabled()
-                ? nfrUi$scroller.update(nfrUi$displayScroll, maxScroll) : scrollPos;
+                ? nfrUi$scroller.update(nfrUi$displayScroll, maxScroll)
+                : Math.max(0.0F, Math.min(maxScroll, nfrUi$displayScroll));
+        ChatPixelScrollLayout.Position scroll = pixelPosition(nfrUi$displayScroll);
+        scrollPos = scroll.index;
 
         List<Message> visible = getVisibleChat();
         GlStateManager.enableBlend();
@@ -171,9 +184,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         // getBounds().x here would double-apply it whenever the area sits at a non-zero
         // position (e.g. to the right of a vertical tab tray).
         int xPos = 3;
-        float fraction = nfrUi$displayScroll - (float) Math.floor(nfrUi$displayScroll);
-        int yPos = getBounds().height + Math.round(fraction * scrollStepHeight());
-        float messageOffset = ChatAnimationController.messageOffset(getScrollPos() != 0);
+        int yPos = getBounds().height + Math.round(scroll.remainder);
+        float messageOffset = ChatAnimationController.messageOffset(isScrolled());
         boolean translated = Math.abs(messageOffset) > 0.001F;
         if (translated) {
             GlStateManager.pushMatrix();
@@ -248,8 +260,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
             return;
         }
         ITextComponent display = line.getMessageWithOptionalTimestamp();
-        String text = display.getFormattedText();
-        InlineTextLayout inline = InlineTextEngine.layout(mc.fontRenderer, text);
+        InlineTextLayout inline = cachedRow(line).messageLayout;
         int contentHeight = inline.height();
         int iconY = yPos + Math.max(0, contentHeight - mc.fontRenderer.FONT_HEIGHT);
         float fade = getLineFade(line);
@@ -309,8 +320,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
 
     private void drawPrivateLine(Message line, int xPos, int yPos) {
         ITextComponent display = line.getMessageWithOptionalTimestamp();
-        String text = lineText(line);
-        InlineTextLayout inline = InlineTextEngine.layout(mc.fontRenderer, text);
+        InlineTextLayout inline = cachedRow(line).renderLayout;
         int contentHeight = inline.height();
         ChatMessageMetadata metadata = line instanceof ChatMessage
                 ? ((ChatMessage) line).nfrUi$getMessageMetadata() : null;
@@ -367,19 +377,75 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
 
     public void markDirty() {
         this.dirty = true;
+        this.nfrUi$layoutDirty = true;
     }
 
     public List<Message> getChat() {
-        if (!dirty) {
-            return this.messages;
+        boolean privateView = isPrivateView();
+        int width = chatTextWidth(privateView);
+        if (channel != null && (dirty || width != nfrUi$splitWidth
+                || privateView != nfrUi$splitPrivate)) {
+            this.dirty = false;
+            this.nfrUi$splitWidth = width;
+            this.nfrUi$splitPrivate = privateView;
+            this.messages = ChatTextUtils.split(channel.getMessages(), width, privateView);
+            this.nfrUi$layoutDirty = true;
         }
-        this.dirty = false;
-        int width = isPrivateView()
-                ? Math.max(16, (getBounds().width - 20) * 3 / 4)
-                : getBounds().width - 6 - ChatHeadRenderer.textOffset();
-        this.messages = ChatTextUtils.split(channel.getMessages(), width, isPrivateView());
+        ensureLayoutCache();
         return this.messages;
+    }
 
+    private int chatTextWidth(boolean privateView) {
+        int width = super.getLocation().getWidth();
+        return privateView
+                ? Math.max(16, (width - 20) * 3 / 4)
+                : Math.max(16, width - 6 - ChatHeadRenderer.textOffset());
+    }
+
+    private void ensureLayoutCache() {
+        int featureMask = (EnhancedChatFeatures.goslingImageGlyphs() ? 1 : 0)
+                | (EnhancedChatFeatures.externalImageGlyphs() ? 2 : 0)
+                | (EnhancedChatFeatures.localImageGlyphs() ? 4 : 0);
+        long generation = InlineTextEngine.layoutGeneration();
+        if (!nfrUi$layoutDirty && nfrUi$pixelIndex != null
+                && nfrUi$layoutFeatureMask == featureMask
+                && nfrUi$layoutGeneration == generation
+                && nfrUi$fontRenderer == mc.fontRenderer
+                && nfrUi$fontHeight == mc.fontRenderer.FONT_HEIGHT) return;
+
+        Map<Message, CachedRow> rows = new IdentityHashMap<>();
+        boolean privateView = isPrivateView();
+        ChatPixelScrollLayout.Index pixels = ChatPixelScrollLayout.index(messages, line -> {
+            CachedRow row = measureRow(line, privateView);
+            rows.put(line, row);
+            return row.height;
+        });
+        nfrUi$rowCache = rows;
+        nfrUi$pixelIndex = pixels;
+        nfrUi$layoutFeatureMask = featureMask;
+        nfrUi$layoutGeneration = generation;
+        nfrUi$fontRenderer = mc.fontRenderer;
+        nfrUi$fontHeight = mc.fontRenderer.FONT_HEIGHT;
+        nfrUi$layoutDirty = false;
+    }
+
+    private CachedRow measureRow(Message line, boolean privateView) {
+        String message = messageText(line);
+        InlineTextLayout messageLayout = InlineTextEngine.layout(mc.fontRenderer, message);
+        String rendered = privateView ? lineText(line) : message;
+        InlineTextLayout renderLayout = rendered.equals(message) ? messageLayout
+                : InlineTextEngine.layout(mc.fontRenderer, rendered);
+        int content = EnhancedChatFeatures.inlineGlyphs()
+                ? messageLayout.height() : mc.fontRenderer.FONT_HEIGHT;
+        int height = Math.max(mc.fontRenderer.FONT_HEIGHT, content)
+                + (privateView ? PRIVATE_ROW_GAP : 0);
+        return new CachedRow(messageLayout, renderLayout, height);
+    }
+
+    private CachedRow cachedRow(Message line) {
+        getChat();
+        CachedRow row = nfrUi$rowCache.get(line);
+        return row != null ? row : measureRow(line, isPrivateView());
     }
 
     private List<Message> getVisibleChat() {
@@ -388,11 +454,12 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         List<Message> messages = Lists.newArrayList();
         int length = 0;
 
-        int pos = SmoothScrollConfigAccess.chatEnabled()
-                ? MathHelper.floor(nfrUi$displayScroll) : getScrollPos();
+        ChatPixelScrollLayout.Position scroll = pixelPosition(nfrUi$displayScroll);
+        int pos = scroll.index;
         float unfoc = TabbyChat.getInstance().settings.advanced.unfocHeight.get();
         float div = ChatHudWindowController.isChatExpanded() ? 1 : unfoc;
-        while (pos < lines.size() && length < super.getLocation().getHeight() * div - 10) {
+        float limit = super.getLocation().getHeight() * div - 10 + scroll.remainder;
+        while (pos < lines.size() && length < limit) {
             Message line = lines.get(pos);
 
             if (ChatHudWindowController.isChatExpanded()) {
@@ -494,9 +561,9 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         if (visible.isEmpty()) return null;
         int width = getBounds().width;
         int height = getBounds().height;
-        float fraction = nfrUi$displayScroll - (float) Math.floor(nfrUi$displayScroll);
-        float visualBottom = height + fraction * scrollStepHeight()
-                + ChatAnimationController.messageOffset(getScrollPos() != 0);
+        ChatPixelScrollLayout.Position scroll = pixelPosition(nfrUi$displayScroll);
+        float visualBottom = height + scroll.remainder
+                + ChatAnimationController.messageOffset(isScrolled());
         int visibleHeight = visibleHeight(visible);
         if (!clamp && (mouseX < 0 || mouseX >= width || mouseY < visualBottom
                 - visibleHeight || mouseY >= visualBottom)) return null;
@@ -506,7 +573,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         String value = messageText(line);
         int localX = Math.max(0, mouseX - textX(line, 3));
         ITextComponent display = line.getMessageWithOptionalTimestamp();
-        InlineTextLayout inline = InlineTextEngine.layout(mc.fontRenderer, value);
+        InlineTextLayout inline = cachedRow(line).messageLayout;
         int position = ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()
                 ? ChatTypographyRenderer.formattedIndexAt(display, localX)
                 : inline.sourceIndexAt(mc.fontRenderer, localX);
@@ -527,8 +594,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         int x = textX(line, 3);
         if (mouseX < x) return null;
         ITextComponent display = line.getMessageWithOptionalTimestamp();
-        InlineTextLayout inline = InlineTextEngine.layout(
-                mc.fontRenderer, display.getFormattedText());
+        InlineTextLayout inline = cachedRow(line).messageLayout;
         if (ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()) {
             return ChatTypographyRenderer.componentAt(display, mouseX - x);
         }
@@ -562,9 +628,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
             y -= height;
             ChatSelectionModel.Range range = ranges.get(line);
             if (range == null || range.start >= range.end) continue;
-            String value = messageText(line);
             int textX = textX(line, xPos);
-            InlineTextLayout layout = InlineTextEngine.layout(mc.fontRenderer, value);
+            InlineTextLayout layout = cachedRow(line).messageLayout;
             ITextComponent display = line.getMessageWithOptionalTimestamp();
             boolean positioned = ChatTypographyRenderer.isPositioned(display)
                     && !layout.hasGlyphs();
@@ -591,7 +656,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         if (rowHit == null) return null;
         Message line = rowHit.line;
         int textX = textX(line, 3);
-        InlineTextLayout layout = InlineTextEngine.layout(mc.fontRenderer, messageText(line));
+        InlineTextLayout layout = cachedRow(line).messageLayout;
         InlineGlyphHit hit = layout.glyphAt(mouseX - textX,
                 mouseY - rowHit.rowTop, mc.fontRenderer);
         return hit == null ? null : new GlyphHover(hit,
@@ -637,29 +702,28 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
 
     @Override
     public void scroll(int scr) {
+        if (scr == 0) return;
+        float delta = scr * baseRowHeight();
+        float maximum = maximumPixelScroll();
         if (!SmoothScrollConfigAccess.chatEnabled()) {
-            setScrollPos(getScrollPos() + scr);
+            setPixelScroll(nfrUi$displayScroll + delta, maximum);
             return;
         }
-        int maxScroll = Math.max(0, getChat().size() - lineCapacity());
-        nfrUi$scroller.scrollBy(scr, maxScroll, nfrUi$displayScroll);
-        scrollPos = MathHelper.clamp(Math.round(nfrUi$scroller.getTarget()), 0, maxScroll);
+        nfrUi$scroller.scrollBy(delta, maximum, nfrUi$displayScroll);
+        scrollPos = pixelPosition(nfrUi$scroller.getTarget()).index;
     }
 
     @Override
     public void setScrollPos(int scroll) {
         List<Message> list = getChat();
-        scroll = Math.min(scroll, list.size() - lineCapacity());
-        scroll = Math.max(scroll, 0);
-
-        this.scrollPos = scroll;
-        this.nfrUi$displayScroll = scroll;
-        this.nfrUi$scroller.sync(scroll);
+        int line = Math.max(0, Math.min(scroll, list.size()));
+        setPixelScroll(nfrUi$pixelIndex.offsetForIndex(line), maximumPixelScroll());
     }
 
     @Override
     public int getScrollPos() {
-        return scrollPos;
+        return pixelPosition(Math.max(nfrUi$displayScroll,
+                nfrUi$scroller.getTarget())).index;
     }
 
     @Override
@@ -681,9 +745,9 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
                 float scale = getActualScale();
                 float bottom = (actual.getYPos() + actual.getHeight());
                 List<Message> list = this.getChat();
-                int start = SmoothScrollConfigAccess.chatEnabled()
-                        ? MathHelper.floor(nfrUi$displayScroll) : scrollPos;
-                float localY = (bottom - point.y) / scale;
+                ChatPixelScrollLayout.Position scroll = pixelPosition(nfrUi$displayScroll);
+                int start = scroll.index;
+                float localY = (bottom - point.y) / scale + scroll.remainder;
                 int linePos = start;
                 int consumed = 0;
                 while (linePos < list.size()) {
@@ -732,11 +796,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     }
 
     private int rowHeight(Message line) {
-        int content = EnhancedChatFeatures.inlineGlyphs()
-                ? InlineTextEngine.layout(mc.fontRenderer, messageText(line)).height()
-                : mc.fontRenderer.FONT_HEIGHT;
-        return Math.max(mc.fontRenderer.FONT_HEIGHT, content)
-                + (isPrivateView() ? PRIVATE_ROW_GAP : 0);
+        return cachedRow(line).height;
     }
 
     private int visibleHeight(List<Message> visible) {
@@ -755,20 +815,13 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         return visible.size();
     }
 
-    private int scrollStepHeight() {
-        List<Message> list = getChat();
-        int index = Math.max(0, Math.min(list.size() - 1,
-                SmoothScrollConfigAccess.chatEnabled()
-                        ? MathHelper.floor(nfrUi$displayScroll) : scrollPos));
-        return list.isEmpty() ? baseRowHeight() : rowHeight(list.get(index));
-    }
-
     private int lineCapacity() {
         List<Message> list = getChat();
         int available = Math.max(1, super.getLocation().getHeight() - 10);
         int used = 0;
         int count = 0;
-        for (int index = Math.max(0, scrollPos); index < list.size(); index++) {
+        int start = pixelPosition(nfrUi$displayScroll).index;
+        for (int index = Math.max(0, start); index < list.size(); index++) {
             int height = rowHeight(list.get(index));
             if (count > 0 && used + height > available) break;
             used += height;
@@ -782,6 +835,62 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         return lineCapacity();
     }
 
+    public boolean isScrolled() {
+        return nfrUi$displayScroll > 0.01F || nfrUi$scroller.getTarget() > 0.01F;
+    }
+
+    public int getScrollPixels() {
+        return Math.round(nfrUi$displayScroll);
+    }
+
+    public int getMaximumScrollPixels() {
+        return Math.round(maximumPixelScroll());
+    }
+
+    public int getContentPixelHeight() {
+        getChat();
+        return nfrUi$pixelIndex.totalHeight();
+    }
+
+    public int measureMessagePixelHeight(Message message) {
+        boolean privateView = isPrivateView();
+        int width = chatTextWidth(privateView);
+        int height = 0;
+        for (Message line : ChatTextUtils.split(
+                java.util.Collections.singletonList(message), width, privateView)) {
+            height += measureRow(line, privateView).height;
+        }
+        return height;
+    }
+
+    public void preserveScrollAfterMessage(int addedHeight) {
+        if (!isScrolled() || addedHeight <= 0) return;
+        float maximum = maximumPixelScroll();
+        nfrUi$displayScroll = Math.min(maximum, nfrUi$displayScroll + addedHeight);
+        nfrUi$scroller.shiftBy(addedHeight, maximum);
+        scrollPos = pixelPosition(nfrUi$displayScroll).index;
+    }
+
+    private float maximumPixelScroll() {
+        getChat();
+        return nfrUi$pixelIndex.maximum(viewportPixelHeight());
+    }
+
+    private int viewportPixelHeight() {
+        return Math.max(1, super.getLocation().getHeight() - 10);
+    }
+
+    private ChatPixelScrollLayout.Position pixelPosition(float pixels) {
+        getChat();
+        return nfrUi$pixelIndex.locate(pixels);
+    }
+
+    private void setPixelScroll(float pixels, float maximum) {
+        nfrUi$displayScroll = Math.max(0.0F, Math.min(maximum, pixels));
+        nfrUi$scroller.sync(nfrUi$displayScroll);
+        scrollPos = pixelPosition(nfrUi$displayScroll).index;
+    }
+
     private boolean isOutgoing(Message line) {
         if (!(line instanceof ChatMessage)) return false;
         ChatMessageMetadata metadata = ((ChatMessage) line).nfrUi$getMessageMetadata();
@@ -793,18 +902,30 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         int avatarSpace = EnhancedChatFeatures.playerHeads() ? ChatHeadRenderer.HEAD_SIZE + 5 : 0;
         ITextComponent display = line.getMessageWithOptionalTimestamp();
         int bubbleWidth = Math.min(getBounds().width - avatarSpace - 8,
-                nfrUi$textWidth(display) + 8);
+                nfrUi$textWidth(line, display) + 8);
         int bubbleX = isOutgoing(line)
                 ? getBounds().width - 3 - avatarSpace - bubbleWidth
                 : baseX + avatarSpace;
         return bubbleX + 4;
     }
 
-    private int nfrUi$textWidth(ITextComponent display) {
-        InlineTextLayout inline = InlineTextEngine.layout(
-                mc.fontRenderer, display.getFormattedText());
+    private int nfrUi$textWidth(Message line, ITextComponent display) {
+        InlineTextLayout inline = cachedRow(line).renderLayout;
         return ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()
                 ? ChatTypographyRenderer.width(mc.fontRenderer, display) : inline.width();
+    }
+
+    private static final class CachedRow {
+        private final InlineTextLayout messageLayout;
+        private final InlineTextLayout renderLayout;
+        private final int height;
+
+        private CachedRow(InlineTextLayout messageLayout, InlineTextLayout renderLayout,
+                          int height) {
+            this.messageLayout = messageLayout;
+            this.renderLayout = renderLayout;
+            this.height = height;
+        }
     }
 
 }

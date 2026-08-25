@@ -6,6 +6,7 @@ import net.minecraft.util.ResourceLocation;
 import neofontrender.addons.api.inline.ExternalImagePolicy;
 import neofontrender.addons.api.inline.InlineGlyph;
 import neofontrender.addons.api.inline.InlineImageHandle;
+import neofontrender.addons.api.inline.InlineTextEngine;
 import neofontrender.addons.chat.EnhancedChatFeatures;
 import neofontrender.addons.ui.NfrUiEnhancements;
 
@@ -120,6 +121,7 @@ public enum InlineImageService {
             Minecraft.getMinecraft().addScheduledTask(() -> upload(handle, decoded));
         } catch (Throwable failure) {
             handle.state = InlineImageHandle.State.FAILED;
+            InlineTextEngine.invalidateLayouts();
             NfrUiEnhancements.LOGGER.debug("Inline image rejected or unavailable: {}", handle.uri, failure);
         }
     }
@@ -133,6 +135,7 @@ public enum InlineImageService {
             Minecraft.getMinecraft().addScheduledTask(() -> upload(handle, image));
         } catch (Throwable failure) {
             handle.state = InlineImageHandle.State.FAILED;
+            InlineTextEngine.invalidateLayouts();
             NfrUiEnhancements.LOGGER.debug("Local inline image rejected or unavailable: {}", path, failure);
         }
     }
@@ -246,9 +249,11 @@ public enum InlineImageService {
             handle.texture = texture;
             handle.location = location;
             handle.state = InlineImageHandle.State.READY;
+            InlineTextEngine.invalidateLayouts();
             evictOldTextures();
         } catch (Throwable failure) {
             handle.state = InlineImageHandle.State.FAILED;
+            InlineTextEngine.invalidateLayouts();
             NfrUiEnhancements.LOGGER.debug("Could not upload inline image {}", handle.uri, failure);
         }
     }
@@ -271,6 +276,7 @@ public enum InlineImageService {
             handle.texture = null;
             handle.image = null;
             handle.state = InlineImageHandle.State.FAILED;
+            InlineTextEngine.invalidateLayouts();
         }
     }
 

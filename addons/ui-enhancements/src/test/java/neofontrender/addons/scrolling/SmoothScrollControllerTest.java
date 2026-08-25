@@ -28,4 +28,25 @@ class SmoothScrollControllerTest {
         assertTrue(retargeted > moving);
         assertTrue(retargeted < 80.0F);
     }
+
+    @Test
+    void shiftingContentPreservesTheAnimationFrame() {
+        SmoothScrollController controller = new SmoothScrollController();
+        controller.sync(12.0F);
+        controller.scrollBy(18.0F, 100.0F, 12.0F);
+        controller.shiftBy(9.0F, 100.0F);
+
+        assertEquals(39.0F, controller.getTarget());
+    }
+
+    @Test
+    void ownedUpdateDoesNotReconcileAgainstIntegerProjection() {
+        SmoothScrollController controller = new SmoothScrollController();
+        controller.sync(0.6F);
+        controller.scrollBy(1.0F, 10.0F, 0.6F);
+
+        controller.updateOwned(10.0F);
+
+        assertEquals(1.6F, controller.getTarget());
+    }
 }

@@ -19,13 +19,10 @@ import mnm.mods.tabbychat.settings.AdvancedSettings;
 import mnm.mods.tabbychat.settings.GeneralServerSettings;
 import mnm.mods.util.Location;
 import mnm.mods.util.config.ValueMap;
-import mnm.mods.util.text.TextBuilder;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.util.EnumTypeAdapterFactory;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.Style;
-import net.minecraft.util.text.TextFormatting;
 import neofontrender.addons.chat.ChatSourceChannels;
 import neofontrender.addons.chat.EnhancedChatConfigAccess;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
@@ -168,14 +165,18 @@ public class ChatManager implements Chat {
 
     @Override
     public void clearMessages() {
-        for (Channel channel : channels) {
-            channel.clear();
-        }
+        for (List<Message> history : messages.values()) history.clear();
+        ChatChannel.DEFAULT_CHANNEL.getMessages().clear();
 
         this.channels.clear();
         this.channels.add(ChatChannel.DEFAULT_CHANNEL);
 
         chatbox.getTray().clear();
+        chatbox.getTray().addChannel(ChatChannel.DEFAULT_CHANNEL);
+        if (active != ChatChannel.DEFAULT_CHANNEL) active.setStatus(null);
+        active = ChatChannel.DEFAULT_CHANNEL;
+        active.setStatus(ChannelStatus.ACTIVE);
+        chatbox.getChatArea().markDirty();
     }
 
     @Override
@@ -207,7 +208,7 @@ public class ChatManager implements Chat {
         active.setStatus(ChannelStatus.ACTIVE);
         restoreActiveInput("");
 
-        runActivationCommand(channel);
+        if (!loading) runActivationCommand(channel);
 
     }
 
@@ -344,6 +345,7 @@ public class ChatManager implements Chat {
         privateCommandBlocks.clear();
         allChannels.clear();
         allPms.clear();
+        messages.clear();
         if (!file.exists()) {
             return;
         }
@@ -381,22 +383,6 @@ public class ChatManager implements Chat {
             addChannel(getChannel(e.getAsString(), true));
         }
 
-        String time;
-        if (root.has("datetime")) {
-            Instant datetime = Instant.ofEpochSecond(root.get("datetime").getAsLong());
-            time = datetime.toString();
-        } else {
-            time = "UNKNOWN";
-        }
-        ITextComponent chat = new TextBuilder()
-                .text(I18n.format("tabbychat.message.loadchatdata", time))
-                .format(TextFormatting.GRAY)
-                .build();
-        for (Channel c : getChannels()) {
-            if (!c.getMessages().isEmpty()) {
-                c.addMessage(chat, -1);
-            }
-        }
     }
 
     private void readJson(JsonObject obj, boolean pm) {

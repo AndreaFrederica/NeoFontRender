@@ -11,6 +11,7 @@ final class EnhancedChatConfig {
     static boolean persistence = true;
     static boolean persistReceived = true;
     static boolean persistSent = true;
+    static boolean logRestoredHistory = false;
     static boolean messageSearch = true;
     static boolean commandCompletion = true;
     static boolean sourceClassification = true;
@@ -64,6 +65,8 @@ final class EnhancedChatConfig {
                 .define("chat.persistence", true, "Restore chat for the same world or server across reconnects and game restarts.")
                 .define("chat.persistReceived", true, "Persist received chat components with formatting and events.")
                 .define("chat.persistSent", true, "Persist sent-message command history.")
+                .define("chat.logRestoredHistory", false,
+                        "Write restored historical messages to chat logs. Disabled by default to avoid replay-like log entries.")
                 .define("chat.search", true, "Search and filter the current chat history with Ctrl+F.")
                 .define("chat.commandCompletion", true,
                         "Show command completions in Salutation and embedded TabbyChat inputs.")
@@ -115,6 +118,7 @@ final class EnhancedChatConfig {
         persistence = file.getBoolean("chat.persistence", true);
         persistReceived = file.getBoolean("chat.persistReceived", true);
         persistSent = file.getBoolean("chat.persistSent", true);
+        logRestoredHistory = file.getBoolean("chat.logRestoredHistory", false);
         messageSearch = file.getBoolean("chat.search", true);
         commandCompletion = file.getBoolean("chat.commandCompletion", true);
         sourceClassification = file.getBoolean("chat.sources.enabled", true);
@@ -168,6 +172,7 @@ final class EnhancedChatConfig {
                 .set("chat.persistence", persistence)
                 .set("chat.persistReceived", persistReceived)
                 .set("chat.persistSent", persistSent)
+                .set("chat.logRestoredHistory", logRestoredHistory)
                 .set("chat.search", messageSearch)
                 .set("chat.commandCompletion", commandCompletion)
                 .set("chat.sources.enabled", sourceClassification)

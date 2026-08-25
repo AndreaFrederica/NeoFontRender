@@ -5,6 +5,7 @@ import mnm.mods.tabbychat.TabbyChat;
 import mnm.mods.tabbychat.api.events.ChatMessageEvent.ChatReceivedEvent;
 import mnm.mods.util.IPUtils;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.text.ITextComponent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipUtils;
@@ -40,14 +41,18 @@ public class ChatLogging {
 
     @SubscribeEvent
     public void onChatRecieved(ChatReceivedEvent message) {
-        if (TabbyChat.getInstance().settings.general.logChat.get()) {
+        log(message.text);
+    }
+
+    public void log(ITextComponent message) {
+        if (message != null && TabbyChat.getInstance().settings.general.logChat.get()) {
 
             checkLog();
             if (out == null) {
                 return;
             }
 
-            out.println(LOG_FORMAT.format(Calendar.getInstance().getTime()) + message.text.getUnformattedText());
+            out.println(LOG_FORMAT.format(Calendar.getInstance().getTime()) + message.getUnformattedText());
         }
     }
 
