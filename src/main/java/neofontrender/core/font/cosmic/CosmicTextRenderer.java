@@ -824,27 +824,42 @@ public final class CosmicTextRenderer implements TextRenderBackend {
     private static final class PremultipliedBlendState implements AutoCloseable {
         private final boolean blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
         private final boolean alphaTestEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
+        private final boolean fogEnabled = GL11.glIsEnabled(GL11.GL_FOG);
         private final int srcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
         private final int dstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
         private final int srcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
         private final int dstAlpha = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
+        private final int blendEquation = GL11.glGetInteger(GL14.GL_BLEND_EQUATION);
 
         private PremultipliedBlendState() {
             GlStateManager.disableAlpha();
+            // Fixed-function fog adds fog RGB without scaling it by glyph coverage. That breaks the
+            // premultiplied invariant at antialiased edges and GL_ONE then exposes it as a halo.
+            GlStateManager.disableFog();
+            GL11.glDisable(GL11.GL_FOG);
             GlStateManager.enableBlend();
+            GlStateManager.glBlendEquation(GL14.GL_FUNC_ADD);
+            GL14.glBlendEquation(GL14.GL_FUNC_ADD);
             GlStateManager.tryBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA,
-                    GL11.GL_ONE, GL11.GL_ZERO);
+                    GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            // Mods sometimes mutate the driver through raw GL and leave GlStateManager's cache
+            // stale. Reassert the factors in GL after synchronizing Minecraft's cache above.
+            GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA,
+                    GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
         }
 
         @Override
         public void close() {
             // Restore via GlStateManager so its 1.12-era state cache stays synchronized with GL.
+            GlStateManager.glBlendEquation(blendEquation);
             GlStateManager.tryBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
             if (!blendEnabled) {
                 GlStateManager.disableBlend();
             }
             if (alphaTestEnabled) GlStateManager.enableAlpha();
             else GlStateManager.disableAlpha();
+            if (fogEnabled) GlStateManager.enableFog();
+            else GlStateManager.disableFog();
         }
     }
 
