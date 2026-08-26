@@ -21,10 +21,12 @@ import neofontrender.api.text.CjkParagraphLayoutProvider;
 final class ModernTooltipRenderer {
     private static final int Z_LEVEL = 300;
 
-    boolean draw(RenderTooltipEvent.Pre event, boolean[] compactLines, String profileId) {
+    boolean draw(RenderTooltipEvent.Pre event, boolean[] compactLines, String profileId,
+                 ThaumcraftTooltipCompat.Context thaumcraftContext) {
         if (event.getLines().isEmpty()) return false;
         MicaBackdrop.captureUiIfEnabled();
-        TooltipLayout layout = TooltipLayout.calculate(event, compactLines, TooltipConfig.profile(profileId));
+        TooltipLayout layout = TooltipLayout.calculate(event, compactLines,
+                TooltipConfig.profile(profileId), thaumcraftContext);
         if (layout.lines.isEmpty()) return false;
 
         int[] fill = TooltipConfig.fillColors.clone();
@@ -61,7 +63,8 @@ final class ModernTooltipRenderer {
                     event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
                     layout.width, layout.height));
             drawContent(layout.x, layout.y, layout.width, layout.lines, layout.compactLines,
-                    layout.titleLines, layout.profile(), event.getFontRenderer(), event.getStack());
+                    layout.titleLines, layout.profile(), event.getFontRenderer(), event.getStack(),
+                    thaumcraftContext != null);
             MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostText(
                     event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
                     layout.width, layout.height));
@@ -246,7 +249,8 @@ final class ModernTooltipRenderer {
 
     static void drawContent(int x, int y, int width, List<String> lines,
                             List<Boolean> compactLines, int titleLines,
-                            TooltipConfig.Profile profile, FontRenderer font, ItemStack stack) {
+                            TooltipConfig.Profile profile, FontRenderer font, ItemStack stack,
+                            boolean lineBreaksAlreadyApplied) {
         TooltipConfig.Profile activeProfile = profile == null ? TooltipConfig.profile("vanilla") : profile;
         int textY = y;
         for (int i = 0; i < lines.size(); i++) {
@@ -255,9 +259,11 @@ final class ModernTooltipRenderer {
             int lineTitleCount = Math.max(0, Math.min(titleLines, lines.size()));
             int lineX = x;
             float textScale = activeProfile.textScale * (compact ? 0.5F : 1.0F);
+            int paragraphWidth = lineBreaksAlreadyApplied ? 1_000_000
+                    : Math.max(1, compact ? Math.round(width * 2.0F / activeProfile.textScale)
+                            : Math.round(width / activeProfile.textScale));
             CjkParagraphLayoutProvider.Layout paragraph = CjkTypographyRenderer.layout(
-                    font, line, Math.max(1, compact ? Math.round(width * 2.0F / activeProfile.textScale)
-                            : Math.round(width / activeProfile.textScale)),
+                    font, line, paragraphWidth,
                     compact ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT * 2 : TooltipConfig.lineHeight);
             int renderedWidth = paragraph == null ? font.getStringWidth(line)
                     : CjkTypographyRenderer.measuredWidth(font, paragraph);

@@ -78,17 +78,7 @@ public final class FontRenderTuning {
         }
         float min = adaptiveRasterMin();
         float max = adaptiveRasterMax(min);
-        DrawContext context = currentDrawContext();
-        // Match ModernUI's device-space strategy: for an unrotated orthographic draw,
-        // rasterize close to the number of framebuffer pixels the glyph will occupy
-        // instead of always applying a second fixed oversample factor. Perspective and
-        // rotated text still needs a denser source image because one glyph quad can cover
-        // a non-uniform footprint after transformation. This changes only raster density;
-        // RGBA/color glyph payloads remain untouched.
-        float target = context.roundedPixelScale();
-        if (context.perspective() || context.rotation()) {
-            target = Math.max(target, 4.0F);
-        }
+        float target = currentDrawContext().roundedPixelScale() * 2.0F;
         return rasterScaleBucket(clamp(target, min, max), configured);
     }
 

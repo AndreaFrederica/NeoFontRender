@@ -11,7 +11,9 @@ final class ModernTooltipHandler {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onTooltip(RenderTooltipEvent.Pre event) {
-        boolean[] compactLines = ThaumcraftTooltipCompat.consumeCompactLines(event.getLines());
+        ThaumcraftTooltipCompat.Context thaumcraftContext =
+                ThaumcraftTooltipCompat.consumeContext(event.getLines());
+        boolean[] compactLines = thaumcraftContext == null ? null : thaumcraftContext.compact;
         if (!TooltipConfig.enabled || !Arc3DRuntimeSupport.isAvailable() || event.isCanceled()) return;
         // HEI's ingredient-grid tooltips post Pre for compatibility, but their item icons are
         // rendered after the event. Cancelling here would replace the text and silently lose the
@@ -25,6 +27,8 @@ final class ModernTooltipHandler {
             return;
         }
         if (renderer.draw(event, compactLines,
-                compactLines == null ? "vanilla" : "thaumcraft")) event.setCanceled(true);
+                compactLines == null ? "vanilla" : "thaumcraft", thaumcraftContext)) {
+            event.setCanceled(true);
+        }
     }
 }

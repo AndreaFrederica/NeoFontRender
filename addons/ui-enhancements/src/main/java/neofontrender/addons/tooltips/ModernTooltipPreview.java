@@ -97,7 +97,7 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
             if (mapPreview) drawMapPreview(panelLeft, panelTop);
             ModernTooltipRenderer.drawContent(textLeft, textTop, layoutWidth, lines,
                     preview.compactLines, lines.isEmpty() ? 0 : 1,
-                    textProfile ? profile : previewProfile(), font, preview.stack);
+                    textProfile ? profile : previewProfile(), font, preview.stack, false);
 
             if (textProfile) {
                 String values = String.format(java.util.Locale.ROOT,

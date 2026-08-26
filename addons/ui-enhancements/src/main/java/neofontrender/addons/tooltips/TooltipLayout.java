@@ -43,6 +43,15 @@ final class TooltipLayout {
 
     static TooltipLayout calculate(RenderTooltipEvent.Pre event, boolean[] compactSource,
                                    TooltipConfig.Profile profile) {
+        return calculate(event, compactSource, profile, null);
+    }
+
+    static TooltipLayout calculate(RenderTooltipEvent.Pre event, boolean[] compactSource,
+                                   TooltipConfig.Profile profile,
+                                   ThaumcraftTooltipCompat.Context thaumcraftContext) {
+        if (thaumcraftContext != null) {
+            return calculateThaumcraft(event, compactSource, profile, thaumcraftContext);
+        }
         FontRenderer font = event.getFontRenderer();
         List<String> source = event.getLines();
         TooltipConfig.Profile activeProfile = profile == null ? TooltipConfig.profile("vanilla") : profile;
@@ -111,6 +120,67 @@ final class TooltipLayout {
                 activeProfile);
     }
 
+    /**
+     * Keeps the coordinates used by UtilsFX stable while still reusing NFR's panel and text
+     * renderer. TC6 passes a side flag instead of letting Forge choose a side from the measured
+     * width; recomputing that choice in the generic layout is what made small windows oscillate.
+     */
+    private static TooltipLayout calculateThaumcraft(RenderTooltipEvent.Pre event,
+                                                     boolean[] compactSource,
+                                                     TooltipConfig.Profile profile,
+                                                     ThaumcraftTooltipCompat.Context context) {
+        FontRenderer font = event.getFontRenderer();
+        TooltipConfig.Profile activeProfile = profile == null ? TooltipConfig.profile("thaumcraft") : profile;
+        List<String> source = event.getLines();
+        List<Boolean> sourceCompact = flagsFor(source.size(), compactSource);
+        int width = measureLegacy(font, source, sourceCompact, activeProfile.textScale);
+        int maxWidth = event.getMaxWidth() > 0 ? event.getMaxWidth() : 240;
+        if (TooltipConfig.maxWidth > 0) maxWidth = Math.min(maxWidth, TooltipConfig.maxWidth);
+
+        boolean placeLeft = context.right;
+        if (!placeLeft && context.cursorX + width + 24 > event.getScreenWidth()) {
+            placeLeft = true;
+        }
+        int available = placeLeft ? context.cursorX - 24 - 8
+                : event.getScreenWidth() - context.cursorX - 24;
+        if (available > 0 && width > available) maxWidth = Math.min(maxWidth, available);
+        boolean wrap = width > maxWidth;
+
+        List<String> lines = source;
+        List<Boolean> compactLines = sourceCompact;
+        int titleLines = source.isEmpty() ? 0 : 1;
+        if (wrap) {
+            List<String> wrapped = new ArrayList<>();
+            List<Boolean> wrappedCompact = new ArrayList<>();
+            for (int i = 0; i < source.size(); i++) {
+                int sourceWidth = sourceCompact.get(i)
+                        ? Math.max(1, Math.round(maxWidth * 2.0F / activeProfile.textScale))
+                        : Math.max(1, Math.round(maxWidth / activeProfile.textScale));
+                List<String> part = font.listFormattedStringToWidth(source.get(i), sourceWidth);
+                if (i == 0) titleLines = part.size();
+                wrapped.addAll(part);
+                for (int j = 0; j < part.size(); j++) wrappedCompact.add(sourceCompact.get(i));
+            }
+            lines = wrapped;
+            compactLines = wrappedCompact;
+            width = measureLegacy(font, lines, compactLines, activeProfile.textScale);
+        }
+
+        int x = placeLeft ? context.cursorX - width - 24 : context.cursorX + 12;
+        int height = 0;
+        for (int i = 0; i < lines.size(); i++) {
+            int advance = compactLines.get(i) ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT
+                    : (i == 0 ? Math.max(1, font.FONT_HEIGHT - 1) : TooltipConfig.lineHeight);
+            height += Math.max(1, Math.round(advance * activeProfile.textScale));
+        }
+        if (lines.size() > titleLines) height += TooltipConfig.titleGap;
+        int y = context.cursorY - 12;
+        y = Math.max(4, Math.min(y, event.getScreenHeight() - height - 4));
+        x = Math.max(4, Math.min(x, event.getScreenWidth() - width - 4));
+        return new TooltipLayout(lines, compactLines, titleLines, x, y, width, height,
+                activeProfile);
+    }
+
     private int advanceFor(int index) {
         if (compactLines.get(index)) return ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT;
         // Forge's original divider uses the configured baseline spacing for every title line.
@@ -146,5 +216,16 @@ final class TooltipLayout {
         boolean[] compact = new boolean[compactLines.size()];
         for (int i = 0; i < compact.length; i++) compact[i] = compactLines.get(i);
         return measure(font, lines, compact, textScale);
+    }
+
+    private static int measureLegacy(FontRenderer font, List<String> lines,
+                                     List<Boolean> compactLines, float textScale) {
+        int width = 0;
+        for (int i = 0; i < lines.size(); i++) {
+            int lineWidth = font.getStringWidth(lines.get(i));
+            if (compactLines.get(i)) lineWidth = (lineWidth + 1) / 2;
+            width = Math.max(width, Math.max(1, Math.round(lineWidth * textScale)));
+        }
+        return width;
     }
 }

@@ -26,7 +26,7 @@ public abstract class MixinThaumcraftCustomTooltip {
                                                    List<String> lines, int x, int y, int color,
                                                    CallbackInfo ci) {
         if (!ThaumcraftTooltipCompat.isEnabled()) return;
-        ThaumcraftTooltipCompat.draw(screen, font, lines, x, y, color);
+        ThaumcraftTooltipCompat.draw(screen, font, lines, x, y, color, false);
         ci.cancel();
     }
 
@@ -37,7 +37,7 @@ public abstract class MixinThaumcraftCustomTooltip {
                                                            int color, boolean right,
                                                            CallbackInfo ci) {
         if (!ThaumcraftTooltipCompat.isEnabled()) return;
-        ThaumcraftTooltipCompat.draw(screen, font, lines, x, y, color);
+        ThaumcraftTooltipCompat.draw(screen, font, lines, x, y, color, right);
         ci.cancel();
     }
 }
