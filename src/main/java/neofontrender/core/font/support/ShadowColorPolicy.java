@@ -2,36 +2,63 @@ package neofontrender.core.font.support;
 
 /** Shared color selection for legacy two-pass and modern composed text shadows. */
 public final class ShadowColorPolicy {
+    public static final String VANILLA = "vanilla";
+    public static final String COLORED = "colored";
+    public static final String SOLID = "solid";
+
     private ShadowColorPolicy() {}
 
-    /** Keeps the foreground hue when colored shadows are enabled, otherwise darkens like vanilla. */
-    public static int legacyColor(int foregroundArgb, boolean colored) {
-        return colored
-                ? foregroundArgb
-                : (foregroundArgb & 0xFF000000) | ((foregroundArgb & 0xFCFCFC) >> 2);
+    public static String normalizeMode(String mode) {
+        if (COLORED.equalsIgnoreCase(mode)) return COLORED;
+        if (SOLID.equalsIgnoreCase(mode)) return SOLID;
+        return VANILLA;
     }
 
-    /** Keeps legacy behavior while allowing colored shadows to remap selected foreground RGBs. */
-    public static int legacyColor(int foregroundArgb, boolean colored,
+    /** Maps an arbitrary foreground color using the vanilla per-channel quarter-brightness rule. */
+    public static int darken(int foregroundArgb) {
+        return (foregroundArgb & 0xFF000000) | ((foregroundArgb & 0xFCFCFC) >> 2);
+    }
+
+    /** Resolves an unformatted run's shadow color and then applies explicit overrides. */
+    public static int shadowColor(int foregroundArgb, String mode, int configuredArgb,
                                   ShadowColorRemapRules rules, int[] palette) {
-        int color = legacyColor(foregroundArgb, colored);
-        return colored && rules != null ? rules.remap(color, palette) : color;
+        String normalized = normalizeMode(mode);
+        int color = SOLID.equals(normalized) ? configuredArgb : darken(foregroundArgb);
+        return remap(foregroundArgb, color, rules, palette);
     }
 
-    /** Selects the foreground or shadow half of a 32-entry Minecraft palette. */
-    public static int paletteIndex(int foregroundIndex, boolean shadow, boolean colored) {
-        return foregroundIndex + (shadow && !colored ? 16 : 0);
+    /** Resolves a formatted palette run's foreground or shadow color. */
+    public static int paletteColor(int foregroundIndex, int alpha, boolean shadow, String mode,
+                                   int configuredArgb, ShadowColorRemapRules rules, int[] palette) {
+        int[] colors = palette == null || palette.length < 32
+                ? neofontrender.api.color.TextColorPaletteRegistry.vanillaColorCodes() : palette;
+        int foreground = (alpha & 0xFF000000) | (colors[foregroundIndex & 15] & 0xFFFFFF);
+        if (!shadow) return foreground;
+        String normalized = normalizeMode(mode);
+        int color;
+        if (SOLID.equals(normalized)) {
+            color = configuredArgb;
+        } else if (VANILLA.equals(normalized)) {
+            color = (alpha & 0xFF000000) | (colors[(foregroundIndex & 15) + 16] & 0xFFFFFF);
+        } else {
+            color = darken(foreground);
+        }
+        return remap(foreground, color, rules, colors);
     }
 
-    /** Selects the per-run foreground hue or the configured global modern-shadow color. */
-    public static int modernColor(int foregroundArgb, int configuredArgb, boolean colored) {
-        return colored ? foregroundArgb : configuredArgb;
-    }
-
-    /** Selects and then remaps a per-run modern colored shadow while preserving run alpha. */
-    public static int modernColor(int foregroundArgb, int configuredArgb, boolean colored,
+    /** Resolves a modern per-run shadow color. */
+    public static int modernColor(int foregroundArgb, int configuredArgb, String mode,
                                   ShadowColorRemapRules rules, int[] palette) {
-        int color = modernColor(foregroundArgb, configuredArgb, colored);
-        return colored && rules != null ? rules.remap(color, palette) : color;
+        return shadowColor(foregroundArgb, mode, configuredArgb, rules, palette);
+    }
+
+    /** Selects the foreground or vanilla shadow half of a 32-entry Minecraft palette. */
+    public static int paletteIndex(int foregroundIndex, boolean shadow, String mode) {
+        return foregroundIndex + (shadow && VANILLA.equals(normalizeMode(mode)) ? 16 : 0);
+    }
+
+    private static int remap(int foregroundArgb, int shadowArgb,
+                             ShadowColorRemapRules rules, int[] palette) {
+        return rules == null ? shadowArgb : rules.remap(foregroundArgb, shadowArgb, palette);
     }
 }

@@ -13,6 +13,7 @@ import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.api.text.ModernTextApi;
 import neofontrender.api.text.ModernTextLayout;
 import neofontrender.client.gui.model.NfrSettingsDraft;
+import neofontrender.core.font.support.ShadowColorPolicy;
 import neofontrender.core.font.support.ShadowColorRemapRules;
 
 /** Large draft-only preview for the Shadow settings route. */
@@ -161,15 +162,11 @@ public final class NfrShadowPreview extends Widget<NfrShadowPreview> {
     }
 
     private int shadowColor(int foregroundColor) {
-        if (draft.coloredShadow) {
-            return ShadowColorRemapRules.parse(draft.shadowColorRemapRules)
-                    .remap(foregroundColor, previewPalette());
-        }
-        if (draft.modernShadow) return draft.shadowColor;
-        int red = (foregroundColor >> 16 & 255) / 4;
-        int green = (foregroundColor >> 8 & 255) / 4;
-        int blue = (foregroundColor & 255) / 4;
-        return 0xFF000000 | red << 16 | green << 8 | blue;
+        String mode = ShadowColorPolicy.normalizeMode(draft.shadowColorMode);
+        int candidate = ShadowColorPolicy.SOLID.equals(mode)
+                ? draft.shadowColor : ShadowColorPolicy.darken(foregroundColor);
+        return ShadowColorRemapRules.parse(draft.shadowColorOverrides)
+                .remap(foregroundColor, candidate, previewPalette());
     }
 
     private int[] previewPalette() {

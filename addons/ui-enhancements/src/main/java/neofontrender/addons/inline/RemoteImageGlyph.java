@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import neofontrender.addons.api.inline.InlineGlyph;
 import neofontrender.addons.api.inline.InlineImageHandle;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.core.font.support.ShadowColorPolicy;
 
 final class RemoteImageGlyph implements InlineGlyph {
     private static final int MAX_INLINE_IMAGE_WIDTH = 128;
@@ -47,13 +48,16 @@ final class RemoteImageGlyph implements InlineGlyph {
         }
         float alpha = ((argb >>> 24) & 0xff) / 255.0F;
         if (shadow) {
-            if (NeofontrenderConfig.coloredShadowEnabled()) {
-                drawTexture(x + 1, y + 1, display[0], display[1], 1.0F, 1.0F, 1.0F,
-                        alpha * 0.65F);
-            } else {
-                drawTexture(x + 1, y + 1, display[0], display[1], 0.12F, 0.12F, 0.12F,
-                        alpha * 0.72F);
-            }
+            int shadowArgb = ShadowColorPolicy.shadowColor(argb,
+                    NeofontrenderConfig.shadowColorMode(), NeofontrenderConfig.shadowColor(),
+                    NeofontrenderConfig.shadowColorOverrides(), null);
+            float shadowAlpha = alpha
+                    * (ShadowColorPolicy.COLORED.equals(ShadowColorPolicy.normalizeMode(
+                            NeofontrenderConfig.shadowColorMode())) ? 0.65F : 0.72F);
+            drawTexture(x + 1, y + 1, display[0], display[1],
+                    ((shadowArgb >>> 16) & 0xff) / 255.0F,
+                    ((shadowArgb >>> 8) & 0xff) / 255.0F,
+                    (shadowArgb & 0xff) / 255.0F, shadowAlpha);
         }
         drawTexture(x, y, display[0], display[1], 1.0F, 1.0F, 1.0F, alpha);
     }

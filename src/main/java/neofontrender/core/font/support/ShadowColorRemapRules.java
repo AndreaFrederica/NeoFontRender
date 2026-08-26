@@ -7,7 +7,6 @@ import java.util.Locale;
 
 /** Immutable user rules that remap colored-shadow RGB values without changing foreground text. */
 public final class ShadowColorRemapRules {
-    public static final String DEFAULT_CONFIG = "rgb:FFFFFF=000000";
     private static final ShadowColorRemapRules EMPTY = new ShadowColorRemapRules(Collections.emptyList());
 
     private final List<Rule> rules;
@@ -52,15 +51,20 @@ public final class ShadowColorRemapRules {
         return parsed.isEmpty() ? EMPTY : new ShadowColorRemapRules(parsed);
     }
 
-    /** Applies the first matching rule and preserves the foreground alpha channel. */
+    /** Applies the first matching rule, preserving the candidate shadow alpha channel. */
     public int remap(int foregroundArgb, int[] palette) {
+        return remap(foregroundArgb, foregroundArgb, palette);
+    }
+
+    /** Applies the first matching rule to a candidate shadow while matching the foreground RGB. */
+    public int remap(int foregroundArgb, int shadowArgb, int[] palette) {
         int sourceRgb = foregroundArgb & 0xFFFFFF;
         for (Rule rule : rules) {
             if (rule.matches(sourceRgb, palette)) {
-                return foregroundArgb & 0xFF000000 | rule.targetRgb;
+                return shadowArgb & 0xFF000000 | rule.targetRgb;
             }
         }
-        return foregroundArgb;
+        return shadowArgb;
     }
 
     public boolean isEmpty() {

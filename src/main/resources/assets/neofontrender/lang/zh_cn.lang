@@ -139,8 +139,8 @@ neofontrender.gui.option.shadow_offset_x=阴影水平偏移
 neofontrender.gui.option.shadow_offset_y=阴影垂直偏移
 neofontrender.gui.option.shadow_blur=阴影模糊半径
 neofontrender.gui.option.shadow_color=阴影颜色
-neofontrender.gui.option.shadow_colored=彩色文字使用彩色阴影
-neofontrender.gui.option.shadow_colored_remap_rules=彩色阴影重映射（如 rgb:FFFFFF=000000;slot:e=6A5200）
+neofontrender.gui.option.shadow_color_mode=阴影颜色模式
+neofontrender.gui.option.shadow_color_overrides=阴影颜色覆盖（如 rgb:FFFFFF=000000;slot:e=6A5200）
 neofontrender.gui.preview.shadow_title=草稿预览——仅在按下“应用”后生效
 neofontrender.gui.preview.shadow_part_1=阴
 neofontrender.gui.preview.shadow_part_2=影
@@ -148,7 +148,10 @@ neofontrender.gui.preview.shadow_part_3=效
 neofontrender.gui.preview.shadow_part_4=果
 neofontrender.gui.preview.shadow_values=偏移：%1$.1f, %2$.1f   模糊：%3$.1f   不透明度：%4$d%%
 neofontrender.tooltip.shadow_modern=在现代字体纹理生成阶段合成阴影，避免原版式的第二次文本绘制。
-neofontrender.tooltip.shadow_colored=让每段彩色文字的阴影沿用其前景色，并应用下方的颜色重映射规则；不透明度、模糊和偏移仍然生效。
+neofontrender.tooltip.shadow_color_mode=原版使用 Minecraft 色板阴影；彩色模式按每段前景色变暗；纯色模式使用统一阴影颜色。
+neofontrender.gui.shadow_color_mode.vanilla=原版色板
+neofontrender.gui.shadow_color_mode.colored=分段彩色
+neofontrender.gui.shadow_color_mode.solid=纯色
 neofontrender.gui.target.shadow_mask=阴影字体遮罩
 neofontrender.gui.label.shadow_masks=阴影遮罩字体
 neofontrender.gui.shadow_mode.mask=字体遮罩

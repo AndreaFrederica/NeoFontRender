@@ -125,8 +125,8 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         FontSet fs = fontSet(fontSize, rasterScale);
         fs.flushAtlas();
         LayoutKey key = new LayoutKey(text, baseArgb, shadow,
-                shadow && NeofontrenderConfig.coloredShadowEnabled(),
-                NeofontrenderConfig.shadowColorRemapRules().profileHash(), fontSize, rasterScale);
+                shadow ? NeofontrenderConfig.shadowColorMode() : "",
+                NeofontrenderConfig.shadowColorOverrides().profileHash(), fontSize, rasterScale);
         CachedLayout cached = layouts.get(key);
         if (cached != null) {
             cached.lastAccessMs = System.currentTimeMillis();
@@ -159,19 +159,20 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         set.flushAtlas();
         List<FormattedRun> foregroundRuns = parseFormatted(text, baseArgb, false);
         List<FormattedRun> shadowRuns = new ArrayList<>(foregroundRuns.size());
-        boolean colored = NeofontrenderConfig.coloredShadowEnabled();
+        String colorMode = NeofontrenderConfig.shadowColorMode();
         int configured = NeofontrenderConfig.shadowColor();
-        ShadowColorRemapRules remapRules = NeofontrenderConfig.shadowColorRemapRules();
+        ShadowColorRemapRules remapRules = NeofontrenderConfig.shadowColorOverrides();
         for (FormattedRun run : foregroundRuns) {
             shadowRuns.add(new FormattedRun(run.text,
-                    ShadowColorPolicy.modernColor(run.argb, configured, colored,
+                    ShadowColorPolicy.modernColor(run.argb, configured, colorMode,
                             remapRules, legacyColorCodes),
                     run.bold, run.italic, run.underline, run.strikethrough));
         }
         TextRenderResult foreground = build(set, foregroundRuns, fontSize);
         TextRenderResult shadow = build(set, shadowRuns, fontSize);
         float geometryScale = fontSize / Math.max(1.0F, NeofontrenderConfig.fontSize());
-        float colorAlpha = colored ? 1.0F : (configured >>> 24) / 255.0F;
+        float colorAlpha = ShadowColorPolicy.SOLID.equals(colorMode)
+                ? (configured >>> 24) / 255.0F : 1.0F;
         return new SampledShadowTextRenderResult(shadow, foreground,
                 NeofontrenderConfig.shadowOffsetX(), NeofontrenderConfig.shadowOffsetY(),
                 NeofontrenderConfig.shadowBlurRadius(),
@@ -331,11 +332,12 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
     private List<FormattedRun> parseFormatted(String text, int baseArgb, boolean shadow) {
         List<FormattedRun> runs = new ArrayList<>();
         int[] colorCodes = legacyColorCodes;
-        boolean coloredShadow = NeofontrenderConfig.coloredShadowEnabled();
-        ShadowColorRemapRules remapRules = NeofontrenderConfig.shadowColorRemapRules();
+        String colorMode = NeofontrenderConfig.shadowColorMode();
+        ShadowColorRemapRules remapRules = NeofontrenderConfig.shadowColorOverrides();
+        int configuredShadowColor = NeofontrenderConfig.shadowColor();
         int color = shadow
-                ? ShadowColorPolicy.legacyColor(normalizeAlpha(baseArgb), coloredShadow,
-                        remapRules, colorCodes)
+                ? ShadowColorPolicy.shadowColor(normalizeAlpha(baseArgb), colorMode,
+                        configuredShadowColor, remapRules, colorCodes)
                 : normalizeAlpha(baseArgb);
         boolean bold = false;
         boolean italic = false;
@@ -351,9 +353,8 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             int style = "0123456789abcdefklmnor".indexOf(
                     Character.toLowerCase(text.charAt(++i)));
             if (style >= 0 && style < 16) {
-                color = (baseArgb & 0xFF000000) | colorCodes[
-                        ShadowColorPolicy.paletteIndex(style, shadow, coloredShadow)];
-                if (shadow && coloredShadow) color = remapRules.remap(color, colorCodes);
+                color = ShadowColorPolicy.paletteColor(style, normalizeAlpha(baseArgb), shadow,
+                        colorMode, configuredShadowColor, remapRules, colorCodes);
                 bold = italic = underline = strikethrough = false;
             } else if (style == 17) {
                 bold = true;
@@ -365,8 +366,8 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
                 italic = true;
             } else if (style == 21) {
                 color = shadow
-                        ? ShadowColorPolicy.legacyColor(normalizeAlpha(baseArgb), coloredShadow,
-                                remapRules, colorCodes)
+                        ? ShadowColorPolicy.shadowColor(normalizeAlpha(baseArgb), colorMode,
+                                configuredShadowColor, remapRules, colorCodes)
                         : normalizeAlpha(baseArgb);
                 bold = italic = underline = strikethrough = false;
             }
@@ -576,17 +577,17 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         private final String text;
         private final int argb;
         private final boolean shadow;
-        private final boolean coloredShadow;
+        private final String colorMode;
         private final int remapProfile;
         private final SizeKey size;
 
-        private LayoutKey(String text, int argb, boolean shadow, boolean coloredShadow, int remapProfile,
+        private LayoutKey(String text, int argb, boolean shadow, String colorMode, int remapProfile,
                           float fontSize, float rasterScale) {
             this.text = text;
             this.argb = argb;
             this.shadow = shadow;
-            this.coloredShadow = coloredShadow;
-            this.remapProfile = coloredShadow ? remapProfile : 0;
+            this.colorMode = colorMode == null ? "" : colorMode;
+            this.remapProfile = shadow ? remapProfile : 0;
             this.size = new SizeKey(fontSize, rasterScale);
         }
 
@@ -595,7 +596,7 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             if (!(object instanceof LayoutKey)) return false;
             LayoutKey other = (LayoutKey) object;
             return argb == other.argb && shadow == other.shadow
-                    && coloredShadow == other.coloredShadow
+                    && colorMode.equals(other.colorMode)
                     && remapProfile == other.remapProfile
                     && text.equals(other.text) && size.equals(other.size);
         }
@@ -604,7 +605,7 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         public int hashCode() {
             int hash = 31 * text.hashCode() + argb;
             hash = 31 * hash + (shadow ? 1 : 0);
-            hash = 31 * hash + (coloredShadow ? 1 : 0);
+            hash = 31 * hash + colorMode.hashCode();
             hash = 31 * hash + remapProfile;
             return 31 * hash + size.hashCode();
         }

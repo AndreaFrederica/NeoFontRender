@@ -30,9 +30,7 @@ public final class NfrShadowSettingsView extends NfrContentView<NfrShadowSetting
                 .add(c.toggle("neofontrender.gui.option.shadow_modern",
                         "neofontrender.tooltip.shadow_modern",
                         () -> d.modernShadow, value -> d.modernShadow = value, draftOnly))
-                .add(c.toggle("neofontrender.gui.option.shadow_colored",
-                        "neofontrender.tooltip.shadow_colored",
-                        () -> d.coloredShadow, value -> d.coloredShadow = value, draftOnly))
+                .add(c.shadowColorMode(draftOnly))
                 .add(c.decimalSlider("neofontrender.gui.option.shadow_offset_x",
                         () -> d.shadowOffsetX, value -> d.shadowOffsetX = value,
                         -8.0F, 8.0F, 0.1F, draftOnly))
@@ -50,9 +48,9 @@ public final class NfrShadowSettingsView extends NfrContentView<NfrShadowSetting
 
     private static NfrLabeledTextField remapRules(NfrSettingsDraft draft) {
         return new NfrLabeledTextField(
-                I18n.format("neofontrender.gui.option.shadow_colored_remap_rules"),
+                I18n.format("neofontrender.gui.option.shadow_color_overrides"),
                 new TextFieldWidget().setMaxLength(2048)
-                        .value(new NfrStringValue(() -> draft.shadowColorRemapRules,
-                                value -> draft.shadowColorRemapRules = value)));
+                        .value(new NfrStringValue(() -> draft.shadowColorOverrides,
+                                value -> draft.shadowColorOverrides = value)));
     }
 }

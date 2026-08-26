@@ -139,8 +139,8 @@ neofontrender.gui.option.shadow_offset_x=Shadow horizontal offset
 neofontrender.gui.option.shadow_offset_y=Shadow vertical offset
 neofontrender.gui.option.shadow_blur=Shadow blur radius
 neofontrender.gui.option.shadow_color=Shadow color
-neofontrender.gui.option.shadow_colored=Colored text shadows
-neofontrender.gui.option.shadow_colored_remap_rules=Colored-shadow remaps (e.g. rgb:FFFFFF=000000;slot:e=6A5200)
+neofontrender.gui.option.shadow_color_mode=Shadow color mode
+neofontrender.gui.option.shadow_color_overrides=Shadow color overrides (e.g. rgb:FFFFFF=000000;slot:e=6A5200)
 neofontrender.gui.preview.shadow_title=Draft preview — changes take effect only after Apply
 neofontrender.gui.preview.shadow_part_1=Sha
 neofontrender.gui.preview.shadow_part_2=dow
@@ -148,7 +148,10 @@ neofontrender.gui.preview.shadow_part_3=Ef
 neofontrender.gui.preview.shadow_part_4=fect
 neofontrender.gui.preview.shadow_values=Offset: %1$.1f, %2$.1f   Blur: %3$.1f   Opacity: %4$d%%
 neofontrender.tooltip.shadow_modern=Composes the shadow while building the modern font texture instead of drawing the text a second time.
-neofontrender.tooltip.shadow_colored=Use each colored text segment's foreground hue for its shadow, then apply the remap rules below. Opacity, blur, and offset still apply.
+neofontrender.tooltip.shadow_color_mode=Vanilla uses Minecraft's palette shadows; Colored darkens each run's foreground RGB; Solid uses one configured shadow color.
+neofontrender.gui.shadow_color_mode.vanilla=Vanilla palette
+neofontrender.gui.shadow_color_mode.colored=Per-run colored
+neofontrender.gui.shadow_color_mode.solid=Solid color
 neofontrender.gui.target.shadow_mask=Shadow font mask
 neofontrender.gui.label.shadow_masks=Shadow mask fonts
 neofontrender.gui.shadow_mode.mask=Glyph mask

@@ -19,6 +19,7 @@ import neofontrender.client.gui.component.base.NfrTextButton;
 import neofontrender.client.gui.component.base.NfrToggleIndicator;
 import neofontrender.client.gui.component.base.NfrTrackSliderWidget;
 import neofontrender.client.gui.model.NfrSettingsDraft;
+import neofontrender.core.font.support.ShadowColorPolicy;
 
 import java.util.Arrays;
 import java.util.List;
@@ -192,6 +193,17 @@ public final class NfrSettingsControls {
     public IWidget decimalSlider(String labelKey, Supplier<Float> getter, Consumer<Float> setter,
                                  float min, float max, float step) {
         return decimalSlider(labelKey, getter, setter, min, max, step, preview);
+    }
+
+    public IWidget shadowColorMode(Runnable afterChange) {
+        return tooltip(dropdown("shadow_color_mode", "neofontrender.gui.option.shadow_color_mode",
+                () -> draft.shadowColorMode, value -> {
+                    draft.shadowColorMode = ShadowColorPolicy.normalizeMode(value);
+                    afterChange.run();
+                }, Arrays.asList(ShadowColorPolicy.VANILLA, ShadowColorPolicy.COLORED,
+                        ShadowColorPolicy.SOLID),
+                value -> tr("neofontrender.gui.shadow_color_mode." + value)).size(260, 24),
+                "neofontrender.tooltip.shadow_color_mode");
     }
 
     /** Addon-safe overload for namespaces that provide their own translation fallback. */

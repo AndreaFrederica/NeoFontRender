@@ -68,9 +68,9 @@ public final class NfrSettingsDraft {
     public final float originalShadowOffsetY = NeofontrenderConfig.shadowOffsetY();
     public final float originalShadowBlurRadius = NeofontrenderConfig.shadowBlurRadius();
     public final int originalShadowColor = NeofontrenderConfig.shadowColor();
-    public final boolean originalColoredShadow = NeofontrenderConfig.coloredShadowEnabled();
-    public final String originalShadowColorRemapRules =
-            NeofontrenderConfig.shadowColorRemapRulesConfig();
+    public final String originalShadowColorMode = NeofontrenderConfig.shadowColorMode();
+    public final String originalShadowColorOverrides =
+            NeofontrenderConfig.shadowColorOverridesConfig();
     public final boolean originalFixImeInput = NeofontrenderConfig.fixImeInput();
     public final boolean originalFixUnicodeTextDeletion = NeofontrenderConfig.fixUnicodeTextDeletion();
     public final boolean originalFixCjkLineBreak = NeofontrenderConfig.fixCjkLineBreak();
@@ -119,8 +119,8 @@ public final class NfrSettingsDraft {
     public float shadowOffsetY = originalShadowOffsetY;
     public float shadowBlurRadius = originalShadowBlurRadius;
     public int shadowColor = originalShadowColor;
-    public boolean coloredShadow = originalColoredShadow;
-    public String shadowColorRemapRules = originalShadowColorRemapRules;
+    public String shadowColorMode = originalShadowColorMode;
+    public String shadowColorOverrides = originalShadowColorOverrides;
     public boolean fixImeInput = originalFixImeInput;
     public boolean fixUnicodeTextDeletion = originalFixUnicodeTextDeletion;
     public boolean fixCjkLineBreak = originalFixCjkLineBreak;
@@ -275,8 +275,8 @@ public final class NfrSettingsDraft {
             NeofontrenderConfig.setShadowOffsetY(shadowOffsetY);
             NeofontrenderConfig.setShadowBlurRadius(shadowBlurRadius);
             NeofontrenderConfig.setShadowColor(shadowColor);
-            NeofontrenderConfig.setColoredShadowEnabled(coloredShadow);
-            NeofontrenderConfig.setShadowColorRemapRules(shadowColorRemapRules);
+            NeofontrenderConfig.setShadowColorMode(shadowColorMode);
+            NeofontrenderConfig.setShadowColorOverrides(shadowColorOverrides);
         }
         NeofontrenderConfig.setFixImeInput(fixImeInput);
         NeofontrenderConfig.setFixUnicodeTextDeletion(fixUnicodeTextDeletion);
@@ -348,8 +348,8 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setShadowOffsetY(originalShadowOffsetY);
         NeofontrenderConfig.setShadowBlurRadius(originalShadowBlurRadius);
         NeofontrenderConfig.setShadowColor(originalShadowColor);
-        NeofontrenderConfig.setColoredShadowEnabled(originalColoredShadow);
-        NeofontrenderConfig.setShadowColorRemapRules(originalShadowColorRemapRules);
+        NeofontrenderConfig.setShadowColorMode(originalShadowColorMode);
+        NeofontrenderConfig.setShadowColorOverrides(originalShadowColorOverrides);
         NeofontrenderConfig.setFixImeInput(originalFixImeInput);
         NeofontrenderConfig.setFixUnicodeTextDeletion(originalFixUnicodeTextDeletion);
         NeofontrenderConfig.setFixCjkLineBreak(originalFixCjkLineBreak);

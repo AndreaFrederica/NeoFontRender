@@ -8,6 +8,7 @@ import neofontrender.api.color.TextColorPaletteCodec;
 import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.core.font.support.FontFileResolver;
 import neofontrender.core.font.support.ShadowColorRemapRules;
+import neofontrender.core.font.support.ShadowColorPolicy;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -249,10 +250,10 @@ public final class NeofontrenderConfig {
     public static float shadowOffsetY() { return cached.shadowOffsetY; }
     public static float shadowBlurRadius() { return cached.shadowBlurRadius; }
     public static int shadowColor() { return cached.shadowColor; }
-    public static boolean coloredShadowEnabled() { return cached.coloredShadow; }
-    public static ShadowColorRemapRules shadowColorRemapRules() { return cached.shadowColorRemapRules; }
-    public static String shadowColorRemapRulesConfig() {
-        return cached.shadowColorRemapRules.toConfigString();
+    public static String shadowColorMode() { return cached.shadowColorMode; }
+    public static ShadowColorRemapRules shadowColorOverrides() { return cached.shadowColorOverrides; }
+    public static String shadowColorOverridesConfig() {
+        return cached.shadowColorOverrides.toConfigString();
     }
 
     public static float shadowOpacity() {
@@ -661,10 +662,11 @@ public final class NeofontrenderConfig {
     public static void setShadowOffsetY(float value) { setValue("shadow.offsetY", Math.max(-8.0F, Math.min(8.0F, value))); }
     public static void setShadowBlurRadius(float value) { setValue("shadow.blurRadius", Math.max(0.0F, Math.min(6.0F, value))); }
     public static void setShadowColor(int value) { setValue("shadow.color", value); }
-    public static void setColoredShadowEnabled(boolean value) { setValue("shadow.colored", value); }
-    public static void setShadowColorRemapRules(String value) {
-        setValue("shadow.coloredRemapRules",
-                ShadowColorRemapRules.parse(value).toConfigString());
+    public static void setShadowColorMode(String value) {
+        setValue("shadow.colorMode", normalizeShadowColorMode(value));
+    }
+    public static void setShadowColorOverrides(String value) {
+        setValue("shadow.colorOverrides", ShadowColorRemapRules.parse(value).toConfigString());
     }
 
     public static void setShadowOpacity(float value) {
@@ -1063,8 +1065,8 @@ public final class NeofontrenderConfig {
             w.write("offsetY = 1.0\n");
             w.write("blurRadius = 0.5\n");
             w.write("color = -16777216\n");
-            w.write("colored = false\n");
-            w.write("coloredRemapRules = \"rgb:FFFFFF=000000\"\n");
+            w.write("colorMode = \"colored\"\n");
+            w.write("colorOverrides = \"\"\n");
             w.write("opacity = 0.25\n");
             w.write("mode = \"mask\"\n");
             w.write("maskFonts = \"\"\n");
@@ -1181,8 +1183,8 @@ public final class NeofontrenderConfig {
         config.setComment("shadow.offsetY", "Modern shadow vertical offset in pixels.");
         config.setComment("shadow.blurRadius", "Modern shadow blur radius in pixels.");
         config.setComment("shadow.color", "Modern shadow ARGB color stored as a signed 32-bit integer.");
-        config.setComment("shadow.colored", "Use each formatted text run's foreground RGB for its shadow instead of the configured/darkened shadow color.");
-        config.setComment("shadow.coloredRemapRules", "Colored-shadow RGB remaps, e.g. rgb:FFFFFF=000000;slot:e=6A5200. Rules preserve text alpha and only affect shadows.");
+        config.setComment("shadow.colorMode", "Shadow color mode: vanilla (Minecraft palette), colored (darken each run), or solid (one configured color).");
+        config.setComment("shadow.colorOverrides", "Optional foreground-to-shadow overrides, e.g. rgb:FFFFFF=000000;slot:e=6A5200. Empty by default.");
         config.setComment("shadow.opacity", "Shadow opacity multiplier (0.0-1.0).");
         config.setComment("shadow.mode", "Shadow mode: all, mask (skip color glyphs), emoji (skip Unicode emoji), or none.");
         config.setComment("shadow.maskFonts", "Comma-separated font families whose displayable code points skip shadows in mask mode.");
@@ -1316,8 +1318,8 @@ public final class NeofontrenderConfig {
         private final float shadowOffsetY;
         private final float shadowBlurRadius;
         private final int shadowColor;
-        private final boolean coloredShadow;
-        private final ShadowColorRemapRules shadowColorRemapRules;
+        private final String shadowColorMode;
+        private final ShadowColorRemapRules shadowColorOverrides;
         private final float shadowOpacity;
         private final String shadowMode;
         private final String shadowMaskFonts;
@@ -1399,9 +1401,8 @@ public final class NeofontrenderConfig {
             shadowOffsetY = 1.0F;
             shadowBlurRadius = 0.5F;
             shadowColor = 0xFF000000;
-            coloredShadow = false;
-            shadowColorRemapRules = ShadowColorRemapRules.parse(
-                    ShadowColorRemapRules.DEFAULT_CONFIG);
+            shadowColorMode = ShadowColorPolicy.COLORED;
+            shadowColorOverrides = ShadowColorRemapRules.parse("");
             shadowOpacity = 0.25F;
             shadowMode = "mask";
             shadowMaskFonts = "";
@@ -1484,9 +1485,10 @@ public final class NeofontrenderConfig {
             shadowOffsetY = getFloat(config, "shadow.offsetY", shadowLength);
             shadowBlurRadius = Math.max(0.0F, getFloat(config, "shadow.blurRadius", 0.5F));
             shadowColor = getInt(config, "shadow.color", 0xFF000000);
-            coloredShadow = config.getOrElse("shadow.colored", false);
-            shadowColorRemapRules = ShadowColorRemapRules.parse(config.getOrElse(
-                    "shadow.coloredRemapRules", ShadowColorRemapRules.DEFAULT_CONFIG));
+            shadowColorMode = normalizeShadowColorMode(config.getOrElse(
+                    "shadow.colorMode", ShadowColorPolicy.COLORED));
+            shadowColorOverrides = ShadowColorRemapRules.parse(config.getOrElse(
+                    "shadow.colorOverrides", ""));
             shadowOpacity = getFloat(config, "shadow.opacity", 0.25F);
             shadowMode = normalizeShadowMode(config.getOrElse("shadow.mode", "mask"));
             shadowMaskFonts = config.getOrElse("shadow.maskFonts", "");
@@ -1738,6 +1740,10 @@ public final class NeofontrenderConfig {
         String mode = value.trim().toLowerCase(Locale.ROOT);
         return "all".equals(mode) || "mask".equals(mode) || "emoji".equals(mode) || "none".equals(mode)
                 ? mode : "mask";
+    }
+
+    private static String normalizeShadowColorMode(String value) {
+        return ShadowColorPolicy.normalizeMode(value);
     }
 
     public static void reload() {
