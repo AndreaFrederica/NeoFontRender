@@ -64,7 +64,7 @@ final class ModernTooltipRenderer {
                     layout.width, layout.height));
             drawContent(layout.x, layout.y, layout.width, layout.lines, layout.compactLines,
                     layout.titleLines, layout.profile(), event.getFontRenderer(), event.getStack(),
-                    thaumcraftContext != null);
+                    thaumcraftContext != null, layout.lineWidths);
             MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostText(
                     event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
                     layout.width, layout.height));
@@ -250,7 +250,7 @@ final class ModernTooltipRenderer {
     static void drawContent(int x, int y, int width, List<String> lines,
                             List<Boolean> compactLines, int titleLines,
                             TooltipConfig.Profile profile, FontRenderer font, ItemStack stack,
-                            boolean lineBreaksAlreadyApplied) {
+                            boolean lineBreaksAlreadyApplied, List<Integer> measuredLineWidths) {
         TooltipConfig.Profile activeProfile = profile == null ? TooltipConfig.profile("vanilla") : profile;
         int textY = y;
         for (int i = 0; i < lines.size(); i++) {
@@ -265,10 +265,17 @@ final class ModernTooltipRenderer {
             CjkParagraphLayoutProvider.Layout paragraph = CjkTypographyRenderer.layout(
                     font, line, paragraphWidth,
                     compact ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT * 2 : TooltipConfig.lineHeight);
-            int renderedWidth = paragraph == null ? font.getStringWidth(line)
+            int renderedWidth = lineBreaksAlreadyApplied && measuredLineWidths != null
+                    && i < measuredLineWidths.size()
+                    ? measuredLineWidths.get(i)
+                    : lineBreaksAlreadyApplied
+                    ? TooltipLayout.measuredLineWidth(font, line, compact, activeProfile.textScale)
+                    : paragraph == null ? font.getStringWidth(line)
                     : CjkTypographyRenderer.measuredWidth(font, paragraph);
-            if (compact) renderedWidth = (renderedWidth + 1) / 2;
-            renderedWidth = Math.max(1, Math.round(renderedWidth * activeProfile.textScale));
+            if (!lineBreaksAlreadyApplied && compact) renderedWidth = (renderedWidth + 1) / 2;
+            if (!lineBreaksAlreadyApplied) {
+                renderedWidth = Math.max(1, Math.round(renderedWidth * activeProfile.textScale));
+            }
             if (TooltipConfig.centerTitle && i < lineTitleCount) {
                 lineX += Math.max(0, (width - renderedWidth) / 2);
             }

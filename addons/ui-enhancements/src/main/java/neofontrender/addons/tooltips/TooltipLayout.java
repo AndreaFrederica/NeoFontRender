@@ -16,10 +16,13 @@ final class TooltipLayout {
     final int y;
     final int width;
     final int height;
+    /** Final per-line widths; TC6 title/divider drawing must consume these exact values. */
+    final List<Integer> lineWidths;
     private final TooltipConfig.Profile profile;
 
     private TooltipLayout(List<String> lines, List<Boolean> compactLines, int titleLines,
-                          int x, int y, int width, int height, TooltipConfig.Profile profile) {
+                          int x, int y, int width, int height, List<Integer> lineWidths,
+                          TooltipConfig.Profile profile) {
         this.lines = lines;
         this.compactLines = compactLines;
         this.titleLines = titleLines;
@@ -27,6 +30,7 @@ final class TooltipLayout {
         this.y = y;
         this.width = width;
         this.height = height;
+        this.lineWidths = lineWidths;
         this.profile = profile;
     }
 
@@ -58,7 +62,9 @@ final class TooltipLayout {
         int horizontalPadding = TooltipConfig.horizontalPadding;
         int verticalPadding = TooltipConfig.verticalPadding;
         int cursorOffset = TooltipConfig.cursorOffset;
-        int width = measure(font, source, compactSource, activeProfile.textScale);
+        List<Integer> lineWidths = measureVisualLineWidths(font, source,
+                flagsFor(source.size(), compactSource), activeProfile.textScale);
+        int width = maxWidth(lineWidths);
         int x = event.getX() + cursorOffset;
         boolean wrap = false;
 
@@ -98,7 +104,8 @@ final class TooltipLayout {
             }
             lines = wrapped;
             compactLines = wrappedCompact;
-            width = measure(font, lines, compactLines, activeProfile.textScale);
+            lineWidths = measureVisualLineWidths(font, lines, compactLines, activeProfile.textScale);
+            width = maxWidth(lineWidths);
             x = event.getX() > event.getScreenWidth() / 2
                     ? event.getX() - cursorOffset - horizontalPadding - width
                     : event.getX() + cursorOffset;
@@ -117,7 +124,7 @@ final class TooltipLayout {
         y = Math.max(verticalPadding, Math.min(y, event.getScreenHeight() - height - verticalPadding));
         x = Math.max(horizontalPadding, Math.min(x, event.getScreenWidth() - width - horizontalPadding));
         return new TooltipLayout(lines, compactLines, titleLines, x, y, width, height,
-                activeProfile);
+                lineWidths, activeProfile);
     }
 
     /**
@@ -133,7 +140,9 @@ final class TooltipLayout {
         TooltipConfig.Profile activeProfile = profile == null ? TooltipConfig.profile("thaumcraft") : profile;
         List<String> source = event.getLines();
         List<Boolean> sourceCompact = flagsFor(source.size(), compactSource);
-        int width = measureLegacy(font, source, sourceCompact, activeProfile.textScale);
+        List<Integer> lineWidths = measureLineWidths(font, source, sourceCompact,
+                activeProfile.textScale);
+        int width = maxWidth(lineWidths);
         int maxWidth = event.getMaxWidth() > 0 ? event.getMaxWidth() : 240;
         if (TooltipConfig.maxWidth > 0) maxWidth = Math.min(maxWidth, TooltipConfig.maxWidth);
 
@@ -163,7 +172,8 @@ final class TooltipLayout {
             }
             lines = wrapped;
             compactLines = wrappedCompact;
-            width = measureLegacy(font, lines, compactLines, activeProfile.textScale);
+            lineWidths = measureLineWidths(font, lines, compactLines, activeProfile.textScale);
+            width = maxWidth(lineWidths);
         }
 
         int x = placeLeft ? context.cursorX - width - 24 : context.cursorX + 12;
@@ -178,7 +188,7 @@ final class TooltipLayout {
         y = Math.max(4, Math.min(y, event.getScreenHeight() - height - 4));
         x = Math.max(4, Math.min(x, event.getScreenWidth() - width - 4));
         return new TooltipLayout(lines, compactLines, titleLines, x, y, width, height,
-                activeProfile);
+                lineWidths, activeProfile);
     }
 
     private int advanceFor(int index) {
@@ -218,14 +228,47 @@ final class TooltipLayout {
         return measure(font, lines, compact, textScale);
     }
 
-    private static int measureLegacy(FontRenderer font, List<String> lines,
-                                     List<Boolean> compactLines, float textScale) {
-        int width = 0;
+    private static List<Integer> measureLineWidths(FontRenderer font, List<String> lines,
+                                                    List<Boolean> compactLines, float textScale) {
+        List<Integer> widths = new ArrayList<>(lines.size());
         for (int i = 0; i < lines.size(); i++) {
-            int lineWidth = font.getStringWidth(lines.get(i));
-            if (compactLines.get(i)) lineWidth = (lineWidth + 1) / 2;
-            width = Math.max(width, Math.max(1, Math.round(lineWidth * textScale)));
+            widths.add(measuredLineWidth(font, lines.get(i), compactLines.get(i), textScale));
         }
-        return width;
+        return widths;
+    }
+
+    private static List<Integer> measureVisualLineWidths(FontRenderer font, List<String> lines,
+                                                         List<Boolean> compactLines,
+                                                         float textScale) {
+        List<Integer> widths = new ArrayList<>(lines.size());
+        for (int i = 0; i < lines.size(); i++) {
+            widths.add(measuredVisualLineWidth(font, lines.get(i), compactLines.get(i), textScale));
+        }
+        return widths;
+    }
+
+    private static int maxWidth(List<Integer> widths) {
+        int width = 0;
+        for (Integer value : widths) width = Math.max(width, value == null ? 1 : value);
+        return Math.max(1, width);
+    }
+
+    /** Width shared by TC6 layout, title centering, and the divider's horizontal span. */
+    static int measuredLineWidth(FontRenderer font, String line, boolean compact, float textScale) {
+        // TC6 layout must not depend on backend rasterization. Cosmic's rendered visual bounds
+        // follow the current GL projection/adaptive raster bucket and can cross an integer between
+        // frames in the small research browser window. The CJK provider's logical width is stable
+        // and is also the width used to position its runs during drawing.
+        int lineWidth = CjkTypographyRenderer.measuredWidth(font, line);
+        if (compact) lineWidth = (lineWidth + 1) / 2;
+        return Math.max(1, Math.round(lineWidth * textScale));
+    }
+
+    private static int measuredVisualLineWidth(FontRenderer font, String line, boolean compact,
+                                               float textScale) {
+        int lineWidth = Math.max(TooltipBoundsCompat.measuredWidth(font, line),
+                CjkTypographyRenderer.measuredWidth(font, line));
+        if (compact) lineWidth = (lineWidth + 1) / 2;
+        return Math.max(1, Math.round(lineWidth * textScale));
     }
 }
