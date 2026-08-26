@@ -13,7 +13,7 @@ use std::ptr;
 use std::sync::Mutex;
 use unicode_script::Script;
 
-const ABI_VERSION: jint = 9;
+const ABI_VERSION: jint = 10;
 const STYLE_BOLD: jint = 1;
 const STYLE_ITALIC: jint = 2;
 const STYLE_UNDERLINE: jint = 4;
@@ -1159,11 +1159,8 @@ fn rasterize(
             }
         }
     }
-    // Swash returns straight RGB plus coverage alpha. Texture minification is only mathematically
-    // correct when those channels are premultiplied before bilinear sampling.
-    for pixel in &mut pixels {
-        *pixel = premultiply(*pixel);
-    }
+    // Keep straight RGBA in the ABI. The Java upload boundary performs the final premultiplication
+    // in float for Kirino's RGBA16F path, while the legacy RGBA8 path preserves the old result.
     encode_raster(
         width,
         height,
@@ -1175,12 +1172,6 @@ fn rasterize(
         &pixels,
     )
     .pipe(Ok)
-}
-
-fn premultiply(pixel: u32) -> u32 {
-    let alpha = (pixel >> 24) & 0xFF;
-    let channel = |shift: u32| (((pixel >> shift) & 0xFF) * alpha + 127) / 255;
-    (alpha << 24) | (channel(16) << 16) | (channel(8) << 8) | channel(0)
 }
 
 fn blend_src_over(dst: u32, src: u32) -> u32 {

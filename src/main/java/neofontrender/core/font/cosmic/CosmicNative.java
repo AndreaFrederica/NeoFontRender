@@ -2,7 +2,7 @@ package neofontrender.core.font.cosmic;
 
 /** JNI surface kept deliberately coarse-grained: one call shapes/rasterizes one complete run. */
 final class CosmicNative {
-    static final int ABI_VERSION = 9;
+    static final int ABI_VERSION = 10;
 
     private CosmicNative() {
     }

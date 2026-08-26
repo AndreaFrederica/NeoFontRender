@@ -4,6 +4,7 @@ import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.resources.IResource;
@@ -24,6 +25,7 @@ import neofontrender.core.font.support.ShadowMaskRules;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL14;
+import org.lwjgl.opengl.GL20;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -32,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -39,6 +42,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.lwjgl.BufferUtils;
 
 /** cosmic-text shaping/Swash rasterization with Minecraft's LWJGL2 texture submission. */
 public final class CosmicTextRenderer implements TextRenderBackend {
@@ -379,17 +383,28 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                             foregroundArgb, NeofontrenderConfig.shadowColor(),
                             NeofontrenderConfig.coloredShadowEnabled(),
                             NeofontrenderConfig.shadowColorRemapRules(), legacyColorCodes),
-                    NeofontrenderConfig.shadowOpacity(), true);
+                    NeofontrenderConfig.shadowOpacity(), false);
             pixels = shadow.pixels;
             width = shadow.width;
             height = shadow.height;
             shadowOriginX = shadow.originX;
             shadowOriginY = shadow.originY;
         }
-        DynamicTexture texture = new DynamicTexture(width, height);
-        int[] target = texture.getTextureData();
-        System.arraycopy(pixels, 0, target, 0, Math.min(pixels.length, target.length));
-        texture.updateDynamicTexture();
+        boolean hdrTexture = KirinoHdrCompat.useHdrTexture();
+        AbstractTexture texture;
+        if (hdrTexture) {
+            texture = new CosmicFloatTexture(pixels, width, height);
+        } else {
+            int[] premultiplied = new int[pixels.length];
+            for (int i = 0; i < pixels.length; i++) {
+                premultiplied[i] = premultiply(pixels[i]);
+            }
+            DynamicTexture legacyTexture = new DynamicTexture(width, height);
+            int[] target = legacyTexture.getTextureData();
+            System.arraycopy(premultiplied, 0, target, 0, Math.min(premultiplied.length, target.length));
+            legacyTexture.updateDynamicTexture();
+            texture = legacyTexture;
+        }
         FontRenderTuning.applyFontTextureFilter(texture, scale, false);
         ResourceLocation location = new ResourceLocation("neofontrender", "cosmic/" + nextTextureId++);
         textureManager.loadTexture(location, texture);
@@ -412,6 +427,14 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         hash = 31 * hash + (NeofontrenderConfig.coloredShadowEnabled() ? 1 : 0);
         hash = 31 * hash + NeofontrenderConfig.shadowColor();
         return 31 * hash + NeofontrenderConfig.shadowColorRemapRules().profileHash();
+    }
+
+    private static int premultiply(int pixel) {
+        int alpha = pixel >>> 24;
+        int red = ((pixel >>> 16) & 0xFF) * alpha / 255;
+        int green = ((pixel >>> 8) & 0xFF) * alpha / 255;
+        int blue = (pixel & 0xFF) * alpha / 255;
+        return alpha << 24 | red << 16 | green << 8 | blue;
     }
 
     private List<LoadedFont> loadConfiguredFonts(IResourceManager resourceManager) throws IOException {
@@ -696,7 +719,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
 
     private static final class CosmicRenderedText implements TextRenderResult, AutoCloseable {
         private final ResourceLocation location;
-        private final DynamicTexture texture;
+        private final AbstractTexture texture;
         private final float advance;
         private final float width;
         private final float height;
@@ -706,7 +729,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         private final AtomicBoolean closed = new AtomicBoolean();
         private volatile long lastAccessMillis;
 
-        private CosmicRenderedText(ResourceLocation location, DynamicTexture texture, float advance,
+        private CosmicRenderedText(ResourceLocation location, AbstractTexture texture, float advance,
                                    float width, float height, float offsetX, float offsetY, float scale) {
             this.location = location;
             this.texture = texture;
@@ -743,27 +766,24 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                     || width <= 0.0F || height <= 0.0F) {
                 return;
             }
-            net.minecraft.client.Minecraft.getMinecraft().getTextureManager().bindTexture(location);
-            FontRenderTuning.applyBoundTextureFilter(scale, false);
-            // DynamicTexture inherits GL_REPEAT. Cosmic rasters are line textures rather than an
-            // atlas, so repeating the first row at v=1 creates bright specks below glyphs when
-            // GL_LINEAR samples the edge. Reassert clamping because other renderers may mutate the
-            // currently bound texture parameters between cached draws.
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
-            GlStateManager.enableTexture2D();
-            GlStateManager.enableAlpha();
             float tint = premultipliedOpacity(alpha);
-            // With GL_ONE premultiplied blending, global opacity must scale RGB and alpha
-            // together. Scaling alpha alone leaves full-strength RGB in every blur sample and
-            // repeated colored-shadow samples accumulate toward white/yellow/cyan.
-            GlStateManager.color(tint, tint, tint, tint);
             float left = FontRenderTuning.alignToPixel(x + offsetX);
             float top = FontRenderTuning.alignToPixel(y + offsetY);
-            // Cosmic textures are premultiplied in Rust before GL_LINEAR minification. Force the
-            // matching blend function here because surrounding mods frequently leave Minecraft's
-            // cached blend state configured for straight-alpha GUI textures.
+            // Cosmic uploaders provide premultiplied textures (RGBA8 or RGBA16F). Force the matching
+            // blend function because surrounding mods frequently leave Minecraft's cached blend
+            // state configured for straight-alpha GUI textures.
             try (PremultipliedBlendState ignored = new PremultipliedBlendState()) {
+                net.minecraft.client.Minecraft.getMinecraft().getTextureManager().bindTexture(location);
+                FontRenderTuning.applyBoundTextureFilter(scale, false);
+                // DynamicTexture inherits GL_REPEAT. Cosmic rasters are line textures rather than an
+                // atlas, so repeating the first row at v=1 creates bright specks below glyphs when
+                // GL_LINEAR samples the edge. Reassert clamping because other renderers may mutate
+                // the currently bound texture parameters between cached draws.
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+                // With GL_ONE premultiplied blending, global opacity must scale RGB and alpha
+                // together. Scaling alpha alone leaves full-strength RGB in every blur sample.
+                GlStateManager.color(tint, tint, tint, tint);
                 Tessellator tessellator = Tessellator.getInstance();
                 BufferBuilder buffer = tessellator.getBuffer();
                 buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
@@ -825,21 +845,26 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         private final boolean blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
         private final boolean alphaTestEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
         private final boolean fogEnabled = GL11.glIsEnabled(GL11.GL_FOG);
+        private final boolean textureEnabled = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
         private final int srcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
         private final int dstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
         private final int srcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
         private final int dstAlpha = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
-        private final int blendEquation = GL11.glGetInteger(GL14.GL_BLEND_EQUATION);
+        private final int blendEquationRgb = GL11.glGetInteger(GL20.GL_BLEND_EQUATION_RGB);
+        private final int blendEquationAlpha = GL11.glGetInteger(GL20.GL_BLEND_EQUATION_ALPHA);
+        private final int textureBinding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        private final boolean[] colorMask = readColorMask();
+        private final float[] color = readColor();
 
         private PremultipliedBlendState() {
+            GlStateManager.enableTexture2D();
             GlStateManager.disableAlpha();
             // Fixed-function fog adds fog RGB without scaling it by glyph coverage. That breaks the
             // premultiplied invariant at antialiased edges and GL_ONE then exposes it as a halo.
             GlStateManager.disableFog();
             GL11.glDisable(GL11.GL_FOG);
             GlStateManager.enableBlend();
-            GlStateManager.glBlendEquation(GL14.GL_FUNC_ADD);
-            GL14.glBlendEquation(GL14.GL_FUNC_ADD);
+            GL20.glBlendEquationSeparate(GL14.GL_FUNC_ADD, GL14.GL_FUNC_ADD);
             GlStateManager.tryBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA,
                     GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
             // Mods sometimes mutate the driver through raw GL and leave GlStateManager's cache
@@ -851,7 +876,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         @Override
         public void close() {
             // Restore via GlStateManager so its 1.12-era state cache stays synchronized with GL.
-            GlStateManager.glBlendEquation(blendEquation);
+            GL20.glBlendEquationSeparate(blendEquationRgb, blendEquationAlpha);
             GlStateManager.tryBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
             if (!blendEnabled) {
                 GlStateManager.disableBlend();
@@ -860,6 +885,23 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             else GlStateManager.disableAlpha();
             if (fogEnabled) GlStateManager.enableFog();
             else GlStateManager.disableFog();
+            if (textureEnabled) GlStateManager.enableTexture2D();
+            else GlStateManager.disableTexture2D();
+            GlStateManager.bindTexture(textureBinding);
+            GL11.glColorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
+            GlStateManager.color(color[0], color[1], color[2], color[3]);
+        }
+
+        private static boolean[] readColorMask() {
+            ByteBuffer mask = BufferUtils.createByteBuffer(4);
+            GL11.glGetBoolean(GL11.GL_COLOR_WRITEMASK, mask);
+            return new boolean[]{mask.get(0) != 0, mask.get(1) != 0, mask.get(2) != 0, mask.get(3) != 0};
+        }
+
+        private static float[] readColor() {
+            FloatBuffer value = BufferUtils.createFloatBuffer(4);
+            GL11.glGetFloat(GL11.GL_CURRENT_COLOR, value);
+            return new float[]{value.get(0), value.get(1), value.get(2), value.get(3)};
         }
     }
 

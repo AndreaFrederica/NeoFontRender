@@ -66,9 +66,8 @@ public final class CosmicSmokeTest {
                 if (alpha != 0) {
                     visible = true;
                 }
-                if (((pixel >>> 16) & 0xFF) > alpha || ((pixel >>> 8) & 0xFF) > alpha || (pixel & 0xFF) > alpha) {
-                    throw new IllegalStateException("cosmic-text raster is not premultiplied");
-                }
+                // Native payloads are straight RGBA. Premultiplication is deferred to the texture
+                // upload boundary so Kirino HDR can perform it at float precision.
             }
             if (!visible) {
                 throw new IllegalStateException("cosmic-text raster contains no visible pixels");
