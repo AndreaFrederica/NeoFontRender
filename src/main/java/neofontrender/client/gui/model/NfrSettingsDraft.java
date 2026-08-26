@@ -46,6 +46,9 @@ public final class NfrSettingsDraft {
     public final boolean originalBuiltinFallbacks = NeofontrenderConfig.builtinFallbacksEnabled();
     public final String originalEngine = NeofontrenderConfig.renderingEngine();
     public final boolean originalAdvancedStringMode = NeofontrenderConfig.advancedStringMode();
+    public final boolean originalSdfEnabled = NeofontrenderConfig.sdfEnabled();
+    public final String originalSdfDistanceRange = Integer.toString(NeofontrenderConfig.sdfDistanceRange());
+    public final String originalSdfEdgeSoftness = Float.toString(NeofontrenderConfig.sdfEdgeSoftness());
     public final boolean originalAdaptiveRasterScale = NeofontrenderConfig.adaptiveRasterScale();
     public final boolean originalExcludeIntegerScale = NeofontrenderConfig.excludeIntegerScale();
     public final boolean originalExcludeHighMagnification = NeofontrenderConfig.excludeHighMagnification();
@@ -97,6 +100,9 @@ public final class NfrSettingsDraft {
     public boolean forceUnicodeFont = originalForceUnicodeFont;
     public String engine = originalEngine;
     public boolean advancedStringMode = originalAdvancedStringMode;
+    public boolean sdfEnabled = originalSdfEnabled;
+    public String sdfDistanceRange = originalSdfDistanceRange;
+    public String sdfEdgeSoftness = originalSdfEdgeSoftness;
     public boolean adaptiveRasterScale = originalAdaptiveRasterScale;
     public boolean excludeIntegerScale = originalExcludeIntegerScale;
     public boolean excludeHighMagnification = originalExcludeHighMagnification;
@@ -252,6 +258,12 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setEnabled(enabled);
         NeofontrenderConfig.setRenderingEngine(engine);
         NeofontrenderConfig.setAdvancedStringMode(advancedStringMode);
+        // SDF is edited on the Advanced page like Shadow: keep draft values isolated until Apply.
+        if (save) {
+            NeofontrenderConfig.setSdfEnabled(sdfEnabled);
+            NeofontrenderConfig.setSdfDistanceRange(parseInt(sdfDistanceRange, 4, 2, 8));
+            NeofontrenderConfig.setSdfEdgeSoftness(parseFloat(sdfEdgeSoftness, 1.0F, 0.5F, 2.0F));
+        }
         NeofontrenderConfig.setAdaptiveRasterScale(adaptiveRasterScale);
         NeofontrenderConfig.setExcludeIntegerScale(excludeIntegerScale);
         NeofontrenderConfig.setExcludeHighMagnification(excludeHighMagnification);
@@ -326,6 +338,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setEnabled(originalEnabled);
         NeofontrenderConfig.setRenderingEngine(originalEngine);
         NeofontrenderConfig.setAdvancedStringMode(originalAdvancedStringMode);
+        NeofontrenderConfig.setSdfEnabled(originalSdfEnabled);
+        NeofontrenderConfig.setSdfDistanceRange(parseInt(originalSdfDistanceRange, 4, 2, 8));
+        NeofontrenderConfig.setSdfEdgeSoftness(parseFloat(originalSdfEdgeSoftness, 1.0F, 0.5F, 2.0F));
         NeofontrenderConfig.setAdaptiveRasterScale(originalAdaptiveRasterScale);
         NeofontrenderConfig.setExcludeIntegerScale(originalExcludeIntegerScale);
         NeofontrenderConfig.setExcludeHighMagnification(originalExcludeHighMagnification);

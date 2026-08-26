@@ -3,6 +3,7 @@ package neofontrender.core.font.cosmic;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
@@ -47,6 +48,8 @@ import org.lwjgl.BufferUtils;
 /** cosmic-text shaping/Swash rasterization with Minecraft's LWJGL2 texture submission. */
 public final class CosmicTextRenderer implements TextRenderBackend {
     private static final int RASTER_MAGIC = 0x434F534D;
+    // Native Cosmic rasters reserve four transparent texels around the glyph bounds. Keep the
+    // encoded distance range within that guard so edge samples never need outside-texture data.
     // Rust rejects either raster dimension above 8192. Keep a generous allowance for glyph
     // bearings, italic overhang, and native padding beyond cosmic-text's line advance.
     private static final float SEGMENT_RASTER_ADVANCE_LIMIT = 8192.0F - 1024.0F;
@@ -222,7 +225,9 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         int shadowProfile = modernShadow ? modernShadowProfile(explicitShadowArgb) : 0;
         RenderKey key = new RenderKey(text, rasterArgb,
                 effectiveFlags(bold, italic, underline, strikethrough),
-                Float.floatToIntBits(fontSize), Float.floatToIntBits(scale), shadowProfile);
+                Float.floatToIntBits(fontSize), Float.floatToIntBits(scale), shadowProfile,
+                NeofontrenderConfig.sdfEnabled(), NeofontrenderConfig.sdfDistanceRange(),
+                Float.floatToIntBits(NeofontrenderConfig.sdfEdgeSoftness()));
         CosmicRenderedText cached = renderCache.get(key);
         if (cached != null) {
             renderCacheHits++;
@@ -355,7 +360,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
 
     private CosmicRenderedText decode(byte[] encoded, boolean modernShadow, float fontSize,
                                       int foregroundArgb, Integer explicitShadowArgb) {
-        if (encoded == null || encoded.length < 32) {
+        if (encoded == null || encoded.length < 36) {
             throw new IllegalStateException("cosmic-text returned a truncated raster");
         }
         ByteBuffer data = ByteBuffer.wrap(encoded).order(ByteOrder.LITTLE_ENDIAN);
@@ -369,6 +374,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         float advance = data.getFloat();
         float baseline = data.getFloat();
         float scale = data.getFloat();
+        int modelFlags = data.getInt();
         long pixelCount = (long) width * height;
         if (width < 0 || height < 0 || pixelCount > Integer.MAX_VALUE || data.remaining() != pixelCount * 4L) {
             // Validate all native dimensions before allocation. A mismatched DLL should degrade to
@@ -376,13 +382,60 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             throw new IllegalStateException("cosmic-text returned invalid dimensions " + width + "x" + height);
         }
         if (width == 0 || height == 0) {
-            return new CosmicRenderedText(null, null, advance, 0.0F, 0.0F, 0.0F, 0.0F, scale);
+            return CosmicRenderedText.empty(advance, scale);
         }
         int[] pixels = new int[(int) pixelCount];
         // OptiFine can expose base, normal, and specular layers in one 3x-sized array. The native
         // payload contains only the base layer, so never use the target array length as the number
         // of encoded pixels to consume.
         CosmicRasterPixels.copyBaseLayer(data, (int) pixelCount, pixels);
+        int[] foregroundPixels = pixels;
+        float baseSize = Math.max(1.0F, NeofontrenderConfig.fontSize());
+        float sizeRatio = Math.max(1.0F, fontSize) / baseSize;
+        float baseOffsetX = offsetX / scale;
+        float baseOffsetY = offsetY / scale + NeofontrenderConfig.fontReferenceBaseline() * sizeRatio
+                + NeofontrenderConfig.fontBaselineShift() * sizeRatio - baseline;
+        boolean sdf = NeofontrenderConfig.sdfEnabled()
+                && (modelFlags & CosmicNative.RASTER_MODEL_GRADIENT_COLOR) == 0
+                && (modelFlags & (CosmicNative.RASTER_MODEL_MASK | CosmicNative.RASTER_MODEL_FLAT_COLOR)) != 0
+                && CosmicSdfPipeline.isAvailable();
+        if (sdf) {
+            UploadedTexture foreground = uploadSdfTexture(
+                    CosmicSdfGenerator.generate(foregroundPixels, width, height,
+                            NeofontrenderConfig.sdfDistanceRange()),
+                    width, height, scale);
+            UploadedTexture shadowTexture = null;
+            float shadowWidth = 0.0F;
+            float shadowHeight = 0.0F;
+            float shadowOffsetX = baseOffsetX;
+            float shadowOffsetY = baseOffsetY;
+            if (modernShadow) {
+                float shadowGeometryScale = Math.max(1.0F, fontSize)
+                        / Math.max(1.0F, NeofontrenderConfig.fontSize());
+                ModernShadowRasterizer.Result shadow = ModernShadowRasterizer.shadow(
+                        foregroundPixels, width, height, scale,
+                        NeofontrenderConfig.shadowOffsetX() * shadowGeometryScale,
+                        NeofontrenderConfig.shadowOffsetY() * shadowGeometryScale,
+                        NeofontrenderConfig.shadowBlurRadius() * shadowGeometryScale,
+                        explicitShadowArgb != null ? explicitShadowArgb
+                                : ShadowColorPolicy.modernColor(
+                                        foregroundArgb, NeofontrenderConfig.shadowColor(),
+                                        NeofontrenderConfig.shadowColorMode(),
+                                        NeofontrenderConfig.shadowColorOverrides(), legacyColorCodes),
+                        NeofontrenderConfig.shadowOpacity(), false);
+                shadowTexture = uploadRgbaTexture(shadow.pixels, shadow.width, shadow.height, scale);
+                shadowWidth = shadow.width / scale;
+                shadowHeight = shadow.height / scale;
+                shadowOffsetX = baseOffsetX - shadow.originX / scale;
+                shadowOffsetY = baseOffsetY - shadow.originY / scale;
+            }
+            return new CosmicRenderedText(foreground.location, foreground.texture,
+                    shadowTexture == null ? null : shadowTexture.location,
+                    shadowTexture == null ? null : shadowTexture.texture,
+                    advance, width / scale, height / scale, baseOffsetX, baseOffsetY, scale,
+                    true, foregroundArgb, shadowWidth, shadowHeight, shadowOffsetX, shadowOffsetY);
+        }
+
         int shadowOriginX = 0;
         int shadowOriginY = 0;
         if (modernShadow) {
@@ -405,15 +458,24 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             shadowOriginX = shadow.originX;
             shadowOriginY = shadow.originY;
         }
+        UploadedTexture uploaded = uploadRgbaTexture(pixels, width, height, scale);
+        return new CosmicRenderedText(uploaded.location, uploaded.texture, null, null,
+                advance, width / scale, height / scale,
+                offsetX / scale - shadowOriginX / scale,
+                offsetY / scale + NeofontrenderConfig.fontReferenceBaseline() * sizeRatio
+                        + NeofontrenderConfig.fontBaselineShift() * sizeRatio
+                        - baseline - shadowOriginY / scale,
+                scale, false, foregroundArgb, 0.0F, 0.0F, 0.0F, 0.0F);
+    }
+
+    private UploadedTexture uploadRgbaTexture(int[] pixels, int width, int height, float scale) {
         boolean hdrTexture = KirinoHdrCompat.useHdrTexture();
         AbstractTexture texture;
         if (hdrTexture) {
             texture = new CosmicFloatTexture(pixels, width, height);
         } else {
             int[] premultiplied = new int[pixels.length];
-            for (int i = 0; i < pixels.length; i++) {
-                premultiplied[i] = premultiply(pixels[i]);
-            }
+            for (int i = 0; i < pixels.length; i++) premultiplied[i] = premultiply(pixels[i]);
             DynamicTexture legacyTexture = new DynamicTexture(width, height);
             int[] target = legacyTexture.getTextureData();
             System.arraycopy(premultiplied, 0, target, 0, Math.min(premultiplied.length, target.length));
@@ -424,14 +486,14 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         ResourceLocation location = new ResourceLocation("neofontrender", "cosmic/" + nextTextureId++);
         textureManager.loadTexture(location, texture);
         FontRenderTuning.applyFontTextureFilter(texture, scale, false);
-        float baseSize = Math.max(1.0F, NeofontrenderConfig.fontSize());
-        float sizeRatio = Math.max(1.0F, fontSize) / baseSize;
-        return new CosmicRenderedText(location, texture, advance, width / scale, height / scale,
-                offsetX / scale - shadowOriginX / scale,
-                offsetY / scale + NeofontrenderConfig.fontReferenceBaseline() * sizeRatio
-                        + NeofontrenderConfig.fontBaselineShift() * sizeRatio
-                        - baseline - shadowOriginY / scale,
-                scale);
+        return new UploadedTexture(location, texture);
+    }
+
+    private UploadedTexture uploadSdfTexture(byte[] pixels, int width, int height, float scale) {
+        CosmicSdfTexture texture = new CosmicSdfTexture(pixels, width, height);
+        ResourceLocation location = new ResourceLocation("neofontrender", "cosmic/sdf/" + nextTextureId++);
+        textureManager.loadTexture(location, texture);
+        return new UploadedTexture(location, texture);
     }
 
     private static int modernShadowProfile() {
@@ -738,29 +800,64 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         }
     }
 
+    private static final class UploadedTexture {
+        private final ResourceLocation location;
+        private final AbstractTexture texture;
+
+        private UploadedTexture(ResourceLocation location, AbstractTexture texture) {
+            this.location = location;
+            this.texture = texture;
+        }
+    }
+
     private static final class CosmicRenderedText implements TextRenderResult, AutoCloseable {
         private final ResourceLocation location;
         private final AbstractTexture texture;
+        private final ResourceLocation shadowLocation;
+        private final AbstractTexture shadowTexture;
         private final float advance;
         private final float width;
         private final float height;
         private final float offsetX;
         private final float offsetY;
         private final float scale;
+        private final boolean sdf;
+        private final int sdfArgb;
+        private final float shadowWidth;
+        private final float shadowHeight;
+        private final float shadowOffsetX;
+        private final float shadowOffsetY;
         private final AtomicBoolean closed = new AtomicBoolean();
         private volatile long lastAccessMillis;
 
-        private CosmicRenderedText(ResourceLocation location, AbstractTexture texture, float advance,
-                                   float width, float height, float offsetX, float offsetY, float scale) {
+        private CosmicRenderedText(ResourceLocation location, AbstractTexture texture,
+                                   ResourceLocation shadowLocation, AbstractTexture shadowTexture,
+                                   float advance, float width, float height, float offsetX,
+                                   float offsetY, float scale, boolean sdf, int sdfArgb,
+                                   float shadowWidth, float shadowHeight, float shadowOffsetX,
+                                   float shadowOffsetY) {
             this.location = location;
             this.texture = texture;
+            this.shadowLocation = shadowLocation;
+            this.shadowTexture = shadowTexture;
             this.advance = advance;
             this.width = width;
             this.height = height;
             this.offsetX = offsetX;
             this.offsetY = offsetY;
             this.scale = scale;
+            this.sdf = sdf;
+            this.sdfArgb = sdfArgb;
+            this.shadowWidth = shadowWidth;
+            this.shadowHeight = shadowHeight;
+            this.shadowOffsetX = shadowOffsetX;
+            this.shadowOffsetY = shadowOffsetY;
             this.lastAccessMillis = System.currentTimeMillis();
+        }
+
+        private static CosmicRenderedText empty(float advance, float scale) {
+            return new CosmicRenderedText(null, null, null, null, advance, 0.0F, 0.0F,
+                    0.0F, 0.0F, scale, false, 0, 0.0F, 0.0F, 0.0F, 0.0F);
         }
 
         @Override
@@ -768,10 +865,16 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             return advance;
         }
 
-        @Override public float visualLeft() { return offsetX; }
-        @Override public float visualRight() { return offsetX + width; }
-        @Override public float visualTop() { return offsetY; }
-        @Override public float visualBottom() { return offsetY + height; }
+        @Override public float visualLeft() { return shadowTexture == null ? offsetX : Math.min(offsetX, shadowOffsetX); }
+        @Override public float visualRight() {
+            return shadowTexture == null ? offsetX + width
+                    : Math.max(offsetX + width, shadowOffsetX + shadowWidth);
+        }
+        @Override public float visualTop() { return shadowTexture == null ? offsetY : Math.min(offsetY, shadowOffsetY); }
+        @Override public float visualBottom() {
+            return shadowTexture == null ? offsetY + height
+                    : Math.max(offsetY + height, shadowOffsetY + shadowHeight);
+        }
 
         private void touch() {
             lastAccessMillis = System.currentTimeMillis();
@@ -790,36 +893,60 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             float tint = premultipliedOpacity(alpha);
             float left = FontRenderTuning.alignToPixel(x + offsetX);
             float top = FontRenderTuning.alignToPixel(y + offsetY);
+            if (sdf) {
+                if (shadowTexture != null && shadowLocation != null
+                        && shadowWidth > 0.0F && shadowHeight > 0.0F) {
+                    float shadowLeft = FontRenderTuning.alignToPixel(x + shadowOffsetX);
+                    float shadowTop = FontRenderTuning.alignToPixel(y + shadowOffsetY);
+                    try (PremultipliedBlendState ignored = new PremultipliedBlendState()) {
+                        drawRgba(shadowLocation, shadowTexture, shadowLeft, shadowTop,
+                                shadowWidth, shadowHeight, tint);
+                    }
+                }
+                try (CosmicSdfPipeline.State ignored = CosmicSdfPipeline.begin()) {
+                    if (ignored.isNoop()) return;
+                    Minecraft.getMinecraft().getTextureManager().bindTexture(location);
+                    GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+                    GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+                    float red = ((sdfArgb >>> 16) & 0xFF) / 255.0F;
+                    float green = ((sdfArgb >>> 8) & 0xFF) / 255.0F;
+                    float blue = (sdfArgb & 0xFF) / 255.0F;
+                    CosmicSdfPipeline.draw(left, top, width, height, red, green, blue, tint,
+                            NeofontrenderConfig.sdfEdgeSoftness());
+                }
+                return;
+            }
             // Cosmic uploaders provide premultiplied textures (RGBA8 or RGBA16F). Force the matching
             // blend function because surrounding mods frequently leave Minecraft's cached blend
             // state configured for straight-alpha GUI textures.
             try (PremultipliedBlendState ignored = new PremultipliedBlendState()) {
-                net.minecraft.client.Minecraft.getMinecraft().getTextureManager().bindTexture(location);
-                FontRenderTuning.applyBoundTextureFilter(scale, false);
-                // DynamicTexture inherits GL_REPEAT. Cosmic rasters are line textures rather than an
-                // atlas, so repeating the first row at v=1 creates bright specks below glyphs when
-                // GL_LINEAR samples the edge. Reassert clamping because other renderers may mutate
-                // the currently bound texture parameters between cached draws.
-                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
-                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
-                // With GL_ONE premultiplied blending, global opacity must scale RGB and alpha
-                // together. Scaling alpha alone leaves full-strength RGB in every blur sample.
-                GlStateManager.color(tint, tint, tint, tint);
-                Tessellator tessellator = Tessellator.getInstance();
-                BufferBuilder buffer = tessellator.getBuffer();
-                buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
-                buffer.pos(left, top, 0).tex(0, 0).color(tint, tint, tint, tint).endVertex();
-                buffer.pos(left, top + height, 0).tex(0, 1).color(tint, tint, tint, tint).endVertex();
-                buffer.pos(left + width, top + height, 0).tex(1, 1).color(tint, tint, tint, tint).endVertex();
-                buffer.pos(left + width, top, 0).tex(1, 0).color(tint, tint, tint, tint).endVertex();
-                tessellator.draw();
+                drawRgba(location, texture, left, top, width, height, tint);
             }
+        }
+
+        private void drawRgba(ResourceLocation drawLocation, AbstractTexture drawTexture,
+                              float left, float top, float drawWidth, float drawHeight,
+                              float tint) {
+            Minecraft.getMinecraft().getTextureManager().bindTexture(drawLocation);
+            FontRenderTuning.applyBoundTextureFilter(scale, false);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+            GlStateManager.color(tint, tint, tint, tint);
+            Tessellator tessellator = Tessellator.getInstance();
+            BufferBuilder buffer = tessellator.getBuffer();
+            buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
+            buffer.pos(left, top, 0).tex(0, 0).color(tint, tint, tint, tint).endVertex();
+            buffer.pos(left, top + drawHeight, 0).tex(0, 1).color(tint, tint, tint, tint).endVertex();
+            buffer.pos(left + drawWidth, top + drawHeight, 0).tex(1, 1).color(tint, tint, tint, tint).endVertex();
+            buffer.pos(left + drawWidth, top, 0).tex(1, 0).color(tint, tint, tint, tint).endVertex();
+            tessellator.draw();
         }
 
         @Override
         public void close() {
-            if (location != null && closed.compareAndSet(false, true)) {
-                ClientTextureDisposal.delete(location);
+            if (closed.compareAndSet(false, true)) {
+                if (location != null) ClientTextureDisposal.delete(location);
+                if (shadowLocation != null) ClientTextureDisposal.delete(shadowLocation);
             }
         }
     }
@@ -1012,15 +1139,22 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         private final int fontSize;
         private final int scale;
         private final int shadowProfile;
+        private final boolean sdf;
+        private final int sdfDistanceRange;
+        private final int sdfEdgeSoftness;
 
         private RenderKey(String text, int argb, int flags, int fontSize,
-                          int scale, int shadowProfile) {
+                          int scale, int shadowProfile, boolean sdf, int sdfDistanceRange,
+                          int sdfEdgeSoftness) {
             this.text = text;
             this.argb = argb;
             this.flags = flags;
             this.fontSize = fontSize;
             this.scale = scale;
             this.shadowProfile = shadowProfile;
+            this.sdf = sdf;
+            this.sdfDistanceRange = sdfDistanceRange;
+            this.sdfEdgeSoftness = sdfEdgeSoftness;
         }
 
         @Override
@@ -1029,7 +1163,10 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             RenderKey other = (RenderKey) object;
             return argb == other.argb && flags == other.flags && fontSize == other.fontSize
                     && scale == other.scale
-                    && shadowProfile == other.shadowProfile && text.equals(other.text);
+                    && shadowProfile == other.shadowProfile && sdf == other.sdf
+                    && sdfDistanceRange == other.sdfDistanceRange
+                    && sdfEdgeSoftness == other.sdfEdgeSoftness
+                    && text.equals(other.text);
         }
 
         @Override
@@ -1039,7 +1176,10 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             hash = 31 * hash + flags;
             hash = 31 * hash + fontSize;
             hash = 31 * hash + scale;
-            return 31 * hash + shadowProfile;
+            hash = 31 * hash + shadowProfile;
+            hash = 31 * hash + (sdf ? 1 : 0);
+            hash = 31 * hash + sdfDistanceRange;
+            return 31 * hash + sdfEdgeSoftness;
         }
     }
 

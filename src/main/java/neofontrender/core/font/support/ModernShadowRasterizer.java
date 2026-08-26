@@ -7,6 +7,22 @@ public final class ModernShadowRasterizer {
     public static Result compose(int[] foreground, int width, int height, float scale,
                                  float offsetX, float offsetY, float blurRadius,
                                  int color, float opacity, boolean premultiplied) {
+        Result result = shadow(foreground, width, height, scale, offsetX, offsetY, blurRadius,
+                color, opacity, premultiplied);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int source = foreground[y * width + x];
+                int index = (result.originY + y) * result.width + result.originX + x;
+                result.pixels[index] = sourceOver(result.pixels[index], source, premultiplied);
+            }
+        }
+        return result;
+    }
+
+    /** Builds only the shadow layer, preserving the original glyph coverage for a later draw. */
+    public static Result shadow(int[] foreground, int width, int height, float scale,
+                               float offsetX, float offsetY, float blurRadius,
+                               int color, float opacity, boolean premultiplied) {
         int radius = Math.max(0, Math.round(Math.max(0.0F, blurRadius) * scale));
         int dx = Math.round(offsetX * scale);
         int dy = Math.round(offsetY * scale);
@@ -42,13 +58,6 @@ public final class ModernShadowRasterizer {
             int g = premultiplied ? colorG * alpha / 255 : colorG;
             int b = premultiplied ? colorB * alpha / 255 : colorB;
             output[i] = alpha << 24 | r << 16 | g << 8 | b;
-        }
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int source = foreground[y * width + x];
-                int index = (top + y) * outWidth + left + x;
-                output[index] = sourceOver(output[index], source, premultiplied);
-            }
         }
         return new Result(output, outWidth, outHeight, left, top);
     }

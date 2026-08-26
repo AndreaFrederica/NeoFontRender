@@ -3,7 +3,6 @@ package neofontrender.client.gui.component.business;
 import com.cleanroommc.modularui.api.layout.ILayoutWidget;
 import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.widget.ParentWidget;
-import neofontrender.client.gui.component.base.NfrLabeledSlider;
 import neofontrender.client.gui.component.base.NfrLabeledTextField;
 import neofontrender.client.gui.component.base.NfrLayout;
 
@@ -19,7 +18,7 @@ public final class NfrFontForm extends ParentWidget<NfrFontForm> implements ILay
     private final NfrLabeledTextField[] cosmicFields;
     private final IWidget variantOnly;
     private final IWidget metrics;
-    private final NfrLabeledSlider oversample;
+    private final IWidget oversample;
     private final IWidget preview;
     private final boolean cosmic;
 
@@ -27,7 +26,7 @@ public final class NfrFontForm extends ParentWidget<NfrFontForm> implements ILay
                        NfrLabeledTextField fallbacks, NfrLabeledTextField shadowMasks,
                        NfrLabeledTextField regular, NfrLabeledTextField bold,
                        NfrLabeledTextField italic, NfrLabeledTextField boldItalic,
-                       IWidget variantOnly, IWidget metrics, NfrLabeledSlider oversample,
+                       IWidget variantOnly, IWidget metrics, IWidget oversample,
                        IWidget preview, boolean cosmic) {
         this.fontName = fontName;
         this.fontPath = fontPath;
@@ -58,7 +57,7 @@ public final class NfrFontForm extends ParentWidget<NfrFontForm> implements ILay
     public int preferredHeight() {
         int fields = 5 + (cosmic ? cosmicFields.length : 0);
         return fields * (FIELD_HEIGHT + GAP) + (cosmic ? 32 : 0)
-                + oversample.preferredHeight() + GAP * 2 + 150;
+                + 24 + GAP * 2 + 150;
     }
 
     @Override
@@ -76,7 +75,7 @@ public final class NfrFontForm extends ParentWidget<NfrFontForm> implements ILay
             y += 24 + GAP;
         }
         y = placeField(metrics, width, y);
-        int sliderHeight = oversample.preferredHeight();
+        int sliderHeight = 24;
         NfrLayout.place(oversample, 0, y, width, sliderHeight);
         y += sliderHeight + GAP;
         NfrLayout.place(preview, 0, y, width, Math.max(0, height - y));

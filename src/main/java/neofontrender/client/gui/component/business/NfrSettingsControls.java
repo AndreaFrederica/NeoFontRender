@@ -10,14 +10,12 @@ import neofontrender.client.gui.component.base.NfrContentButton;
 import neofontrender.client.gui.component.base.NfrColorPickerButton;
 import neofontrender.client.gui.component.base.NfrDoubleValue;
 import neofontrender.client.gui.component.base.NfrDecimalSlider;
-import neofontrender.client.gui.component.base.NfrLabeledSlider;
 import neofontrender.client.gui.component.base.NfrLabeledTextField;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
 import neofontrender.client.gui.component.base.NfrOptionDropdown;
 import neofontrender.client.gui.component.base.NfrStringValue;
 import neofontrender.client.gui.component.base.NfrTextButton;
 import neofontrender.client.gui.component.base.NfrToggleIndicator;
-import neofontrender.client.gui.component.base.NfrTrackSliderWidget;
 import neofontrender.client.gui.model.NfrSettingsDraft;
 import neofontrender.core.font.support.ShadowColorPolicy;
 
@@ -217,6 +215,16 @@ public final class NfrSettingsControls {
         return decimalSlider(() -> tr(labelKey), getter, setter, min, max, step, afterChange);
     }
 
+    public IWidget decimalSlider(String labelKey, String tooltipKey, Supplier<Float> getter,
+                                 Consumer<Float> setter, float min, float max, float step,
+                                 Runnable afterChange) {
+        IWidget slider = decimalSlider(labelKey, getter, setter, min, max, step, afterChange);
+        if (slider instanceof Widget<?>) {
+            tooltip((Widget<?>) slider, tooltipKey);
+        }
+        return slider;
+    }
+
     /** Addon-safe overload for namespaces that provide their own translation fallback. */
     public IWidget decimalSlider(Supplier<String> label, Supplier<Float> getter, Consumer<Float> setter,
                                  float min, float max, float step, Runnable afterChange) {
@@ -241,21 +249,30 @@ public final class NfrSettingsControls {
                 () -> draft.shadowColor, value -> draft.shadowColor = value, true, afterChange).size(260, 24);
     }
 
-    public NfrLabeledSlider brightness() {
-        SliderWidget slider = new NfrTrackSliderWidget()
-                .value(new NfrDoubleValue(
-                        () -> (double) parseFloat(draft.brightness, 3.0F, 0.0F, 12.0F),
-                        value -> {
-                            draft.brightness = String.format(Locale.ROOT, "%.1f",
-                                    Math.max(0.0D, Math.min(12.0D, value)));
-                            preview.run();
-                        }))
-                .bounds(0.0D, 12.0D)
-                .stopper(0.0D, 1.0D, 2.0D, 3.0D, 4.0D, 6.0D, 8.0D, 12.0D)
-                .sliderSize(8, 14)
-                .stopperSize(2, 6);
-        return new NfrLabeledSlider(() -> tr("neofontrender.gui.label.brightness") + ": " + draft.brightness,
-                slider);
+    public IWidget brightness() {
+        return decimalSlider("neofontrender.gui.label.brightness",
+                "neofontrender.tooltip.brightness",
+                () -> parseFloat(draft.brightness, 3.0F, 0.0F, 12.0F),
+                value -> draft.brightness = String.format(Locale.ROOT, "%.1f",
+                        Math.max(0.0F, Math.min(12.0F, value))),
+                0.0F, 12.0F, 0.1F, preview);
+    }
+
+    public IWidget sdfDistanceRange(Runnable afterChange) {
+        return decimalSlider("neofontrender.gui.option.sdf_distance_range",
+                "neofontrender.tooltip.sdf_distance_range",
+                () -> parseFloat(draft.sdfDistanceRange, 4.0F, 2.0F, 8.0F),
+                value -> draft.sdfDistanceRange = Integer.toString(Math.max(2, Math.min(8,
+                        Math.round(value)))), 2.0F, 8.0F, 1.0F, afterChange);
+    }
+
+    public IWidget sdfEdgeSoftness(Runnable afterChange) {
+        return decimalSlider("neofontrender.gui.option.sdf_edge_softness",
+                "neofontrender.tooltip.sdf_edge_softness",
+                () -> parseFloat(draft.sdfEdgeSoftness, 1.0F, 0.5F, 2.0F),
+                value -> draft.sdfEdgeSoftness = String.format(Locale.ROOT, "%.1f",
+                        Math.max(0.5F, Math.min(2.0F, value))),
+                0.5F, 2.0F, 0.1F, afterChange);
     }
 
     public NfrLabeledTextField cacheField(String key, Supplier<String> getter, Consumer<String> setter) {

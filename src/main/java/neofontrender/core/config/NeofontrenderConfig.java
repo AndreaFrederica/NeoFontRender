@@ -289,6 +289,19 @@ public final class NeofontrenderConfig {
         return cached.advancedStringMode;
     }
 
+    /** Opt-in SDF path for monochrome/tintable Cosmic glyph rasters. */
+    public static boolean sdfEnabled() {
+        return cached.sdfEnabled;
+    }
+
+    public static int sdfDistanceRange() {
+        return cached.sdfDistanceRange;
+    }
+
+    public static float sdfEdgeSoftness() {
+        return cached.sdfEdgeSoftness;
+    }
+
     public static boolean segmentCache() {
         return cached.segmentCache;
     }
@@ -843,6 +856,18 @@ public final class NeofontrenderConfig {
         setValue("rendering.advancedStringMode", value);
     }
 
+    public static void setSdfEnabled(boolean value) {
+        setValue("rendering.sdf", value);
+    }
+
+    public static void setSdfDistanceRange(int value) {
+        setValue("rendering.sdfDistanceRange", Math.max(2, Math.min(8, value)));
+    }
+
+    public static void setSdfEdgeSoftness(float value) {
+        setValue("rendering.sdfEdgeSoftness", Math.max(0.5F, Math.min(2.0F, value)));
+    }
+
     public static void setSegmentCache(boolean value) {
         setValue("rendering.segmentCache", value);
     }
@@ -1075,6 +1100,9 @@ public final class NeofontrenderConfig {
             w.write("[rendering]\n");
             w.write("engine = \"cosmic\"\n");
             w.write("advancedStringMode = true\n");
+            w.write("sdf = false\n");
+            w.write("sdfDistanceRange = 4\n");
+            w.write("sdfEdgeSoftness = 1.0\n");
             w.write("segmentCache = true\n");
             w.write("segmentCacheMinRunLength = 8\n");
             w.write("segmentCacheMaxRunCodePoints = 24\n");
@@ -1206,6 +1234,9 @@ public final class NeofontrenderConfig {
         config.setComment("rendering", "OpenGL texture rendering options.");
         config.setComment("rendering.engine", "Text renderer engine: vanilla, sfr, or cosmic.");
         config.setComment("rendering.advancedStringMode", "Render complete formatted strings through the shaped-text backend so ligatures, kerning, emoji ZWJ, and BiDi can span the full text. Disable to use per-format-run rendering.");
+        config.setComment("rendering.sdf", "Use the opt-in Cosmic signed-distance-field path for monochrome and flat tintable glyphs. Color gradients and unsupported shader paths fall back to RGBA.");
+        config.setComment("rendering.sdfDistanceRange", "SDF distance range in source pixels. Higher values preserve smoother contours at larger scaling but use more raster work (2-8).");
+        config.setComment("rendering.sdfEdgeSoftness", "Multiplier for screen-space SDF edge smoothing. Lower values are crisper; higher values are softer (0.5-2.0).");
         config.setComment("rendering.segmentCache", "When advancedStringMode=false, split safe text runs into reusable render-cache tokens. Complex shaping text stays on the full-run path.");
         config.setComment("rendering.segmentCacheMinRunLength", "Minimum formatted run length before reusable token segmentation is attempted.");
         config.setComment("rendering.segmentCacheMaxRunCodePoints", "Maximum code points kept in one reusable segment before forcing another token boundary.");
@@ -1326,6 +1357,9 @@ public final class NeofontrenderConfig {
         private final String shadowMaskCodepoints;
         private final String renderingEngine;
         private final boolean advancedStringMode;
+        private final boolean sdfEnabled;
+        private final int sdfDistanceRange;
+        private final float sdfEdgeSoftness;
         private final boolean segmentCache;
         private final int segmentCacheMinRunLength;
         private final int segmentCacheMaxRunCodePoints;
@@ -1409,6 +1443,9 @@ public final class NeofontrenderConfig {
             shadowMaskCodepoints = "";
             renderingEngine = "cosmic";
             advancedStringMode = true;
+            sdfEnabled = false;
+            sdfDistanceRange = 4;
+            sdfEdgeSoftness = 1.0F;
             segmentCache = true;
             segmentCacheMinRunLength = 8;
             segmentCacheMaxRunCodePoints = 24;
@@ -1495,6 +1532,10 @@ public final class NeofontrenderConfig {
             shadowMaskCodepoints = config.getOrElse("shadow.maskCodepoints", "");
             renderingEngine = normalizeRenderingEngine(config.getOrElse("rendering.engine", "cosmic"));
             advancedStringMode = config.getOrElse("rendering.advancedStringMode", true);
+            sdfEnabled = config.getOrElse("rendering.sdf", false);
+            sdfDistanceRange = Math.max(2, Math.min(8, getInt(config, "rendering.sdfDistanceRange", 4)));
+            sdfEdgeSoftness = Math.max(0.5F, Math.min(2.0F,
+                    getFloat(config, "rendering.sdfEdgeSoftness", 1.0F)));
             segmentCache = config.getOrElse("rendering.segmentCache", true);
             segmentCacheMinRunLength = Math.max(1, getInt(config, "rendering.segmentCacheMinRunLength", 8));
             segmentCacheMaxRunCodePoints = Math.max(1, getInt(config, "rendering.segmentCacheMaxRunCodePoints", 24));
