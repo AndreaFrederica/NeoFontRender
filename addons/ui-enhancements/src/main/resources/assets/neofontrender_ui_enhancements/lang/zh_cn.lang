@@ -724,6 +724,18 @@ neofontrender_ui_enhancements.gui.fixes.shoulder_surfing_crosshair.off=关闭（
 neofontrender_ui_enhancements.tooltip.fixes.shoulder_surfing_crosshair=修补模式统一准星、投射物与方块交互；自适应模式仅在远程、投掷或望远镜物品下使用玩家射线；静态模式固定使用屏幕中心与肩部相机射线；双光标模式以橙色方框标出方块/实体交互光标，并保留武器/投射物光标。
 
 neofontrender_ui_enhancements.gui.diagnostics.category=诊断
+neofontrender_ui_enhancements.gui.outlines.category=方块轮廓
+neofontrender_ui_enhancements.gui.outlines.enabled=自定义方块轮廓
+neofontrender_ui_enhancements.gui.outlines.global_color=默认轮廓颜色
+neofontrender_ui_enhancements.gui.outlines.global_width=默认线宽
+neofontrender_ui_enhancements.gui.outlines.block_overrides=方块覆盖规则（逗号分隔）
+neofontrender_ui_enhancements.gui.outlines.no_harvest=标记无法采掘的方块
+neofontrender_ui_enhancements.gui.outlines.no_harvest_color=无法采掘时的轮廓颜色
+neofontrender_ui_enhancements.gui.outlines.no_harvest_width=无法采掘时的线宽
+neofontrender_ui_enhancements.gui.outlines.no_harvest_overrides=无法采掘时的覆盖规则（逗号分隔）
+neofontrender_ui_enhancements.tooltip.outlines.enabled=使用下方样式覆盖原版方块选择轮廓。
+neofontrender_ui_enhancements.tooltip.outlines.no_harvest=当 Forge 判断手中工具无法采掘目标方块时使用独立样式。
+neofontrender_ui_enhancements.tooltip.outlines.rule_format=格式：modid:block[:meta]=宽度;#AARRGGBB。多条规则使用逗号分隔。
 neofontrender_ui_enhancements.gui.diagnostics.description=显示 Revo UI 为避免与其他模组冲突而做出的兼容性决策。
 neofontrender_ui_enhancements.gui.diagnostics.no_compat=当前没有激活的兼容性覆盖。
 neofontrender_ui_enhancements.gui.diagnostics.active_compat=已激活的兼容性覆盖：

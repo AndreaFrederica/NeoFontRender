@@ -724,6 +724,18 @@ neofontrender_ui_enhancements.gui.fixes.shoulder_surfing_crosshair.off=Off (orig
 neofontrender_ui_enhancements.tooltip.fixes.shoulder_surfing_crosshair=Patched unifies the crosshair, projectiles, and block interaction. Adaptive uses the player ray only for ranged, throwable, or spyglass items. Static keeps a centered shoulder-camera ray. Dual marks the block/entity interaction cursor with orange brackets while retaining the weapon/projectile cursor.
 
 neofontrender_ui_enhancements.gui.diagnostics.category=Diagnostics
+neofontrender_ui_enhancements.gui.outlines.category=Block Outlines
+neofontrender_ui_enhancements.gui.outlines.enabled=Customize block outlines
+neofontrender_ui_enhancements.gui.outlines.global_color=Default outline color
+neofontrender_ui_enhancements.gui.outlines.global_width=Default line width
+neofontrender_ui_enhancements.gui.outlines.block_overrides=Block overrides (comma separated)
+neofontrender_ui_enhancements.gui.outlines.no_harvest=Highlight blocks that cannot be harvested
+neofontrender_ui_enhancements.gui.outlines.no_harvest_color=Non-harvestable outline color
+neofontrender_ui_enhancements.gui.outlines.no_harvest_width=Non-harvestable line width
+neofontrender_ui_enhancements.gui.outlines.no_harvest_overrides=Non-harvestable overrides (comma separated)
+neofontrender_ui_enhancements.tooltip.outlines.enabled=Overrides the vanilla block-selection outline using the styles below.
+neofontrender_ui_enhancements.tooltip.outlines.no_harvest=Uses a separate style when Forge reports that the held tool cannot harvest the selected block.
+neofontrender_ui_enhancements.tooltip.outlines.rule_format=Format: modid:block[:meta]=width;#AARRGGBB. Separate multiple rules with commas.
 neofontrender_ui_enhancements.gui.diagnostics.description=Reports compatibility decisions made by Revo UI to avoid crashes with other mods.
 neofontrender_ui_enhancements.gui.diagnostics.no_compat=No compatibility overrides are active.
 neofontrender_ui_enhancements.gui.diagnostics.active_compat=Active compatibility overrides:
