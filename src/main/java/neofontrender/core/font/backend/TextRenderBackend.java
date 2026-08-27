@@ -1,5 +1,7 @@
 package neofontrender.core.font.backend;
 
+import neofontrender.core.font.support.ShadowRenderSpec;
+
 /**
  * Minimal abstraction for shaped-text backends.
  *
@@ -64,6 +66,12 @@ public interface TextRenderBackend extends AutoCloseable {
     default TextRenderResult renderFormattedWithShadowAtSize(
             String text, int baseArgb, float fontSize) {
         return renderFormattedWithShadow(text, baseArgb);
+    }
+
+    /** Renders modern shadow text with an explicit per-call spec, without mutating global config. */
+    default TextRenderResult renderFormattedWithShadowAtSize(
+            String text, int baseArgb, float fontSize, ShadowRenderSpec spec) {
+        return renderFormattedWithShadowAtSize(text, baseArgb, fontSize);
     }
 
     /**

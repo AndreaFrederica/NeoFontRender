@@ -57,4 +57,16 @@ final class ShadowColorPolicyTest {
         assertEquals(0x7F010203, ShadowColorPolicy.shadowColor(
                 0x7FE02D5F, ShadowColorPolicy.COLORED, 0xFF112233, rules, null));
     }
+
+    @Test
+    void coloredRatioUsesConfiguredSrgbMultiplier() {
+        assertEquals(0xFF704020, ShadowColorPolicy.darken(
+                0xFFE08040, 0.5F, ShadowColorPolicy.COLORED_FUNCTION_SRGB));
+    }
+
+    @Test
+    void linearLightFunctionProducesASeparatelyEncodedResult() {
+        assertEquals(0xFFA45C2C, ShadowColorPolicy.darken(
+                0xFFE08040, 0.5F, ShadowColorPolicy.COLORED_FUNCTION_LINEAR_LIGHT));
+    }
 }

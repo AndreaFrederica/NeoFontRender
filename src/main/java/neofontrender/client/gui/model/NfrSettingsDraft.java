@@ -72,6 +72,8 @@ public final class NfrSettingsDraft {
     public final float originalShadowBlurRadius = NeofontrenderConfig.shadowBlurRadius();
     public final int originalShadowColor = NeofontrenderConfig.shadowColor();
     public final String originalShadowColorMode = NeofontrenderConfig.shadowColorMode();
+    public final float originalShadowColoredRatio = NeofontrenderConfig.shadowColoredRatio();
+    public final String originalShadowColoredFunction = NeofontrenderConfig.shadowColoredFunction();
     public final String originalShadowColorOverrides =
             NeofontrenderConfig.shadowColorOverridesConfig();
     public final boolean originalFixImeInput = NeofontrenderConfig.fixImeInput();
@@ -126,6 +128,8 @@ public final class NfrSettingsDraft {
     public float shadowBlurRadius = originalShadowBlurRadius;
     public int shadowColor = originalShadowColor;
     public String shadowColorMode = originalShadowColorMode;
+    public float shadowColoredRatio = originalShadowColoredRatio;
+    public String shadowColoredFunction = originalShadowColoredFunction;
     public String shadowColorOverrides = originalShadowColorOverrides;
     public boolean fixImeInput = originalFixImeInput;
     public boolean fixUnicodeTextDeletion = originalFixUnicodeTextDeletion;
@@ -288,6 +292,8 @@ public final class NfrSettingsDraft {
             NeofontrenderConfig.setShadowBlurRadius(shadowBlurRadius);
             NeofontrenderConfig.setShadowColor(shadowColor);
             NeofontrenderConfig.setShadowColorMode(shadowColorMode);
+            NeofontrenderConfig.setShadowColoredRatio(shadowColoredRatio);
+            NeofontrenderConfig.setShadowColoredFunction(shadowColoredFunction);
             NeofontrenderConfig.setShadowColorOverrides(shadowColorOverrides);
         }
         NeofontrenderConfig.setFixImeInput(fixImeInput);
@@ -364,6 +370,8 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setShadowBlurRadius(originalShadowBlurRadius);
         NeofontrenderConfig.setShadowColor(originalShadowColor);
         NeofontrenderConfig.setShadowColorMode(originalShadowColorMode);
+        NeofontrenderConfig.setShadowColoredRatio(originalShadowColoredRatio);
+        NeofontrenderConfig.setShadowColoredFunction(originalShadowColoredFunction);
         NeofontrenderConfig.setShadowColorOverrides(originalShadowColorOverrides);
         NeofontrenderConfig.setFixImeInput(originalFixImeInput);
         NeofontrenderConfig.setFixUnicodeTextDeletion(originalFixUnicodeTextDeletion);

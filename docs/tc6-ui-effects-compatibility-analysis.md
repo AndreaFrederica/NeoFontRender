@@ -7,6 +7,10 @@
 framebuffer 状态修复实验保存在 `codex/tc6-generic-depth-pipeline-archive` 分支，暂不作为
 当前实现的基础。
 
+TC6 `ResearchToast` 第一行偶发显示为纯色矩形的问题不属于本文的研究背景或 tooltip
+链路。该问题的完整调用链、运行时 GL 采样和 Cosmic SDF 修复见
+`docs/tc6-research-toast-sdf-blend-analysis.md`。
+
 ## 现象
 
 UI 效果关闭时，TC6 研究界面的星空/研究背景、节点、外框和书本均正常。

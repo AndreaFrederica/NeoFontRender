@@ -204,6 +204,18 @@ public final class NfrSettingsControls {
                 "neofontrender.tooltip.shadow_color_mode");
     }
 
+    public IWidget shadowColoredFunction(Runnable afterChange) {
+        return tooltip(dropdown("shadow_colored_function",
+                "neofontrender.gui.option.shadow_colored_function",
+                () -> draft.shadowColoredFunction, value -> {
+                    draft.shadowColoredFunction = ShadowColorPolicy.normalizeColoredFunction(value);
+                    afterChange.run();
+                }, Arrays.asList(ShadowColorPolicy.COLORED_FUNCTION_SRGB,
+                        ShadowColorPolicy.COLORED_FUNCTION_LINEAR_LIGHT),
+                value -> tr("neofontrender.gui.shadow_colored_function." + value)).size(260, 24),
+                "neofontrender.tooltip.shadow_colored_function");
+    }
+
     /** Addon-safe overload for namespaces that provide their own translation fallback. */
     public IWidget decimalSlider(Supplier<String> label, Supplier<Float> getter, Consumer<Float> setter,
                                  float min, float max, float step) {

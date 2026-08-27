@@ -36,7 +36,12 @@ final class CosmicSdfPipeline {
         GlStateManager.disableAlpha();
         GlStateManager.disableFog();
         GlStateManager.enableBlend();
+        // Legacy renderers such as TC6 toggle blending through raw GL11 calls and can leave
+        // GlStateManager's cache disagreeing with the driver. Keep both layers synchronized.
+        GL11.glEnable(GL11.GL_BLEND);
         GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
+                GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
                 GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GL20.glUseProgram(shader);
         if (textureUniform >= 0) GL20.glUniform1i(textureUniform, 0);
@@ -145,7 +150,14 @@ final class CosmicSdfPipeline {
             if (noop) return;
             if (shaderChanged) GL20.glUseProgram(previousProgram);
             GlStateManager.tryBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
-            if (!blendEnabled) GlStateManager.disableBlend();
+            GL14.glBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
+            if (blendEnabled) {
+                GlStateManager.enableBlend();
+                GL11.glEnable(GL11.GL_BLEND);
+            } else {
+                GlStateManager.disableBlend();
+                GL11.glDisable(GL11.GL_BLEND);
+            }
             if (alphaEnabled) GlStateManager.enableAlpha();
             else GlStateManager.disableAlpha();
             if (fogEnabled) GlStateManager.enableFog();

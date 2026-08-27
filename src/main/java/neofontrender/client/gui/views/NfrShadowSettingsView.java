@@ -31,6 +31,10 @@ public final class NfrShadowSettingsView extends NfrContentView<NfrShadowSetting
                         "neofontrender.tooltip.shadow_modern",
                         () -> d.modernShadow, value -> d.modernShadow = value, draftOnly))
                 .add(c.shadowColorMode(draftOnly))
+                .add(c.shadowColoredFunction(draftOnly))
+                .add(c.decimalSlider("neofontrender.gui.option.shadow_colored_ratio",
+                        () -> d.shadowColoredRatio, value -> d.shadowColoredRatio = value,
+                        0.0F, 1.0F, 0.01F, draftOnly))
                 .add(c.decimalSlider("neofontrender.gui.option.shadow_offset_x",
                         () -> d.shadowOffsetX, value -> d.shadowOffsetX = value,
                         -8.0F, 8.0F, 0.1F, draftOnly))

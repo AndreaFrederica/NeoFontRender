@@ -35,6 +35,7 @@ import neofontrender.core.font.preprocess.LayoutText;
 import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
 import neofontrender.core.font.linebreak.CjkLineBreakRules;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.FontRenderDiagnostics;
 import neofontrender.core.font.support.StringErrorCorrector;
 
 import java.nio.FloatBuffer;
@@ -87,6 +88,8 @@ public abstract class MixinFontRenderer {
     private void sfr$onDrawString(String text, float x, float y, int color, boolean dropShadow,
                                   CallbackInfoReturnable<Integer> cir) {
         FontRenderTuning.updateFromCurrentGlState(dropShadow);
+        FontRenderDiagnostics.logFontEntry("font.drawString", text, color, dropShadow,
+                FontRenderTuning.currentDrawContext());
         if (!sfr$shouldHook() || text == null) {
             return;
         }
@@ -134,6 +137,8 @@ public abstract class MixinFontRenderer {
     @Inject(method = "renderStringAtPos", at = @At("HEAD"), cancellable = true)
     private void sfr$onRenderStringAtPos(String text, boolean shadow, CallbackInfo ci) {
         FontRenderTuning.updateFromCurrentGlState(shadow);
+        FontRenderDiagnostics.logFontEntry("font.renderStringAtPos", text, this.sfr$renderPassColor,
+                shadow, FontRenderTuning.currentDrawContext());
         if (!sfr$shouldHook() || text == null) {
             return;
         }
@@ -200,7 +205,9 @@ public abstract class MixinFontRenderer {
                 int color = ShadowColorPolicy.paletteColor(colorIndex,
                         Math.round(baseAlpha * 255.0F) << 24, shadow,
                         NeofontrenderConfig.shadowColorMode(), NeofontrenderConfig.shadowColor(),
-                        NeofontrenderConfig.shadowColorOverrides(), sfr$activeColorCodes);
+                        NeofontrenderConfig.shadowColorOverrides(), sfr$activeColorCodes,
+                        NeofontrenderConfig.shadowColoredRatio(),
+                        NeofontrenderConfig.shadowColoredFunction());
                 this.textColor = color;
                 this.red = (float) (color >> 16 & 255) / 255.0F;
                 this.blue = (float) (color >> 8 & 255) / 255.0F;
@@ -382,7 +389,9 @@ public abstract class MixinFontRenderer {
                 int color = ShadowColorPolicy.paletteColor(colorIndex,
                         Math.round(baseAlpha * 255.0F) << 24, shadow,
                         NeofontrenderConfig.shadowColorMode(), NeofontrenderConfig.shadowColor(),
-                        NeofontrenderConfig.shadowColorOverrides(), sfr$activeColorCodes);
+                        NeofontrenderConfig.shadowColorOverrides(), sfr$activeColorCodes,
+                        NeofontrenderConfig.shadowColoredRatio(),
+                        NeofontrenderConfig.shadowColoredFunction());
                 this.textColor = color;
                 this.red = (float) (color >> 16 & 255) / 255.0F;
                 this.blue = (float) (color >> 8 & 255) / 255.0F;
@@ -862,7 +871,8 @@ public abstract class MixinFontRenderer {
         int color = ShadowColorPolicy.shadowColor(
                 this.sfr$renderPassColor, NeofontrenderConfig.shadowColorMode(),
                 NeofontrenderConfig.shadowColor(), NeofontrenderConfig.shadowColorOverrides(),
-                sfr$activeColorCodes);
+                sfr$activeColorCodes, NeofontrenderConfig.shadowColoredRatio(),
+                NeofontrenderConfig.shadowColoredFunction());
         this.textColor = color;
         this.red = (color >> 16 & 255) / 255.0F;
         this.blue = (color >> 8 & 255) / 255.0F;

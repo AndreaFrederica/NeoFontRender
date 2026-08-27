@@ -6,6 +6,7 @@ import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.ShadowRenderSpec;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -102,22 +103,39 @@ public final class ModernTextApi {
             String text, float fontSize, int argb) {
         if (text == null || text.isEmpty()) return ModernTextLayout.EMPTY;
         return layoutFormattedWithShadow(
-                TextPreprocessingPipeline.process(text).modernText(),
-                fontSize, argb);
+                TextPreprocessingPipeline.process(text).modernText(), fontSize, argb,
+                ShadowRenderSpec.fromConfig());
     }
 
     public static ModernTextLayout layoutFormattedWithShadow(
             ModernText text, float fontSize, int argb) {
-        if (!canRenderModernShadow(text)) return ModernTextLayout.EMPTY;
+        return layoutFormattedWithShadow(text, fontSize, argb, ShadowRenderSpec.fromConfig());
+    }
+
+    /** Same modern-shadow path with draft or caller-owned settings that are not globally applied. */
+    public static ModernTextLayout layoutFormattedWithShadow(
+            String text, float fontSize, int argb, ShadowRenderSpec spec) {
+        if (text == null || text.isEmpty()) return ModernTextLayout.EMPTY;
+        return layoutFormattedWithShadow(
+                TextPreprocessingPipeline.process(text).modernText(), fontSize, argb, spec);
+    }
+
+    public static ModernTextLayout layoutFormattedWithShadow(
+            ModernText text, float fontSize, int argb, ShadowRenderSpec spec) {
+        if (text == null || text.isEmpty()) return ModernTextLayout.EMPTY;
         FontRenderTuning.updateFromCurrentGlState(true);
         TextRenderBackend backend = FontManager.INSTANCE.getModernTextBackend();
+        if (backend == null || !backend.isReady() || !backend.supportsModernShadow()) {
+            return ModernTextLayout.EMPTY;
+        }
         float logicalSize = sanitizeSize(fontSize);
         List<TextRenderResult> results = new ArrayList<>(text.runs().size());
         for (ModernText.Run run : text.runs()) {
             int runArgb = run.hasColorOverride()
                     ? withRgb(argb, run.rgb()) : argb;
             results.add(backend.renderFormattedWithShadowAtSize(
-                    run.text(), runArgb, logicalSize));
+                    run.text(), runArgb, logicalSize,
+                    spec == null ? ShadowRenderSpec.fromConfig() : spec));
         }
         return new ModernTextLayout(
                 CompositeTextRenderResult.of(results), alpha(argb));

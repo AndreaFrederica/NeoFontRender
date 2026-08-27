@@ -16,6 +16,7 @@ import neofontrender.core.font.backend.SampledShadowTextRenderResult;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.ShadowColorPolicy;
 import neofontrender.core.font.support.ShadowColorRemapRules;
+import neofontrender.core.font.support.ShadowRenderSpec;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 
@@ -126,7 +127,9 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         fs.flushAtlas();
         LayoutKey key = new LayoutKey(text, baseArgb, shadow,
                 shadow ? NeofontrenderConfig.shadowColorMode() : "",
-                NeofontrenderConfig.shadowColorOverrides().profileHash(), fontSize, rasterScale);
+                NeofontrenderConfig.shadowColorOverrides().profileHash(),
+                NeofontrenderConfig.shadowColoredRatio(),
+                NeofontrenderConfig.shadowColoredFunction(), fontSize, rasterScale);
         CachedLayout cached = layouts.get(key);
         if (cached != null) {
             cached.lastAccessMs = System.currentTimeMillis();
@@ -152,31 +155,36 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
     @Override
     public synchronized TextRenderResult renderFormattedWithShadowAtSize(
             String text, int baseArgb, float requestedFontSize) {
+        return renderFormattedWithShadowAtSize(text, baseArgb, requestedFontSize,
+                ShadowRenderSpec.fromConfig());
+    }
+
+    @Override
+    public synchronized TextRenderResult renderFormattedWithShadowAtSize(
+            String text, int baseArgb, float requestedFontSize, ShadowRenderSpec shadowSpec) {
         if (text == null || text.isEmpty()) return TextRenderResult.EMPTY;
+        ShadowRenderSpec spec = shadowSpec == null ? ShadowRenderSpec.fromConfig() : shadowSpec;
         float fontSize = Math.max(1.0F, requestedFontSize);
         float rasterScale = currentRasterScale();
         FontSet set = fontSet(fontSize, rasterScale);
         set.flushAtlas();
         List<FormattedRun> foregroundRuns = parseFormatted(text, baseArgb, false);
         List<FormattedRun> shadowRuns = new ArrayList<>(foregroundRuns.size());
-        String colorMode = NeofontrenderConfig.shadowColorMode();
-        int configured = NeofontrenderConfig.shadowColor();
-        ShadowColorRemapRules remapRules = NeofontrenderConfig.shadowColorOverrides();
         for (FormattedRun run : foregroundRuns) {
             shadowRuns.add(new FormattedRun(run.text,
-                    ShadowColorPolicy.modernColor(run.argb, configured, colorMode,
-                            remapRules, legacyColorCodes),
+                    ShadowColorPolicy.modernColor(run.argb, spec.color, spec.colorMode,
+                            spec.colorOverrides, legacyColorCodes,
+                            spec.coloredRatio, spec.coloredFunction),
                     run.bold, run.italic, run.underline, run.strikethrough));
         }
         TextRenderResult foreground = build(set, foregroundRuns, fontSize);
         TextRenderResult shadow = build(set, shadowRuns, fontSize);
         float geometryScale = fontSize / Math.max(1.0F, NeofontrenderConfig.fontSize());
-        float colorAlpha = ShadowColorPolicy.SOLID.equals(colorMode)
-                ? (configured >>> 24) / 255.0F : 1.0F;
+        float colorAlpha = ShadowColorPolicy.SOLID.equals(spec.colorMode)
+                ? (spec.color >>> 24) / 255.0F : 1.0F;
         return new SampledShadowTextRenderResult(shadow, foreground,
-                NeofontrenderConfig.shadowOffsetX(), NeofontrenderConfig.shadowOffsetY(),
-                NeofontrenderConfig.shadowBlurRadius(),
-                NeofontrenderConfig.shadowOpacity() * colorAlpha, geometryScale);
+                spec.offsetX, spec.offsetY, spec.blurRadius,
+                spec.opacity * colorAlpha, geometryScale);
     }
 
     private void evictOldEntries() {
@@ -337,7 +345,9 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         int configuredShadowColor = NeofontrenderConfig.shadowColor();
         int color = shadow
                 ? ShadowColorPolicy.shadowColor(normalizeAlpha(baseArgb), colorMode,
-                        configuredShadowColor, remapRules, colorCodes)
+                        configuredShadowColor, remapRules, colorCodes,
+                        NeofontrenderConfig.shadowColoredRatio(),
+                        NeofontrenderConfig.shadowColoredFunction())
                 : normalizeAlpha(baseArgb);
         boolean bold = false;
         boolean italic = false;
@@ -354,7 +364,9 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
                     Character.toLowerCase(text.charAt(++i)));
             if (style >= 0 && style < 16) {
                 color = ShadowColorPolicy.paletteColor(style, normalizeAlpha(baseArgb), shadow,
-                        colorMode, configuredShadowColor, remapRules, colorCodes);
+                        colorMode, configuredShadowColor, remapRules, colorCodes,
+                        NeofontrenderConfig.shadowColoredRatio(),
+                        NeofontrenderConfig.shadowColoredFunction());
                 bold = italic = underline = strikethrough = false;
             } else if (style == 17) {
                 bold = true;
@@ -367,7 +379,9 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             } else if (style == 21) {
                 color = shadow
                         ? ShadowColorPolicy.shadowColor(normalizeAlpha(baseArgb), colorMode,
-                                configuredShadowColor, remapRules, colorCodes)
+                                configuredShadowColor, remapRules, colorCodes,
+                                NeofontrenderConfig.shadowColoredRatio(),
+                                NeofontrenderConfig.shadowColoredFunction())
                         : normalizeAlpha(baseArgb);
                 bold = italic = underline = strikethrough = false;
             }
@@ -579,15 +593,20 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         private final boolean shadow;
         private final String colorMode;
         private final int remapProfile;
+        private final int coloredRatio;
+        private final String coloredFunction;
         private final SizeKey size;
 
         private LayoutKey(String text, int argb, boolean shadow, String colorMode, int remapProfile,
+                          float coloredRatio, String coloredFunction,
                           float fontSize, float rasterScale) {
             this.text = text;
             this.argb = argb;
             this.shadow = shadow;
             this.colorMode = colorMode == null ? "" : colorMode;
             this.remapProfile = shadow ? remapProfile : 0;
+            this.coloredRatio = shadow ? Float.floatToIntBits(coloredRatio) : 0;
+            this.coloredFunction = shadow && coloredFunction != null ? coloredFunction : "";
             this.size = new SizeKey(fontSize, rasterScale);
         }
 
@@ -598,6 +617,8 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             return argb == other.argb && shadow == other.shadow
                     && colorMode.equals(other.colorMode)
                     && remapProfile == other.remapProfile
+                    && coloredRatio == other.coloredRatio
+                    && coloredFunction.equals(other.coloredFunction)
                     && text.equals(other.text) && size.equals(other.size);
         }
 
@@ -607,6 +628,8 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             hash = 31 * hash + (shadow ? 1 : 0);
             hash = 31 * hash + colorMode.hashCode();
             hash = 31 * hash + remapProfile;
+            hash = 31 * hash + coloredRatio;
+            hash = 31 * hash + coloredFunction.hashCode();
             return 31 * hash + size.hashCode();
         }
     }

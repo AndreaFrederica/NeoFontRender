@@ -251,6 +251,8 @@ public final class NeofontrenderConfig {
     public static float shadowBlurRadius() { return cached.shadowBlurRadius; }
     public static int shadowColor() { return cached.shadowColor; }
     public static String shadowColorMode() { return cached.shadowColorMode; }
+    public static float shadowColoredRatio() { return cached.shadowColoredRatio; }
+    public static String shadowColoredFunction() { return cached.shadowColoredFunction; }
     public static ShadowColorRemapRules shadowColorOverrides() { return cached.shadowColorOverrides; }
     public static String shadowColorOverridesConfig() {
         return cached.shadowColorOverrides.toConfigString();
@@ -678,6 +680,12 @@ public final class NeofontrenderConfig {
     public static void setShadowColorMode(String value) {
         setValue("shadow.colorMode", normalizeShadowColorMode(value));
     }
+    public static void setShadowColoredRatio(float value) {
+        setValue("shadow.coloredRatio", ShadowColorPolicy.clampRatio(value));
+    }
+    public static void setShadowColoredFunction(String value) {
+        setValue("shadow.coloredFunction", ShadowColorPolicy.normalizeColoredFunction(value));
+    }
     public static void setShadowColorOverrides(String value) {
         setValue("shadow.colorOverrides", ShadowColorRemapRules.parse(value).toConfigString());
     }
@@ -1091,6 +1099,8 @@ public final class NeofontrenderConfig {
             w.write("blurRadius = 0.5\n");
             w.write("color = -16777216\n");
             w.write("colorMode = \"colored\"\n");
+            w.write("coloredRatio = 0.25\n");
+            w.write("coloredFunction = \"srgb\"\n");
             w.write("colorOverrides = \"\"\n");
             w.write("opacity = 0.25\n");
             w.write("mode = \"mask\"\n");
@@ -1212,6 +1222,8 @@ public final class NeofontrenderConfig {
         config.setComment("shadow.blurRadius", "Modern shadow blur radius in pixels.");
         config.setComment("shadow.color", "Modern shadow ARGB color stored as a signed 32-bit integer.");
         config.setComment("shadow.colorMode", "Shadow color mode: vanilla (Minecraft palette), colored (darken each run), or solid (one configured color).");
+        config.setComment("shadow.coloredRatio", "Colored-shadow brightness ratio from 0.0 (black) to 1.0 (unchanged foreground).");
+        config.setComment("shadow.coloredFunction", "Colored-shadow function: srgb (per-channel multiplier) or linear_light (scale in linear light).");
         config.setComment("shadow.colorOverrides", "Optional foreground-to-shadow overrides, e.g. rgb:FFFFFF=000000;slot:e=6A5200. Empty by default.");
         config.setComment("shadow.opacity", "Shadow opacity multiplier (0.0-1.0).");
         config.setComment("shadow.mode", "Shadow mode: all, mask (skip color glyphs), emoji (skip Unicode emoji), or none.");
@@ -1350,6 +1362,8 @@ public final class NeofontrenderConfig {
         private final float shadowBlurRadius;
         private final int shadowColor;
         private final String shadowColorMode;
+        private final float shadowColoredRatio;
+        private final String shadowColoredFunction;
         private final ShadowColorRemapRules shadowColorOverrides;
         private final float shadowOpacity;
         private final String shadowMode;
@@ -1436,6 +1450,8 @@ public final class NeofontrenderConfig {
             shadowBlurRadius = 0.5F;
             shadowColor = 0xFF000000;
             shadowColorMode = ShadowColorPolicy.COLORED;
+            shadowColoredRatio = ShadowColorPolicy.DEFAULT_COLORED_RATIO;
+            shadowColoredFunction = ShadowColorPolicy.COLORED_FUNCTION_SRGB;
             shadowColorOverrides = ShadowColorRemapRules.parse("");
             shadowOpacity = 0.25F;
             shadowMode = "mask";
@@ -1524,6 +1540,10 @@ public final class NeofontrenderConfig {
             shadowColor = getInt(config, "shadow.color", 0xFF000000);
             shadowColorMode = normalizeShadowColorMode(config.getOrElse(
                     "shadow.colorMode", ShadowColorPolicy.COLORED));
+            shadowColoredRatio = ShadowColorPolicy.clampRatio(getFloat(config,
+                    "shadow.coloredRatio", ShadowColorPolicy.DEFAULT_COLORED_RATIO));
+            shadowColoredFunction = ShadowColorPolicy.normalizeColoredFunction(config.getOrElse(
+                    "shadow.coloredFunction", ShadowColorPolicy.COLORED_FUNCTION_SRGB));
             shadowColorOverrides = ShadowColorRemapRules.parse(config.getOrElse(
                     "shadow.colorOverrides", ""));
             shadowOpacity = getFloat(config, "shadow.opacity", 0.25F);
