@@ -65,6 +65,7 @@ class UiEnhancementsMixinConfigTest {
     void resourceReloadMixinsAreInTheRequiredEarlyConfig() {
         String config = config("mixins.neofontrender_ui_enhancements.json");
 
+        assertTrue(config.contains("\"MixinCommandHandlerCompletionProviders\""));
         assertTrue(config.contains("\"MixinGuiLanguageResourceReload\""));
         assertTrue(config.contains("\"MixinLocaleAddonTranslations\""));
         assertTrue(config.contains("\"MixinGuiLanguageSearch\""));

@@ -1,6 +1,7 @@
 package neofontrender.core.font.support;
 
 import neofontrender.NeoFontRender;
+import neofontrender.build.BuildFeatures;
 import neofontrender.core.config.NeofontrenderConfig;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -41,7 +42,8 @@ public final class FontRenderDiagnostics {
     }
 
     private static boolean shouldSample(String text, int channel) {
-        if (!NeofontrenderConfig.debugRenderStats() || !matchesResearchComplete(text)) {
+        if (!BuildFeatures.RENDER_STATS || !NeofontrenderConfig.debugRenderStats()
+                || !matchesResearchComplete(text)) {
             return false;
         }
         long now = System.nanoTime();

@@ -1,5 +1,6 @@
 package neofontrender.client.gui.views;
 
+import neofontrender.build.BuildFeatures;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
 import neofontrender.client.gui.component.business.NfrPipelineInfoPanel;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
@@ -21,7 +22,7 @@ public final class NfrAdvancedSettingsView extends NfrContentView<NfrAdvancedSet
 
     private static NfrOptionsGrid options(NfrSettingsDraft d, NfrSettingsControls c) {
         Runnable draftOnly = () -> { };
-        return c.grid()
+        NfrOptionsGrid options = c.grid()
                 .add(c.toggle("neofontrender.gui.option.pipeline", "neofontrender.tooltip.pipeline",
                         () -> d.enhancedTextPipeline, value -> d.enhancedTextPipeline = value))
                 .add(c.toggle("neofontrender.gui.option.shader", "neofontrender.tooltip.shader",
@@ -29,9 +30,12 @@ public final class NfrAdvancedSettingsView extends NfrContentView<NfrAdvancedSet
                 .add(c.toggle("neofontrender.gui.option.sdf", "neofontrender.tooltip.sdf",
                         () -> d.sdfEnabled, value -> d.sdfEnabled = value, draftOnly))
                 .add(c.sdfDistanceRange(draftOnly))
-                .add(c.sdfEdgeSoftness(draftOnly))
-                .add(c.toggle("neofontrender.gui.option.debug_stats", "neofontrender.tooltip.debug_stats",
-                        () -> d.debugRenderStats, value -> d.debugRenderStats = value));
+                .add(c.sdfEdgeSoftness(draftOnly));
+        if (BuildFeatures.RENDER_STATS) {
+            options.add(c.toggle("neofontrender.gui.option.debug_stats", "neofontrender.tooltip.debug_stats",
+                    () -> d.debugRenderStats, value -> d.debugRenderStats = value));
+        }
+        return options;
     }
 
     private static NfrPipelineInfoPanel pipeline(NfrSettingsDraft d) {
@@ -40,6 +44,6 @@ public final class NfrAdvancedSettingsView extends NfrContentView<NfrAdvancedSet
                 d.enhancedTextPipeline, d.shaderTextPipeline,
                 d.adaptiveRasterScale, d.interpolation, d.mipmap,
                 d.excludeIntegerScale, d.excludeHighMagnification, d.anisotropicFiltering,
-                d.debugRenderStats));
+                BuildFeatures.RENDER_STATS && d.debugRenderStats));
     }
 }

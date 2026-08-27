@@ -1,5 +1,7 @@
 package neofontrender.core.config;
 
+import neofontrender.build.BuildFeatures;
+
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.electronwill.nightconfig.toml.TomlFormat;
 import net.minecraft.client.Minecraft;
@@ -483,7 +485,7 @@ public final class NeofontrenderConfig {
     }
 
     public static boolean debugRenderStats() {
-        return cachedDebugRenderStats;
+        return BuildFeatures.RENDER_STATS && cachedDebugRenderStats;
     }
 
     public static boolean allowSignPaste() {
@@ -925,8 +927,8 @@ public final class NeofontrenderConfig {
     }
 
     public static void setDebugRenderStats(boolean value) {
-        cachedDebugRenderStats = value;
-        setValue("debug.renderStats", value);
+        cachedDebugRenderStats = BuildFeatures.RENDER_STATS && value;
+        setValue("debug.renderStats", cachedDebugRenderStats);
     }
 
     public static void save() {
@@ -1014,7 +1016,7 @@ public final class NeofontrenderConfig {
 
     private static void refreshCachedOptions() {
         cached = Snapshot.from(config);
-        cachedDebugRenderStats = cached.debugRenderStats;
+        cachedDebugRenderStats = BuildFeatures.RENDER_STATS && cached.debugRenderStats;
         TextColorPaletteRegistry.setCustomColorCodes(TextColorPaletteCodec.parse(
                 config.getOrElse("compat.colorPalette.custom", DEFAULT_TEXT_COLOR_PALETTE)));
     }

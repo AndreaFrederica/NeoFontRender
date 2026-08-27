@@ -3,6 +3,7 @@ package neofontrender.core.font.awt.providers;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.util.ResourceLocation;
+import neofontrender.build.BuildFeatures;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.awt.BakedGlyph;
 import neofontrender.core.font.awt.FontTexture;
@@ -62,7 +63,7 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<LayoutKey, float[]> eldest) {
                     if (size() > MAX_LAYOUT_CACHE_SIZE) {
-                        layoutCacheEvictions++;
+                        if (BuildFeatures.RENDER_STATS) layoutCacheEvictions++;
                         return true;
                     }
                     return false;
@@ -210,10 +211,10 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
         LayoutKey key = new LayoutKey(text, bold);
         float[] cached = layoutCache.get(key);
         if (cached != null) {
-            layoutCacheHits++;
+            if (BuildFeatures.RENDER_STATS) layoutCacheHits++;
             return cached;
         }
-        layoutCacheMisses++;
+        if (BuildFeatures.RENDER_STATS) layoutCacheMisses++;
 
         int len = text.length();
         float[] positions = new float[len + 1];

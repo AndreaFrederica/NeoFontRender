@@ -14,6 +14,7 @@ import net.minecraft.util.ResourceLocation;
 import neofontrender.NeoFontRender;
 import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.api.text.FontRenderSpec;
+import neofontrender.build.BuildFeatures;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
@@ -157,11 +158,11 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                 Float.floatToIntBits(logicalSize));
         Float cached = measureCache.get(key);
         if (cached != null) {
-            measureCacheHits++;
+            if (BuildFeatures.RENDER_STATS) measureCacheHits++;
             periodicCacheCleanup();
             return cached;
         }
-        measureCacheMisses++;
+        if (BuildFeatures.RENDER_STATS) measureCacheMisses++;
         float width = CosmicNative.measureSized(engine, text, key.flags, logicalSize);
         measureCache.put(key, width);
         trimMeasureCache();
@@ -241,23 +242,27 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                 Float.floatToIntBits(NeofontrenderConfig.sdfEdgeSoftness()));
         CosmicRenderedText cached = renderCache.get(key);
         if (cached != null) {
-            renderCacheHits++;
+            if (BuildFeatures.RENDER_STATS) renderCacheHits++;
             cached.touch();
-            FontRenderDiagnostics.logCosmicRaster("cosmic.render.cache", text, rasterArgb,
-                    key.flags, fontSize, scale, true,
-                    Math.round(cached.visualRight() - cached.visualLeft()),
-                    Math.round(cached.visualBottom() - cached.visualTop()), cached.advance());
+            if (BuildFeatures.RENDER_STATS) {
+                FontRenderDiagnostics.logCosmicRaster("cosmic.render.cache", text, rasterArgb,
+                        key.flags, fontSize, scale, true,
+                        Math.round(cached.visualRight() - cached.visualLeft()),
+                        Math.round(cached.visualBottom() - cached.visualTop()), cached.advance());
+            }
             periodicCacheCleanup();
             return cached;
         }
-        renderCacheMisses++;
+        if (BuildFeatures.RENDER_STATS) renderCacheMisses++;
         byte[] encoded = CosmicNative.renderSized(engine, text, rasterArgb, key.flags,
                 fontSize, scale);
-        nativeRasterCount++;
+        if (BuildFeatures.RENDER_STATS) nativeRasterCount++;
         CosmicRenderedText rendered = decode(encoded, text, modernShadow, fontSize, rasterArgb,
                 explicitShadowArgb, shadowSpec);
-        FontRenderDiagnostics.logCosmicRaster("cosmic.render.raster", text, rasterArgb,
-                key.flags, fontSize, scale, false, widthOf(encoded), heightOf(encoded), rendered.advance());
+        if (BuildFeatures.RENDER_STATS) {
+            FontRenderDiagnostics.logCosmicRaster("cosmic.render.raster", text, rasterArgb,
+                    key.flags, fontSize, scale, false, widthOf(encoded), heightOf(encoded), rendered.advance());
+        }
         renderCache.put(key, rendered);
         trimRenderCache();
         periodicCacheCleanup();
@@ -783,7 +788,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             Map.Entry<RenderKey, CosmicRenderedText> eldest = iterator.next();
             eldest.getValue().close();
             iterator.remove();
-            renderCacheEvictions++;
+            if (BuildFeatures.RENDER_STATS) renderCacheEvictions++;
         }
 
         long ttlMillis = (long) (NeofontrenderConfig.textCacheTtlSeconds() * 1000.0F);
@@ -800,7 +805,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             }
             eldest.getValue().close();
             iterator.remove();
-            renderCacheEvictions++;
+            if (BuildFeatures.RENDER_STATS) renderCacheEvictions++;
         }
     }
 
@@ -810,7 +815,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         while (measureCache.size() > max && iterator.hasNext()) {
             iterator.next();
             iterator.remove();
-            measureCacheEvictions++;
+            if (BuildFeatures.RENDER_STATS) measureCacheEvictions++;
         }
     }
 
@@ -936,8 +941,10 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                 return;
             }
             float tint = premultipliedOpacity(alpha);
-            FontRenderDiagnostics.logCosmicDraw("cosmic.draw.before", diagnosticText,
-                    x, y, width, height, offsetX, offsetY, scale);
+            if (BuildFeatures.RENDER_STATS) {
+                FontRenderDiagnostics.logCosmicDraw("cosmic.draw.before", diagnosticText,
+                        x, y, width, height, offsetX, offsetY, scale);
+            }
             float left = FontRenderTuning.alignToPixel(x + offsetX);
             float top = FontRenderTuning.alignToPixel(y + offsetY);
             if (sdf) {
@@ -952,8 +959,10 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                 }
                 try (CosmicSdfPipeline.State ignored = CosmicSdfPipeline.begin()) {
                     if (ignored.isNoop()) return;
-                    FontRenderDiagnostics.logCosmicDraw("cosmic.draw.prepared", diagnosticText,
-                            x, y, width, height, offsetX, offsetY, scale);
+                    if (BuildFeatures.RENDER_STATS) {
+                        FontRenderDiagnostics.logCosmicDraw("cosmic.draw.prepared", diagnosticText,
+                                x, y, width, height, offsetX, offsetY, scale);
+                    }
                     Minecraft.getMinecraft().getTextureManager().bindTexture(location);
                     GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
                     GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
@@ -978,8 +987,10 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             // blend function because surrounding mods frequently leave Minecraft's cached blend
             // state configured for straight-alpha GUI textures.
             try (PremultipliedBlendState ignored = new PremultipliedBlendState()) {
-                FontRenderDiagnostics.logCosmicDraw("cosmic.draw.prepared", diagnosticText,
-                        x, y, width, height, offsetX, offsetY, scale);
+                if (BuildFeatures.RENDER_STATS) {
+                    FontRenderDiagnostics.logCosmicDraw("cosmic.draw.prepared", diagnosticText,
+                            x, y, width, height, offsetX, offsetY, scale);
+                }
                 drawRgba(location, texture, left, top, width, height, tint);
             }
         }

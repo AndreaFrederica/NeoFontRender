@@ -19,6 +19,7 @@ import neofontrender.api.text.ModernTextLayout;
 import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.api.text.CjkParagraphLayoutProvider;
 import neofontrender.api.text.CjkParagraphLayoutRegistry;
+import neofontrender.build.BuildFeatures;
 import neofontrender.core.font.support.ScopedFontRenderBypass;
 import neofontrender.core.font.support.ShadowColorPolicy;
 import neofontrender.core.font.FontManager;
@@ -88,8 +89,10 @@ public abstract class MixinFontRenderer {
     private void sfr$onDrawString(String text, float x, float y, int color, boolean dropShadow,
                                   CallbackInfoReturnable<Integer> cir) {
         FontRenderTuning.updateFromCurrentGlState(dropShadow);
-        FontRenderDiagnostics.logFontEntry("font.drawString", text, color, dropShadow,
-                FontRenderTuning.currentDrawContext());
+        if (BuildFeatures.RENDER_STATS) {
+            FontRenderDiagnostics.logFontEntry("font.drawString", text, color, dropShadow,
+                    FontRenderTuning.currentDrawContext());
+        }
         if (!sfr$shouldHook() || text == null) {
             return;
         }
@@ -137,8 +140,10 @@ public abstract class MixinFontRenderer {
     @Inject(method = "renderStringAtPos", at = @At("HEAD"), cancellable = true)
     private void sfr$onRenderStringAtPos(String text, boolean shadow, CallbackInfo ci) {
         FontRenderTuning.updateFromCurrentGlState(shadow);
-        FontRenderDiagnostics.logFontEntry("font.renderStringAtPos", text, this.sfr$renderPassColor,
-                shadow, FontRenderTuning.currentDrawContext());
+        if (BuildFeatures.RENDER_STATS) {
+            FontRenderDiagnostics.logFontEntry("font.renderStringAtPos", text, this.sfr$renderPassColor,
+                    shadow, FontRenderTuning.currentDrawContext());
+        }
         if (!sfr$shouldHook() || text == null) {
             return;
         }
