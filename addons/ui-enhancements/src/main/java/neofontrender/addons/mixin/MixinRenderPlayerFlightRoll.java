@@ -52,8 +52,8 @@ public abstract class MixinRenderPlayerFlightRoll {
                 player.rotationPitch = pose[1];
                 player.prevRotationYawHead = pose[0];
                 player.rotationYawHead = pose[0];
-                player.prevRenderYawOffset = pose[0];
-                player.renderYawOffset = pose[0];
+                player.prevRenderYawOffset = pose[2];
+                player.renderYawOffset = pose[2];
             }
         }
         if (FlightApi.queryBodyPose(player, partialTicks) != null) return;

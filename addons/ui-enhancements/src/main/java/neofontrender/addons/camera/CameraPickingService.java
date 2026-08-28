@@ -52,8 +52,9 @@ public final class CameraPickingService {
         ShoulderCrosshairPolicy policy = ShoulderCrosshairPolicy.resolve(
                 ShoulderCameraConfig.crosshairMode,
                 ShoulderCameraConfig.crosshairType(aiming), aiming);
-        boolean playerRoute = CameraRuntime.isShoulderActive()
-                && policy.interactionUsesPlayerRay();
+        boolean playerRoute = usesPlayerInteractionRay(CameraRuntime.isShoulderActive(),
+                policy.interactionUsesPlayerRay(), CameraRuntime.isFreeLookActive(),
+                CameraRuntime.freeLookControlsPlayer());
         boolean cameraRoute = !playerRoute;
         if (CameraRuntime.isFreeLookCursorMode()) {
             CursorPick cursor = cursorPick(player, frame, reach,
@@ -65,7 +66,9 @@ public final class CameraPickingService {
             CameraRuntime.synchronizeCursorPlayerAim(cursor.aimDirection);
             return;
         }
-        RayPlan plan = CameraRuntime.isShoulderActive() && cameraRoute
+        RayPlan plan = CameraRuntime.isFreeLookActive() && cameraRoute
+                ? shoulderRay(frame, reach, true)
+                : CameraRuntime.isShoulderActive() && cameraRoute
                 ? shoulderRay(frame, reach, ShoulderCameraConfig.limitPlayerReach)
                 : new RayPlan(cameraRoute ? frame.position() : frame.bodyPosition(),
                         cameraRoute ? frame.viewBasis().forward() : frame.bodyBasis().forward(), reach);
@@ -101,6 +104,7 @@ public final class CameraPickingService {
     public static boolean overridesInteractionBlockRay(Entity entity) {
         if (!CameraApi.isRenderOverrideActive() || entity == null
                 || entity != Minecraft.getMinecraft().player) return false;
+        if (CameraRuntime.isFreeLookActive() && CameraRuntime.freeLookControlsPlayer()) return false;
         if (!CameraRuntime.isShoulderActive()) return true;
         EntityPlayerSP player = Minecraft.getMinecraft().player;
         boolean aiming = adaptiveCrosshair(player);
@@ -118,6 +122,8 @@ public final class CameraPickingService {
         CameraFrame frame = CameraApi.getFrame(partialTicks);
         RayPlan plan = CameraRuntime.isFreeLookCursorMode()
                 ? cursorRay(frame, reach)
+                : CameraRuntime.isFreeLookActive()
+                ? shoulderRay(frame, reach, true)
                 : CameraRuntime.isShoulderActive()
                 ? shoulderRay(frame, reach, ShoulderCameraConfig.limitPlayerReach)
                 : new RayPlan(frame.position(), frame.viewBasis().forward(), reach);
@@ -190,6 +196,14 @@ public final class CameraPickingService {
         CameraVector end = frame.position().add(forward.scale(distanceFromCamera));
         CameraVector segment = end.subtract(origin);
         return new RayPlan(origin, segment.normalize(), segment.length());
+    }
+
+    static boolean usesPlayerInteractionRay(boolean shoulderActive,
+                                            boolean shoulderUsesPlayerRay,
+                                            boolean freeLookActive,
+                                            boolean freeLookControlsPlayer) {
+        return freeLookActive && freeLookControlsPlayer
+                || shoulderActive && shoulderUsesPlayerRay;
     }
 
     private static RayPlan cursorRay(CameraFrame frame, double reach) {

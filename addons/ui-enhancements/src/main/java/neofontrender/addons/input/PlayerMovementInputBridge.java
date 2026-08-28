@@ -28,10 +28,27 @@ public final class PlayerMovementInputBridge {
         boolean suppressStrafe = CameraRuntime.isFreeLookActive() && isFlightActive();
         State state = resolve(frame, movement.moveForward, movement.moveStrafe,
                 movement.jump, movement.sneak, suppressStrafe);
-        movement.moveForward = state.forward;
-        movement.moveStrafe = state.strafe;
+        Float cameraYaw = CameraRuntime.cursorLookMovementYaw(minecraft.getRenderPartialTicks());
+        float[] axes = cameraYaw == null || minecraft.player == null
+                ? new float[]{state.forward, state.strafe}
+                : rotateAxes(state.forward, state.strafe,
+                        cameraYaw - minecraft.player.rotationYaw);
+        movement.moveForward = axes[0];
+        movement.moveStrafe = axes[1];
         movement.jump = state.jump;
         movement.sneak = state.sneak;
+    }
+
+    static float[] rotateAxes(float forward, float strafe, float yawDeltaDegrees) {
+        if (!Float.isFinite(forward) || !Float.isFinite(strafe)
+                || !Float.isFinite(yawDeltaDegrees)) return new float[]{0.0F, 0.0F};
+        double radians = Math.toRadians(yawDeltaDegrees);
+        double sine = Math.sin(radians);
+        double cosine = Math.cos(radians);
+        return new float[]{
+                (float) (forward * cosine + strafe * sine),
+                (float) (strafe * cosine - forward * sine)
+        };
     }
 
     static State resolve(InputFrame frame, float fallbackForward, float fallbackStrafe,

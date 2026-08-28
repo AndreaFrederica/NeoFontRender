@@ -6,6 +6,8 @@ import neofontrender.addons.api.camera.CameraVector;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CameraPickingServiceTest {
     @Test
@@ -86,5 +88,34 @@ class CameraPickingServiceTest {
         assertEquals(hit.x, target.x, 1.0E-9D);
         assertEquals(hit.y, target.y, 1.0E-9D);
         assertEquals(hit.z, target.z, 1.0E-9D);
+    }
+
+    @Test
+    void freeLookControlOwnershipSelectsTheMatchingInteractionRay() {
+        assertTrue(CameraPickingService.usesPlayerInteractionRay(
+                false, false, true, true));
+        assertFalse(CameraPickingService.usesPlayerInteractionRay(
+                false, false, true, false));
+        assertTrue(CameraPickingService.usesPlayerInteractionRay(
+                true, true, false, false));
+        assertFalse(CameraPickingService.usesPlayerInteractionRay(
+                true, false, false, false));
+    }
+
+    @Test
+    void freeLookOrbitRayIsAnchoredBackAtPlayerReach() {
+        CameraFrame frame = new CameraFrame(3L, 0.0F, CameraAttitude.IDENTITY,
+                CameraAttitude.IDENTITY, new CameraVector(0.0D, 65.0D, 0.0D),
+                new CameraVector(0.0D, 65.0D, -4.0D), false);
+
+        CameraPickingService.RayPlan ray = CameraPickingService.shoulderRay(frame, 5.0D, true);
+
+        assertEquals(0.0D, ray.origin.x, 1.0E-9D);
+        assertEquals(65.0D, ray.origin.y, 1.0E-9D);
+        assertEquals(0.0D, ray.origin.z, 1.0E-9D);
+        assertEquals(0.0D, ray.direction.x, 1.0E-9D);
+        assertEquals(0.0D, ray.direction.y, 1.0E-9D);
+        assertEquals(1.0D, ray.direction.z, 1.0E-9D);
+        assertEquals(5.0D, ray.distance, 1.0E-9D);
     }
 }

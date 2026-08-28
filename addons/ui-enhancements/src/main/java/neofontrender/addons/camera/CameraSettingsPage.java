@@ -45,6 +45,8 @@ final class CameraSettingsPage implements NfrSettingsPage {
         private final double cursorLookSpeed = CursorLookConfig.speed;
         private final double cursorLookAimDistance = CursorLookConfig.aimDistance;
         private final boolean cursorLookShoulderOffset = CursorLookConfig.useShoulderOffset;
+        private final boolean cursorLookHeadOnlyAim = CursorLookConfig.headOnlyAim;
+        private final boolean cursorLookCameraRelativeMovement = CursorLookConfig.cameraRelativeMovement;
         private final boolean droneCollision = DroneCameraConfig.collision;
         private final boolean droneInteraction = DroneCameraConfig.allowCameraInteraction;
         private final double droneSpeed = DroneCameraConfig.speed;
@@ -133,6 +135,12 @@ final class CameraSettingsPage implements NfrSettingsPage {
                     .add(toggle(c, "cursorlook_shoulder_offset",
                             () -> CursorLookConfig.useShoulderOffset,
                             value -> CursorLookConfig.useShoulderOffset = value))
+                    .add(toggle(c, "cursorlook_head_only_aim",
+                            () -> CursorLookConfig.headOnlyAim,
+                            value -> CursorLookConfig.headOnlyAim = value))
+                    .add(toggle(c, "cursorlook_camera_relative_movement",
+                            () -> CursorLookConfig.cameraRelativeMovement,
+                            value -> CursorLookConfig.cameraRelativeMovement = value))
                     .add(toggle(c, "drone_collision", () -> DroneCameraConfig.collision,
                             value -> DroneCameraConfig.collision = value))
                     .add(toggle(c, "drone_interaction", () -> DroneCameraConfig.allowCameraInteraction,
@@ -268,6 +276,8 @@ final class CameraSettingsPage implements NfrSettingsPage {
             CursorLookConfig.speed = cursorLookSpeed;
             CursorLookConfig.aimDistance = cursorLookAimDistance;
             CursorLookConfig.useShoulderOffset = cursorLookShoulderOffset;
+            CursorLookConfig.headOnlyAim = cursorLookHeadOnlyAim;
+            CursorLookConfig.cameraRelativeMovement = cursorLookCameraRelativeMovement;
             DroneCameraConfig.collision = droneCollision;
             DroneCameraConfig.allowCameraInteraction = droneInteraction;
             DroneCameraConfig.speed = droneSpeed;

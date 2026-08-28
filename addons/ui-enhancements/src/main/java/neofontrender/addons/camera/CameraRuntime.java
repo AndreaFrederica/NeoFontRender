@@ -395,6 +395,17 @@ public final class CameraRuntime {
         return isCursorLookActive();
     }
 
+    /** Camera yaw used to reinterpret movement input; null leaves vanilla body-relative movement. */
+    public static synchronized Float cursorLookMovementYaw(float partialTicks) {
+        EntityPlayerSP player = MC.player;
+        if (!isCursorLookActive() || !CursorLookConfig.cameraRelativeMovement
+                || FlightApi.isActive() || player == null) return null;
+        CameraVector forward = frame(partialTicks).viewBasis().forward();
+        double horizontal = Math.sqrt(forward.x * forward.x + forward.z * forward.z);
+        if (horizontal < 1.0E-7D) return player.rotationYaw;
+        return (float) Math.toDegrees(Math.atan2(-forward.x, forward.z));
+    }
+
     public static synchronized void toggleFreeLookCursorMode() {
         // Kept as a binary-compatible no-op for integrations compiled against the old toggle.
     }
@@ -443,20 +454,21 @@ public final class CameraRuntime {
         if (direction == null || direction.lengthSquared() < 1.0E-12D) return;
         double horizontal = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
         float targetYaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
-        float yaw = player.rotationYaw + net.minecraft.util.math.MathHelper.wrapDegrees(
-                targetYaw - player.rotationYaw);
         float pitch = (float) -Math.toDegrees(Math.atan2(direction.y, horizontal));
-        player.rotationYaw = yaw;
-        player.rotationPitch = pitch;
-        player.rotationYawHead = yaw;
+        CursorAimPose pose = CursorAimPose.resolve(player.rotationYaw, targetYaw, pitch,
+                CursorLookConfig.headOnlyAim);
+        player.rotationYaw = pose.bodyYaw;
+        player.rotationPitch = pose.pitch;
+        player.rotationYawHead = pose.headYaw;
         invalidateSample();
     }
 
-    /** Exact cursor-owned pose used while rendering the local player model. */
+    /** Cursor-owned head pitch/yaw and physical body yaw used by the local player renderer. */
     public static synchronized float[] freeLookCursorPose(float partialTicks) {
         EntityPlayerSP player = MC.player;
         return isCursorLookActive() && player != null
-                ? new float[]{player.rotationYaw, player.rotationPitch} : null;
+                ? new float[]{player.rotationYawHead, player.rotationPitch, player.rotationYaw}
+                : null;
     }
 
     /** Returns the cached scaled-screen offset. Ray tracing is performed at RenderWorldLast. */
