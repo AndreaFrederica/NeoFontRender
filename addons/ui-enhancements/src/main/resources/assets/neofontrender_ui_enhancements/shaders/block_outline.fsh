@@ -10,6 +10,20 @@ uniform float uPattern;
 uniform float uRoundCaps;
 uniform float uDashLength;
 uniform float uDashGap;
+uniform float uRainbow;
+uniform float uRainbowPhase;
+uniform float uHueStart;
+uniform float uHueDelta;
+uniform float uBrightness;
+uniform float uGlowPass;
+uniform float uGlowRadius;
+uniform float uGlowIntensity;
+uniform float uGlowFalloff;
+
+vec3 spectrum(float hue) {
+    const vec4 k = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    return clamp(abs(fract(hue + k.xyz) * 6.0 - k.w) - k.x, 0.0, 1.0);
+}
 
 float segmentDistance(vec2 point, float start, float end, float roundCaps) {
     if (end <= 0.0 || start >= uLength || end <= start) return 100000.0;
@@ -62,14 +76,26 @@ void main() {
     else if (uPattern > 0.5) distance = dashedDistance(fLinePosition);
     else distance = solidDistance(fLinePosition);
 
-    float coverage;
-    if (uFeather > 0.0) {
-        float aa = max(uFeather, fwidth(distance) * 0.75);
-        coverage = 1.0 - smoothstep(-aa * 0.5, aa * 0.5, distance);
+    float alpha;
+    if (uGlowPass > 0.5) {
+        float radius = max(uGlowRadius, 0.001);
+        float coverage = 1.0 - clamp(max(distance, 0.0) / radius, 0.0, 1.0);
+        coverage = pow(coverage, max(uGlowFalloff, 0.01));
+        alpha = uColor.a * coverage * uGlowIntensity;
     } else {
-        coverage = distance <= 0.0 ? 1.0 : 0.0;
+        float coverage;
+        if (uFeather > 0.0) {
+            float aa = max(uFeather, fwidth(distance) * 0.75);
+            coverage = 1.0 - smoothstep(-aa * 0.5, aa * 0.5, distance);
+        } else {
+            coverage = distance <= 0.0 ? 1.0 : 0.0;
+        }
+        alpha = uColor.a * coverage;
     }
-    float alpha = uColor.a * coverage;
     if (alpha <= 0.001) discard;
-    gl_FragColor = vec4(uColor.rgb, alpha);
+    float edgeAmount = clamp(fLinePosition.x / max(uLength, 0.001), 0.0, 1.0);
+    vec3 rgb = uRainbow > 0.5
+            ? spectrum(uRainbowPhase + uHueStart + uHueDelta * edgeAmount) * uBrightness
+            : uColor.rgb;
+    gl_FragColor = vec4(rgb, min(alpha, 1.0));
 }

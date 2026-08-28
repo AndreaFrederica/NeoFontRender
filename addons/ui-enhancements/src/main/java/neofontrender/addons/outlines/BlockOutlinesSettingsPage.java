@@ -85,6 +85,34 @@ final class BlockOutlinesSettingsPage implements NfrSettingsPage {
             NfrOptionsGrid geometry = null;
             if (BlockOutlineConfig.MODE_GEOMETRY.equals(BlockOutlineConfig.renderMode)) {
                 geometry = c.grid()
+                        .add(toggle(c, "rainbow", () -> BlockOutlineConfig.rainbowEnabled, value -> {
+                            BlockOutlineConfig.rainbowEnabled = value;
+                            context.refresh();
+                        }));
+                if (BlockOutlineConfig.rainbowEnabled) {
+                    geometry.add(slider(c, "rainbow_cycle", () -> BlockOutlineConfig.rainbowCycleMillis,
+                                    value -> BlockOutlineConfig.rainbowCycleMillis = value,
+                                    250.0F, 20000.0F, 250.0F))
+                            .add(slider(c, "rainbow_density", () -> BlockOutlineConfig.rainbowDensity,
+                                    value -> BlockOutlineConfig.rainbowDensity = value,
+                                    0.25F, 4.0F, 0.25F));
+                }
+                geometry.add(toggle(c, "glow", () -> BlockOutlineConfig.glowEnabled, value -> {
+                    BlockOutlineConfig.glowEnabled = value;
+                    context.refresh();
+                }));
+                if (BlockOutlineConfig.glowEnabled) {
+                    geometry.add(slider(c, "glow_radius", () -> BlockOutlineConfig.glowRadius,
+                                    value -> BlockOutlineConfig.glowRadius = value,
+                                    0.5F, 24.0F, 0.5F))
+                            .add(slider(c, "glow_intensity", () -> BlockOutlineConfig.glowIntensity,
+                                    value -> BlockOutlineConfig.glowIntensity = value,
+                                    0.0F, 2.0F, 0.05F))
+                            .add(slider(c, "glow_falloff", () -> BlockOutlineConfig.glowFalloff,
+                                    value -> BlockOutlineConfig.glowFalloff = value,
+                                    0.5F, 4.0F, 0.25F));
+                }
+                geometry
                         .add(toggle(c, "antialias", () -> BlockOutlineConfig.antialias, value -> {
                             BlockOutlineConfig.antialias = value;
                             context.refresh();

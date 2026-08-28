@@ -29,6 +29,13 @@ final class BlockOutlineConfig {
     static int globalColor = 0x66000000;
     static float outlineOpacity = 1.0F;
     static float outlineBrightness = 1.0F;
+    static boolean rainbowEnabled;
+    static float rainbowCycleMillis = 3000.0F;
+    static float rainbowDensity = 1.0F;
+    static boolean glowEnabled;
+    static float glowRadius = 4.0F;
+    static float glowIntensity = 0.65F;
+    static float glowFalloff = 2.0F;
     static List<String> blockOverrides = Collections.emptyList();
     static boolean noHarvestEnabled;
     static float noHarvestLineWidth = 2.0F;
@@ -61,6 +68,17 @@ final class BlockOutlineConfig {
                 .define("outlines.globalColor", "#66000000", "Default selection-outline color in #AARRGGBB format.")
                 .define("outlines.opacity", 1.0D, "Outline alpha multiplier (0-1).")
                 .define("outlines.brightness", 1.0D, "Outline RGB intensity multiplier (0-4).")
+                .define("outlines.rainbow.enabled", false,
+                        "Animate a spatial rainbow gradient along geometry outlines.")
+                .define("outlines.rainbow.cycleMillis", 3000.0D,
+                        "Milliseconds for the rainbow gradient to complete one color cycle.")
+                .define("outlines.rainbow.density", 1.0D,
+                        "Number of rainbow cycles distributed across the selection box (0.25-4).")
+                .define("outlines.glow.enabled", false,
+                        "Draw an additive distance-field halo around geometry outlines.")
+                .define("outlines.glow.radius", 4.0D, "Glow radius in framebuffer pixels (0.5-24).")
+                .define("outlines.glow.intensity", 0.65D, "Glow opacity multiplier (0-2).")
+                .define("outlines.glow.falloff", 2.0D, "Glow edge falloff exponent (0.5-4).")
                 .define("outlines.blockOverrides", Collections.emptyList(),
                         "Per-block rules: modid:block[:meta]=width;#AARRGGBB")
                 .define("outlines.noHarvest.enabled", false,
@@ -91,6 +109,14 @@ final class BlockOutlineConfig {
         globalColor = parseColor(file.getString("outlines.globalColor", "#66000000"), 0x66000000);
         outlineOpacity = (float) file.getDouble("outlines.opacity", 1.0D, 0.0D, 1.0D);
         outlineBrightness = (float) file.getDouble("outlines.brightness", 1.0D, 0.0D, 4.0D);
+        rainbowEnabled = file.getBoolean("outlines.rainbow.enabled", false);
+        rainbowCycleMillis = (float) file.getDouble("outlines.rainbow.cycleMillis", 3000.0D,
+                250.0D, 20000.0D);
+        rainbowDensity = (float) file.getDouble("outlines.rainbow.density", 1.0D, 0.25D, 4.0D);
+        glowEnabled = file.getBoolean("outlines.glow.enabled", false);
+        glowRadius = (float) file.getDouble("outlines.glow.radius", 4.0D, 0.5D, 24.0D);
+        glowIntensity = (float) file.getDouble("outlines.glow.intensity", 0.65D, 0.0D, 2.0D);
+        glowFalloff = (float) file.getDouble("outlines.glow.falloff", 2.0D, 0.5D, 4.0D);
         blockOverrides = mutable(file.getStringList("outlines.blockOverrides", Collections.emptyList()));
         noHarvestEnabled = file.getBoolean("outlines.noHarvest.enabled", false);
         noHarvestLineWidth = (float) file.getDouble("outlines.noHarvest.lineWidth", 2.0D, 0.5D, 64.0D);
@@ -123,6 +149,13 @@ final class BlockOutlineConfig {
                 .set("outlines.globalColor", formatColor(globalColor))
                 .set("outlines.opacity", (double) outlineOpacity)
                 .set("outlines.brightness", (double) outlineBrightness)
+                .set("outlines.rainbow.enabled", rainbowEnabled)
+                .set("outlines.rainbow.cycleMillis", (double) rainbowCycleMillis)
+                .set("outlines.rainbow.density", (double) rainbowDensity)
+                .set("outlines.glow.enabled", glowEnabled)
+                .set("outlines.glow.radius", (double) glowRadius)
+                .set("outlines.glow.intensity", (double) glowIntensity)
+                .set("outlines.glow.falloff", (double) glowFalloff)
                 .set("outlines.blockOverrides", new ArrayList<>(blockOverrides))
                 .set("outlines.noHarvest.enabled", noHarvestEnabled)
                 .set("outlines.noHarvest.lineWidth", (double) noHarvestLineWidth)
@@ -211,6 +244,13 @@ final class BlockOutlineConfig {
         private final int globalColorValue = globalColor;
         private final float outlineOpacityValue = outlineOpacity;
         private final float outlineBrightnessValue = outlineBrightness;
+        private final boolean rainbowEnabledValue = rainbowEnabled;
+        private final float rainbowCycleMillisValue = rainbowCycleMillis;
+        private final float rainbowDensityValue = rainbowDensity;
+        private final boolean glowEnabledValue = glowEnabled;
+        private final float glowRadiusValue = glowRadius;
+        private final float glowIntensityValue = glowIntensity;
+        private final float glowFalloffValue = glowFalloff;
         private final List<String> blockOverridesValue = mutable(blockOverrides);
         private final boolean noHarvestEnabledValue = noHarvestEnabled;
         private final float noHarvestLineWidthValue = noHarvestLineWidth;
@@ -239,6 +279,13 @@ final class BlockOutlineConfig {
             globalColor = globalColorValue;
             outlineOpacity = outlineOpacityValue;
             outlineBrightness = outlineBrightnessValue;
+            rainbowEnabled = rainbowEnabledValue;
+            rainbowCycleMillis = rainbowCycleMillisValue;
+            rainbowDensity = rainbowDensityValue;
+            glowEnabled = glowEnabledValue;
+            glowRadius = glowRadiusValue;
+            glowIntensity = glowIntensityValue;
+            glowFalloff = glowFalloffValue;
             blockOverrides = mutable(blockOverridesValue);
             noHarvestEnabled = noHarvestEnabledValue;
             noHarvestLineWidth = noHarvestLineWidthValue;
