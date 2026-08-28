@@ -33,4 +33,58 @@ class CameraPickingServiceTest {
         assertEquals(java.util.Arrays.asList("minecraft:pull", "minecraft:throwing"),
                 ShoulderCameraConfig.adaptiveUseProperties);
     }
+
+    @Test
+    void cursorTargetOnlyChangesPlayerFacingNotTheAuthoritativeCameraRay() {
+        CameraVector body = new CameraVector(0.0D, 64.0D, 0.0D);
+        CameraFrame frame = new CameraFrame(2L, 0.0F, CameraAttitude.IDENTITY,
+                CameraAttitude.IDENTITY, body,
+                new CameraVector(-1.0D, 65.0D, -3.0D), false);
+        CameraPickingService.RayPlan camera = new CameraPickingService.RayPlan(
+                frame.position(), new CameraVector(0.0D, 0.0D, 1.0D), 10.0D);
+        CameraVector target = new CameraVector(-1.0D, 65.0D, 7.0D);
+
+        CameraVector playerDirection = CameraPickingService.cursorAimDirection(
+                frame, camera, target);
+
+        CameraVector expected = target.subtract(body).normalize();
+        assertEquals(expected.x, playerDirection.x, 1.0E-9D);
+        assertEquals(expected.y, playerDirection.y, 1.0E-9D);
+        assertEquals(expected.z, playerDirection.z, 1.0E-9D);
+        assertEquals(frame.position().x, camera.origin.x, 1.0E-9D);
+        assertEquals(frame.position().y, camera.origin.y, 1.0E-9D);
+        assertEquals(frame.position().z, camera.origin.z, 1.0E-9D);
+        assertEquals(10.0D, camera.distance, 1.0E-9D);
+    }
+
+    @Test
+    void cursorMissUsesIndependentFarAimDistanceWithoutExtendingInteractionRay() {
+        CameraPickingService.RayPlan interaction = new CameraPickingService.RayPlan(
+                new CameraVector(-0.75D, 65.0D, -3.0D),
+                new CameraVector(0.2D, 0.0D, 1.0D).normalize(), 5.0D);
+
+        CameraVector target = CameraPickingService.cursorAimTarget(
+                interaction, null, 400.0D);
+
+        CameraVector expected = interaction.origin.add(interaction.direction.scale(400.0D));
+        assertEquals(expected.x, target.x, 1.0E-9D);
+        assertEquals(expected.y, target.y, 1.0E-9D);
+        assertEquals(expected.z, target.z, 1.0E-9D);
+        assertEquals(5.0D, interaction.distance, 1.0E-9D);
+    }
+
+    @Test
+    void cursorReachableHitRemainsTheAimTarget() {
+        CameraPickingService.RayPlan interaction = new CameraPickingService.RayPlan(
+                new CameraVector(0.0D, 0.0D, 0.0D),
+                new CameraVector(0.0D, 0.0D, 1.0D), 5.0D);
+        CameraVector hit = new CameraVector(1.0D, 2.0D, 3.0D);
+
+        CameraVector target = CameraPickingService.cursorAimTarget(
+                interaction, hit, 400.0D);
+
+        assertEquals(hit.x, target.x, 1.0E-9D);
+        assertEquals(hit.y, target.y, 1.0E-9D);
+        assertEquals(hit.z, target.z, 1.0E-9D);
+    }
 }

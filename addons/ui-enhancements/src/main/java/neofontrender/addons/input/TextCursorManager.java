@@ -1,57 +1,28 @@
 package neofontrender.addons.input;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.ScaledResolution;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.input.Mouse;
+import neofontrender.addons.cursor.CursorManager;
+import net.minecraft.client.gui.GuiScreen;
 
 public final class TextCursorManager {
-    private static long textCursor;
-    private static long appliedCursor = Long.MIN_VALUE;
-    private static boolean textCursorRequested;
-
     private TextCursorManager() {}
 
-    public static void beginFrame() {
-        textCursorRequested = false;
-    }
+    public static void beginFrame() { CursorManager.beginFrame(currentScreen()); }
 
-    public static void endFrame() {
-        if (!TextInputConfig.iBeamCursor || !textCursorRequested) {
-            setCursor(0L);
-            return;
-        }
-        if (textCursor == 0L) textCursor = GLFW.glfwCreateStandardCursor(GLFW.GLFW_IBEAM_CURSOR);
-        if (textCursor != 0L) setCursor(textCursor);
-    }
+    public static void endFrame() { CursorManager.endFrame(); }
 
     public static void textFieldDrawn(int x, int y, int width, int height, boolean visible, boolean enabled) {
-        if (!TextInputConfig.iBeamCursor || !visible || !enabled) return;
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc.displayWidth <= 0 || mc.displayHeight <= 0) return;
-        ScaledResolution resolution = new ScaledResolution(mc);
-        int mouseX = Mouse.getX() * resolution.getScaledWidth() / mc.displayWidth;
-        int mouseY = resolution.getScaledHeight() - Mouse.getY() * resolution.getScaledHeight() / mc.displayHeight - 1;
-        if (mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height) {
-            textCursorRequested = true;
-        }
+        CursorManager.textFieldDrawn(x, y, width, height, visible, enabled);
     }
 
     public static void restoreDefault() {
-        setCursor(0L);
+        CursorManager.restoreDefault();
     }
 
     public static void modularTextFieldDrawn(boolean hovering) {
-        if (!TextInputConfig.iBeamCursor || !hovering) return;
-        textCursorRequested = true;
+        CursorManager.modularTextFieldDrawn(hovering);
     }
 
-    private static void setCursor(long cursor) {
-        if (!TextInputConfig.iBeamCursor && cursor != 0L) return;
-        long window = GLFW.glfwGetCurrentContext();
-        if (window == 0L) return;
-        if (appliedCursor == cursor) return;
-        GLFW.glfwSetCursor(window, cursor);
-        appliedCursor = cursor;
+    private static GuiScreen currentScreen() {
+        return net.minecraft.client.Minecraft.getMinecraft().currentScreen;
     }
 }

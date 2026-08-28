@@ -52,6 +52,7 @@
     "MixinGuiChatAnimation",
     "MixinGuiChatCommandCompletion",
     "MixinGuiButtonCreateWorldStyle",
+    "MixinGuiButtonCursor",
     "MixinGuiButtonExtHover",
     "MixinGuiButtonHover",
     "MixinCustomGuiButtonNavigationCapture",

@@ -96,6 +96,7 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinChatLineMetadata\""));
         assertTrue(config.contains("\"MixinGuiNewChatFeatures\""));
         assertTrue(config.contains("\"MixinGuiButtonHover\""));
+        assertTrue(config.contains("\"MixinGuiButtonCursor\""));
         assertTrue(config.contains("\"MixinGuiButtonExtHover\""));
         assertTrue(config.contains("\"MixinForgeGuiUtilsButtonAlpha\""));
         assertTrue(config.contains("\"MixinForgeGuiConfirmationModern\""));

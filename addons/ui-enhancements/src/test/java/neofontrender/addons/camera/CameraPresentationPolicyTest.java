@@ -30,6 +30,14 @@ class CameraPresentationPolicyTest {
     }
 
     @Test
+    void everyDetachedLookModeUsesItsAuthoritativeQuaternion() {
+        assertTrue(CameraPresentationPolicy.usesQuaternionView(false, true, false));
+        assertTrue(CameraPresentationPolicy.usesQuaternionView(false, false, true));
+        assertFalse(CameraPresentationPolicy.usesQuaternionView(true, true, false));
+        assertFalse(CameraPresentationPolicy.usesQuaternionView(false, false, false));
+    }
+
+    @Test
     void f5CycleAdvancesEveryVanillaAndBuiltInModeInOrder() {
         List<String> modes = Arrays.asList("first", "third", "shoulder", "free", "drone", "front");
         String active = "first";

@@ -7,6 +7,7 @@ import org.lwjgl.input.Keyboard;
 public final class CameraKeyBindings {
     public static final KeyBinding TOGGLE_DRONE = binding("camera_drone", Keyboard.KEY_NONE);
     public static final KeyBinding TOGGLE_FREE_LOOK = binding("camera_free_look", Keyboard.KEY_NONE);
+    public static final KeyBinding TOGGLE_CURSOR_LOOK = binding("camera_cursor_look", Keyboard.KEY_NONE);
     public static final KeyBinding TOGGLE_SHOULDER = binding("camera_shoulder", Keyboard.KEY_NONE);
     public static final KeyBinding SWAP_SHOULDER = binding("camera_swap_shoulder", Keyboard.KEY_O);
     public static final KeyBinding EXIT_CAMERA = binding("camera_exit", Keyboard.KEY_NONE);

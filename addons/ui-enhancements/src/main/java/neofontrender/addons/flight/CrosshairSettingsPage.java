@@ -87,6 +87,24 @@ final class CrosshairSettingsPage implements NfrSettingsPage {
             grid.add(slider(c, "rainbow_speed", () -> CrosshairConfig.rainbowSpeed, v -> CrosshairConfig.rainbowSpeed = v, 0, 1000));
             grid.add(toggle(c, "tool_damage", "indicators", () -> CrosshairConfig.toolDamageEnabled, v -> CrosshairConfig.toolDamageEnabled = v));
             grid.add(toggle(c, "projectiles", "indicators", () -> CrosshairConfig.projectileIndicatorEnabled, v -> CrosshairConfig.projectileIndicatorEnabled = v));
+            grid.add(toggle(c, "block_interaction_first_person", "block_interaction",
+                    () -> CrosshairConfig.blockInteractionFirstPerson,
+                    v -> CrosshairConfig.blockInteractionFirstPerson = v));
+            grid.add(toggle(c, "block_interaction_third_person", "block_interaction",
+                    () -> CrosshairConfig.blockInteractionThirdPerson,
+                    v -> CrosshairConfig.blockInteractionThirdPerson = v));
+            grid.add(toggle(c, "block_interaction_shoulder", "block_interaction",
+                    () -> CrosshairConfig.blockInteractionShoulder,
+                    v -> CrosshairConfig.blockInteractionShoulder = v));
+            grid.add(toggle(c, "block_interaction_free_look", "block_interaction",
+                    () -> CrosshairConfig.blockInteractionFreeLook,
+                    v -> CrosshairConfig.blockInteractionFreeLook = v));
+            grid.add(toggle(c, "block_interaction_cursor_look", "block_interaction",
+                    () -> CrosshairConfig.blockInteractionCursorLook,
+                    v -> CrosshairConfig.blockInteractionCursorLook = v));
+            grid.add(toggle(c, "block_interaction_drone", "block_interaction",
+                    () -> CrosshairConfig.blockInteractionDrone,
+                    v -> CrosshairConfig.blockInteractionDrone = v));
             grid.add(slider(c, "drawn_size", () -> CrosshairConfig.drawnSize, v -> CrosshairConfig.drawnSize = v, 7, 57));
             grid.add(c.action(() -> tr("gui.crosshair.edit_drawn"), 260, 24, () -> {
                 editingDrawnCrosshair = true;

@@ -65,6 +65,9 @@ dependencies {
 
     // Embedded TabbyChat spell-check engine. FML extracts this nested jar at launch.
     contain 'net.sf.jazzy:jazzy:0.5.2-rtext-1.4.1-2'
+    // Isolated rasterizer for local/resource-pack cursor SVGs. It only feeds BufferedImage;
+    // CursorManager and the public cursor rule API remain independent from this library.
+    contain('com.github.weisj:jsvg:1.7.2') { transitive = false }
     // Chinese segmentation and dictionary used by TabbyChat spell checking.
     // Cleanroom already supplies a compatible commons-lang3, so avoid embedding 3.3.1.
     contain('com.huaban:jieba-analysis:1.0.2') { transitive = false }

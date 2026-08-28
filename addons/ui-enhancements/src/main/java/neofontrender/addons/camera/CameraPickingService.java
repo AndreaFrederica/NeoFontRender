@@ -17,6 +17,7 @@ import neofontrender.addons.api.camera.CameraApi;
 import neofontrender.addons.api.camera.CameraHit;
 import neofontrender.addons.api.camera.CameraPickingPurpose;
 import neofontrender.addons.api.camera.CameraPickingRequest;
+import neofontrender.addons.api.camera.CameraRay;
 
 import java.util.List;
 import org.apache.logging.log4j.LogManager;
@@ -54,6 +55,16 @@ public final class CameraPickingService {
         boolean playerRoute = CameraRuntime.isShoulderActive()
                 && policy.interactionUsesPlayerRay();
         boolean cameraRoute = !playerRoute;
+        if (CameraRuntime.isFreeLookCursorMode()) {
+            CursorPick cursor = cursorPick(player, frame, reach,
+                    false, false, true, true);
+            minecraft.objectMouseOver = cursor.hit;
+            minecraft.pointedEntity = cursor.hit != null
+                    && cursor.hit.typeOfHit == RayTraceResult.Type.ENTITY
+                    ? cursor.hit.entityHit : null;
+            CameraRuntime.synchronizeCursorPlayerAim(cursor.aimDirection);
+            return;
+        }
         RayPlan plan = CameraRuntime.isShoulderActive() && cameraRoute
                 ? shoulderRay(frame, reach, ShoulderCameraConfig.limitPlayerReach)
                 : new RayPlan(cameraRoute ? frame.position() : frame.bodyPosition(),
@@ -77,6 +88,11 @@ public final class CameraPickingService {
         if (!CameraApi.isRenderOverrideActive() || entity == null || entity != Minecraft.getMinecraft().player)
             return null;
         CameraFrame frame = CameraApi.getFrame(partialTicks);
+        if (CameraRuntime.isFreeLookCursorMode()) {
+            RayPlan plan = cursorRay(frame, reach);
+            return trace(entity, vec(plan.origin), vec(plan.direction), plan.distance,
+                    useLiquids, false, true);
+        }
         return trace(entity, vec(frame.position()), vec(frame.viewBasis().forward()), reach,
                 useLiquids, false, true);
     }
@@ -100,7 +116,9 @@ public final class CameraPickingService {
                                                         boolean returnLastMiss) {
         if (!overridesInteractionBlockRay(entity) || entity.world == null) return null;
         CameraFrame frame = CameraApi.getFrame(partialTicks);
-        RayPlan plan = CameraRuntime.isShoulderActive()
+        RayPlan plan = CameraRuntime.isFreeLookCursorMode()
+                ? cursorRay(frame, reach)
+                : CameraRuntime.isShoulderActive()
                 ? shoulderRay(frame, reach, ShoulderCameraConfig.limitPlayerReach)
                 : new RayPlan(frame.position(), frame.viewBasis().forward(), reach);
         Vec3d from = vec(plan.origin);
@@ -122,6 +140,11 @@ public final class CameraPickingService {
         if (!CameraApi.isRenderOverrideActive() || entity == null
                 || entity != Minecraft.getMinecraft().player) return null;
         CameraFrame frame = CameraApi.getFrame(partialTicks);
+        if (CameraRuntime.isFreeLookCursorMode()) {
+            RayPlan plan = cursorRay(frame, reach);
+            return trace(entity, vec(plan.origin), vec(plan.direction), plan.distance,
+                    useLiquids, false, true);
+        }
         return trace(entity, vec(frame.bodyPosition()), vec(frame.bodyBasis().forward()), reach,
                 useLiquids, false, true);
     }
@@ -135,7 +158,7 @@ public final class CameraPickingService {
         Vec3d to = from.add(look.scale(Math.max(0.0D, reach)));
         RayTraceResult block = entity.world.rayTraceBlocks(from, to, useLiquids, false, true);
         if (!includeEntities) return block;
-        double maximum = block == null || block.hitVec == null ? reach : from.distanceTo(block.hitVec);
+        double maximum = blockingDistance(block, from, reach);
         RayTraceResult hit = traceEntity(entity, from, look, maximum);
         return hit == null ? block : hit;
     }
@@ -147,7 +170,7 @@ public final class CameraPickingService {
         Vec3d to = from.add(direction.scale(reach));
         RayTraceResult block = entity.world.rayTraceBlocks(from, to, stopOnLiquid,
                 ignoreBlocksWithoutBounds, returnLastMiss);
-        double maximum = block == null || block.hitVec == null ? reach : from.distanceTo(block.hitVec);
+        double maximum = blockingDistance(block, from, reach);
         RayTraceResult hit = traceEntity(entity, from, direction, maximum);
         return hit == null ? block : hit;
     }
@@ -167,6 +190,81 @@ public final class CameraPickingService {
         CameraVector end = frame.position().add(forward.scale(distanceFromCamera));
         CameraVector segment = end.subtract(origin);
         return new RayPlan(origin, segment.normalize(), segment.length());
+    }
+
+    private static RayPlan cursorRay(CameraFrame frame, double reach) {
+        CameraRay ray = CameraRuntime.freeLookCursorRay(frame.partialTicks());
+        if (ray == null) return new RayPlan(frame.position(), frame.viewBasis().forward(), reach);
+        return new RayPlan(ray.origin(), ray.direction(), reach);
+    }
+
+    /** Resolves the authoritative cursor target and derives only the player's facing from it. */
+    private static CursorPick cursorPick(Entity entity, CameraFrame frame, double reach,
+                                         boolean stopOnLiquid,
+                                         boolean ignoreBlocksWithoutBounds,
+                                         boolean returnLastMiss,
+                                         boolean includeEntities) {
+        RayPlan camera = cursorRay(frame, reach);
+        Vec3d from = vec(camera.origin);
+        CameraHit provided = includeEntities ? CameraApi.pick(new CameraPickingRequest(
+                camera.origin, camera.direction, camera.distance,
+                CameraPickingPurpose.PLAYER_INTERACTION, stopOnLiquid, true)) : null;
+        RayTraceResult targetHit = provided != null && provided.nativeResult() != null
+                ? provided.nativeResult()
+                : includeEntities
+                ? trace(entity, from, vec(camera.direction), camera.distance, stopOnLiquid,
+                        ignoreBlocksWithoutBounds, returnLastMiss)
+                : entity.world.rayTraceBlocks(from,
+                        from.add(vec(camera.direction).scale(camera.distance)), stopOnLiquid,
+                        ignoreBlocksWithoutBounds, returnLastMiss);
+        CameraVector reachableTarget = targetHit != null
+                && targetHit.typeOfHit != RayTraceResult.Type.MISS
+                && targetHit.hitVec != null
+                ? new CameraVector(targetHit.hitVec.x, targetHit.hitVec.y, targetHit.hitVec.z)
+                : null;
+        CameraVector target = cursorAimTarget(camera, reachableTarget,
+                CursorLookConfig.aimDistance);
+        return new CursorPick(camera, targetHit, cursorAimDirection(frame, camera, target));
+    }
+
+    static CameraVector cursorAimTarget(RayPlan camera, CameraVector reachableTarget,
+                                        double missAimDistance) {
+        if (reachableTarget != null) return reachableTarget;
+        if (camera == null) return null;
+        double configured = Double.isFinite(missAimDistance) ? missAimDistance : camera.distance;
+        double distance = Math.max(camera.distance, Math.max(0.0D, configured));
+        return camera.origin.add(camera.direction.scale(distance));
+    }
+
+    static CameraVector cursorAimDirection(CameraFrame frame, RayPlan camera,
+                                           CameraVector target) {
+        CameraVector origin = frame.bodyPosition();
+        CameraVector fallback = camera == null ? frame.viewBasis().forward() : camera.direction;
+        CameraVector segment = target == null ? fallback
+                : target.subtract(origin);
+        double length = segment.length();
+        return length < 1.0E-9D ? fallback.normalize() : segment.scale(1.0D / length);
+    }
+
+    static CameraVector cursorPlayerAimDirection(Entity entity, CameraFrame frame) {
+        if (entity == null || entity.world == null || frame == null) return null;
+        double distance = playerInteractionReach();
+        return cursorPick(entity, frame, distance,
+                false, false, true, true).aimDirection;
+    }
+
+    static double playerInteractionReach() {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft.playerController == null) return 5.0D;
+        double reach = minecraft.playerController.getBlockReachDistance();
+        if (minecraft.playerController.extendedReach()) reach = Math.max(reach,
+                minecraft.playerController.isInCreativeMode() ? 6.0D : 3.0D);
+        return reach;
+    }
+
+    private static double blockingDistance(RayTraceResult hit, Vec3d origin, double fallback) {
+        return hit == null || hit.typeOfHit == RayTraceResult.Type.MISS || hit.hitVec == null
+                ? fallback : origin.distanceTo(hit.hitVec);
     }
 
     /** Mirrors Shoulder Surfing's configurable adaptive-item/property predicate. */
@@ -248,6 +346,18 @@ public final class CameraPickingService {
             this.origin = origin;
             this.direction = direction;
             this.distance = distance;
+        }
+    }
+
+    private static final class CursorPick {
+        final RayPlan cameraRay;
+        final RayTraceResult hit;
+        final CameraVector aimDirection;
+
+        CursorPick(RayPlan cameraRay, RayTraceResult hit, CameraVector aimDirection) {
+            this.cameraRay = cameraRay;
+            this.hit = hit;
+            this.aimDirection = aimDirection;
         }
     }
 }

@@ -29,6 +29,7 @@ final class CameraSettingsPage implements NfrSettingsPage {
         private final boolean f5 = CameraPerspectiveConfig.f5CycleEnabled;
         private final boolean f5Shoulder = CameraPerspectiveConfig.shoulderInF5;
         private final boolean f5Free = CameraPerspectiveConfig.freeLookInF5;
+        private final boolean f5Cursor = CameraPerspectiveConfig.cursorLookInF5;
         private final boolean f5Drone = CameraPerspectiveConfig.droneInF5;
         private final boolean replaceThird = CameraPerspectiveConfig.replaceDefaultPerspective;
         private final boolean skipFront = CameraPerspectiveConfig.skipThirdPersonFront;
@@ -41,6 +42,9 @@ final class CameraSettingsPage implements NfrSettingsPage {
         private final double freeLookRollSpeed = FreeLookConfig.rollSpeedDegrees;
         private final double freeLookDistance = FreeLookConfig.distance;
         private final boolean freeLookCollision = FreeLookConfig.collision;
+        private final double cursorLookSpeed = CursorLookConfig.speed;
+        private final double cursorLookAimDistance = CursorLookConfig.aimDistance;
+        private final boolean cursorLookShoulderOffset = CursorLookConfig.useShoulderOffset;
         private final boolean droneCollision = DroneCameraConfig.collision;
         private final boolean droneInteraction = DroneCameraConfig.allowCameraInteraction;
         private final double droneSpeed = DroneCameraConfig.speed;
@@ -93,6 +97,8 @@ final class CameraSettingsPage implements NfrSettingsPage {
                             value -> CameraPerspectiveConfig.shoulderInF5 = value))
                     .add(toggle(c, "f5_freelook", () -> CameraPerspectiveConfig.freeLookInF5,
                             value -> CameraPerspectiveConfig.freeLookInF5 = value))
+                    .add(toggle(c, "f5_cursorlook", () -> CameraPerspectiveConfig.cursorLookInF5,
+                            value -> CameraPerspectiveConfig.cursorLookInF5 = value))
                     .add(toggle(c, "f5_drone", () -> CameraPerspectiveConfig.droneInF5,
                             value -> CameraPerspectiveConfig.droneInF5 = value))
                     .add(toggle(c, "f5_replace_third", () -> CameraPerspectiveConfig.replaceDefaultPerspective,
@@ -104,7 +110,7 @@ final class CameraSettingsPage implements NfrSettingsPage {
                     .add(c.dropdownText("f5_default", () -> tr("gui.camera.f5_default"),
                             () -> CameraPerspectiveConfig.defaultMode,
                             value -> CameraPerspectiveConfig.defaultMode = CameraPerspectiveConfig.normalizeMode(value),
-                            Arrays.asList("vanilla_first", "vanilla_third", "shoulder", "free_look", "drone", "vanilla_front"),
+                            Arrays.asList("vanilla_first", "vanilla_third", "shoulder", "free_look", "cursor_look", "drone", "vanilla_front"),
                             value -> tr("gui.camera.mode." + value)).size(260, 24))
                     .add(toggle(c, "freelook_toggle", () -> FreeLookConfig.toggleMode,
                             value -> FreeLookConfig.toggleMode = value))
@@ -120,6 +126,13 @@ final class CameraSettingsPage implements NfrSettingsPage {
                             value -> FreeLookConfig.distance = value, 0, 16, 0.1))
                     .add(toggle(c, "freelook_collision", () -> FreeLookConfig.collision,
                             value -> FreeLookConfig.collision = value))
+                    .add(slider(c, "cursorlook_speed", () -> CursorLookConfig.speed,
+                            value -> CursorLookConfig.speed = value, 0.1, 4, 0.1))
+                    .add(slider(c, "cursorlook_aim_distance", () -> CursorLookConfig.aimDistance,
+                            value -> CursorLookConfig.aimDistance = value, 16, 4096, 16))
+                    .add(toggle(c, "cursorlook_shoulder_offset",
+                            () -> CursorLookConfig.useShoulderOffset,
+                            value -> CursorLookConfig.useShoulderOffset = value))
                     .add(toggle(c, "drone_collision", () -> DroneCameraConfig.collision,
                             value -> DroneCameraConfig.collision = value))
                     .add(toggle(c, "drone_interaction", () -> DroneCameraConfig.allowCameraInteraction,
@@ -230,6 +243,7 @@ final class CameraSettingsPage implements NfrSettingsPage {
         @Override public void apply() {
             CameraPerspectiveConfig.save();
             FreeLookConfig.save();
+            CursorLookConfig.save();
             DroneCameraConfig.save();
             ShoulderCameraConfig.save();
         }
@@ -238,6 +252,7 @@ final class CameraSettingsPage implements NfrSettingsPage {
             CameraPerspectiveConfig.f5CycleEnabled = f5;
             CameraPerspectiveConfig.shoulderInF5 = f5Shoulder;
             CameraPerspectiveConfig.freeLookInF5 = f5Free;
+            CameraPerspectiveConfig.cursorLookInF5 = f5Cursor;
             CameraPerspectiveConfig.droneInF5 = f5Drone;
             CameraPerspectiveConfig.replaceDefaultPerspective = replaceThird;
             CameraPerspectiveConfig.skipThirdPersonFront = skipFront;
@@ -250,6 +265,9 @@ final class CameraSettingsPage implements NfrSettingsPage {
             FreeLookConfig.rollSpeedDegrees = freeLookRollSpeed;
             FreeLookConfig.distance = freeLookDistance;
             FreeLookConfig.collision = freeLookCollision;
+            CursorLookConfig.speed = cursorLookSpeed;
+            CursorLookConfig.aimDistance = cursorLookAimDistance;
+            CursorLookConfig.useShoulderOffset = cursorLookShoulderOffset;
             DroneCameraConfig.collision = droneCollision;
             DroneCameraConfig.allowCameraInteraction = droneInteraction;
             DroneCameraConfig.speed = droneSpeed;

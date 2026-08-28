@@ -19,8 +19,13 @@ public final class FreeLookInputGuard implements AutoCloseable {
     private FreeLookInputGuard(InputRegistration registration) { this.registration = registration; }
 
     public static FreeLookInputGuard enter(boolean controlPlayer) {
+        return enter(controlPlayer, new ResourceLocation(
+                "neofontrender_ui_enhancements", "free_look"));
+    }
+
+    public static FreeLookInputGuard enter(boolean controlPlayer, ResourceLocation contextId) {
         InputContext.Builder builder = InputContext.builder(
-                new ResourceLocation("neofontrender_ui_enhancements", "free_look"), 5000)
+                contextId, 5000)
                 .claim(InputAction.CAMERA_ROLL);
         if (!controlPlayer) {
             builder.claim(InputAction.CAMERA_LOOK_X, InputAction.CAMERA_LOOK_Y);

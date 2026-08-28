@@ -17,5 +17,10 @@ public final class InputCommandEdges {
         return down && !previous;
     }
 
+    /** Suppresses a delayed routed edge after the same vanilla KeyBinding press was consumed. */
+    public void consumePhysicalPress(InputAction action) {
+        previousDown.put(action, true);
+    }
+
     public void clear() { previousDown.clear(); }
 }

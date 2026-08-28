@@ -6,8 +6,8 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
+import neofontrender.addons.outlines.BlockOutlineRenderer;
 import neofontrender.addons.outlines.BlockOutlineResolver;
-import org.lwjgl.opengl.GL11;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -31,12 +31,6 @@ public abstract class MixinRenderGlobalBlockOutlines {
             RenderGlobal.drawSelectionBoundingBox(box, red, green, blue, alpha);
             return;
         }
-        float previousWidth = GL11.glGetFloat(GL11.GL_LINE_WIDTH);
-        GL11.glLineWidth(outline.lineWidth);
-        try {
-            RenderGlobal.drawSelectionBoundingBox(box, outline.red, outline.green, outline.blue, outline.alpha);
-        } finally {
-            GL11.glLineWidth(previousWidth);
-        }
+        BlockOutlineRenderer.draw(box, outline);
     }
 }

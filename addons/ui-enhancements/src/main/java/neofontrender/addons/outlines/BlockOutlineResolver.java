@@ -54,7 +54,7 @@ public final class BlockOutlineResolver {
                 if (block == null || block == Blocks.AIR) throw new IllegalArgumentException("unknown block " + id);
                 int metadata = matcher.group(2) == null ? -1 : Integer.parseInt(matcher.group(2));
                 if (metadata > 15) throw new IllegalArgumentException("metadata must be 0-15");
-                float width = Math.max(0.0F, Math.min(1000.0F, Float.parseFloat(matcher.group(3))));
+                float width = Math.max(0.5F, Math.min(64.0F, Float.parseFloat(matcher.group(3))));
                 int color = (int) Long.parseLong(matcher.group(4).substring(1), 16);
                 result.add(new BlockOutlineStyle(block, metadata, width, color));
             } catch (RuntimeException exception) {
@@ -71,9 +71,11 @@ public final class BlockOutlineResolver {
         public final float green;
         public final float blue;
         public final float alpha;
+        public final int argb;
 
         private ResolvedOutline(float lineWidth, int argb) {
             this.lineWidth = lineWidth;
+            this.argb = argb;
             this.alpha = (argb >>> 24 & 0xFF) / 255.0F;
             this.red = (argb >>> 16 & 0xFF) / 255.0F;
             this.green = (argb >>> 8 & 0xFF) / 255.0F;
