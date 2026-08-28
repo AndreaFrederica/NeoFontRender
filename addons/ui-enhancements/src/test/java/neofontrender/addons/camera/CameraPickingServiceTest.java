@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CameraPickingServiceTest {
@@ -76,18 +78,18 @@ class CameraPickingServiceTest {
     }
 
     @Test
-    void cursorReachableHitRemainsTheAimTarget() {
+    void cursorLongVisualHitRemainsTheAimTargetAcrossInteractionBoundaries() {
         CameraPickingService.RayPlan interaction = new CameraPickingService.RayPlan(
                 new CameraVector(0.0D, 0.0D, 0.0D),
                 new CameraVector(0.0D, 0.0D, 1.0D), 5.0D);
-        CameraVector hit = new CameraVector(1.0D, 2.0D, 3.0D);
+        CameraVector visualHit = new CameraVector(1.0D, 2.0D, 30.0D);
 
         CameraVector target = CameraPickingService.cursorAimTarget(
-                interaction, hit, 400.0D);
+                interaction, visualHit, 400.0D);
 
-        assertEquals(hit.x, target.x, 1.0E-9D);
-        assertEquals(hit.y, target.y, 1.0E-9D);
-        assertEquals(hit.z, target.z, 1.0E-9D);
+        assertEquals(visualHit.x, target.x, 1.0E-9D);
+        assertEquals(visualHit.y, target.y, 1.0E-9D);
+        assertEquals(visualHit.z, target.z, 1.0E-9D);
     }
 
     @Test
@@ -117,5 +119,75 @@ class CameraPickingServiceTest {
         assertEquals(0.0D, ray.direction.y, 1.0E-9D);
         assertEquals(1.0D, ray.direction.z, 1.0E-9D);
         assertEquals(5.0D, ray.distance, 1.0E-9D);
+    }
+
+    @Test
+    void detachedCameraDistanceDoesNotConsumePlayerReach() {
+        CameraPickingService.RayPlan visual = new CameraPickingService.RayPlan(
+                new CameraVector(0.0D, 65.0D, -3.0D),
+                new CameraVector(0.0D, 0.0D, 1.0D), 5.0D);
+
+        CameraPickingService.RayPlan interaction = CameraPickingService.constrainToPlayerReach(
+                visual, new CameraVector(0.0D, 65.0D, 0.0D), 5.0D);
+
+        assertNotNull(interaction);
+        assertEquals(0.0D, interaction.origin.z, 1.0E-9D);
+        assertEquals(5.0D, interaction.distance, 1.0E-9D);
+        assertEquals(5.0D, interaction.origin.add(
+                interaction.direction.scale(interaction.distance)).z, 1.0E-9D);
+    }
+
+    @Test
+    void lateralCursorRayEndsOnThePlayerReachSphere() {
+        CameraVector eyes = new CameraVector(0.0D, 65.0D, 0.0D);
+        CameraPickingService.RayPlan visual = new CameraPickingService.RayPlan(
+                new CameraVector(-1.25D, 65.0D, -3.0D),
+                new CameraVector(0.0D, 0.0D, 1.0D), 5.0D);
+
+        CameraPickingService.RayPlan interaction = CameraPickingService.constrainToPlayerReach(
+                visual, eyes, 5.0D);
+
+        assertNotNull(interaction);
+        assertEquals(-1.25D, interaction.origin.x, 1.0E-9D);
+        assertEquals(0.0D, interaction.origin.z, 1.0E-9D);
+        CameraVector end = interaction.origin.add(
+                interaction.direction.scale(interaction.distance));
+        assertEquals(5.0D, end.subtract(eyes).length(), 1.0E-9D);
+        assertEquals(Math.sqrt(25.0D - 1.25D * 1.25D),
+                interaction.distance, 1.0E-9D);
+    }
+
+    @Test
+    void cameraInsideReachSphereTracesOnlyItsForwardRemainder() {
+        CameraPickingService.RayPlan visual = new CameraPickingService.RayPlan(
+                new CameraVector(0.0D, 65.0D, 2.0D),
+                new CameraVector(0.0D, 0.0D, 1.0D), 5.0D);
+
+        CameraPickingService.RayPlan interaction = CameraPickingService.constrainToPlayerReach(
+                visual, new CameraVector(0.0D, 65.0D, 0.0D), 5.0D);
+
+        assertNotNull(interaction);
+        assertEquals(2.0D, interaction.origin.z, 1.0E-9D);
+        assertEquals(3.0D, interaction.distance, 1.0E-9D);
+    }
+
+    @Test
+    void cursorRayMissingTheReachSphereCannotInteract() {
+        CameraPickingService.RayPlan visual = new CameraPickingService.RayPlan(
+                new CameraVector(6.0D, 65.0D, -3.0D),
+                new CameraVector(0.0D, 0.0D, 1.0D), 5.0D);
+
+        assertNull(CameraPickingService.constrainToPlayerReach(
+                visual, new CameraVector(0.0D, 65.0D, 0.0D), 5.0D));
+    }
+
+    @Test
+    void cameraOutsideReachAndPointingAwayCannotInteract() {
+        CameraPickingService.RayPlan visual = new CameraPickingService.RayPlan(
+                new CameraVector(0.0D, 65.0D, 6.0D),
+                new CameraVector(0.0D, 0.0D, 1.0D), 5.0D);
+
+        assertNull(CameraPickingService.constrainToPlayerReach(
+                visual, new CameraVector(0.0D, 65.0D, 0.0D), 5.0D));
     }
 }

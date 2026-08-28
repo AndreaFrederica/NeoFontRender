@@ -72,6 +72,11 @@ public final class CameraPickingService {
                 ? shoulderRay(frame, reach, ShoulderCameraConfig.limitPlayerReach)
                 : new RayPlan(cameraRoute ? frame.position() : frame.bodyPosition(),
                         cameraRoute ? frame.viewBasis().forward() : frame.bodyBasis().forward(), reach);
+        if (plan == null) {
+            minecraft.objectMouseOver = null;
+            minecraft.pointedEntity = null;
+            return;
+        }
         CameraVector originValue = plan.origin;
         CameraVector directionValue = plan.direction;
         Vec3d from = vec(originValue);
@@ -92,7 +97,8 @@ public final class CameraPickingService {
             return null;
         CameraFrame frame = CameraApi.getFrame(partialTicks);
         if (CameraRuntime.isFreeLookCursorMode()) {
-            RayPlan plan = cursorRay(frame, reach);
+            RayPlan plan = cursorInteractionRay(frame, reach);
+            if (plan == null) return null;
             return trace(entity, vec(plan.origin), vec(plan.direction), plan.distance,
                     useLiquids, false, true);
         }
@@ -121,12 +127,13 @@ public final class CameraPickingService {
         if (!overridesInteractionBlockRay(entity) || entity.world == null) return null;
         CameraFrame frame = CameraApi.getFrame(partialTicks);
         RayPlan plan = CameraRuntime.isFreeLookCursorMode()
-                ? cursorRay(frame, reach)
+                ? cursorInteractionRay(frame, reach)
                 : CameraRuntime.isFreeLookActive()
                 ? shoulderRay(frame, reach, true)
                 : CameraRuntime.isShoulderActive()
                 ? shoulderRay(frame, reach, ShoulderCameraConfig.limitPlayerReach)
                 : new RayPlan(frame.position(), frame.viewBasis().forward(), reach);
+        if (plan == null) return null;
         Vec3d from = vec(plan.origin);
         Vec3d to = from.add(vec(plan.direction).scale(plan.distance));
         return entity.world.rayTraceBlocks(from, to, stopOnLiquid,
@@ -147,7 +154,8 @@ public final class CameraPickingService {
                 || entity != Minecraft.getMinecraft().player) return null;
         CameraFrame frame = CameraApi.getFrame(partialTicks);
         if (CameraRuntime.isFreeLookCursorMode()) {
-            RayPlan plan = cursorRay(frame, reach);
+            RayPlan plan = cursorInteractionRay(frame, reach);
+            if (plan == null) return null;
             return trace(entity, vec(plan.origin), vec(plan.direction), plan.distance,
                     useLiquids, false, true);
         }
@@ -181,21 +189,40 @@ public final class CameraPickingService {
         return hit == null ? block : hit;
     }
 
-    /** Quaternion form of ShoulderHelper.shoulderSurfingLook from Shoulder Surfing 2.9.6. */
+    /** Camera-aligned ray beginning at the point nearest the player's eyes. */
     static RayPlan shoulderRay(CameraFrame frame, double reach, boolean limitPlayerReach) {
         CameraVector forward = frame.viewBasis().forward().normalize();
-        CameraVector offset = frame.position().subtract(frame.bodyPosition());
-        double parallel = offset.dot(forward);
-        CameraVector headOffset = offset.subtract(forward.scale(parallel));
-        double distanceSquared = Math.max(0.0D, reach) * Math.max(0.0D, reach);
-        double lateralSquared = headOffset.dot(headOffset);
-        if (limitPlayerReach && lateralSquared < distanceSquared) distanceSquared -= lateralSquared;
-        double distanceFromCamera = Math.sqrt(Math.max(0.0D, distanceSquared))
-                + Math.abs(parallel);
-        CameraVector origin = frame.bodyPosition().add(headOffset);
-        CameraVector end = frame.position().add(forward.scale(distanceFromCamera));
-        CameraVector segment = end.subtract(origin);
-        return new RayPlan(origin, segment.normalize(), segment.length());
+        RayPlan visual = new RayPlan(frame.position(), forward, reach);
+        if (limitPlayerReach) {
+            return constrainToPlayerReach(visual, frame.bodyPosition(), reach);
+        }
+        double closest = Math.max(0.0D,
+                frame.bodyPosition().subtract(frame.position()).dot(forward));
+        return new RayPlan(frame.position().add(forward.scale(closest)), forward,
+                Math.max(0.0D, reach));
+    }
+
+    /**
+     * Keeps the screen-space ray intact while restricting interaction to the forward half of
+     * the player's reach sphere. Space between a detached camera and the player is never allowed
+     * to consume reach or become an interaction target.
+     */
+    static RayPlan constrainToPlayerReach(RayPlan visual, CameraVector reachCenter,
+                                          double reach) {
+        if (visual == null || reachCenter == null || !Double.isFinite(reach)
+                || reach <= 0.0D) return null;
+        CameraVector direction = visual.direction.normalize();
+        if (direction.lengthSquared() < 1.0E-12D) return null;
+        CameraVector toCenter = reachCenter.subtract(visual.origin);
+        double closest = toCenter.dot(direction);
+        CameraVector closestPoint = visual.origin.add(direction.scale(closest));
+        CameraVector lateral = closestPoint.subtract(reachCenter);
+        double remainingSquared = reach * reach - lateral.dot(lateral);
+        if (remainingSquared <= 1.0E-12D) return null;
+        double end = closest + Math.sqrt(remainingSquared);
+        double start = Math.max(0.0D, closest);
+        if (end <= start + 1.0E-9D) return null;
+        return new RayPlan(visual.origin.add(direction.scale(start)), direction, end - start);
     }
 
     static boolean usesPlayerInteractionRay(boolean shoulderActive,
@@ -212,6 +239,10 @@ public final class CameraPickingService {
         return new RayPlan(ray.origin(), ray.direction(), reach);
     }
 
+    private static RayPlan cursorInteractionRay(CameraFrame frame, double reach) {
+        return constrainToPlayerReach(cursorRay(frame, reach), frame.bodyPosition(), reach);
+    }
+
     /** Resolves the authoritative cursor target and derives only the player's facing from it. */
     private static CursorPick cursorPick(Entity entity, CameraFrame frame, double reach,
                                          boolean stopOnLiquid,
@@ -219,35 +250,59 @@ public final class CameraPickingService {
                                          boolean returnLastMiss,
                                          boolean includeEntities) {
         RayPlan camera = cursorRay(frame, reach);
-        Vec3d from = vec(camera.origin);
-        CameraHit provided = includeEntities ? CameraApi.pick(new CameraPickingRequest(
-                camera.origin, camera.direction, camera.distance,
+        RayPlan interaction = constrainToPlayerReach(camera, frame.bodyPosition(), reach);
+        Vec3d from = interaction == null ? null : vec(interaction.origin);
+        CameraHit provided = includeEntities && interaction != null
+                ? CameraApi.pick(new CameraPickingRequest(
+                interaction.origin, interaction.direction, interaction.distance,
                 CameraPickingPurpose.PLAYER_INTERACTION, stopOnLiquid, true)) : null;
         RayTraceResult targetHit = provided != null && provided.nativeResult() != null
                 ? provided.nativeResult()
+                : interaction == null
+                ? null
                 : includeEntities
-                ? trace(entity, from, vec(camera.direction), camera.distance, stopOnLiquid,
+                ? trace(entity, from, vec(interaction.direction), interaction.distance, stopOnLiquid,
                         ignoreBlocksWithoutBounds, returnLastMiss)
                 : entity.world.rayTraceBlocks(from,
-                        from.add(vec(camera.direction).scale(camera.distance)), stopOnLiquid,
+                        from.add(vec(interaction.direction).scale(interaction.distance)), stopOnLiquid,
                         ignoreBlocksWithoutBounds, returnLastMiss);
-        CameraVector reachableTarget = targetHit != null
-                && targetHit.typeOfHit != RayTraceResult.Type.MISS
-                && targetHit.hitVec != null
-                ? new CameraVector(targetHit.hitVec.x, targetHit.hitVec.y, targetHit.hitVec.z)
-                : null;
-        CameraVector target = cursorAimTarget(camera, reachableTarget,
-                CursorLookConfig.aimDistance);
+        CameraVector target = cursorVisualAimTarget(entity, camera, stopOnLiquid,
+                includeEntities, CursorLookConfig.aimDistance);
         return new CursorPick(camera, targetHit, cursorAimDirection(frame, camera, target));
     }
 
-    static CameraVector cursorAimTarget(RayPlan camera, CameraVector reachableTarget,
+    /** Long visual pick used only for pose; interaction reach changes cannot alter this target. */
+    private static CameraVector cursorVisualAimTarget(Entity entity, RayPlan camera,
+                                                      boolean stopOnLiquid,
+                                                      boolean includeEntities,
+                                                      double aimDistance) {
+        if (entity == null || entity.world == null || camera == null) return null;
+        double distance = cursorAimDistance(camera, aimDistance);
+        CameraHit provided = CameraApi.pick(new CameraPickingRequest(
+                camera.origin, camera.direction, distance,
+                CameraPickingPurpose.CROSSHAIR, stopOnLiquid, includeEntities));
+        RayTraceResult hit = provided != null && provided.nativeResult() != null
+                ? provided.nativeResult()
+                : trace(entity, vec(camera.origin), vec(camera.direction), distance,
+                        stopOnLiquid, false, true);
+        CameraVector visualTarget = hit != null && hit.typeOfHit != RayTraceResult.Type.MISS
+                && hit.hitVec != null
+                ? new CameraVector(hit.hitVec.x, hit.hitVec.y, hit.hitVec.z) : null;
+        return cursorAimTarget(camera, visualTarget, aimDistance);
+    }
+
+    static CameraVector cursorAimTarget(RayPlan camera, CameraVector visualTarget,
                                         double missAimDistance) {
-        if (reachableTarget != null) return reachableTarget;
+        if (visualTarget != null) return visualTarget;
         if (camera == null) return null;
-        double configured = Double.isFinite(missAimDistance) ? missAimDistance : camera.distance;
-        double distance = Math.max(camera.distance, Math.max(0.0D, configured));
+        double distance = cursorAimDistance(camera, missAimDistance);
         return camera.origin.add(camera.direction.scale(distance));
+    }
+
+    private static double cursorAimDistance(RayPlan camera, double configuredDistance) {
+        double configured = Double.isFinite(configuredDistance)
+                ? configuredDistance : camera.distance;
+        return Math.max(camera.distance, Math.max(0.0D, configured));
     }
 
     static CameraVector cursorAimDirection(CameraFrame frame, RayPlan camera,
