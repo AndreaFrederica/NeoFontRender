@@ -42,6 +42,7 @@ public final class VanillaInputBridge {
     private static final ResourceLocation TOGGLE_SHOULDER = control("toggle_shoulder");
     private static final ResourceLocation SWAP_SHOULDER = control("swap_shoulder");
     private static final ResourceLocation FREELOOK_TOGGLE_CONTROL = control("freelook_toggle_control");
+    private static final ResourceLocation TOGGLE_CURSOR_LOOK = control("toggle_cursor_look");
 
     private static volatile InputDeviceSample snapshot = InputDeviceSample.builder(ID).build();
     private static final java.util.Map<ResourceLocation, Boolean> previousButtons = new java.util.HashMap<>();
@@ -80,6 +81,7 @@ public final class VanillaInputBridge {
             sink.bind(new InputBinding(TOGGLE_SHOULDER, InputAction.CAMERA_TOGGLE_SHOULDER));
             sink.bind(new InputBinding(SWAP_SHOULDER, InputAction.CAMERA_SWAP_SHOULDER));
             sink.bind(new InputBinding(FREELOOK_TOGGLE_CONTROL, InputAction.CAMERA_TOGGLE_FREELOOK_CONTROL));
+            sink.bind(new InputBinding(TOGGLE_CURSOR_LOOK, InputAction.CAMERA_TOGGLE_CURSOR_LOOK));
         });
     }
 
@@ -113,6 +115,7 @@ public final class VanillaInputBridge {
                 .put(TOGGLE_SHOULDER, button(TOGGLE_SHOULDER, CameraKeyBindings.TOGGLE_SHOULDER.isKeyDown()))
                 .put(SWAP_SHOULDER, button(SWAP_SHOULDER, CameraKeyBindings.SWAP_SHOULDER.isKeyDown()))
                 .put(FREELOOK_TOGGLE_CONTROL, button(FREELOOK_TOGGLE_CONTROL, CameraKeyBindings.FREELOOK_TOGGLE_CONTROL.isKeyDown()))
+                .put(TOGGLE_CURSOR_LOOK, button(TOGGLE_CURSOR_LOOK, CameraKeyBindings.TOGGLE_CURSOR_LOOK.isKeyDown()))
                 .build();
     }
 

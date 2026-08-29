@@ -65,3 +65,11 @@ distributed under the MIT License; the complete notice is in
 
 The internal Omnilook-compatible free-look behavior is based on public-domain
 source; the attribution and disclaimer are in `META-INF/licenses/Omnilook.txt`.
+
+# FancyOutlines-derived block outlines
+
+Configurable block-selection outline colors, widths, per-block rules, and
+non-harvestable highlighting are adapted from FancyOutlines by Invadermonky.
+The upstream source is available at https://github.com/Invadermonky/FancyOutlines
+and is distributed under the WTFPL v2. The complete license is included in
+`META-INF/licenses/FancyOutlines-WTFPL.txt`.

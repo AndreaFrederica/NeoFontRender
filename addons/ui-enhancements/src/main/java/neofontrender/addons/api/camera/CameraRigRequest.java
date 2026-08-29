@@ -10,6 +10,8 @@ public final class CameraRigRequest {
             "neofontrender_ui_enhancements", "drone");
     public static final ResourceLocation FREE_LOOK_ID = new ResourceLocation(
             "neofontrender_ui_enhancements", "free_look");
+    public static final ResourceLocation CURSOR_LOOK_ID = new ResourceLocation(
+            "neofontrender_ui_enhancements", "cursor_look");
     public static final ResourceLocation SHOULDER_ID = new ResourceLocation(
             "neofontrender_ui_enhancements", "shoulder");
     private final ResourceLocation id;
@@ -25,5 +27,6 @@ public final class CameraRigRequest {
 
     public static CameraRigRequest drone(int priority) { return new CameraRigRequest(DRONE_ID, priority); }
     public static CameraRigRequest freeLook(int priority) { return new CameraRigRequest(FREE_LOOK_ID, priority); }
+    public static CameraRigRequest cursorLook(int priority) { return new CameraRigRequest(CURSOR_LOOK_ID, priority); }
     public static CameraRigRequest shoulder(int priority) { return new CameraRigRequest(SHOULDER_ID, priority); }
 }

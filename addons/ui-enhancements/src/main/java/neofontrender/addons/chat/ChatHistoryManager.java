@@ -12,6 +12,8 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.network.FMLNetworkEvent;
+import mnm.mods.tabbychat.core.GuiNewChatTC;
+import neofontrender.addons.mixin.InvokerGuiNewChatHistory;
 import neofontrender.addons.ui.NfrUiEnhancements;
 
 import java.io.BufferedReader;
@@ -148,12 +150,13 @@ public enum ChatHistoryManager {
                         ITextComponent component = ITextComponent.Serializer.jsonToComponent(message.json);
                         if (component != null) {
                             ChatMessageMetadataRegistry.put(component, message.metadata);
-                            chat.printChatMessageWithOptionalDeletion(component, message.msgId);
+                            restoreReceived(chat, component, message.msgId);
                         }
                     } catch (RuntimeException exception) {
                         NfrUiEnhancements.LOGGER.warn("Skipping an invalid persisted chat component", exception);
                     }
                 }
+                chat.refreshChat();
             }
             if (EnhancedChatConfig.persistSent) {
                 chat.getSentMessages().clear();
@@ -164,6 +167,24 @@ public enum ChatHistoryManager {
         } finally {
             restoring = false;
         }
+    }
+
+    private static void restoreReceived(GuiNewChat chat, ITextComponent component, int id) {
+        if (chat instanceof GuiNewChatTC) {
+            ((GuiNewChatTC) chat).nfrUi$restoreMessage(component, id,
+                    EnhancedChatConfigAccess.logRestoredHistory());
+            return;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        int updateCounter = mc.ingameGUI == null ? 0 : mc.ingameGUI.getUpdateCounter();
+        ((InvokerGuiNewChatHistory) chat).nfrUi$restoreChatLine(component, id, updateCounter, false);
+        if (EnhancedChatConfigAccess.logRestoredHistory()) {
+            NfrUiEnhancements.LOGGER.info("[CHAT] {}", sanitizeForLog(component));
+        }
+    }
+
+    private static String sanitizeForLog(ITextComponent component) {
+        return component.getUnformattedText().replace("\r", "\\r").replace("\n", "\\n");
     }
 
     /** One-time import of the pre-H2 JSON file, renamed away after a successful copy. */

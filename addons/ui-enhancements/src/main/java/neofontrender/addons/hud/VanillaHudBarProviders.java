@@ -65,12 +65,9 @@ final class VanillaHudBarProviders {
         float food = stats.getFoodLevel();
         float maximum = AppleCoreCompat.maximumHunger(player);
         float saturation = stats.getSaturationLevel();
-        float preview = 0.0F;
-        ItemStack held = player.getHeldItemMainhand();
-        float appleCorePreview = AppleCoreCompat.foodHunger(held, player);
-        if (!Float.isNaN(appleCorePreview)) preview = appleCorePreview;
-        else if (!held.isEmpty() && held.getItem() instanceof ItemFood)
-            preview = ((ItemFood) held.getItem()).getHealAmount(held);
+        FoodBarPreview preview = foodPreview(player.getHeldItemMainhand(), player, food, maximum, saturation);
+        if (preview == null)
+            preview = foodPreview(player.getHeldItemOffhand(), player, food, maximum, saturation);
         float exhaustion;
         try {
             exhaustion = ObfuscationReflectionHelper.getPrivateValue(FoodStats.class, stats, "field_75126_c");
@@ -81,9 +78,25 @@ final class VanillaHudBarProviders {
         float maximumExhaustion = AppleCoreCompat.maximumExhaustion(player);
         int primary = player.isPotionActive(MobEffects.HUNGER) ? 0xFF579A42 : HudBarsConfig.foodColor;
         float depletion = Math.min(maximumExhaustion, exhaustion) / maximumExhaustion * maximum;
-        return new HudBarValue(food, maximum, saturation, preview, depletion,
-                primary, HudBarsConfig.saturationColor, withAlpha(primary, 150), 0x90FFFFFF,
-                text(food, maximum));
+        float hungerPreview = preview == null ? 0.0F : preview.hunger;
+        float saturationPreview = preview == null ? 0.0F : preview.saturation;
+        return new HudBarValue(food, maximum, saturation, hungerPreview, saturationPreview, depletion,
+                primary, HudBarsConfig.saturationColor, primary, 0x90FFFFFF,
+                text(food, maximum), preview != null);
+    }
+
+    private static FoodBarPreview foodPreview(ItemStack stack, EntityPlayer player, float food,
+                                              float maximum, float saturation) {
+        AppleCoreCompat.FoodValue appleCore = AppleCoreCompat.foodValue(stack, player);
+        if (appleCore != null)
+            return FoodBarPreview.calculate(food, maximum, saturation,
+                    appleCore.hunger, appleCore.saturationModifier);
+        if (!stack.isEmpty() && stack.getItem() instanceof ItemFood) {
+            ItemFood item = (ItemFood) stack.getItem();
+            return FoodBarPreview.calculate(food, maximum, saturation,
+                    item.getHealAmount(stack), item.getSaturationModifier(stack));
+        }
+        return null;
     }
 
     private static float armor(EntityPlayer player) {
@@ -116,8 +129,6 @@ final class VanillaHudBarProviders {
                 | (Math.round(MathUtil.lerp(Color.green(from), Color.green(to), amount)) << 8)
                 | Math.round(MathUtil.lerp(Color.blue(from), Color.blue(to), amount));
     }
-
-    private static int withAlpha(int color, int alpha) { return color & 0x00FFFFFF | alpha << 24; }
 
     private interface Visibility { boolean test(EntityPlayer player); }
     private interface Sampler { HudBarValue sample(EntityPlayer player, float partialTicks); }

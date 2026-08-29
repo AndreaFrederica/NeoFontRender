@@ -17,6 +17,12 @@ final class CameraPresentationPolicy {
         return shoulderActive && firstPersonOverride ? 0 : 1;
     }
 
+    /** Detached look rigs render from their frame instead of vanilla player yaw/pitch. */
+    static boolean usesQuaternionView(boolean shoulderActive, boolean lookCameraActive,
+                                      boolean droneActive) {
+        return !shoulderActive && (lookCameraActive || droneActive);
+    }
+
     static int currentIndex(List<?> modes, Object activeMode) {
         if (modes == null || modes.isEmpty()) return -1;
         return Math.max(0, modes.indexOf(activeMode));

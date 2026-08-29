@@ -22,6 +22,13 @@ public abstract class MixinRenderPlayerFlightRoll {
     @Unique private float nfrUi$bodyYaw;
     @Unique private float nfrUi$previousHeadYaw;
     @Unique private float nfrUi$headYaw;
+    @Unique private boolean nfrUi$cursorPoseOverridden;
+    @Unique private float nfrUi$cursorPrevPitch;
+    @Unique private float nfrUi$cursorPitch;
+    @Unique private float nfrUi$cursorPrevHeadYaw;
+    @Unique private float nfrUi$cursorHeadYaw;
+    @Unique private float nfrUi$cursorPrevBodyYaw;
+    @Unique private float nfrUi$cursorBodyYaw;
 
     @Inject(method = "doRender(Lnet/minecraft/client/entity/AbstractClientPlayer;DDDFF)V",
             at = @At("HEAD"))
@@ -29,6 +36,26 @@ public abstract class MixinRenderPlayerFlightRoll {
                                              double z, float entityYaw, float partialTicks,
                                              CallbackInfo ci) {
         nfrUi$poseOverridden = false;
+        nfrUi$cursorPoseOverridden = false;
+        if (Minecraft.getMinecraft().player == player
+                && neofontrender.addons.camera.CameraRuntime.isFreeLookCursorMode()) {
+            float[] pose = neofontrender.addons.camera.CameraRuntime.freeLookCursorPose(partialTicks);
+            if (pose != null) {
+                nfrUi$cursorPoseOverridden = true;
+                nfrUi$cursorPrevPitch = player.prevRotationPitch;
+                nfrUi$cursorPitch = player.rotationPitch;
+                nfrUi$cursorPrevHeadYaw = player.prevRotationYawHead;
+                nfrUi$cursorHeadYaw = player.rotationYawHead;
+                nfrUi$cursorPrevBodyYaw = player.prevRenderYawOffset;
+                nfrUi$cursorBodyYaw = player.renderYawOffset;
+                player.prevRotationPitch = pose[1];
+                player.rotationPitch = pose[1];
+                player.prevRotationYawHead = pose[0];
+                player.rotationYawHead = pose[0];
+                player.prevRenderYawOffset = pose[2];
+                player.renderYawOffset = pose[2];
+            }
+        }
         if (FlightApi.queryBodyPose(player, partialTicks) != null) return;
         if (Minecraft.getMinecraft().player != player
                 || Math.abs(FlightRollRenderState.roll(player, partialTicks)) < 0.001F) return;
@@ -48,12 +75,22 @@ public abstract class MixinRenderPlayerFlightRoll {
     private void nfrUi$restoreLocalFlightPose(AbstractClientPlayer player, double x, double y,
                                                double z, float entityYaw, float partialTicks,
                                                CallbackInfo ci) {
-        if (!nfrUi$poseOverridden) return;
-        player.prevRenderYawOffset = nfrUi$previousBodyYaw;
-        player.renderYawOffset = nfrUi$bodyYaw;
-        player.prevRotationYawHead = nfrUi$previousHeadYaw;
-        player.rotationYawHead = nfrUi$headYaw;
-        nfrUi$poseOverridden = false;
+        if (nfrUi$poseOverridden) {
+            player.prevRenderYawOffset = nfrUi$previousBodyYaw;
+            player.renderYawOffset = nfrUi$bodyYaw;
+            player.prevRotationYawHead = nfrUi$previousHeadYaw;
+            player.rotationYawHead = nfrUi$headYaw;
+            nfrUi$poseOverridden = false;
+        }
+        if (nfrUi$cursorPoseOverridden) {
+            player.prevRotationPitch = nfrUi$cursorPrevPitch;
+            player.rotationPitch = nfrUi$cursorPitch;
+            player.prevRotationYawHead = nfrUi$cursorPrevHeadYaw;
+            player.rotationYawHead = nfrUi$cursorHeadYaw;
+            player.prevRenderYawOffset = nfrUi$cursorPrevBodyYaw;
+            player.renderYawOffset = nfrUi$cursorBodyYaw;
+            nfrUi$cursorPoseOverridden = false;
+        }
     }
 
     @Inject(method = "applyRotations(Lnet/minecraft/client/entity/AbstractClientPlayer;FFF)V",

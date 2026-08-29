@@ -1,7 +1,7 @@
 use cosmic_text::fontdb::{Family as DbFamily, Query, ID};
 use cosmic_text::{
-    Attrs, Buffer, Color, Fallback, Family, FontSystem, Metrics, PlatformFallback, Shaping, Style,
-    SwashCache, UnderlineStyle, Weight,
+    Attrs, Buffer, Color, Fallback, Family, FontSystem, Metrics, PhysicalGlyph, PlatformFallback,
+    Renderer, Shaping, Style, SwashCache, SwashContent, UnderlineStyle, Weight,
 };
 use jni::objects::{JByteArray, JClass, JObjectArray, JString};
 use jni::sys::{jboolean, jbyteArray, jfloat, jint, jlong, jstring};
@@ -13,15 +13,24 @@ use std::ptr;
 use std::sync::Mutex;
 use unicode_script::Script;
 
-const ABI_VERSION: jint = 9;
+const ABI_VERSION: jint = 11;
 const STYLE_BOLD: jint = 1;
 const STYLE_ITALIC: jint = 2;
 const STYLE_UNDERLINE: jint = 4;
 const STYLE_STRIKETHROUGH: jint = 8;
 const RASTER_MAGIC: i32 = 0x434F534D; // "COSM"
-const HEADER_SIZE: usize = 32;
+const HEADER_SIZE: usize = 36;
 const MAX_TEXTURE_DIMENSION: i32 = 8192;
-const RASTER_PADDING: i32 = 2;
+// SDF needs a wider transparent guard than the legacy RGBA path so the distance field can
+// reconstruct antialiased edges without clamping against the texture border.
+const RASTER_PADDING: i32 = 4;
+
+// Raster color-source flags. They are bit flags because one returned texture can contain
+// several glyph sources. Java can therefore conservatively reject any payload containing
+// intrinsic gradient/color data while still accepting ordinary masks and flat tintable glyphs.
+const RASTER_MODEL_MASK: u32 = 1;
+const RASTER_MODEL_FLAT_COLOR: u32 = 2;
+const RASTER_MODEL_GRADIENT_COLOR: u32 = 4;
 
 struct Engine {
     font_system: Mutex<FontSystem>,
@@ -67,6 +76,122 @@ struct PixelRect {
     w: u32,
     h: u32,
     color: Color,
+}
+
+struct RasterRenderer<'a, 'b> {
+    font_system: &'a mut FontSystem,
+    cache: &'b mut SwashCache,
+    rects: Vec<PixelRect>,
+    model_flags: u32,
+}
+
+impl<'a, 'b> RasterRenderer<'a, 'b> {
+    fn new(font_system: &'a mut FontSystem, cache: &'b mut SwashCache) -> Self {
+        Self {
+            font_system,
+            cache,
+            rects: Vec::new(),
+            model_flags: 0,
+        }
+    }
+
+    fn push_image(&mut self, glyph: PhysicalGlyph, color: Color) {
+        let Some(image) = self
+            .cache
+            .get_image(self.font_system, glyph.cache_key)
+            .as_ref()
+        else {
+            return;
+        };
+        let origin_x = glyph.x + image.placement.left;
+        let origin_y = glyph.y - image.placement.top;
+        match image.content {
+            SwashContent::Mask => {
+                self.model_flags |= RASTER_MODEL_MASK;
+                let mut index = 0;
+                for y in 0..image.placement.height as i32 {
+                    for x in 0..image.placement.width as i32 {
+                        let alpha = image.data[index];
+                        if alpha != 0 {
+                            self.rects.push(PixelRect {
+                                x: origin_x + x,
+                                y: origin_y + y,
+                                w: 1,
+                                h: 1,
+                                color: Color((u32::from(alpha) << 24) | (color.0 & 0x00FF_FFFF)),
+                            });
+                        }
+                        index += 1;
+                    }
+                }
+            }
+            SwashContent::Color => {
+                let mut flat_rgb = None;
+                let mut flat = true;
+                let mut index = 0;
+                for _y in 0..image.placement.height as i32 {
+                    for _x in 0..image.placement.width as i32 {
+                        let alpha = image.data[index + 3];
+                        if alpha != 0 {
+                            let rgb = (u32::from(image.data[index]) << 16)
+                                | (u32::from(image.data[index + 1]) << 8)
+                                | u32::from(image.data[index + 2]);
+                            if let Some(previous) = flat_rgb {
+                                if previous != rgb {
+                                    flat = false;
+                                }
+                            } else {
+                                flat_rgb = Some(rgb);
+                            }
+                        }
+                        index += 4;
+                    }
+                }
+                self.model_flags |= if flat {
+                    RASTER_MODEL_FLAT_COLOR
+                } else {
+                    RASTER_MODEL_GRADIENT_COLOR
+                };
+                let mut index = 0;
+                for y in 0..image.placement.height as i32 {
+                    for x in 0..image.placement.width as i32 {
+                        let alpha = image.data[index + 3];
+                        if alpha != 0 {
+                            self.rects.push(PixelRect {
+                                x: origin_x + x,
+                                y: origin_y + y,
+                                w: 1,
+                                h: 1,
+                                color: Color::rgba(
+                                    image.data[index],
+                                    image.data[index + 1],
+                                    image.data[index + 2],
+                                    alpha,
+                                ),
+                            });
+                        }
+                        index += 4;
+                    }
+                }
+            }
+            SwashContent::SubpixelMask => {
+                // The current Java ABI has no LCD/subpixel representation. Preserve the glyph as
+                // intrinsic color data instead of silently treating its channels as coverage.
+                self.model_flags |= RASTER_MODEL_GRADIENT_COLOR;
+            }
+        }
+    }
+}
+
+impl<'a, 'b> Renderer for RasterRenderer<'a, 'b> {
+    fn rectangle(&mut self, x: i32, y: i32, w: u32, h: u32, color: Color) {
+        self.model_flags |= RASTER_MODEL_MASK;
+        self.rects.push(PixelRect { x, y, w, h, color });
+    }
+
+    fn glyph(&mut self, glyph: PhysicalGlyph, color: Color) {
+        self.push_image(glyph, color);
+    }
 }
 
 #[no_mangle]
@@ -1047,7 +1172,6 @@ fn rasterize(
         (argb & 0xFF) as u8,
         ((argb >> 24) & 0xFF) as u8,
     );
-    let mut rects = Vec::new();
     let mut cache = engine
         .swash_cache
         .lock()
@@ -1057,46 +1181,73 @@ fn rasterize(
             .font_system
             .lock()
             .map_err(|_| "font system lock poisoned".to_string())?;
-        buffer.draw(&mut font_system, &mut cache, color, |x, y, w, h, pixel| {
-            if pixel.a() != 0 && w != 0 && h != 0 {
-                rects.push(PixelRect {
-                    x,
-                    y,
-                    w,
-                    h,
-                    color: pixel,
-                });
+        let mut renderer = RasterRenderer::new(&mut font_system, &mut cache);
+        for run in buffer.layout_runs() {
+            for glyph in run.glyphs {
+                let physical = glyph.physical((0.0, run.line_y), 1.0);
+                let glyph_color = glyph.color_opt.map_or(color, |some| some);
+                renderer.glyph(physical, glyph_color);
             }
-        });
-    }
+            cosmic_text::render_decoration(&mut renderer, &run, color);
+        }
+        let model_flags = renderer.model_flags;
+        let mut rects = renderer.rects;
 
-    let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
-    if face.synthetic_bold {
-        // Match the legacy/AWT one-GUI-pixel faux-bold stroke while keeping real bold faces and
-        // variable `wght` instances untouched. Buffer::draw emits mask glyphs as 1x1 rectangles
-        // tinted with the requested color; decoration rectangles and native color glyphs are not
-        // expanded, so underlines stay crisp and emoji are not smeared.
-        let size_ratio = logical_font_size / engine.font_size.max(1.0);
-        let stroke = (scale * size_ratio).round().max(1.0) as i32;
-        let original_len = rects.len();
-        for index in 0..original_len {
-            let rect = rects[index];
-            if rect.w != 1
-                || rect.h != 1
-                || rect.color.r() != color.r()
-                || rect.color.g() != color.g()
-                || rect.color.b() != color.b()
-            {
-                continue;
-            }
-            for offset in 1..=stroke {
-                let mut duplicate = rect;
-                duplicate.x = duplicate.x.saturating_add(offset);
-                rects.push(duplicate);
+        if model_flags == 0 || rects.is_empty() {
+            return Ok(encode_raster(
+                0,
+                0,
+                0,
+                0,
+                advance_px / scale,
+                baseline_px / scale,
+                scale,
+                model_flags,
+                &[],
+            ));
+        }
+
+        // Keep the source flags for the complete texture. Synthetic bold below only duplicates
+        // caller-colored mask pixels; native color pixels remain untouched.
+        let raster_model_flags = model_flags;
+
+        let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
+        if face.synthetic_bold {
+            // Match the legacy/AWT one-GUI-pixel faux-bold stroke while keeping real bold faces and
+            // variable `wght` instances untouched. Mask glyphs are tinted with the requested color;
+            // decoration rectangles and native color glyphs are not expanded.
+            let size_ratio = logical_font_size / engine.font_size.max(1.0);
+            let stroke = (scale * size_ratio).round().max(1.0) as i32;
+            let original_len = rects.len();
+            for index in 0..original_len {
+                let rect = rects[index];
+                if rect.w != 1
+                    || rect.h != 1
+                    || rect.color.r() != color.r()
+                    || rect.color.g() != color.g()
+                    || rect.color.b() != color.b()
+                {
+                    continue;
+                }
+                for offset in 1..=stroke {
+                    let mut duplicate = rect;
+                    duplicate.x = duplicate.x.saturating_add(offset);
+                    rects.push(duplicate);
+                }
             }
         }
-    }
 
+        return encode_rects(rects, advance_px, baseline_px, scale, raster_model_flags);
+    }
+}
+
+fn encode_rects(
+    rects: Vec<PixelRect>,
+    advance_px: f32,
+    baseline_px: f32,
+    scale: f32,
+    raster_model_flags: u32,
+) -> Result<Vec<u8>, String> {
     if rects.is_empty() {
         return Ok(encode_raster(
             0,
@@ -1106,6 +1257,7 @@ fn rasterize(
             advance_px / scale,
             baseline_px / scale,
             scale,
+            raster_model_flags,
             &[],
         ));
     }
@@ -1159,11 +1311,8 @@ fn rasterize(
             }
         }
     }
-    // Swash returns straight RGB plus coverage alpha. Texture minification is only mathematically
-    // correct when those channels are premultiplied before bilinear sampling.
-    for pixel in &mut pixels {
-        *pixel = premultiply(*pixel);
-    }
+    // Keep straight RGBA in the ABI. The Java upload boundary performs the final premultiplication
+    // in float for Kirino's RGBA16F path, while the legacy RGBA8 path preserves the old result.
     encode_raster(
         width,
         height,
@@ -1172,15 +1321,10 @@ fn rasterize(
         advance_px / scale,
         baseline_px / scale,
         scale,
+        raster_model_flags,
         &pixels,
     )
     .pipe(Ok)
-}
-
-fn premultiply(pixel: u32) -> u32 {
-    let alpha = (pixel >> 24) & 0xFF;
-    let channel = |shift: u32| (((pixel >> shift) & 0xFF) * alpha + 127) / 255;
-    (alpha << 24) | (channel(16) << 16) | (channel(8) << 8) | channel(0)
 }
 
 fn blend_src_over(dst: u32, src: u32) -> u32 {
@@ -1210,6 +1354,7 @@ fn encode_raster(
     advance: f32,
     baseline: f32,
     scale: f32,
+    model_flags: u32,
     pixels: &[u32],
 ) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(HEADER_SIZE + pixels.len() * 4);
@@ -1221,6 +1366,7 @@ fn encode_raster(
     bytes.extend_from_slice(&advance.to_le_bytes());
     bytes.extend_from_slice(&baseline.to_le_bytes());
     bytes.extend_from_slice(&scale.to_le_bytes());
+    bytes.extend_from_slice(&model_flags.to_le_bytes());
     for pixel in pixels {
         bytes.extend_from_slice(&pixel.to_le_bytes());
     }

@@ -1,5 +1,6 @@
 package neofontrender.core.font.awt;
 
+import neofontrender.build.BuildFeatures;
 import neofontrender.core.font.awt.providers.AwtTtfGlyphProvider;
 
 import javax.annotation.Nullable;
@@ -136,10 +137,10 @@ public class FontSet implements AutoCloseable {
     public GlyphInfo getGlyphInfo(int codePoint) {
         GlyphInfo cached = glyphInfos.get(codePoint);
         if (cached != null || glyphInfos.containsKey(codePoint)) {
-            glyphInfoHits++;
+            if (BuildFeatures.RENDER_STATS) glyphInfoHits++;
             return cached;
         }
-        glyphInfoMisses++;
+        if (BuildFeatures.RENDER_STATS) glyphInfoMisses++;
         GlyphInfo loaded = findGlyphInfo(codePoint);
         glyphInfos.put(codePoint, loaded);
         return loaded;
@@ -159,10 +160,10 @@ public class FontSet implements AutoCloseable {
     public BakedGlyph getGlyph(int codePoint) {
         BakedGlyph cached = bakedGlyphs.get(codePoint);
         if (cached != null || bakedGlyphs.containsKey(codePoint)) {
-            bakedGlyphHits++;
+            if (BuildFeatures.RENDER_STATS) bakedGlyphHits++;
             return cached;
         }
-        bakedGlyphMisses++;
+        if (BuildFeatures.RENDER_STATS) bakedGlyphMisses++;
         GlyphInfo info = getGlyphInfo(codePoint);
         if (info == null) {
             bakedGlyphs.put(codePoint, null);

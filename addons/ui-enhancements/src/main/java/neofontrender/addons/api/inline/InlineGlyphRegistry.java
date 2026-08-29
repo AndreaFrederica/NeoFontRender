@@ -28,7 +28,10 @@ public final class InlineGlyphRegistry {
                 .thenComparingLong(value -> value.order));
         ENTRIES.clear();
         ENTRIES.addAll(updated);
-        return () -> ENTRIES.remove(entry);
+        InlineTextEngine.invalidateLayouts();
+        return () -> {
+            if (ENTRIES.remove(entry)) InlineTextEngine.invalidateLayouts();
+        };
     }
 
     @Nullable

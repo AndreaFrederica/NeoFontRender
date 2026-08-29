@@ -7,13 +7,30 @@ public final class ModernShadowRasterizer {
     public static Result compose(int[] foreground, int width, int height, float scale,
                                  float offsetX, float offsetY, float blurRadius,
                                  int color, float opacity, boolean premultiplied) {
-        int radius = Math.max(0, Math.round(Math.max(0.0F, blurRadius) * scale));
+        Result result = shadow(foreground, width, height, scale, offsetX, offsetY, blurRadius,
+                color, opacity, premultiplied);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int source = foreground[y * width + x];
+                int index = (result.originY + y) * result.width + result.originX + x;
+                result.pixels[index] = sourceOver(result.pixels[index], source, premultiplied);
+            }
+        }
+        return result;
+    }
+
+    /** Builds only the shadow layer, preserving the original glyph coverage for a later draw. */
+    public static Result shadow(int[] foreground, int width, int height, float scale,
+                               float offsetX, float offsetY, float blurRadius,
+                               int color, float opacity, boolean premultiplied) {
+        float blurPixels = Math.max(0.0F, blurRadius) * Math.max(0.0F, scale);
+        int kernelRadius = gaussianKernelRadius(blurPixels);
         int dx = Math.round(offsetX * scale);
         int dy = Math.round(offsetY * scale);
-        int left = radius + Math.max(0, -dx);
-        int top = radius + Math.max(0, -dy);
-        int right = radius + Math.max(0, dx);
-        int bottom = radius + Math.max(0, dy);
+        int left = kernelRadius + Math.max(0, -dx);
+        int top = kernelRadius + Math.max(0, -dy);
+        int right = kernelRadius + Math.max(0, dx);
+        int bottom = kernelRadius + Math.max(0, dy);
         int outWidth = width + left + right;
         int outHeight = height + top + bottom;
         int[] mask = new int[outWidth * outHeight];
@@ -28,7 +45,7 @@ public final class ModernShadowRasterizer {
                 }
             }
         }
-        if (radius > 0) mask = boxBlur(mask, outWidth, outHeight, radius);
+        if (blurPixels > 0.0F) mask = gaussianBlur(mask, outWidth, outHeight, blurPixels);
 
         int[] output = new int[outWidth * outHeight];
         int colorAlpha = color >>> 24;
@@ -43,44 +60,60 @@ public final class ModernShadowRasterizer {
             int b = premultiplied ? colorB * alpha / 255 : colorB;
             output[i] = alpha << 24 | r << 16 | g << 8 | b;
         }
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int source = foreground[y * width + x];
-                int index = (top + y) * outWidth + left + x;
-                output[index] = sourceOver(output[index], source, premultiplied);
-            }
-        }
         return new Result(output, outWidth, outHeight, left, top);
     }
 
-    private static int[] boxBlur(int[] source, int width, int height, int radius) {
-        int[] horizontal = new int[source.length];
+    private static int gaussianKernelRadius(float blurPixels) {
+        if (!(blurPixels > 0.0F) || !Float.isFinite(blurPixels)) return 0;
+        float sigma = sigmaFor(blurPixels);
+        return Math.max(1, (int) Math.ceil(3.0F * sigma));
+    }
+
+    private static float sigmaFor(float blurPixels) {
+        // Keep very small radii visibly soft while retaining a predictable pixel-space control.
+        return Math.max(0.5F, blurPixels / 3.0F);
+    }
+
+    private static int[] gaussianBlur(int[] source, int width, int height, float blurPixels) {
+        int radius = gaussianKernelRadius(blurPixels);
+        float sigma = sigmaFor(blurPixels);
+        float[] kernel = new float[radius * 2 + 1];
+        float normalizer = 0.0F;
+        for (int i = -radius; i <= radius; i++) {
+            float weight = (float) Math.exp(-(i * (double) i) / (2.0 * sigma * sigma));
+            kernel[i + radius] = weight;
+            normalizer += weight;
+        }
+        for (int i = 0; i < kernel.length; i++) kernel[i] /= normalizer;
+
+        // Keep coverage in floating point through both passes. Rounding after each pass creates
+        // visible banding at low opacity and makes the result depend on pass order.
+        float[] horizontal = new float[source.length];
         int[] output = new int[source.length];
-        int diameter = radius * 2 + 1;
         for (int y = 0; y < height; y++) {
-            int sum = 0;
-            for (int x = -radius; x <= radius; x++) {
-                if (x >= 0 && x < width) sum += source[y * width + x];
-            }
             for (int x = 0; x < width; x++) {
-                horizontal[y * width + x] = sum / diameter;
-                int remove = x - radius;
-                int add = x + radius + 1;
-                if (remove >= 0) sum -= source[y * width + remove];
-                if (add < width) sum += source[y * width + add];
+                float value = 0.0F;
+                for (int kernelIndex = -radius; kernelIndex <= radius; kernelIndex++) {
+                    int sampleX = x + kernelIndex;
+                    if (sampleX >= 0 && sampleX < width) {
+                        value += source[y * width + sampleX]
+                                * kernel[kernelIndex + radius];
+                    }
+                }
+                horizontal[y * width + x] = value;
             }
         }
         for (int x = 0; x < width; x++) {
-            int sum = 0;
-            for (int y = -radius; y <= radius; y++) {
-                if (y >= 0 && y < height) sum += horizontal[y * width + x];
-            }
             for (int y = 0; y < height; y++) {
-                output[y * width + x] = sum / diameter;
-                int remove = y - radius;
-                int add = y + radius + 1;
-                if (remove >= 0) sum -= horizontal[remove * width + x];
-                if (add < height) sum += horizontal[add * width + x];
+                float value = 0.0F;
+                for (int kernelIndex = -radius; kernelIndex <= radius; kernelIndex++) {
+                    int sampleY = y + kernelIndex;
+                    if (sampleY >= 0 && sampleY < height) {
+                        value += horizontal[sampleY * width + x]
+                                * kernel[kernelIndex + radius];
+                    }
+                }
+                output[y * width + x] = Math.max(0, Math.min(255, Math.round(value)));
             }
         }
         return output;

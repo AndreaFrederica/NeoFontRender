@@ -8,6 +8,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import neofontrender.build.BuildFeatures;
 import neofontrender.core.config.NeofontrenderConfig;
 
 import java.util.HashMap;
@@ -37,10 +38,12 @@ public final class SignOcclusionCuller {
         }
         frameToken++;
         checksRemaining = NeofontrenderConfig.signOcclusionChecksPerFrame();
-        testedThisFrame = 0;
-        culledThisFrame = 0;
-        cachedThisFrame = 0;
-        budgetMissesThisFrame = 0;
+        if (BuildFeatures.RENDER_STATS) {
+            testedThisFrame = 0;
+            culledThisFrame = 0;
+            cachedThisFrame = 0;
+            budgetMissesThisFrame = 0;
+        }
         if (CACHE.size() > 8192) {
             CACHE.clear();
         }
@@ -65,26 +68,24 @@ public final class SignOcclusionCuller {
         long ttl = NeofontrenderConfig.signOcclusionCacheMillis();
         if (record != null && now - record.checkedAt <= ttl
                 && record.cameraDistanceSq(cameraX, cameraY, cameraZ) <= 0.25D) {
-            cachedThisFrame++;
-            if (record.occluded) {
-                culledThisFrame++;
+            if (BuildFeatures.RENDER_STATS) {
+                cachedThisFrame++;
+                if (record.occluded) culledThisFrame++;
             }
             return record.occluded;
         }
         if (checksRemaining <= 0) {
-            budgetMissesThisFrame++;
+            if (BuildFeatures.RENDER_STATS) budgetMissesThisFrame++;
             // A stale hidden result is unsafe after camera movement; retain until refreshed.
             return record != null && record.occluded
                     && record.cameraDistanceSq(cameraX, cameraY, cameraZ) <= 0.25D;
         }
 
         checksRemaining--;
-        testedThisFrame++;
+        if (BuildFeatures.RENDER_STATS) testedThisFrame++;
         boolean occluded = testBoard(sign, world, new Vec3d(cameraX, cameraY, cameraZ));
         CACHE.put(pos.toImmutable(), new Record(occluded, now, cameraX, cameraY, cameraZ, frameToken));
-        if (occluded) {
-            culledThisFrame++;
-        }
+        if (BuildFeatures.RENDER_STATS && occluded) culledThisFrame++;
         return occluded;
     }
 

@@ -1,6 +1,6 @@
 package neofontrender.client.gui.views;
 
-import neofontrender.client.gui.component.base.NfrLabeledSlider;
+import com.cleanroommc.modularui.api.widget.IWidget;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
 import neofontrender.client.gui.model.NfrSettingsDraft;
@@ -11,8 +11,8 @@ public final class NfrRenderingSettingsView extends NfrContentView<NfrRenderingS
         this(options(d, c), c.brightness());
     }
 
-    private NfrRenderingSettingsView(NfrOptionsGrid options, NfrLabeledSlider brightness) {
-        super(section(options, options::preferredHeight), section(brightness, width -> brightness.preferredHeight()));
+    private NfrRenderingSettingsView(NfrOptionsGrid options, IWidget brightness) {
+        super(section(options, options::preferredHeight), section(brightness, width -> 24));
     }
 
     private static NfrOptionsGrid options(NfrSettingsDraft d, NfrSettingsControls c) {

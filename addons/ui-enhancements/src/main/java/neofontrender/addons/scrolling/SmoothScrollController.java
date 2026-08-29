@@ -37,6 +37,24 @@ public final class SmoothScrollController {
         }
         actual = clamp(actual, max);
         if (Math.abs(actual - current) > 0.05F) sync(actual);
+        return advance(max);
+    }
+
+    /** Advances state owned by a renderer that only exposes an integer projection externally. */
+    public float updateOwned(float max) {
+        if (max <= 0.0F) {
+            sync(0.0F);
+            return 0.0F;
+        }
+        if (!initialized) sync(0.0F);
+        if (!SmoothScrollConfig.enabled) {
+            sync(clamp(target, max));
+            return current;
+        }
+        return advance(max);
+    }
+
+    private float advance(float max) {
         target = clamp(target, max);
         if (current == target) return current;
         float p = Math.min((System.nanoTime() - startNanos) / (SmoothScrollConfig.durationMillis * 1_000_000.0F), 1.0F);
@@ -69,6 +87,14 @@ public final class SmoothScrollController {
 
     public float getTarget() {
         return target;
+    }
+
+    /** Moves the complete animation frame when content is inserted ahead of the viewport. */
+    public void shiftBy(float delta, float max) {
+        if (!initialized) sync(0.0F);
+        current = clamp(current + delta, max);
+        start = clamp(start + delta, max);
+        target = clamp(target + delta, max);
     }
 
     private static float clamp(float value, float max) {

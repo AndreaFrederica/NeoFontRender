@@ -8,6 +8,7 @@ final class CameraPerspectiveConfig {
     static boolean f5CycleEnabled = true;
     static boolean shoulderInF5 = true;
     static boolean freeLookInF5 = true;
+    static boolean cursorLookInF5 = true;
     static boolean droneInF5 = true;
     static boolean replaceDefaultPerspective;
     static boolean skipThirdPersonFront;
@@ -25,6 +26,8 @@ final class CameraPerspectiveConfig {
                 "Include Shoulder view in the F5 cycle.");
         file.define("camera.f5Cycle.freeLook", true,
                 "Include free-look view in the F5 cycle.");
+        file.define("camera.f5Cycle.cursorLook", true,
+                "Include cursor-look view in the F5 cycle.");
         file.define("camera.f5Cycle.drone", true,
                 "Include Drone view in the F5 cycle.");
         file.define("camera.f5Cycle.replaceDefaultPerspective", false,
@@ -40,6 +43,7 @@ final class CameraPerspectiveConfig {
         f5CycleEnabled = file.getBoolean("camera.f5Cycle.enabled", true);
         shoulderInF5 = file.getBoolean("camera.f5Cycle.shoulder", true);
         freeLookInF5 = file.getBoolean("camera.f5Cycle.freeLook", true);
+        cursorLookInF5 = file.getBoolean("camera.f5Cycle.cursorLook", true);
         droneInF5 = file.getBoolean("camera.f5Cycle.drone", true);
         replaceDefaultPerspective = file.getBoolean("camera.f5Cycle.replaceDefaultPerspective", false);
         skipThirdPersonFront = file.getBoolean("camera.f5Cycle.skipThirdPersonFront", false);
@@ -55,6 +59,7 @@ final class CameraPerspectiveConfig {
                 .set("camera.f5Cycle.enabled", f5CycleEnabled)
                 .set("camera.f5Cycle.shoulder", shoulderInF5)
                 .set("camera.f5Cycle.freeLook", freeLookInF5)
+                .set("camera.f5Cycle.cursorLook", cursorLookInF5)
                 .set("camera.f5Cycle.drone", droneInF5)
                 .set("camera.f5Cycle.replaceDefaultPerspective", replaceDefaultPerspective)
                 .set("camera.f5Cycle.skipThirdPersonFront", skipThirdPersonFront)
@@ -67,7 +72,7 @@ final class CameraPerspectiveConfig {
     static String normalizeMode(String value) {
         if (value == null) return "vanilla_first";
         switch (value) {
-            case "vanilla_third": case "shoulder": case "free_look":
+            case "vanilla_third": case "shoulder": case "free_look": case "cursor_look":
             case "drone": case "vanilla_front": return value;
             default: return "vanilla_first";
         }

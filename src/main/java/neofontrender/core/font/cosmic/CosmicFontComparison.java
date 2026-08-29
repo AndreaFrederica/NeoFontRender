@@ -84,12 +84,12 @@ public final class CosmicFontComparison {
 
     private static void writeCosmicPng(byte[] encoded, Path output) throws Exception {
         ByteBuffer data = ByteBuffer.wrap(encoded).order(ByteOrder.LITTLE_ENDIAN);
-        if (data.remaining() < 32 || data.getInt() != RASTER_MAGIC) {
+        if (data.remaining() < 36 || data.getInt() != RASTER_MAGIC) {
             throw new IllegalStateException("invalid Cosmic raster");
         }
         int width = data.getInt();
         int height = data.getInt();
-        data.position(32);
+        data.position(36);
         if (width <= 0 || height <= 0 || data.remaining() != width * height * 4) {
             throw new IllegalStateException("invalid Cosmic dimensions " + width + "x" + height);
         }

@@ -11,6 +11,14 @@ public final class EnhancedChatConfigAccess {
         return EnhancedChatConfig.enabled;
     }
 
+    public static boolean inputAnimationEnabled() {
+        return EnhancedChatConfig.enabled && EnhancedChatConfig.animateInput;
+    }
+
+    public static int inputAnimationDurationMillis() {
+        return EnhancedChatConfig.inputAnimationDuration;
+    }
+
     public static boolean commandCompletionEnabled() {
         return EnhancedChatConfig.enabled && EnhancedChatConfig.commandCompletion;
     }
@@ -34,6 +42,10 @@ public final class EnhancedChatConfigAccess {
 
     static boolean persistenceEnabled(boolean externalTabbyLoaded) {
         return !externalTabbyLoaded && EnhancedChatConfig.enabled && EnhancedChatConfig.persistence;
+    }
+
+    public static boolean logRestoredHistory() {
+        return EnhancedChatConfig.logRestoredHistory;
     }
 
     public static boolean privateCommandBlockEnabled() {

@@ -75,6 +75,22 @@ class PlayerMovementInputBridgeTest {
         }
     }
 
+    @Test
+    void cameraRelativeForwardIsRotatedIntoBodySpace() {
+        float[] axes = PlayerMovementInputBridge.rotateAxes(1.0F, 0.0F, 90.0F);
+
+        assertEquals(0.0F, axes[0], 1.0E-6F);
+        assertEquals(-1.0F, axes[1], 1.0E-6F);
+    }
+
+    @Test
+    void cameraRelativeRotationPreservesAnalogMagnitudeAndDiagonals() {
+        float[] axes = PlayerMovementInputBridge.rotateAxes(0.8F, -0.35F, -37.0F);
+
+        assertEquals(Math.sqrt(0.8F * 0.8F + 0.35F * 0.35F),
+                Math.sqrt(axes[0] * axes[0] + axes[1] * axes[1]), 1.0E-6D);
+    }
+
     private static InputFrameContext context(long sampleId) {
         return new InputFrameContext(sampleId, 0.0F, 1.0D / 60.0D, true);
     }

@@ -1,5 +1,7 @@
 package neofontrender.core.config;
 
+import neofontrender.build.BuildFeatures;
+
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.electronwill.nightconfig.toml.TomlFormat;
 import net.minecraft.client.Minecraft;
@@ -8,6 +10,7 @@ import neofontrender.api.color.TextColorPaletteCodec;
 import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.core.font.support.FontFileResolver;
 import neofontrender.core.font.support.ShadowColorRemapRules;
+import neofontrender.core.font.support.ShadowColorPolicy;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -249,10 +252,12 @@ public final class NeofontrenderConfig {
     public static float shadowOffsetY() { return cached.shadowOffsetY; }
     public static float shadowBlurRadius() { return cached.shadowBlurRadius; }
     public static int shadowColor() { return cached.shadowColor; }
-    public static boolean coloredShadowEnabled() { return cached.coloredShadow; }
-    public static ShadowColorRemapRules shadowColorRemapRules() { return cached.shadowColorRemapRules; }
-    public static String shadowColorRemapRulesConfig() {
-        return cached.shadowColorRemapRules.toConfigString();
+    public static String shadowColorMode() { return cached.shadowColorMode; }
+    public static float shadowColoredRatio() { return cached.shadowColoredRatio; }
+    public static String shadowColoredFunction() { return cached.shadowColoredFunction; }
+    public static ShadowColorRemapRules shadowColorOverrides() { return cached.shadowColorOverrides; }
+    public static String shadowColorOverridesConfig() {
+        return cached.shadowColorOverrides.toConfigString();
     }
 
     public static float shadowOpacity() {
@@ -286,6 +291,19 @@ public final class NeofontrenderConfig {
 
     public static boolean advancedStringMode() {
         return cached.advancedStringMode;
+    }
+
+    /** Opt-in SDF path for monochrome/tintable Cosmic glyph rasters. */
+    public static boolean sdfEnabled() {
+        return cached.sdfEnabled;
+    }
+
+    public static int sdfDistanceRange() {
+        return cached.sdfDistanceRange;
+    }
+
+    public static float sdfEdgeSoftness() {
+        return cached.sdfEdgeSoftness;
     }
 
     public static boolean segmentCache() {
@@ -467,7 +485,7 @@ public final class NeofontrenderConfig {
     }
 
     public static boolean debugRenderStats() {
-        return cachedDebugRenderStats;
+        return BuildFeatures.RENDER_STATS && cachedDebugRenderStats;
     }
 
     public static boolean allowSignPaste() {
@@ -500,6 +518,10 @@ public final class NeofontrenderConfig {
 
     public static boolean compatTinkersAntique() {
         return cached.compatTinkersAntique;
+    }
+
+    public static boolean compatThaumcraftTooltip() {
+        return cached.compatThaumcraftTooltip;
     }
 
     /** auto, vanilla, runtime, custom, or an API-registered provider id. */
@@ -657,10 +679,17 @@ public final class NeofontrenderConfig {
     public static void setShadowOffsetY(float value) { setValue("shadow.offsetY", Math.max(-8.0F, Math.min(8.0F, value))); }
     public static void setShadowBlurRadius(float value) { setValue("shadow.blurRadius", Math.max(0.0F, Math.min(6.0F, value))); }
     public static void setShadowColor(int value) { setValue("shadow.color", value); }
-    public static void setColoredShadowEnabled(boolean value) { setValue("shadow.colored", value); }
-    public static void setShadowColorRemapRules(String value) {
-        setValue("shadow.coloredRemapRules",
-                ShadowColorRemapRules.parse(value).toConfigString());
+    public static void setShadowColorMode(String value) {
+        setValue("shadow.colorMode", normalizeShadowColorMode(value));
+    }
+    public static void setShadowColoredRatio(float value) {
+        setValue("shadow.coloredRatio", ShadowColorPolicy.clampRatio(value));
+    }
+    public static void setShadowColoredFunction(String value) {
+        setValue("shadow.coloredFunction", ShadowColorPolicy.normalizeColoredFunction(value));
+    }
+    public static void setShadowColorOverrides(String value) {
+        setValue("shadow.colorOverrides", ShadowColorRemapRules.parse(value).toConfigString());
     }
 
     public static void setShadowOpacity(float value) {
@@ -710,6 +739,10 @@ public final class NeofontrenderConfig {
 
     public static void setCompatTinkersAntique(boolean value) {
         setValue("compat.tinkersantique.enabled", value);
+    }
+
+    public static void setCompatThaumcraftTooltip(boolean value) {
+        setValue("compat.thaumcraft.tooltip.enabled", value);
     }
 
     public static void setTextColorPaletteProvider(String value) {
@@ -833,6 +866,18 @@ public final class NeofontrenderConfig {
         setValue("rendering.advancedStringMode", value);
     }
 
+    public static void setSdfEnabled(boolean value) {
+        setValue("rendering.sdf", value);
+    }
+
+    public static void setSdfDistanceRange(int value) {
+        setValue("rendering.sdfDistanceRange", Math.max(2, Math.min(8, value)));
+    }
+
+    public static void setSdfEdgeSoftness(float value) {
+        setValue("rendering.sdfEdgeSoftness", Math.max(0.5F, Math.min(2.0F, value)));
+    }
+
     public static void setSegmentCache(boolean value) {
         setValue("rendering.segmentCache", value);
     }
@@ -882,8 +927,8 @@ public final class NeofontrenderConfig {
     }
 
     public static void setDebugRenderStats(boolean value) {
-        cachedDebugRenderStats = value;
-        setValue("debug.renderStats", value);
+        cachedDebugRenderStats = BuildFeatures.RENDER_STATS && value;
+        setValue("debug.renderStats", cachedDebugRenderStats);
     }
 
     public static void save() {
@@ -971,7 +1016,7 @@ public final class NeofontrenderConfig {
 
     private static void refreshCachedOptions() {
         cached = Snapshot.from(config);
-        cachedDebugRenderStats = cached.debugRenderStats;
+        cachedDebugRenderStats = BuildFeatures.RENDER_STATS && cached.debugRenderStats;
         TextColorPaletteRegistry.setCustomColorCodes(TextColorPaletteCodec.parse(
                 config.getOrElse("compat.colorPalette.custom", DEFAULT_TEXT_COLOR_PALETTE)));
     }
@@ -1055,8 +1100,10 @@ public final class NeofontrenderConfig {
             w.write("offsetY = 1.0\n");
             w.write("blurRadius = 0.5\n");
             w.write("color = -16777216\n");
-            w.write("colored = false\n");
-            w.write("coloredRemapRules = \"rgb:FFFFFF=000000\"\n");
+            w.write("colorMode = \"colored\"\n");
+            w.write("coloredRatio = 0.25\n");
+            w.write("coloredFunction = \"srgb\"\n");
+            w.write("colorOverrides = \"\"\n");
             w.write("opacity = 0.25\n");
             w.write("mode = \"mask\"\n");
             w.write("maskFonts = \"\"\n");
@@ -1065,6 +1112,9 @@ public final class NeofontrenderConfig {
             w.write("[rendering]\n");
             w.write("engine = \"cosmic\"\n");
             w.write("advancedStringMode = true\n");
+            w.write("sdf = false\n");
+            w.write("sdfDistanceRange = 4\n");
+            w.write("sdfEdgeSoftness = 1.0\n");
             w.write("segmentCache = true\n");
             w.write("segmentCacheMinRunLength = 8\n");
             w.write("segmentCacheMaxRunCodePoints = 24\n");
@@ -1173,8 +1223,10 @@ public final class NeofontrenderConfig {
         config.setComment("shadow.offsetY", "Modern shadow vertical offset in pixels.");
         config.setComment("shadow.blurRadius", "Modern shadow blur radius in pixels.");
         config.setComment("shadow.color", "Modern shadow ARGB color stored as a signed 32-bit integer.");
-        config.setComment("shadow.colored", "Use each formatted text run's foreground RGB for its shadow instead of the configured/darkened shadow color.");
-        config.setComment("shadow.coloredRemapRules", "Colored-shadow RGB remaps, e.g. rgb:FFFFFF=000000;slot:e=6A5200. Rules preserve text alpha and only affect shadows.");
+        config.setComment("shadow.colorMode", "Shadow color mode: vanilla (Minecraft palette), colored (darken each run), or solid (one configured color).");
+        config.setComment("shadow.coloredRatio", "Colored-shadow brightness ratio from 0.0 (black) to 1.0 (unchanged foreground).");
+        config.setComment("shadow.coloredFunction", "Colored-shadow function: srgb (per-channel multiplier) or linear_light (scale in linear light).");
+        config.setComment("shadow.colorOverrides", "Optional foreground-to-shadow overrides, e.g. rgb:FFFFFF=000000;slot:e=6A5200. Empty by default.");
         config.setComment("shadow.opacity", "Shadow opacity multiplier (0.0-1.0).");
         config.setComment("shadow.mode", "Shadow mode: all, mask (skip color glyphs), emoji (skip Unicode emoji), or none.");
         config.setComment("shadow.maskFonts", "Comma-separated font families whose displayable code points skip shadows in mask mode.");
@@ -1188,6 +1240,7 @@ public final class NeofontrenderConfig {
         config.setComment("compat", "Compatibility options for third-party mods.");
         config.setComment("compat.modernsplash.enabled", "Allow the loading-screen font override to patch ModernSplash when it is installed. Requires splash.enabled and a restart.");
         config.setComment("compat.tinkersantique.enabled", "Handle Tinkers' Construct / TinkersAntique custom PUA color markers (\\uE700-\\uE7FF) as invisible color-change characters instead of rendering them as glyphs.");
+        config.setComment("compat.thaumcraft.tooltip.enabled", "Use UIE's modern tooltip renderer for Thaumcraft 6 custom tooltips and decode its @@ compact lines.");
         config.setComment("compat.colorPalette.provider", "Legacy text color palette: auto, vanilla, runtime, custom, or an API-registered provider id. Runtime reads the final FontRenderer.colorCode modified by other mods.");
         config.setComment("compat.colorPalette.custom", "Custom palette as 16 or 32 comma-separated RRGGBB values. Sixteen entries derive Minecraft-style shadow colors; 32 entries set them explicitly.");
         config.setComment("splash", "Forge loading-screen font replacement options.");
@@ -1195,6 +1248,9 @@ public final class NeofontrenderConfig {
         config.setComment("rendering", "OpenGL texture rendering options.");
         config.setComment("rendering.engine", "Text renderer engine: vanilla, sfr, or cosmic.");
         config.setComment("rendering.advancedStringMode", "Render complete formatted strings through the shaped-text backend so ligatures, kerning, emoji ZWJ, and BiDi can span the full text. Disable to use per-format-run rendering.");
+        config.setComment("rendering.sdf", "Use the opt-in Cosmic signed-distance-field path for monochrome and flat tintable glyphs. Color gradients and unsupported shader paths fall back to RGBA.");
+        config.setComment("rendering.sdfDistanceRange", "SDF distance range in source pixels. Higher values preserve smoother contours at larger scaling but use more raster work (2-8).");
+        config.setComment("rendering.sdfEdgeSoftness", "Multiplier for screen-space SDF edge smoothing. Lower values are crisper; higher values are softer (0.5-2.0).");
         config.setComment("rendering.segmentCache", "When advancedStringMode=false, split safe text runs into reusable render-cache tokens. Complex shaping text stays on the full-run path.");
         config.setComment("rendering.segmentCacheMinRunLength", "Minimum formatted run length before reusable token segmentation is attempted.");
         config.setComment("rendering.segmentCacheMaxRunCodePoints", "Maximum code points kept in one reusable segment before forcing another token boundary.");
@@ -1285,6 +1341,7 @@ public final class NeofontrenderConfig {
         private final boolean laboratoryTextUndoRedo;
         private final boolean compatModernSplash;
         private final boolean compatTinkersAntique;
+        private final boolean compatThaumcraftTooltip;
         private final boolean splashFontOverrideEnabled;
         private final int fontStyle;
         private final int fontVariableWeight;
@@ -1306,14 +1363,19 @@ public final class NeofontrenderConfig {
         private final float shadowOffsetY;
         private final float shadowBlurRadius;
         private final int shadowColor;
-        private final boolean coloredShadow;
-        private final ShadowColorRemapRules shadowColorRemapRules;
+        private final String shadowColorMode;
+        private final float shadowColoredRatio;
+        private final String shadowColoredFunction;
+        private final ShadowColorRemapRules shadowColorOverrides;
         private final float shadowOpacity;
         private final String shadowMode;
         private final String shadowMaskFonts;
         private final String shadowMaskCodepoints;
         private final String renderingEngine;
         private final boolean advancedStringMode;
+        private final boolean sdfEnabled;
+        private final int sdfDistanceRange;
+        private final float sdfEdgeSoftness;
         private final boolean segmentCache;
         private final int segmentCacheMinRunLength;
         private final int segmentCacheMaxRunCodePoints;
@@ -1367,6 +1429,7 @@ public final class NeofontrenderConfig {
             laboratoryTextUndoRedo = false;
             compatModernSplash = true;
             compatTinkersAntique = true;
+            compatThaumcraftTooltip = true;
             splashFontOverrideEnabled = true;
             fontStyle = 0;
             fontVariableWeight = 0;
@@ -1388,15 +1451,19 @@ public final class NeofontrenderConfig {
             shadowOffsetY = 1.0F;
             shadowBlurRadius = 0.5F;
             shadowColor = 0xFF000000;
-            coloredShadow = false;
-            shadowColorRemapRules = ShadowColorRemapRules.parse(
-                    ShadowColorRemapRules.DEFAULT_CONFIG);
+            shadowColorMode = ShadowColorPolicy.COLORED;
+            shadowColoredRatio = ShadowColorPolicy.DEFAULT_COLORED_RATIO;
+            shadowColoredFunction = ShadowColorPolicy.COLORED_FUNCTION_SRGB;
+            shadowColorOverrides = ShadowColorRemapRules.parse("");
             shadowOpacity = 0.25F;
             shadowMode = "mask";
             shadowMaskFonts = "";
             shadowMaskCodepoints = "";
             renderingEngine = "cosmic";
             advancedStringMode = true;
+            sdfEnabled = false;
+            sdfDistanceRange = 4;
+            sdfEdgeSoftness = 1.0F;
             segmentCache = true;
             segmentCacheMinRunLength = 8;
             segmentCacheMaxRunCodePoints = 24;
@@ -1451,6 +1518,7 @@ public final class NeofontrenderConfig {
             laboratoryTextUndoRedo = config.getOrElse("laboratory.textUndoRedo", false);
             compatModernSplash = config.getOrElse("compat.modernsplash.enabled", true);
             compatTinkersAntique = config.getOrElse("compat.tinkersantique.enabled", true);
+            compatThaumcraftTooltip = config.getOrElse("compat.thaumcraft.tooltip.enabled", true);
             splashFontOverrideEnabled = config.getOrElse("splash.enabled", true);
             fontStyle = config.getOrElse("font.style", 0);
             fontVariableWeight = Math.max(0, Math.min(1000, getInt(config, "font.variableWeight", 0)));
@@ -1472,15 +1540,24 @@ public final class NeofontrenderConfig {
             shadowOffsetY = getFloat(config, "shadow.offsetY", shadowLength);
             shadowBlurRadius = Math.max(0.0F, getFloat(config, "shadow.blurRadius", 0.5F));
             shadowColor = getInt(config, "shadow.color", 0xFF000000);
-            coloredShadow = config.getOrElse("shadow.colored", false);
-            shadowColorRemapRules = ShadowColorRemapRules.parse(config.getOrElse(
-                    "shadow.coloredRemapRules", ShadowColorRemapRules.DEFAULT_CONFIG));
+            shadowColorMode = normalizeShadowColorMode(config.getOrElse(
+                    "shadow.colorMode", ShadowColorPolicy.COLORED));
+            shadowColoredRatio = ShadowColorPolicy.clampRatio(getFloat(config,
+                    "shadow.coloredRatio", ShadowColorPolicy.DEFAULT_COLORED_RATIO));
+            shadowColoredFunction = ShadowColorPolicy.normalizeColoredFunction(config.getOrElse(
+                    "shadow.coloredFunction", ShadowColorPolicy.COLORED_FUNCTION_SRGB));
+            shadowColorOverrides = ShadowColorRemapRules.parse(config.getOrElse(
+                    "shadow.colorOverrides", ""));
             shadowOpacity = getFloat(config, "shadow.opacity", 0.25F);
             shadowMode = normalizeShadowMode(config.getOrElse("shadow.mode", "mask"));
             shadowMaskFonts = config.getOrElse("shadow.maskFonts", "");
             shadowMaskCodepoints = config.getOrElse("shadow.maskCodepoints", "");
             renderingEngine = normalizeRenderingEngine(config.getOrElse("rendering.engine", "cosmic"));
             advancedStringMode = config.getOrElse("rendering.advancedStringMode", true);
+            sdfEnabled = config.getOrElse("rendering.sdf", false);
+            sdfDistanceRange = Math.max(2, Math.min(8, getInt(config, "rendering.sdfDistanceRange", 4)));
+            sdfEdgeSoftness = Math.max(0.5F, Math.min(2.0F,
+                    getFloat(config, "rendering.sdfEdgeSoftness", 1.0F)));
             segmentCache = config.getOrElse("rendering.segmentCache", true);
             segmentCacheMinRunLength = Math.max(1, getInt(config, "rendering.segmentCacheMinRunLength", 8));
             segmentCacheMaxRunCodePoints = Math.max(1, getInt(config, "rendering.segmentCacheMaxRunCodePoints", 24));
@@ -1726,6 +1803,10 @@ public final class NeofontrenderConfig {
         String mode = value.trim().toLowerCase(Locale.ROOT);
         return "all".equals(mode) || "mask".equals(mode) || "emoji".equals(mode) || "none".equals(mode)
                 ? mode : "mask";
+    }
+
+    private static String normalizeShadowColorMode(String value) {
+        return ShadowColorPolicy.normalizeMode(value);
     }
 
     public static void reload() {

@@ -5,10 +5,22 @@ import net.minecraft.client.gui.FontRenderer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** Entry point for measuring and drawing text through all registered inline glyph providers. */
 public final class InlineTextEngine {
+    private static final AtomicLong LAYOUT_GENERATION = new AtomicLong();
+
     private InlineTextEngine() {}
+
+    /** Changes whenever previously created inline layouts may have stale glyph metrics. */
+    public static long layoutGeneration() {
+        return LAYOUT_GENERATION.get();
+    }
+
+    public static void invalidateLayouts() {
+        LAYOUT_GENERATION.incrementAndGet();
+    }
 
     public static InlineTextLayout layout(FontRenderer font, String source) {
         String text = source == null ? "" : source;

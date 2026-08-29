@@ -5,10 +5,16 @@ import neofontrender.api.client.settings.NfrSettingsPage;
 import neofontrender.api.client.settings.NfrSettingsPageContext;
 import neofontrender.api.client.settings.NfrSettingsPageSession;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
+import neofontrender.client.gui.component.base.NfrLabeledTextField;
+import neofontrender.client.gui.component.base.NfrStringValue;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
 import neofontrender.client.gui.views.NfrContentView;
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.core.config.NeofontrenderConfig;
+import net.minecraftforge.fml.common.Loader;
+import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.IntConsumer;
@@ -22,9 +28,41 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
 
     private static final class Session implements NfrSettingsPageSession {
         private final TooltipConfig.Snapshot original = TooltipConfig.snapshot();
+        private String profileId = "vanilla";
+        private String previewItemId = "minecraft:planks";
 
         @Override public IWidget createView(NfrSettingsPageContext context) {
             NfrSettingsControls c = context.controls();
+            List<String> availableProfiles = availableProfileIds();
+            if (!availableProfiles.contains(profileId)) profileId = "vanilla";
+            NfrOptionsGrid profileSelector = c.grid()
+                    .add(c.dropdownText("tooltip_profile", () -> tr("gui.profile"),
+                            () -> profileId,
+                            value -> {
+                                profileId = TooltipConfig.normalizeProfile(value);
+                                context.refresh();
+                            },
+                            availableProfiles,
+                            value -> tr("gui.profile." + value)).size(260, 24));
+            if ("vanilla".equals(profileId)) {
+                profileSelector.add(new NfrLabeledTextField(tr("gui.preview_item"),
+                        new TextFieldWidget().setMaxLength(256).autoUpdateOnChange(true)
+                                .value(new NfrStringValue(() -> previewItemId,
+                                        value -> previewItemId = value))));
+            }
+            NfrOptionsGrid typography = c.grid()
+                    .add(c.decimalSlider(() -> tr("gui.text_scale"),
+                            () -> TooltipConfig.profile(profileId).textScale,
+                            value -> TooltipConfig.profile(profileId).textScale = value,
+                            0.5F, 2.0F, 0.05F))
+                    .add(c.decimalSlider(() -> tr("gui.text_offset_x"),
+                            () -> TooltipConfig.profile(profileId).offsetX,
+                            value -> TooltipConfig.profile(profileId).offsetX = value,
+                            -12.0F, 12.0F, 0.1F))
+                    .add(c.decimalSlider(() -> tr("gui.text_offset_y"),
+                            () -> TooltipConfig.profile(profileId).offsetY,
+                            value -> TooltipConfig.profile(profileId).offsetY = value,
+                            -12.0F, 12.0F, 0.1F));
             NfrOptionsGrid grid = c.grid()
                     .add(c.toggleText(() -> tr("gui.enabled"), () -> tr("tooltip.enabled"),
                             () -> TooltipConfig.enabled, value -> TooltipConfig.enabled = value))
@@ -37,15 +75,24 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             () -> tr("tooltip.low_brightness_mica_enhancement"),
                             () -> TooltipConfig.lowBrightnessMicaEnhancement,
                             value -> TooltipConfig.lowBrightnessMicaEnhancement = value))
+                    .add(c.toggleText(() -> tr("gui.mica_sample_ui"),
+                            () -> tr("tooltip.mica_sample_ui"),
+                            () -> TooltipConfig.micaSampleUi,
+                            value -> TooltipConfig.micaSampleUi = value))
                     .add(c.toggleText(() -> tr("gui.legendary"), () -> tr("tooltip.legendary"),
                             () -> TooltipConfig.yieldToLegendaryTooltips, value -> TooltipConfig.yieldToLegendaryTooltips = value))
                     .add(c.toggleText(() -> tr("gui.obscure_yield"), () -> tr("tooltip.obscure_yield"),
-                            () -> TooltipConfig.yieldToObscureTooltips, value -> TooltipConfig.yieldToObscureTooltips = value))
+                            () -> TooltipConfig.yieldToObscureTooltips,
+                            value -> TooltipConfig.yieldToObscureTooltips = value,
+                            context::refresh))
                     .add(c.toggleText(() -> tr("gui.hei_custom"), () -> tr("tooltip.hei_custom"),
-                            () -> TooltipConfig.heiCustomTooltips, value -> TooltipConfig.heiCustomTooltips = value))
+                            () -> TooltipConfig.heiCustomTooltips,
+                            value -> TooltipConfig.heiCustomTooltips = value,
+                            context::refresh))
                     .add(c.toggleText(() -> tr("gui.quark_map"), () -> tr("tooltip.quark_map"),
                             () -> TooltipConfig.quarkModernMapTooltip,
-                            value -> TooltipConfig.quarkModernMapTooltip = value))
+                            value -> TooltipConfig.quarkModernMapTooltip = value,
+                            context::refresh))
                     .add(c.toggleText(() -> tr("gui.mod_name"), () -> tr("tooltip.mod_name"),
                             () -> TooltipConfig.modNameEnabled, value -> TooltipConfig.modNameEnabled = value))
                     .add(c.dropdownText("tooltip_mod_name_format", () -> tr("gui.mod_name_format"),
@@ -137,7 +184,9 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             value -> TooltipConfig.textColor = value))
                     .add(colorPicker(c, "tooltip_title_color", "gui.title_color", () -> TooltipConfig.titleColor,
                             value -> TooltipConfig.titleColor = value));
-            return new PageView(grid);
+            return new PageView(profileSelector,
+                    new ModernTooltipPreview(() -> profileId, () -> previewItemId),
+                    typography, isTextProfile(profileId), grid);
         }
 
         @Override public void apply() { TooltipConfig.save(); }
@@ -157,6 +206,30 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
             return Arrays.asList(values);
         }
 
+        private static List<String> availableProfileIds() {
+            List<String> profiles = new ArrayList<>();
+            profiles.add("vanilla");
+            if (NeofontrenderConfig.compatThaumcraftTooltip()
+                    && Loader.isModLoaded("thaumcraft")) {
+                profiles.add("thaumcraft");
+            }
+            if (TooltipConfig.heiCustomTooltips && Loader.isModLoaded("jei")) {
+                profiles.add("hei");
+            }
+            if (!TooltipConfig.yieldToObscureTooltips
+                    && Loader.isModLoaded("obscure_tooltips")) {
+                profiles.add("obscure");
+            }
+            if (TooltipConfig.quarkModernMapTooltip && Loader.isModLoaded("quark")) {
+                profiles.add("quark");
+            }
+            return profiles;
+        }
+
+        private static boolean isTextProfile(String id) {
+            return "vanilla".equals(id) || "thaumcraft".equals(id);
+        }
+
         private static IWidget colorPicker(NfrSettingsControls controls, String name, String label,
                                            IntSupplier getter, IntConsumer setter) {
             return controls.colorText(name, () -> tr(label), getter, setter, true).size(260, 24);
@@ -171,7 +244,29 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
     }
 
     private static final class PageView extends NfrContentView<PageView> {
-        private PageView(NfrOptionsGrid grid) { super(section(grid, grid::preferredHeight)); }
+        private PageView(NfrOptionsGrid profileSelector, ModernTooltipPreview preview,
+                         NfrOptionsGrid typography, boolean showTypography,
+                         NfrOptionsGrid grid) {
+            super(sections(profileSelector, preview, typography, showTypography, grid));
+        }
+
+        private static NfrContentView.Section[] sections(NfrOptionsGrid profileSelector,
+                                                         ModernTooltipPreview preview,
+                                                         NfrOptionsGrid typography,
+                                                         boolean showTypography,
+                                                         NfrOptionsGrid grid) {
+            if (showTypography) return new NfrContentView.Section[]{
+                    section(profileSelector, profileSelector::preferredHeight),
+                    section(preview, width -> preview.preferredHeight()),
+                    section(typography, typography::preferredHeight),
+                    section(grid, grid::preferredHeight)
+            };
+            return new NfrContentView.Section[]{
+                    section(profileSelector, profileSelector::preferredHeight),
+                    section(preview, width -> preview.preferredHeight()),
+                    section(grid, grid::preferredHeight)
+            };
+        }
     }
 
     private static String modNameFormatLabel(String value) {

@@ -27,12 +27,15 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
             "mixins.neofontrender_ui_enhancements_shouldersurfing_matteroverdrive.json";
     static final String BETTER_COMBAT_CONFIG =
             "mixins.neofontrender_ui_enhancements_bettercombat.json";
+    static final String THAUMCRAFT_CONFIG =
+            "mixins.neofontrender_ui_enhancements_thaumcraft.json";
 
     @Override
     public List<String> getMixinConfigs() {
         return Arrays.asList(HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG,
                 SHOULDER_SURFING_CONFIG, SHOULDER_SURFING_TCONSTRUCT_CONFIG,
-                SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG, BETTER_COMBAT_CONFIG);
+                SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG, BETTER_COMBAT_CONFIG,
+                THAUMCRAFT_CONFIG);
     }
 
     @Override
@@ -80,6 +83,12 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
                     && !classResourcePresent(
                             "com/teamderpy/shouldersurfing/client/ShoulderRenderer.class")
                     && classResourcePresent("bettercombat/mod/client/gui/GuiCrosshairsBC.class");
+        }
+        if (THAUMCRAFT_CONFIG.equals(config)) {
+            return context.isModPresent("thaumcraft")
+                    && classResourcePresent(
+                            "thaumcraft/client/gui/GuiResearchBrowser.class")
+                    && classResourcePresent("thaumcraft/client/lib/UtilsFX.class");
         }
         return false;
     }

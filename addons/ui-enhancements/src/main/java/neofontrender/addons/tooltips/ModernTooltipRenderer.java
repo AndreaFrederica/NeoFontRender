@@ -21,9 +21,12 @@ import neofontrender.api.text.CjkParagraphLayoutProvider;
 final class ModernTooltipRenderer {
     private static final int Z_LEVEL = 300;
 
-    boolean draw(RenderTooltipEvent.Pre event) {
+    boolean draw(RenderTooltipEvent.Pre event, boolean[] compactLines, String profileId,
+                 ThaumcraftTooltipCompat.Context thaumcraftContext) {
         if (event.getLines().isEmpty()) return false;
-        TooltipLayout layout = TooltipLayout.calculate(event);
+        MicaBackdrop.captureUiIfEnabled();
+        TooltipLayout layout = TooltipLayout.calculate(event, compactLines,
+                TooltipConfig.profile(profileId), thaumcraftContext);
         if (layout.lines.isEmpty()) return false;
 
         int[] fill = TooltipConfig.fillColors.clone();
@@ -59,7 +62,9 @@ final class ModernTooltipRenderer {
             MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostBackground(
                     event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
                     layout.width, layout.height));
-            drawText(layout, event.getFontRenderer());
+            drawContent(layout.x, layout.y, layout.width, layout.lines, layout.compactLines,
+                    layout.titleLines, layout.profile(), event.getFontRenderer(), event.getStack(),
+                    thaumcraftContext != null, layout.lineWidths);
             MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostText(
                     event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
                     layout.width, layout.height));
@@ -124,14 +129,6 @@ final class ModernTooltipRenderer {
                         Math.min(TooltipConfig.borderWidth, Math.max(0.5F, radius)), border);
             }
 
-            if (TooltipConfig.titleBreak && layout.lines.size() > layout.titleLines) {
-                float dividerY = layout.y + layout.titleLines * TooltipConfig.lineHeight - 1.5F;
-                drawQuad(layout.x, dividerY, layout.x + layout.width, dividerY + 1.0F,
-                        withAlpha(border[3], TooltipConfig.dividerAlpha),
-                        withAlpha(border[2], TooltipConfig.dividerAlpha),
-                        withAlpha(border[2], TooltipConfig.dividerAlpha),
-                        withAlpha(border[3], TooltipConfig.dividerAlpha));
-            }
         } finally {
             GlStateManager.shadeModel(GL11.GL_FLAT);
             GlStateManager.enableAlpha();
@@ -147,6 +144,7 @@ final class ModernTooltipRenderer {
 
     /** Draws only NFR's panel/frame around a foreign renderer's already-computed bounds. */
     static void drawCompatibleBackground(int x, int y, int width, int height, ItemStack stack) {
+        MicaBackdrop.captureUiIfEnabled();
         int[] fill = TooltipConfig.fillColors.clone();
         int[] border = TooltipConfig.borderColors.clone();
         boolean spectrum = false;
@@ -220,7 +218,11 @@ final class ModernTooltipRenderer {
         applyBorderShading(border, TooltipConfig.borderShading);
         if (spectrum) applyFallbackSpectrum(border);
 
+        boolean cullEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
         GlStateManager.disableTexture2D();
+        // GUI quads use a Y-down winding. If a screen left face culling enabled,
+        // the divider is discarded even though the surrounding panel is visible.
+        GlStateManager.disableCull();
         GlStateManager.enableBlend();
         GlStateManager.disableAlpha();
         GlStateManager.tryBlendFuncSeparate(
@@ -240,30 +242,73 @@ final class ModernTooltipRenderer {
             GlStateManager.enableAlpha();
             GlStateManager.disableBlend();
             GlStateManager.enableTexture2D();
+            if (cullEnabled) GlStateManager.enableCull();
+            else GlStateManager.disableCull();
         }
     }
 
-    private static void drawText(TooltipLayout layout, FontRenderer font) {
-        int y = layout.y;
-        for (int i = 0; i < layout.lines.size(); i++) {
-            String line = layout.lines.get(i);
-            int x = layout.x;
+    static void drawContent(int x, int y, int width, List<String> lines,
+                            List<Boolean> compactLines, int titleLines,
+                            TooltipConfig.Profile profile, FontRenderer font, ItemStack stack,
+                            boolean lineBreaksAlreadyApplied, List<Integer> measuredLineWidths) {
+        TooltipConfig.Profile activeProfile = profile == null ? TooltipConfig.profile("vanilla") : profile;
+        int textY = y;
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            boolean compact = compactLines != null && i < compactLines.size() && compactLines.get(i);
+            int lineTitleCount = Math.max(0, Math.min(titleLines, lines.size()));
+            int lineX = x;
+            float textScale = activeProfile.textScale * (compact ? 0.5F : 1.0F);
+            int paragraphWidth = lineBreaksAlreadyApplied ? 1_000_000
+                    : Math.max(1, compact ? Math.round(width * 2.0F / activeProfile.textScale)
+                            : Math.round(width / activeProfile.textScale));
             CjkParagraphLayoutProvider.Layout paragraph = CjkTypographyRenderer.layout(
-                    font, line, Math.max(1, layout.width), TooltipConfig.lineHeight);
-            int renderedWidth = paragraph == null ? font.getStringWidth(line)
+                    font, line, paragraphWidth,
+                    compact ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT * 2 : TooltipConfig.lineHeight);
+            int renderedWidth = lineBreaksAlreadyApplied && measuredLineWidths != null
+                    && i < measuredLineWidths.size()
+                    ? measuredLineWidths.get(i)
+                    : lineBreaksAlreadyApplied
+                    ? TooltipLayout.measuredLineWidth(font, line, compact, activeProfile.textScale)
+                    : paragraph == null ? font.getStringWidth(line)
                     : CjkTypographyRenderer.measuredWidth(font, paragraph);
-            if (TooltipConfig.centerTitle && i < layout.titleLines) {
-                x += Math.max(0, (layout.width - renderedWidth) / 2);
+            if (!lineBreaksAlreadyApplied && compact) renderedWidth = (renderedWidth + 1) / 2;
+            if (!lineBreaksAlreadyApplied) {
+                renderedWidth = Math.max(1, Math.round(renderedWidth * activeProfile.textScale));
             }
-            int color = i < layout.titleLines ? TooltipConfig.titleColor : TooltipConfig.textColor;
-            if (!CjkTypographyRenderer.draw(font, paragraph, x, y, color, TooltipConfig.textShadow)) {
-                if (TooltipConfig.textShadow) font.drawStringWithShadow(line, x, y, color);
-                else font.drawString(line, x, y, color);
+            if (TooltipConfig.centerTitle && i < lineTitleCount) {
+                lineX += Math.max(0, (width - renderedWidth) / 2);
             }
-            if (i + 1 == layout.titleLines && layout.lines.size() > layout.titleLines) {
-                y += TooltipConfig.titleGap;
+            int color = i < lineTitleCount ? TooltipConfig.titleColor : TooltipConfig.textColor;
+            if (textScale != 1.0F || activeProfile.offsetX != 0.0F || activeProfile.offsetY != 0.0F) {
+                GlStateManager.pushMatrix();
+                try {
+                    GlStateManager.scale(textScale, textScale, 1.0F);
+                    float scaledX = (lineX + activeProfile.offsetX) / textScale;
+                    float scaledY = (textY + activeProfile.offsetY) / textScale;
+                    if (!CjkTypographyRenderer.draw(font, paragraph, scaledX, scaledY,
+                            color, TooltipConfig.textShadow)) {
+                        if (TooltipConfig.textShadow) font.drawStringWithShadow(line, Math.round(scaledX), Math.round(scaledY), color);
+                        else font.drawString(line, Math.round(scaledX), Math.round(scaledY), color);
+                    }
+                } finally {
+                    GlStateManager.popMatrix();
+                }
+            } else if (!CjkTypographyRenderer.draw(font, paragraph, lineX, textY, color, TooltipConfig.textShadow)) {
+                if (TooltipConfig.textShadow) font.drawStringWithShadow(line, lineX, textY, color);
+                else font.drawString(line, lineX, textY, color);
             }
-            y += TooltipConfig.lineHeight;
+            if (i + 1 == lineTitleCount && lines.size() > lineTitleCount) {
+                if (TooltipConfig.titleBreak) {
+                    int dividerY = Math.round(textY + Math.max(1, Math.round(
+                            (compact ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT
+                                    : TooltipConfig.lineHeight) * activeProfile.textScale)) - 1.5F);
+                    drawCompatibleDivider(x, dividerY, width, stack);
+                }
+                textY += TooltipConfig.titleGap;
+            }
+            textY += Math.max(1, Math.round((compact ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT
+                    : TooltipConfig.lineHeight) * activeProfile.textScale));
         }
     }
 

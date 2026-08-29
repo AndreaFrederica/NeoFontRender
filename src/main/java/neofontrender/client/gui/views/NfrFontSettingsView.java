@@ -3,19 +3,18 @@ package neofontrender.client.gui.views;
 import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.api.layout.ILayoutWidget;
 import com.cleanroommc.modularui.api.widget.IWidget;
+import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.widget.ParentWidget;
-import com.cleanroommc.modularui.widgets.SliderWidget;
 import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import net.minecraft.client.resources.I18n;
+import neofontrender.client.gui.component.base.NfrDecimalSlider;
 import neofontrender.client.gui.component.base.NfrDoubleValue;
-import neofontrender.client.gui.component.base.NfrLabeledSlider;
 import neofontrender.client.gui.component.base.NfrLabeledTextField;
 import neofontrender.client.gui.component.base.NfrLayout;
 import neofontrender.client.gui.component.base.NfrScrollablePane;
 import neofontrender.client.gui.component.base.NfrStringValue;
-import neofontrender.client.gui.component.base.NfrTrackSliderWidget;
 import neofontrender.client.gui.component.business.NfrFontForm;
 import neofontrender.client.gui.component.business.NfrFontList;
 import neofontrender.client.gui.component.business.NfrFontMetricsFields;
@@ -157,17 +156,20 @@ public final class NfrFontSettingsView extends ParentWidget<NfrFontSettingsView>
                 labeled("neofontrender.gui.label.baseline", field(() -> d.baselineShift, value -> d.baselineShift = value, 8)));
     }
 
-    private static NfrLabeledSlider oversample(NfrSettingsDraft d, Runnable preview) {
-        SliderWidget slider = new NfrTrackSliderWidget()
-                .value(new NfrDoubleValue(() -> (double) parseFloat(d.oversample, 8.0F, 1.0F, 16.0F), value -> {
+    private static IWidget oversample(NfrSettingsDraft d, Runnable preview) {
+        NfrDecimalSlider slider = new NfrDecimalSlider(
+                () -> tr("neofontrender.gui.label.oversample") + (d.adaptiveRasterScale
+                        ? " (" + tr("neofontrender.gui.option.autoscale") + ")"
+                        : " (" + tr("neofontrender.gui.manual") + ")"),
+                () -> d.oversample + "x");
+        slider.value(new NfrDoubleValue(() -> (double) parseFloat(d.oversample, 8.0F, 1.0F, 16.0F), value -> {
                     d.oversample = String.format(Locale.ROOT, "%.1f", Math.max(1.0D, Math.min(16.0D, value)));
                     preview.run();
                 }))
-                .bounds(1.0D, 16.0D).stopper(1.0D, 2.0D, 3.0D, 4.0D, 6.0D, 8.0D, 12.0D, 16.0D)
-                .sliderSize(8, 14).stopperSize(2, 6);
-        return new NfrLabeledSlider(() -> tr("neofontrender.gui.label.oversample") + ": " + d.oversample + "x"
-                + (d.adaptiveRasterScale ? " (" + tr("neofontrender.gui.option.autoscale") + ")"
-                : " (" + tr("neofontrender.gui.manual") + ")"), slider);
+                .bounds(1.0D, 16.0D);
+        slider.tooltip(new RichTooltip().showUpTimer(8)
+                .addLine(tr("neofontrender.tooltip.oversample")));
+        return slider.size(260, 24);
     }
 
     private static TextFieldWidget field(Supplier<String> getter, Consumer<String> setter, int maxLength) {

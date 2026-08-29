@@ -8,6 +8,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import neofontrender.client.gui.NeofontrenderEmojiTestScreen;
+import neofontrender.build.BuildFeatures;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.FontSet;
@@ -77,10 +78,12 @@ public final class NeofontrenderCommand extends CommandBase {
                     + " h/m/e=" + state.renderHits + "/" + state.renderMisses + "/" + state.renderEvictions);
             message(sender, TextFormatting.WHITE, "  measure cache: " + state.measureCacheSize + "/" + state.measureCacheMax
                     + " h/m/e=" + state.measureHits + "/" + state.measureMisses + "/" + state.measureEvictions);
-            BackendTextSegmenter.DebugState segments = BackendTextSegmenter.debugState();
-            message(sender, TextFormatting.WHITE, "  segments: " + (segments.enabled() ? "on" : "off")
-                    + " attempts=" + segments.attempts() + " runs=" + segments.segmentedRuns()
-                    + " rejected=" + segments.rejectedRuns());
+            if (BuildFeatures.RENDER_STATS) {
+                BackendTextSegmenter.DebugState segments = BackendTextSegmenter.debugState();
+                message(sender, TextFormatting.WHITE, "  segments: " + (segments.enabled() ? "on" : "off")
+                        + " attempts=" + segments.attempts() + " runs=" + segments.segmentedRuns()
+                        + " rejected=" + segments.rejectedRuns());
+            }
         } else if (manager.isSfrActive()) {
             FontSet.DebugState state = manager.getSfrDebugState();
             if (state != null) message(sender, TextFormatting.WHITE,

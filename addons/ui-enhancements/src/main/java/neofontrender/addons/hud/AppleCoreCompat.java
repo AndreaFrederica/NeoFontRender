@@ -18,6 +18,7 @@ final class AppleCoreCompat {
     private static Method isFood;
     private static Method getFoodValuesForPlayer;
     private static Field foodHunger;
+    private static Field foodSaturationModifier;
 
     private AppleCoreCompat() {}
 
@@ -36,17 +37,19 @@ final class AppleCoreCompat {
         return value instanceof Number ? Math.max(0.001F, ((Number) value).floatValue()) : 4.0F;
     }
 
-    /** Returns NaN when AppleCore is absent or the stack is not food. */
-    static float foodHunger(ItemStack stack, EntityPlayer player) {
+    /** Returns both dynamic AppleCore food values, or null when the stack is not food. */
+    static FoodValue foodValue(ItemStack stack, EntityPlayer player) {
         ensure();
-        if (accessorField == null || stack == null || stack.isEmpty()) return Float.NaN;
+        if (accessorField == null || stack == null || stack.isEmpty()) return null;
         try {
             Object accessor = accessorField.get(null);
-            if (accessor == null || !Boolean.TRUE.equals(isFood.invoke(accessor, stack))) return Float.NaN;
+            if (accessor == null || !Boolean.TRUE.equals(isFood.invoke(accessor, stack))) return null;
             Object values = getFoodValuesForPlayer.invoke(accessor, stack, player);
-            return values == null ? Float.NaN : ((Number) foodHunger.get(values)).floatValue();
+            if (values == null) return null;
+            return new FoodValue(((Number) foodHunger.get(values)).floatValue(),
+                    ((Number) foodSaturationModifier.get(values)).floatValue());
         } catch (ReflectiveOperationException | RuntimeException ignored) {
-            return Float.NaN;
+            return null;
         }
     }
 
@@ -79,10 +82,21 @@ final class AppleCoreCompat {
             isFood = accessor.getMethod("isFood", ItemStack.class);
             getFoodValuesForPlayer = accessor.getMethod("getFoodValuesForPlayer", ItemStack.class, EntityPlayer.class);
             foodHunger = values.getField("hunger");
+            foodSaturationModifier = values.getField("saturationModifier");
             NfrUiEnhancements.LOGGER.info("AppleCore hunger API detected; HUD bars will use its dynamic values");
         } catch (ReflectiveOperationException | LinkageError error) {
             accessorField = null;
             NfrUiEnhancements.LOGGER.warn("AppleCore is present but its hunger API could not be linked", error);
+        }
+    }
+
+    static final class FoodValue {
+        final float hunger;
+        final float saturationModifier;
+
+        private FoodValue(float hunger, float saturationModifier) {
+            this.hunger = hunger;
+            this.saturationModifier = saturationModifier;
         }
     }
 }

@@ -2,6 +2,7 @@ package neofontrender.mixin;
 
 import net.minecraft.client.gui.GuiOverlayDebug;
 import neofontrender.Tags;
+import neofontrender.build.BuildFeatures;
 import neofontrender.client.render.sign.SignOcclusionCuller;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.FontManager;
@@ -67,7 +68,7 @@ public class MixinGuiOverlayDebug {
                 lines.add("NFR Cosmic measure: " + state.measureCacheSize + "/" + state.measureCacheMax
                         + " h/m/e=" + state.measureHits + "/" + state.measureMisses + "/" + state.measureEvictions
                         + " font=" + state.primaryFamily);
-                if (NeofontrenderConfig.debugRenderStats()) {
+                if (BuildFeatures.RENDER_STATS && NeofontrenderConfig.debugRenderStats()) {
                     BackendTextSegmenter.DebugState segments = BackendTextSegmenter.debugState();
                     lines.add("NFR seg: " + (segments.enabled() ? "on" : "off")
                             + " attempts=" + segments.attempts() + " runs=" + segments.segmentedRuns()

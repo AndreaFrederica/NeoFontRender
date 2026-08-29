@@ -19,6 +19,7 @@ import neofontrender.addons.api.camera.CameraApi;
 import neofontrender.addons.api.camera.CameraCollisionQuery;
 import neofontrender.addons.api.camera.CameraViewChangedEvent;
 import neofontrender.addons.api.camera.CameraViewChangeReason;
+import neofontrender.addons.api.camera.CameraRay;
 import neofontrender.addons.input.DroneInputGuard;
 import neofontrender.addons.input.FreeLookInputGuard;
 import neofontrender.addons.compat.CameraExternalCompat;
@@ -36,6 +37,8 @@ public final class CameraRuntime {
             "neofontrender_ui_enhancements", "drone");
     private static final ResourceLocation FREE_LOOK_ID = new ResourceLocation(
             "neofontrender_ui_enhancements", "free_look");
+    private static final ResourceLocation CURSOR_LOOK_ID = new ResourceLocation(
+            "neofontrender_ui_enhancements", "cursor_look");
     private static final ResourceLocation SHOULDER_ID = new ResourceLocation(
             "neofontrender_ui_enhancements", "shoulder");
     private static long sampleId;
@@ -63,6 +66,7 @@ public final class CameraRuntime {
     private static int freeLookExpectedPerspective;
     private static boolean freeLookFront;
     private static boolean freeLookControlsPlayer;
+    private static CursorLookController cursorLookController;
     private static boolean shoulderFirstPersonOverride;
     private static float shoulderCrosshairTargetX;
     private static float shoulderCrosshairTargetY;
@@ -109,7 +113,7 @@ public final class CameraRuntime {
      */
     public static synchronized boolean suppressesVanillaThirdPersonDisplacement() {
         return usesDetachedThirdPersonPresentation()
-                || ((isShoulderActive() || isFreeLookActive())
+                || ((isShoulderActive() || isLookCameraActive())
                 && MC.gameSettings.thirdPersonView > 0);
     }
 
@@ -124,13 +128,13 @@ public final class CameraRuntime {
      * the render-view identity remains the player for movement, picking, and other consumers.
      */
     public static synchronized boolean isPlayerAnchoredCameraActive() {
-        return (isShoulderActive() || isFreeLookActive())
+        return (isShoulderActive() || isLookCameraActive())
                 && MC.getRenderViewEntity() == MC.player;
     }
 
     /** Camera-local GL translation for rigs whose render-view entity remains the player. */
     static synchronized CameraVector anchoredViewTranslation(CameraFrame frame) {
-        if (frame == null || (!isShoulderActive() && !isFreeLookActive())) return null;
+        if (frame == null || (!isShoulderActive() && !isLookCameraActive())) return null;
         return CameraPresentationTransform.translation(frame.viewAttitude(),
                 frame.bodyPosition(), frame.position());
     }
@@ -181,7 +185,13 @@ public final class CameraRuntime {
         if (isDroneActive()) {
             position = dronePosition == null ? bodyPosition : dronePosition;
             targetPosition = position;
-        } else if (isFreeLookActive()) {
+        } else if (isCursorLookActive() && CursorLookConfig.useShoulderOffset) {
+            ShoulderCameraRig.Sample sample = ShoulderCameraRig.resolve(
+                    player, view, bodyPosition, value);
+            position = sample.position;
+            targetPosition = sample.target;
+            shoulderPosition = position;
+        } else if (isLookCameraActive()) {
             FreeLookCameraRig.Sample sample = FreeLookCameraRig.resolve(
                     player, view, bodyPosition, value);
             position = sample.position;
@@ -219,7 +229,7 @@ public final class CameraRuntime {
                 ? droneMotion.velocity() : kinematics.linear;
         lastFrame = new CameraFrame(sampleId, value, body, view,
                 bodyPosition, position, targetPosition, velocity, kinematics.angular,
-                !isDroneActive() && !isFreeLookActive() && !isShoulderActive()
+                !isDroneActive() && !isLookCameraActive() && !isShoulderActive()
                         && !bodySample.flightAuthoritative);
         samplePartialTicks = value;
         sampleValid = true;
@@ -231,8 +241,9 @@ public final class CameraRuntime {
         if (activeSession != null && activeSession.isActive()) return new RejectedSession();
         boolean drone = DRONE_ID.equals(request.id());
         boolean freeLook = FREE_LOOK_ID.equals(request.id());
+        boolean cursorLookRequest = CURSOR_LOOK_ID.equals(request.id());
         boolean shoulder = SHOULDER_ID.equals(request.id());
-        if (!drone && !freeLook && !shoulder) return new RejectedSession();
+        if (!drone && !freeLook && !cursorLookRequest && !shoulder) return new RejectedSession();
         if (!CameraExternalCompat.internalCameraAllowed()) return new RejectedSession();
         // Releasing an API-only detached lease first keeps the session restore target from
         // pointing at a stale adapter when a built-in rig takes ownership.
@@ -256,13 +267,20 @@ public final class CameraRuntime {
             MC.setRenderViewEntity(droneViewEntity);
             enterBuiltInPresentation();
             droneInput = DroneInputGuard.enter();
-        } else if (freeLook) {
+        } else if (freeLook || cursorLookRequest) {
             EntityPlayerSP player = MC.player;
             if (player == null) return new RejectedSession();
             CameraAttitude attitude = bodyAttitude(player, MC.getRenderPartialTicks()).attitude;
             freeLookController = new FreeLookController(attitude);
-            freeLookControlsPlayer = FreeLookConfig.controlPlayerByDefault;
-            freeLookInput = FreeLookInputGuard.enter(freeLookControlsPlayer);
+            freeLookControlsPlayer = freeLook && FreeLookConfig.controlPlayerByDefault;
+            cursorLookController = new CursorLookController();
+            if (cursorLookRequest) cursorLookController.reset(MC.displayWidth, MC.displayHeight);
+            if (cursorLookRequest && CursorLookConfig.useShoulderOffset) {
+                CameraVector anchor = interpolatedEye(player, MC.getRenderPartialTicks());
+                ShoulderCameraRig.reset(player, attitude, anchor);
+            }
+            freeLookInput = FreeLookInputGuard.enter(freeLookControlsPlayer,
+                    cursorLookRequest ? CURSOR_LOOK_ID : FREE_LOOK_ID);
             freeLookFront = MC.gameSettings.thirdPersonView == 2;
             enterBuiltInPresentation();
             freeLookExpectedPerspective = 1;
@@ -276,7 +294,7 @@ public final class CameraRuntime {
                     MC.getRenderPartialTicks()).position;
             enterBuiltInPresentation();
         }
-        Session session = new Session(request, drone, freeLook, shoulder);
+        Session session = new Session(request, drone, freeLook, cursorLookRequest, shoulder);
         activeSession = session;
         refreshView(CameraViewChangeReason.MODE_ENTER);
         return session;
@@ -302,8 +320,17 @@ public final class CameraRuntime {
                 && ((Session) activeSession).freeLook;
     }
 
+    public static synchronized boolean isCursorLookActive() {
+        return activeSession instanceof Session && activeSession.isActive()
+                && ((Session) activeSession).cursorLook;
+    }
+
+    static synchronized boolean isLookCameraActive() {
+        return isFreeLookActive() || isCursorLookActive();
+    }
+
     static synchronized boolean isFreeLookPerspectiveValid() {
-        return CameraPresentationPolicy.freeLookPerspectiveValid(isFreeLookActive(),
+        return CameraPresentationPolicy.freeLookPerspectiveValid(isLookCameraActive(),
                 MC.gameSettings.thirdPersonView, freeLookExpectedPerspective);
     }
 
@@ -315,21 +342,26 @@ public final class CameraRuntime {
     /** Advances tick-owned rig state before render frames interpolate it. */
     static synchronized void advanceCameraTick() {
         EntityPlayerSP player = MC.player;
-        if (!isShoulderActive() || player == null) return;
+        boolean cursorShoulder = isCursorLookActive() && CursorLookConfig.useShoulderOffset;
+        if ((!isShoulderActive() && !cursorShoulder) || player == null) return;
         CameraAttitude body = bodyAttitude(player, 1.0F).attitude;
-        ShoulderCameraRig.tick(player, body, interpolatedEye(player, 1.0F));
+        CameraAttitude view = cursorShoulder && freeLookController != null
+                ? freeLookController.resolve(body) : body;
+        ShoulderCameraRig.tick(player, view, interpolatedEye(player, 1.0F));
         invalidateSample();
     }
 
     static synchronized String activeRigId() {
         if (isDroneActive()) return DRONE_ID.toString();
         if (isFreeLookActive()) return FREE_LOOK_ID.toString();
+        if (isCursorLookActive()) return CURSOR_LOOK_ID.toString();
         if (isShoulderActive()) return SHOULDER_ID.toString();
         return null;
     }
 
     public static synchronized void swapShoulder() {
-        if (!isShoulderActive()) return;
+        if (!isShoulderActive()
+                && !(isCursorLookActive() && CursorLookConfig.useShoulderOffset)) return;
         ShoulderCameraConfig.offsetX = -ShoulderCameraConfig.offsetX;
         ShoulderCameraConfig.save();
         shoulderPosition = null;
@@ -337,10 +369,16 @@ public final class CameraRuntime {
     }
 
     public static synchronized void toggleFreeLookControl() {
-        if (!isFreeLookActive()) return;
+        if (!isLookCameraActive()) return;
+        if (isCursorLookActive()) {
+            if (cursorLookController != null) cursorLookController.toggleControlTarget();
+            invalidateSample();
+            return;
+        }
         freeLookControlsPlayer = !freeLookControlsPlayer;
         if (freeLookInput != null) freeLookInput.close();
-        freeLookInput = FreeLookInputGuard.enter(freeLookControlsPlayer);
+        freeLookInput = FreeLookInputGuard.enter(
+                freeLookControlsPlayer, FREE_LOOK_ID);
         invalidateSample();
     }
 
@@ -348,9 +386,94 @@ public final class CameraRuntime {
         return isFreeLookActive() && freeLookControlsPlayer;
     }
 
+    public static synchronized boolean cursorLookControlsCamera() {
+        return isCursorLookActive() && cursorLookController != null
+                && cursorLookController.controlsCamera();
+    }
+
+    public static synchronized boolean isFreeLookCursorMode() {
+        return isCursorLookActive();
+    }
+
+    /** Camera yaw used to reinterpret movement input; null leaves vanilla body-relative movement. */
+    public static synchronized Float cursorLookMovementYaw(float partialTicks) {
+        EntityPlayerSP player = MC.player;
+        if (!isCursorLookActive() || !CursorLookConfig.cameraRelativeMovement
+                || FlightApi.isActive() || player == null) return null;
+        CameraVector forward = frame(partialTicks).viewBasis().forward();
+        double horizontal = Math.sqrt(forward.x * forward.x + forward.z * forward.z);
+        if (horizontal < 1.0E-7D) return player.rotationYaw;
+        return (float) Math.toDegrees(Math.atan2(-forward.x, forward.z));
+    }
+
+    public static synchronized void toggleFreeLookCursorMode() {
+        // Kept as a binary-compatible no-op for integrations compiled against the old toggle.
+    }
+
+    /** Returns the current cursor in scaled-screen coordinates for the existing crosshair renderer. */
+    public static synchronized float[] freeLookCursorPosition(float partialTicks) {
+        if (!isCursorLookActive() || cursorLookController == null
+                || !cursorLookController.initialized()) return null;
+        cursorLookController.ensureViewport(MC.displayWidth, MC.displayHeight);
+        net.minecraft.client.gui.ScaledResolution resolution =
+                new net.minecraft.client.gui.ScaledResolution(MC);
+        double sx = resolution.getScaledWidth() / (double) Math.max(1, MC.displayWidth);
+        double sy = resolution.getScaledHeight() / (double) Math.max(1, MC.displayHeight);
+        return new float[]{(float) (cursorLookController.x() * sx),
+                (float) (cursorLookController.y() * sy)};
+    }
+
+    /** Returns the world ray emitted by the virtual cursor for the authoritative camera frame. */
+    static synchronized CameraRay freeLookCursorRay(float partialTicks) {
+        if (!isCursorLookActive() || cursorLookController == null
+                || !cursorLookController.initialized()) return null;
+        cursorLookController.ensureViewport(MC.displayWidth, MC.displayHeight);
+        CameraMeasurement measurement = CameraApi.measure(partialTicks);
+        double sx = measurement.lens().width() / (double) Math.max(1, MC.displayWidth);
+        double sy = measurement.lens().height() / (double) Math.max(1, MC.displayHeight);
+        return measurement.screenRay(cursorLookController.x() * sx,
+                cursorLookController.y() * sy);
+    }
+
+    /** Keeps gameplay look direction aligned with the cursor for weapons reading player yaw/pitch. */
+    public static synchronized void synchronizeCursorPlayerAim(float partialTicks) {
+        EntityPlayerSP player = MC.player;
+        // Active flight/vehicle controllers own the physical body pose, matching Shoulder mode.
+        if (!isCursorLookActive() || FlightApi.isActive()
+                || player == null || player.world == null) return;
+        CameraFrame frame = CameraApi.getFrame(partialTicks);
+        CameraVector direction = CameraPickingService.cursorPlayerAimDirection(player, frame);
+        synchronizeCursorPlayerAim(direction);
+    }
+
+    /** Applies the direction derived from the same authoritative pick written to objectMouseOver. */
+    static synchronized void synchronizeCursorPlayerAim(CameraVector direction) {
+        EntityPlayerSP player = MC.player;
+        if (!isCursorLookActive() || FlightApi.isActive()
+                || player == null || player.world == null) return;
+        if (direction == null || direction.lengthSquared() < 1.0E-12D) return;
+        double horizontal = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+        float targetYaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
+        float pitch = (float) -Math.toDegrees(Math.atan2(direction.y, horizontal));
+        CursorAimPose pose = CursorAimPose.resolve(player.rotationYaw, targetYaw, pitch,
+                CursorLookConfig.headOnlyAim);
+        player.rotationYaw = pose.bodyYaw;
+        player.rotationPitch = pose.pitch;
+        player.rotationYawHead = pose.headYaw;
+        invalidateSample();
+    }
+
+    /** Cursor-owned head pitch/yaw and physical body yaw used by the local player renderer. */
+    public static synchronized float[] freeLookCursorPose(float partialTicks) {
+        EntityPlayerSP player = MC.player;
+        return isCursorLookActive() && player != null
+                ? new float[]{player.rotationYawHead, player.rotationPitch, player.rotationYaw}
+                : null;
+    }
+
     /** Returns the cached scaled-screen offset. Ray tracing is performed at RenderWorldLast. */
     public static synchronized float[] shoulderCrosshairOffset(float partialTicks) {
-        if (!isShoulderActive() && !isFreeLookActive()) return null;
+        if (!isShoulderActive() && !isLookCameraActive()) return null;
         EntityPlayerSP player = MC.player;
         if (player == null) return null;
         boolean aiming = CameraPickingService.isAdaptiveAiming(player);
@@ -365,7 +488,7 @@ public final class CameraRuntime {
 
     /** Player-eye projection used by weapon aiming, independent of Shoulder display policy. */
     public static synchronized float[] playerAimCrosshairOffset(float partialTicks) {
-        if ((!isShoulderActive() && !isFreeLookActive()) || !shoulderCrosshairProjected) {
+        if ((!isShoulderActive() && !isLookCameraActive()) || !shoulderCrosshairProjected) {
             return null;
         }
         return new float[]{shoulderCrosshairTargetX, shoulderCrosshairTargetY};
@@ -374,7 +497,7 @@ public final class CameraRuntime {
     /** Updates player-aim and optional camera-ray projections while world matrices are current. */
     public static synchronized void updateShoulderCrosshairProjection(float partialTicks) {
         EntityPlayerSP player = MC.player;
-        if ((!isShoulderActive() && !isFreeLookActive()) || player == null || MC.playerController == null) {
+        if ((!isShoulderActive() && !isLookCameraActive()) || player == null || MC.playerController == null) {
             clearShoulderCrosshairProjection();
             return;
         }
@@ -443,7 +566,7 @@ public final class CameraRuntime {
         EntityPlayerSP player = MC.player;
         if (player == null) return true;
         int perspective = shoulderFirstPersonOverride ? 0 : isShoulderActive() ? 3
-                : isFreeLookActive() ? 3 : MC.gameSettings.thirdPersonView;
+                : isLookCameraActive() ? 3 : MC.gameSettings.thirdPersonView;
         boolean aiming = CameraPickingService.isAdaptiveAiming(player);
         return ShoulderCameraConfig.visibilityRule(perspective)
                 .render(MC.objectMouseOver, aiming);
@@ -510,7 +633,7 @@ public final class CameraRuntime {
 
     /** True when the Forge render boundary must use {@link CameraFrame#viewAttitude()}. */
     public static synchronized boolean isViewOverrideActive() {
-        if (isDroneActive() || isFreeLookActive()) return true;
+        if (isDroneActive() || isLookCameraActive()) return true;
         if (isShoulderActive()) return CameraExternalCompat.internalCameraAllowed();
         EntityPlayerSP player = MC.player;
         return player != null && !lastFrame.isVanillaPassThrough()
@@ -528,13 +651,15 @@ public final class CameraRuntime {
     }
 
     public static synchronized void clearDronePose() {
-        if (!isDroneActive() && !isFreeLookActive() && !isShoulderActive()
+        if (!isDroneActive() && !isLookCameraActive() && !isShoulderActive()
                 && droneViewEntity == null) return;
         dronePosition = null;
         shoulderPosition = null;
         droneAttitude = null;
         droneMotion = null;
         freeLookController = null;
+        freeLookControlsPlayer = false;
+        cursorLookController = null;
         invalidateSample();
         lastDroneInputNanos = 0L;
         if (droneViewEntity != null && MC.getRenderViewEntity() == droneViewEntity) {
@@ -613,14 +738,14 @@ public final class CameraRuntime {
         refreshView(CameraViewChangeReason.MODE_EXIT, finalFrame);
     }
 
-    /** Called after the legacy mouse event chain; it never mutates player rotation or position. */
+    /** Called after the legacy mouse event chain; cursor aiming is synchronized separately. */
     public static synchronized boolean updateViewInput(int originalDeltaX, int originalDeltaY,
                                                         int adjustedDeltaX, int adjustedDeltaY,
                                                         boolean eventCanceled, boolean invertMouse,
                                                         boolean forward, boolean back, boolean left,
                                                         boolean right, boolean up, boolean down,
                                                         long nowNanos) {
-        if (!isDroneActive() && !isFreeLookActive()) return false;
+        if (!isDroneActive() && !isLookCameraActive()) return false;
         InputFrame routedInput = neofontrender.addons.api.input.InputApi.getFrame(0.0F);
         double seconds = lastDroneInputNanos == 0L ? 0.0D
                 : (nowNanos - lastDroneInputNanos) / 1_000_000_000.0D;
@@ -628,12 +753,6 @@ public final class CameraRuntime {
         double roll = routedInput.get(InputAction.CAMERA_ROLL).getAxis();
         if (freeLookController != null) freeLookController.roll(roll, seconds);
         if (droneMotion != null) droneMotion.roll(roll, seconds);
-        // In free-look player-control mode, let vanilla's player.turn() handle the mouse.
-        // Roll remains a detached-camera action; don't process or zero the mouse deltas here.
-        if (isFreeLookActive() && freeLookControlsPlayer) {
-            invalidateSample();
-            return false;
-        }
         int routedDeltaX = neofontrender.addons.input.VanillaInputBridge.resolveCameraDelta(
                 originalDeltaX, adjustedDeltaX, eventCanceled,
                 routedInput.get(InputAction.CAMERA_LOOK_X),
@@ -644,6 +763,29 @@ public final class CameraRuntime {
                 routedInput.get(InputAction.CAMERA_LOOK_Y),
                 routedInput.disposition(InputAction.CAMERA_LOOK_Y),
                 routedInput.getContext().getFrameSeconds());
+        // Player-control mode hands the physical deltas back to vanilla player.turn().
+        // The detached camera and cursor remain unchanged.
+        if (isFreeLookActive() && freeLookControlsPlayer) {
+            invalidateSample();
+            return false;
+        }
+        if (isCursorLookActive()) {
+            if (cursorLookController != null && cursorLookController.controlsCamera()) {
+                if (freeLookController != null) freeLookController.look(
+                        routedDeltaX, routedDeltaY, invertMouse,
+                        MC.gameSettings.mouseSensitivity);
+                if (MC.renderGlobal != null) MC.renderGlobal.setDisplayListEntitiesDirty();
+                invalidateSample();
+                return true;
+            }
+            if (cursorLookController == null) cursorLookController = new CursorLookController();
+            cursorLookController.update(MC.displayWidth, MC.displayHeight,
+                    routedDeltaX, routedDeltaY, CursorLookConfig.speed);
+            invalidateSample();
+            return true;
+        }
+        // In free-look player-control mode, let vanilla's player.turn() handle the mouse.
+        // Roll remains a detached-camera action; don't process or zero the mouse deltas here.
         if (droneMotion != null) {
             // Keyboard yaw rotation for drone camera
             int keyboardYaw = 0;
@@ -658,7 +800,7 @@ public final class CameraRuntime {
         }
         if (freeLookController != null) freeLookController.look(routedDeltaX, routedDeltaY,
                 invertMouse, MC.gameSettings.mouseSensitivity);
-        if (isFreeLookActive() && MC.renderGlobal != null) {
+        if (isLookCameraActive() && MC.renderGlobal != null) {
             // Omnilook invalidates entity display state while the detached view is active.
             MC.renderGlobal.setDisplayListEntitiesDirty();
         }
@@ -759,7 +901,7 @@ public final class CameraRuntime {
 
     private static void refreshView(CameraViewChangeReason reason, CameraFrame finalFrame) {
         if (MC.entityRenderer != null) {
-            MC.entityRenderer.loadEntityShader(isDroneActive() || isFreeLookActive()
+            MC.entityRenderer.loadEntityShader(isDroneActive() || isLookCameraActive()
                     || isShoulderActive() || apiViewEntity != null || MC.gameSettings.thirdPersonView != 0
                     ? null : MC.getRenderViewEntity());
         }
@@ -891,13 +1033,15 @@ public final class CameraRuntime {
         private final CameraRigRequest request;
         private final boolean drone;
         private final boolean freeLook;
+        private final boolean cursorLook;
         private final boolean shoulder;
         private boolean closed;
 
-        Session(CameraRigRequest request, boolean drone, boolean freeLook, boolean shoulder) {
+        Session(CameraRigRequest request, boolean drone, boolean freeLook, boolean cursorLook, boolean shoulder) {
             this.request = request;
             this.drone = drone;
             this.freeLook = freeLook;
+            this.cursorLook = cursorLook;
             this.shoulder = shoulder;
         }
 
@@ -908,14 +1052,14 @@ public final class CameraRuntime {
             closed = true;
             synchronized (CameraRuntime.class) {
                 if (activeSession == this) activeSession = null;
-                if (drone || freeLook || shoulder) {
+                if (drone || freeLook || cursorLook || shoulder) {
                     clearDronePose();
                     if (droneInput != null) {
                         droneInput.close();
                         droneInput = null;
                     }
                 }
-                if (freeLook && freeLookInput != null) {
+                if ((freeLook || cursorLook) && freeLookInput != null) {
                     freeLookInput.close();
                     freeLookInput = null;
                     freeLookController = null;

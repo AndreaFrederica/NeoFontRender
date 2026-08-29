@@ -173,20 +173,30 @@ public class ChatChannel implements Channel {
             }
         }
 
+        ChatArea chatbox = ((ChatManager) TabbyChat.getInstance().getChat()).getChatBox().getChatArea();
+        boolean preserveScroll = getStatus() == ChannelStatus.ACTIVE
+                && chatbox.isScrolled() && id == 0;
         int uc = Minecraft.getMinecraft().ingameGUI.getUpdateCounter();
         ChatMessageMetadataRegistry.copy(chat, event.text);
         Message msg = new ChatMessage(uc, event.text, id, true);
+        int addedPixelHeight = preserveScroll ? chatbox.measureMessagePixelHeight(msg) : 0;
         this.getMessages().add(0, msg);
-
-        // compensate scrolling
-        ChatArea chatbox = ((ChatManager) TabbyChat.getInstance().getChat()).getChatBox().getChatArea();
-        if (getStatus() == ChannelStatus.ACTIVE && chatbox.getScrollPos() > 0 && id == 0) {
-            chatbox.scroll(1);
-        }
 
         trim(TabbyChat.getInstance().settings.advanced.historyLen.get());
 
         ((ChatManager) TabbyChat.getInstance().getChat()).save();
+        dirty();
+        if (preserveScroll) chatbox.preserveScrollAfterMessage(addedPixelHeight);
+    }
+
+    /** Restores an already-processed message without receive/add events or unread state changes. */
+    public void restoreMessage(ITextComponent chat, int id) {
+        if (id != 0) {
+            this.getMessages().removeIf(message -> message.getID() == id);
+        }
+        int updateCounter = Minecraft.getMinecraft().ingameGUI.getUpdateCounter();
+        this.getMessages().add(0, new ChatMessage(updateCounter, chat, id, true));
+        trim(TabbyChat.getInstance().settings.advanced.historyLen.get());
         dirty();
     }
 

@@ -28,6 +28,7 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
         private final boolean persistence = EnhancedChatConfig.persistence;
         private final boolean received = EnhancedChatConfig.persistReceived;
         private final boolean sent = EnhancedChatConfig.persistSent;
+        private final boolean logRestored = EnhancedChatConfig.logRestoredHistory;
         private final boolean search = EnhancedChatConfig.messageSearch;
         private final boolean commandCompletion = EnhancedChatConfig.commandCompletion;
         private final boolean privateCommandBlock = EnhancedChatConfig.privateCommandBlock;
@@ -75,7 +76,11 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
                     .add(c.toggleText(() -> tr("gui.chat.persist_received"), () -> tr("tooltip.chat.persist_received"),
                             () -> EnhancedChatConfig.persistReceived, value -> EnhancedChatConfig.persistReceived = value))
                     .add(c.toggleText(() -> tr("gui.chat.persist_sent"), () -> tr("tooltip.chat.persist_sent"),
-                            () -> EnhancedChatConfig.persistSent, value -> EnhancedChatConfig.persistSent = value));
+                            () -> EnhancedChatConfig.persistSent, value -> EnhancedChatConfig.persistSent = value))
+                    .add(c.toggleText(() -> tr("gui.chat.log_restored_history"),
+                            () -> tr("tooltip.chat.log_restored_history"),
+                            () -> EnhancedChatConfig.logRestoredHistory,
+                            value -> EnhancedChatConfig.logRestoredHistory = value));
             NfrOptionsGrid copying = c.grid()
                     .add(c.toggleText(() -> tr("gui.chat.copy_selection"), () -> tr("tooltip.chat.copy_selection"),
                             () -> EnhancedChatConfig.copySelection, value -> EnhancedChatConfig.copySelection = value))
@@ -98,6 +103,7 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
             EnhancedChatConfig.persistence = persistence;
             EnhancedChatConfig.persistReceived = received;
             EnhancedChatConfig.persistSent = sent;
+            EnhancedChatConfig.logRestoredHistory = logRestored;
             EnhancedChatConfig.messageSearch = search;
             EnhancedChatConfig.commandCompletion = commandCompletion;
             EnhancedChatConfig.privateCommandBlock = privateCommandBlock;

@@ -1,5 +1,6 @@
 package neofontrender.core.font.backend;
 
+import neofontrender.build.BuildFeatures;
 import neofontrender.core.config.NeofontrenderConfig;
 
 import java.util.ArrayList;
@@ -28,7 +29,8 @@ public final class BackendTextSegmenter {
             return null;
         }
         return segment(text, NeofontrenderConfig.segmentCacheMaxRunCodePoints(),
-                NeofontrenderConfig.segmentCacheMaxSegments(), NeofontrenderConfig.debugRenderStats());
+                NeofontrenderConfig.segmentCacheMaxSegments(),
+                BuildFeatures.RENDER_STATS && NeofontrenderConfig.debugRenderStats());
     }
 
     static List<String> segment(String text, int maxRunCodePoints, int maxSegments, boolean stats) {

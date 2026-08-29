@@ -18,17 +18,17 @@ public class Scrollbar extends GuiComponent {
     @Override
     public void drawComponent(int mouseX, int mouseY) {
         if (ChatHudWindowController.isChatExpanded()) {
-            int scroll = chat.getScrollPos();
+            int scroll = chat.getScrollPixels();
             int max = chat.getBounds().height;
-            int lines = chat.getVisibleLineCapacity();
-            int total = chat.getChat().size();
-            if (total <= lines) {
+            int total = chat.getMaximumScrollPixels();
+            if (total <= 0) {
                 return;
             }
-            total -= lines;
-            int size = Math.max(max / 2 - total, 10);
-            float perc = Math.abs((float) scroll / (float) total - 1) * Math.abs((float) size / (float) max - 1);
-            int pos = (int) (perc * max);
+            int content = chat.getContentPixelHeight();
+            int size = Math.max(10, Math.min(max,
+                    Math.round(max * (max / (float) Math.max(max, content)))));
+            float progress = Math.max(0.0F, Math.min(1.0F, scroll / (float) total));
+            int pos = Math.round((1.0F - progress) * (max - size));
 
             int color = ChatStyleConfig.enabled
                     ? ChatStyleRenderer.color(ChatStyleConfig.scrollbar, mc.gameSettings.chatOpacity) : -1;

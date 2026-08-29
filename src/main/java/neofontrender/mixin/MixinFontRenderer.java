@@ -19,6 +19,7 @@ import neofontrender.api.text.ModernTextLayout;
 import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.api.text.CjkParagraphLayoutProvider;
 import neofontrender.api.text.CjkParagraphLayoutRegistry;
+import neofontrender.build.BuildFeatures;
 import neofontrender.core.font.support.ScopedFontRenderBypass;
 import neofontrender.core.font.support.ShadowColorPolicy;
 import neofontrender.core.font.FontManager;
@@ -35,6 +36,7 @@ import neofontrender.core.font.preprocess.LayoutText;
 import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
 import neofontrender.core.font.linebreak.CjkLineBreakRules;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.FontRenderDiagnostics;
 import neofontrender.core.font.support.StringErrorCorrector;
 
 import java.nio.FloatBuffer;
@@ -87,6 +89,10 @@ public abstract class MixinFontRenderer {
     private void sfr$onDrawString(String text, float x, float y, int color, boolean dropShadow,
                                   CallbackInfoReturnable<Integer> cir) {
         FontRenderTuning.updateFromCurrentGlState(dropShadow);
+        if (BuildFeatures.RENDER_STATS) {
+            FontRenderDiagnostics.logFontEntry("font.drawString", text, color, dropShadow,
+                    FontRenderTuning.currentDrawContext());
+        }
         if (!sfr$shouldHook() || text == null) {
             return;
         }
@@ -134,15 +140,19 @@ public abstract class MixinFontRenderer {
     @Inject(method = "renderStringAtPos", at = @At("HEAD"), cancellable = true)
     private void sfr$onRenderStringAtPos(String text, boolean shadow, CallbackInfo ci) {
         FontRenderTuning.updateFromCurrentGlState(shadow);
+        if (BuildFeatures.RENDER_STATS) {
+            FontRenderDiagnostics.logFontEntry("font.renderStringAtPos", text, this.sfr$renderPassColor,
+                    shadow, FontRenderTuning.currentDrawContext());
+        }
         if (!sfr$shouldHook() || text == null) {
             return;
         }
         sfr$syncTextColorPalette();
         PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
-        if (shadow && NeofontrenderConfig.coloredShadowEnabled()
+        if (shadow && !ShadowColorPolicy.VANILLA.equals(NeofontrenderConfig.shadowColorMode())
                 && (sfr$isAnyActive()
                     || preprocessed.transformed() && ModernTextApi.isAvailable())) {
-            sfr$applyColoredShadowBase();
+            sfr$applyShadowBase();
         }
         if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
             ModernTextLayout layout = ModernTextApi.layoutFormatted(
@@ -197,12 +207,12 @@ public abstract class MixinFontRenderer {
                 this.italicStyle = false;
 
                 int colorIndex = style < 0 ? 15 : style;
-                colorIndex = ShadowColorPolicy.paletteIndex(colorIndex, shadow,
-                        NeofontrenderConfig.coloredShadowEnabled());
-                int color = sfr$legacyColor(colorIndex);
-                if (shadow && NeofontrenderConfig.coloredShadowEnabled()) {
-                    color = sfr$coloredShadowColor(color);
-                }
+                int color = ShadowColorPolicy.paletteColor(colorIndex,
+                        Math.round(baseAlpha * 255.0F) << 24, shadow,
+                        NeofontrenderConfig.shadowColorMode(), NeofontrenderConfig.shadowColor(),
+                        NeofontrenderConfig.shadowColorOverrides(), sfr$activeColorCodes,
+                        NeofontrenderConfig.shadowColoredRatio(),
+                        NeofontrenderConfig.shadowColoredFunction());
                 this.textColor = color;
                 this.red = (float) (color >> 16 & 255) / 255.0F;
                 this.blue = (float) (color >> 8 & 255) / 255.0F;
@@ -381,12 +391,12 @@ public abstract class MixinFontRenderer {
                 this.italicStyle = false;
 
                 int colorIndex = style < 0 ? 15 : style;
-                colorIndex = ShadowColorPolicy.paletteIndex(colorIndex, shadow,
-                        NeofontrenderConfig.coloredShadowEnabled());
-                int color = sfr$legacyColor(colorIndex);
-                if (shadow && NeofontrenderConfig.coloredShadowEnabled()) {
-                    color = sfr$coloredShadowColor(color);
-                }
+                int color = ShadowColorPolicy.paletteColor(colorIndex,
+                        Math.round(baseAlpha * 255.0F) << 24, shadow,
+                        NeofontrenderConfig.shadowColorMode(), NeofontrenderConfig.shadowColor(),
+                        NeofontrenderConfig.shadowColorOverrides(), sfr$activeColorCodes,
+                        NeofontrenderConfig.shadowColoredRatio(),
+                        NeofontrenderConfig.shadowColoredFunction());
                 this.textColor = color;
                 this.red = (float) (color >> 16 & 255) / 255.0F;
                 this.blue = (float) (color >> 8 & 255) / 255.0F;
@@ -856,13 +866,18 @@ public abstract class MixinFontRenderer {
                 ? sfr$activeColorCodes[index] & 0xFFFFFF : 0xFFFFFF;
     }
 
-    private int sfr$coloredShadowColor(int color) {
-        return NeofontrenderConfig.shadowColorRemapRules().remap(color, sfr$activeColorCodes);
+    private int sfr$shadowColor(int foreground, int candidate) {
+        return NeofontrenderConfig.shadowColorOverrides().remap(
+                foreground, candidate, sfr$activeColorCodes);
     }
 
-    /** Restores the caller's RGB before vanilla has quarter-darkened its shadow pass. */
-    private void sfr$applyColoredShadowBase() {
-        int color = sfr$coloredShadowColor(this.sfr$renderPassColor);
+    /** Resolves the configured shadow base before vanilla's formatted run parser executes. */
+    private void sfr$applyShadowBase() {
+        int color = ShadowColorPolicy.shadowColor(
+                this.sfr$renderPassColor, NeofontrenderConfig.shadowColorMode(),
+                NeofontrenderConfig.shadowColor(), NeofontrenderConfig.shadowColorOverrides(),
+                sfr$activeColorCodes, NeofontrenderConfig.shadowColoredRatio(),
+                NeofontrenderConfig.shadowColoredFunction());
         this.textColor = color;
         this.red = (color >> 16 & 255) / 255.0F;
         this.blue = (color >> 8 & 255) / 255.0F;

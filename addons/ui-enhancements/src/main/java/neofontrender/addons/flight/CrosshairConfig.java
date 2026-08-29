@@ -54,6 +54,12 @@ final class CrosshairConfig {
     static int rainbowSpeed = 500;
     static boolean toolDamageEnabled = true;
     static boolean projectileIndicatorEnabled = true;
+    static boolean blockInteractionFirstPerson;
+    static boolean blockInteractionThirdPerson;
+    static boolean blockInteractionShoulder;
+    static boolean blockInteractionFreeLook;
+    static boolean blockInteractionCursorLook = true;
+    static boolean blockInteractionDrone;
 
     static int drawnSize = 15;
     static String drawnPixels = "";
@@ -113,6 +119,18 @@ final class CrosshairConfig {
                 .define("crosshair.rainbow.speed", 500, "Rainbow animation speed from 0 to 1000.")
                 .define("crosshair.indicator.toolDamage", true, "Show remaining durability when it reaches ten or less.")
                 .define("crosshair.indicator.projectiles", true, "Show the selected bow ammunition and count.")
+                .define("crosshair.indicator.blockInteraction.firstPerson", false,
+                        "Show a block-interaction marker in first person.")
+                .define("crosshair.indicator.blockInteraction.thirdPerson", false,
+                        "Show a block-interaction marker in ordinary third person.")
+                .define("crosshair.indicator.blockInteraction.shoulder", false,
+                        "Show a block-interaction marker in Shoulder view.")
+                .define("crosshair.indicator.blockInteraction.freeLook", false,
+                        "Show a block-interaction marker in Free Look.")
+                .define("crosshair.indicator.blockInteraction.cursorLook", true,
+                        "Show a block-interaction marker in Cursor Look.")
+                .define("crosshair.indicator.blockInteraction.drone", false,
+                        "Show a block-interaction marker in Drone view.")
                 .define("crosshair.drawn.size", 15, "Editable drawn-crosshair canvas size.")
                 .define("crosshair.drawn.pixels", "", "Semicolon-separated x,y coordinates for the drawn style.")
                 .define("crosshair.compat.spyglassItems", "",
@@ -171,6 +189,18 @@ final class CrosshairConfig {
         rainbowSpeed = file.getInt("crosshair.rainbow.speed", 500, 0, 1000);
         toolDamageEnabled = file.getBoolean("crosshair.indicator.toolDamage", true);
         projectileIndicatorEnabled = file.getBoolean("crosshair.indicator.projectiles", true);
+        blockInteractionFirstPerson = file.getBoolean(
+                "crosshair.indicator.blockInteraction.firstPerson", false);
+        blockInteractionThirdPerson = file.getBoolean(
+                "crosshair.indicator.blockInteraction.thirdPerson", false);
+        blockInteractionShoulder = file.getBoolean(
+                "crosshair.indicator.blockInteraction.shoulder", false);
+        blockInteractionFreeLook = file.getBoolean(
+                "crosshair.indicator.blockInteraction.freeLook", false);
+        blockInteractionCursorLook = file.getBoolean(
+                "crosshair.indicator.blockInteraction.cursorLook", true);
+        blockInteractionDrone = file.getBoolean(
+                "crosshair.indicator.blockInteraction.drone", false);
         drawnSize = file.getInt("crosshair.drawn.size", 15, 7, 57);
         drawnPixels = file.getString("crosshair.drawn.pixels", "");
         compatSpyglassItems = file.getString("crosshair.compat.spyglassItems", "");
@@ -213,6 +243,12 @@ final class CrosshairConfig {
                 .set("crosshair.rainbow.enabled", rainbowEnabled).set("crosshair.rainbow.speed", rainbowSpeed)
                 .set("crosshair.indicator.toolDamage", toolDamageEnabled)
                 .set("crosshair.indicator.projectiles", projectileIndicatorEnabled)
+                .set("crosshair.indicator.blockInteraction.firstPerson", blockInteractionFirstPerson)
+                .set("crosshair.indicator.blockInteraction.thirdPerson", blockInteractionThirdPerson)
+                .set("crosshair.indicator.blockInteraction.shoulder", blockInteractionShoulder)
+                .set("crosshair.indicator.blockInteraction.freeLook", blockInteractionFreeLook)
+                .set("crosshair.indicator.blockInteraction.cursorLook", blockInteractionCursorLook)
+                .set("crosshair.indicator.blockInteraction.drone", blockInteractionDrone)
                 .set("crosshair.drawn.size", drawnSize).set("crosshair.drawn.pixels", drawnPixels)
                 .set("crosshair.compat.spyglassItems", compatSpyglassItems)
                 .set("crosshair.compat.crossbowItems", compatCrossbowItems)
@@ -231,7 +267,10 @@ final class CrosshairConfig {
                 keepDebugCrosshair, adaptiveColor, visibleByDefault, visibleWithHiddenGui, visibleInDebug,
                 visibleInThirdPerson, visibleAsSpectator, visibleHoldingRanged, visibleHoldingThrowable,
                 visibleUsingSpyglass, outlineEnabled, dotEnabled, dynamicAttack, dynamicBow, highlightHostiles, highlightPassives,
-                highlightPlayers, itemCooldownEnabled, rainbowEnabled, toolDamageEnabled, projectileIndicatorEnabled};
+                highlightPlayers, itemCooldownEnabled, rainbowEnabled, toolDamageEnabled,
+                projectileIndicatorEnabled, blockInteractionFirstPerson,
+                blockInteractionThirdPerson, blockInteractionShoulder,
+                blockInteractionFreeLook, blockInteractionCursorLook, blockInteractionDrone};
         private final int[] ints = {color, width, height, gap, thickness, rotation, scalePercent, offsetX, offsetY,
                 outlineColor, dotColor, hostileColor, passiveColor, playerColor, itemCooldownColor, rainbowSpeed, drawnSize};
         private final String savedStyle = style;
@@ -251,7 +290,13 @@ final class CrosshairConfig {
             visibleUsingSpyglass = booleans[b++]; outlineEnabled = booleans[b++]; dotEnabled = booleans[b++]; dynamicAttack = booleans[b++]; dynamicBow = booleans[b++];
             highlightHostiles = booleans[b++]; highlightPassives = booleans[b++]; highlightPlayers = booleans[b++];
             itemCooldownEnabled = booleans[b++]; rainbowEnabled = booleans[b++]; toolDamageEnabled = booleans[b++];
-            projectileIndicatorEnabled = booleans[b];
+            projectileIndicatorEnabled = booleans[b++];
+            blockInteractionFirstPerson = booleans[b++];
+            blockInteractionThirdPerson = booleans[b++];
+            blockInteractionShoulder = booleans[b++];
+            blockInteractionFreeLook = booleans[b++];
+            blockInteractionCursorLook = booleans[b++];
+            blockInteractionDrone = booleans[b];
             int i = 0;
             color = ints[i++]; width = ints[i++]; height = ints[i++]; gap = ints[i++]; thickness = ints[i++];
             rotation = ints[i++]; scalePercent = ints[i++]; offsetX = ints[i++]; offsetY = ints[i++]; outlineColor = ints[i++];

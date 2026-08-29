@@ -34,6 +34,7 @@ public class TabbyChat {
     private ChatManager chatManager;
     private GuiNewChatTC chatGui;
     private Spellcheck spellcheck;
+    private ChatLogging chatLogging;
 
     public TabbySettings settings;
     public ServerSettings serverSettings;
@@ -102,7 +103,8 @@ public class TabbyChat {
         MinecraftForge.EVENT_BUS.register(new PlayerLoginHandler());
         MinecraftForge.EVENT_BUS.register(new ChatAddonAntiSpam());
         MinecraftForge.EVENT_BUS.register(new FilterAddon());
-        MinecraftForge.EVENT_BUS.register(new ChatLogging(new File("logs/chat")));
+        chatLogging = new ChatLogging(new File("logs/chat"));
+        MinecraftForge.EVENT_BUS.register(chatLogging);
 
     }
 
@@ -157,6 +159,10 @@ public class TabbyChat {
         settings.saveConfig();
         serverSettings.saveConfig();
         TabbyChat.getInstance().getChat().saveing();
+    }
+
+    public void logRestoredMessage(net.minecraft.util.text.ITextComponent message) {
+        if (chatLogging != null) chatLogging.log(message);
     }
 
     private void hookIntoChat(GuiIngame guiIngame) {

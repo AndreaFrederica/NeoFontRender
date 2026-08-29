@@ -15,6 +15,7 @@ import neofontrender.addons.api.input.CameraMouseInputEvent;
 import neofontrender.addons.api.input.InputAction;
 import neofontrender.addons.api.input.InputApi;
 import neofontrender.addons.api.camera.CameraApi;
+import neofontrender.addons.camera.CameraRuntime;
 import neofontrender.addons.compat.CameraExternalCompat;
 import neofontrender.addons.api.flight.FlightApi;
 import neofontrender.addons.api.flight.FlightCapability;
@@ -96,13 +97,15 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
             return;
         }
         // Free-look owns physical LOOK while independent controller providers may still publish
-        // FLIGHT_* virtual-stick actions for the player's body.
-        if (InputApi.getFrame(0.0F).disposition(InputAction.CAMERA_LOOK_X)
+        // FLIGHT_* virtual-stick actions for the player's body. Cursor-look follows Shoulder
+        // semantics during flight: the raw mouse remains available to the aircraft controller.
+        boolean cursorShoulderRoute = CameraRuntime.isCursorLookActive();
+        if (!cursorShoulderRoute && InputApi.getFrame(0.0F).disposition(InputAction.CAMERA_LOOK_X)
                 == neofontrender.addons.api.input.InputDisposition.CLAIM) {
             resetMouseControl();
             event.consumeBodyHorizontal();
         }
-        if (InputApi.getFrame(0.0F).disposition(InputAction.CAMERA_LOOK_Y)
+        if (!cursorShoulderRoute && InputApi.getFrame(0.0F).disposition(InputAction.CAMERA_LOOK_Y)
                 == neofontrender.addons.api.input.InputDisposition.CLAIM) {
             event.consumeBodyVertical();
         }

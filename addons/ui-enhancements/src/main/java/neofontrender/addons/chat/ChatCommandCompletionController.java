@@ -15,6 +15,8 @@ import net.minecraft.network.play.client.CPacketTabComplete;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.ClientCommandHandler;
+import neofontrender.addons.api.command.CommandCompletionPosition;
+import neofontrender.addons.api.command.client.ClientCommandCompletionApi;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.input.Keyboard;
@@ -96,9 +98,11 @@ public final class ChatCommandCompletionController {
         state.beginRequest(wordStart(text, cursor));
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft.player == null || minecraft.player.connection == null) return;
+        BlockPos target = targetBlock(minecraft);
         ClientCommandHandler.instance.autoComplete(prefix);
-        minecraft.player.connection.sendPacket(new CPacketTabComplete(prefix,
-                targetBlock(minecraft), false));
+        state.clientValues = ClientCommandCompletionApi.resolve(prefix,
+                completionPosition(target), ClientCommandHandler.instance.latestAutoComplete);
+        minecraft.player.connection.sendPacket(new CPacketTabComplete(prefix, target, false));
     }
 
     private static BlockPos targetBlock(Minecraft minecraft) {
@@ -108,18 +112,19 @@ public final class ChatCommandCompletionController {
         return minecraft.objectMouseOver.getBlockPos();
     }
 
+    private static CommandCompletionPosition completionPosition(BlockPos pos) {
+        return pos == null ? null : new CommandCompletionPosition(
+                pos.getX(), pos.getY(), pos.getZ());
+    }
+
     private void acceptCompletions(GuiTextField field, String[] values) {
         if (!enabled(field)) return;
         State state = states.get(field);
         if (state == null || !state.acceptingResponses) return;
-        List<String> next = new ArrayList<>();
-        if (values != null) {
-            for (String value : values) {
-                if (value != null && !value.isEmpty()) next.add(value);
-            }
-        }
-        String current = currentWord(field);
-        next.removeIf(value -> value.equals(current));
+        List<String> next = CommandCompletionCandidates.merge(
+                values, state.clientValues).styledValues();
+        String current = CommandCompletionCandidates.plain(currentWord(field));
+        next.removeIf(value -> CommandCompletionCandidates.plain(value).equals(current));
         if (state.values.equals(next)) return;
         state.values.clear();
         state.values.addAll(next);
@@ -195,6 +200,7 @@ public final class ChatCommandCompletionController {
             state.selected = 0;
             state.first = 0;
             state.wordStart = -1;
+            state.clientValues = new String[0];
         }
     }
 
@@ -216,6 +222,7 @@ public final class ChatCommandCompletionController {
         private boolean firstSelection;
         private boolean acceptingResponses;
         private int wordStart = -1;
+        private String[] clientValues = new String[0];
         private final GuiTextField owner;
 
         private State(GuiTextField owner) {
@@ -232,6 +239,7 @@ public final class ChatCommandCompletionController {
                 wordStart = nextWordStart;
                 values.clear();
                 layout = null;
+                clientValues = new String[0];
             }
             // For the same word (Tab cycles, edits inside it) keep showing the previous candidates
             // until the response arrives; if the solution is unchanged, acceptCompletions leaves
@@ -258,7 +266,7 @@ public final class ChatCommandCompletionController {
             int start = wordStart(text, cursor);
             field.setCursorPosition(start);
             field.setSelectionPos(cursor);
-            field.writeText(values.get(index));
+            field.writeText(CommandCompletionCandidates.plain(values.get(index)));
             selected = index;
         }
     }

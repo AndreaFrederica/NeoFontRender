@@ -163,6 +163,28 @@ public class GuiNewChatTC extends GuiNewChat implements ChatScreen {
         }
     }
 
+    /** Restores persisted history without replaying receive events, filters, alerts or animation. */
+    public void nfrUi$restoreMessage(ITextComponent ichat, int id, boolean logMessage) {
+        ChatReceivedEvent route = new ChatReceivedEvent(ichat, id);
+        route.channels.add(ChatChannel.DEFAULT_CHANNEL);
+        ChatSourceChannels.route(route, ichat);
+        if (route.channels.contains(ChatChannel.DEFAULT_CHANNEL) && route.channels.size() > 1
+                && !tc.serverSettings.general.useDefaultTab.get()) {
+            route.channels.remove(ChatChannel.DEFAULT_CHANNEL);
+        }
+        final Set<String> ignored = Sets.newHashSet(this.tc.serverSettings.general.ignoredChannels.get());
+        for (Channel channel : route.channels) {
+            if (ignored.contains(channel.getName()) || !(channel instanceof ChatChannel)) continue;
+            if (!chat.getChannels().contains(channel)) chat.addChannel(channel);
+            ((ChatChannel) channel).restoreMessage(ichat, id);
+        }
+        if (logMessage) {
+            String text = ichat.getUnformattedText().replace("\r", "\\r").replace("\n", "\\n");
+            TabbyChat.getLogger().info("[CHAT] " + text);
+            tc.logRestoredMessage(ichat);
+        }
+    }
+
     @Override
     public void deleteChatLine(int id) {
         checkThread(() -> chat.removeMessages(id)).run();

@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.JsonToNBT;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
@@ -71,6 +72,7 @@ public final class ChatItemIconRenderer {
                                      int lineCount, float chatScale) {
         if (!EnhancedChatFeatures.itemIcons() || lines.isEmpty()) return;
         Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft.gameSettings.chatVisibility == EntityPlayer.EnumChatVisibility.HIDDEN) return;
         boolean open = minecraft.ingameGUI.getChatGUI().getChatOpen();
 
         GlStateManager.pushMatrix();

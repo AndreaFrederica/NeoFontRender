@@ -5,6 +5,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
+import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.ui.UiEnhancementModule;
 import neofontrender.addons.api.camera.CameraApi;
@@ -26,6 +27,7 @@ public final class CameraModule implements UiEnhancementModule {
     @Override public void preInit() {
         ShoulderCameraConfig.load();
         FreeLookConfig.load();
+        CursorLookConfig.load();
         DroneCameraConfig.load();
         CameraPerspectiveConfig.load();
     }
@@ -35,6 +37,7 @@ public final class CameraModule implements UiEnhancementModule {
         CameraApi.installBackend(new CameraApiBackend());
         ClientRegistry.registerKeyBinding(CameraKeyBindings.TOGGLE_DRONE);
         ClientRegistry.registerKeyBinding(CameraKeyBindings.TOGGLE_FREE_LOOK);
+        ClientRegistry.registerKeyBinding(CameraKeyBindings.TOGGLE_CURSOR_LOOK);
         ClientRegistry.registerKeyBinding(CameraKeyBindings.TOGGLE_SHOULDER);
         ClientRegistry.registerKeyBinding(CameraKeyBindings.SWAP_SHOULDER);
         ClientRegistry.registerKeyBinding(CameraKeyBindings.EXIT_CAMERA);
@@ -82,26 +85,30 @@ public final class CameraModule implements UiEnhancementModule {
         // Match Shoulder Surfing's key handler: opening a screen must not toggle modes or
         // consume its adjustment keys while the player is typing or navigating a UI.
         InputFrame input = InputApi.getFrame(0.0F);
-        boolean exitPressed = commandEdges.pressed(input, InputAction.CAMERA_EXIT_DRONE);
-        boolean dronePressed = commandEdges.pressed(input, InputAction.CAMERA_TOGGLE_DRONE);
-        boolean freeLookPressed = commandEdges.pressed(input, InputAction.CAMERA_TOGGLE_FREELOOK);
-        boolean shoulderPressed = commandEdges.pressed(input, InputAction.CAMERA_TOGGLE_SHOULDER);
-        boolean swapShoulderPressed = commandEdges.pressed(input, InputAction.CAMERA_SWAP_SHOULDER);
-        boolean freeLookControlPressed = commandEdges.pressed(
-                input, InputAction.CAMERA_TOGGLE_FREELOOK_CONTROL);
         if (net.minecraft.client.Minecraft.getMinecraft().currentScreen != null) {
             CameraRuntime.advanceCameraTick();
             return;
         }
-        if (CameraKeyBindings.EXIT_CAMERA.isPressed()
-                || exitPressed) closeInteractiveSession();
-        if (CameraKeyBindings.TOGGLE_DRONE.isPressed()
-                || dronePressed) {
+        boolean exitPressed = pressed(CameraKeyBindings.EXIT_CAMERA,
+                input, InputAction.CAMERA_EXIT_DRONE);
+        boolean dronePressed = pressed(CameraKeyBindings.TOGGLE_DRONE,
+                input, InputAction.CAMERA_TOGGLE_DRONE);
+        boolean freeLookPressed = pressed(CameraKeyBindings.TOGGLE_FREE_LOOK,
+                input, InputAction.CAMERA_TOGGLE_FREELOOK);
+        boolean shoulderPressed = pressed(CameraKeyBindings.TOGGLE_SHOULDER,
+                input, InputAction.CAMERA_TOGGLE_SHOULDER);
+        boolean swapShoulderPressed = pressed(CameraKeyBindings.SWAP_SHOULDER,
+                input, InputAction.CAMERA_SWAP_SHOULDER);
+        boolean freeLookControlPressed = pressed(CameraKeyBindings.FREELOOK_TOGGLE_CONTROL,
+                input, InputAction.CAMERA_TOGGLE_FREELOOK_CONTROL);
+        boolean cursorLookPressed = pressed(CameraKeyBindings.TOGGLE_CURSOR_LOOK,
+                input, InputAction.CAMERA_TOGGLE_CURSOR_LOOK);
+        if (exitPressed) closeInteractiveSession();
+        if (dronePressed) {
             toggle(CameraRigRequest.drone(100));
         }
         if (FreeLookConfig.toggleMode) {
-            if (CameraKeyBindings.TOGGLE_FREE_LOOK.isPressed()
-                    || freeLookPressed) {
+            if (freeLookPressed) {
                 toggle(CameraRigRequest.freeLook(100));
             }
         } else {
@@ -115,15 +122,14 @@ public final class CameraModule implements UiEnhancementModule {
                 closeInteractiveSession();
             }
         }
-        if (CameraKeyBindings.TOGGLE_SHOULDER.isPressed()
-                || shoulderPressed) {
+        if (shoulderPressed) {
             toggle(CameraRigRequest.shoulder(100));
         }
-        if (CameraKeyBindings.SWAP_SHOULDER.isPressed()
-                || swapShoulderPressed) {
+        if (swapShoulderPressed) {
             CameraRuntime.swapShoulder();
         }
-        if (CameraRuntime.isShoulderActive()) {
+        if (CameraRuntime.isShoulderActive()
+                || (CameraRuntime.isCursorLookActive() && CursorLookConfig.useShoulderOffset)) {
             if (CameraKeyBindings.ADJUST_LEFT.isPressed()) ShoulderCameraConfig.adjustX(ShoulderCameraConfig.cameraStepSize);
             if (CameraKeyBindings.ADJUST_RIGHT.isPressed()) ShoulderCameraConfig.adjustX(-ShoulderCameraConfig.cameraStepSize);
             if (CameraKeyBindings.ADJUST_UP.isPressed()) ShoulderCameraConfig.adjustY(ShoulderCameraConfig.cameraStepSize);
@@ -131,12 +137,14 @@ public final class CameraModule implements UiEnhancementModule {
             if (CameraKeyBindings.ADJUST_IN.isPressed()) ShoulderCameraConfig.adjustZ(-ShoulderCameraConfig.cameraStepSize);
             if (CameraKeyBindings.ADJUST_OUT.isPressed()) ShoulderCameraConfig.adjustZ(ShoulderCameraConfig.cameraStepSize);
         }
-        if (CameraRuntime.isFreeLookActive()
-                && (CameraKeyBindings.FREELOOK_TOGGLE_CONTROL.isPressed()
-                || freeLookControlPressed)) {
+        if (CameraRuntime.isLookCameraActive() && freeLookControlPressed) {
             CameraRuntime.toggleFreeLookControl();
         }
-        if (CameraRuntime.isFreeLookActive()) {
+        if (cursorLookPressed) {
+            toggle(CameraRigRequest.cursorLook(100));
+        }
+        if (CameraRuntime.isFreeLookActive()
+                || (CameraRuntime.isCursorLookActive() && !CursorLookConfig.useShoulderOffset)) {
             double step = FreeLookConfig.moveStepSize;
             if (CameraKeyBindings.FREELOOK_MOVE_UP.isKeyDown()) FreeLookCameraRig.adjustMoveOffset(0, step, 0);
             if (CameraKeyBindings.FREELOOK_MOVE_DOWN.isKeyDown()) FreeLookCameraRig.adjustMoveOffset(0, -step, 0);
@@ -178,10 +186,11 @@ public final class CameraModule implements UiEnhancementModule {
                 || ("drone".equals(request.id().getPath())
                 && CameraRuntime.isDroneActive())
                 || ("free_look".equals(request.id().getPath()) && CameraRuntime.isFreeLookActive())
+                || ("cursor_look".equals(request.id().getPath()) && CameraRuntime.isCursorLookActive())
                 || ("shoulder".equals(request.id().getPath()) && CameraRuntime.isShoulderActive()));
         if (interactiveSession.isActive()
                 || CameraPerspectiveController.hasActiveMode()
-                || CameraRuntime.isDroneActive() || CameraRuntime.isFreeLookActive()
+                || CameraRuntime.isDroneActive() || CameraRuntime.isLookCameraActive()
                 || CameraRuntime.isShoulderActive()) {
             closeInteractiveSession();
             if (sameMode) return;
@@ -192,6 +201,13 @@ public final class CameraModule implements UiEnhancementModule {
     private void acquireInteractive(CameraRigRequest request) {
         interactiveRigId = interactiveSession.adopt(CameraApi.acquire(request))
                 ? request.id() : null;
+    }
+
+    private boolean pressed(KeyBinding binding, InputFrame frame, InputAction action) {
+        boolean routed = commandEdges.pressed(frame, action);
+        boolean physical = binding.isPressed();
+        if (physical) commandEdges.consumePhysicalPress(action);
+        return physical || routed;
     }
 
     private void closeInteractiveSession() {

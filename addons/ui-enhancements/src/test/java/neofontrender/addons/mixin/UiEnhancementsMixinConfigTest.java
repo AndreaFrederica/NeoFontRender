@@ -65,12 +65,13 @@ class UiEnhancementsMixinConfigTest {
     void resourceReloadMixinsAreInTheRequiredEarlyConfig() {
         String config = config("mixins.neofontrender_ui_enhancements.json");
 
+        assertTrue(config.contains("\"MixinCommandHandlerCompletionProviders\""));
         assertTrue(config.contains("\"MixinGuiLanguageResourceReload\""));
         assertTrue(config.contains("\"MixinLocaleAddonTranslations\""));
         assertTrue(config.contains("\"MixinGuiLanguageSearch\""));
         assertTrue(config.contains("\"MixinGuiLanguageListFavorites\""));
         assertTrue(config.contains("\"MixinGuiSlotLanguageFavorites\""));
-        assertTrue(config.contains("\"MixinGuiCreateWorldModernLayout\""));
+        assertTrue(config.contains("\"MixinGuiCreateWorldModularBridge\""));
         assertTrue(config.contains("\"MixinGuiButtonCreateWorldStyle\""));
         assertTrue(config.contains("\"GuiCreateWorldAccessor\""));
         assertTrue(config.contains("\"MixinGuiMainMenuContinueGame\""));
@@ -87,6 +88,7 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinRenderLivingBaseCameraViewIdentity\""));
         assertTrue(config.contains("\"MixinGlStateManagerCameraTransparency\""));
         assertTrue(config.contains("\"MixinRenderPlayerFlightRoll\""));
+        assertTrue(config.contains("\"MixinRenderGlobalBlockOutlines\""));
         assertTrue(config.contains("\"MixinGuiIngameForgeCrosshair\""));
         assertTrue(config.contains("\"InvokerGuiIngameCrosshair\""));
         assertTrue(config.contains("\"AccessorGuiChatFeatures\""));
@@ -94,6 +96,7 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinChatLineMetadata\""));
         assertTrue(config.contains("\"MixinGuiNewChatFeatures\""));
         assertTrue(config.contains("\"MixinGuiButtonHover\""));
+        assertTrue(config.contains("\"MixinGuiButtonCursor\""));
         assertTrue(config.contains("\"MixinGuiButtonExtHover\""));
         assertTrue(config.contains("\"MixinForgeGuiUtilsButtonAlpha\""));
         assertTrue(config.contains("\"MixinForgeGuiConfirmationModern\""));

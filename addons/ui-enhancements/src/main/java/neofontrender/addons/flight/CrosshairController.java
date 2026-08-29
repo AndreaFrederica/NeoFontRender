@@ -67,6 +67,7 @@ public final class CrosshairController {
         if (CameraRuntime.isDroneActive()) {
             drawDroneCameraCursor(event.getResolution());
         }
+        drawBlockInteractionAvailable(event.getResolution(), event.getPartialTicks());
         if (event.isCanceled() && !claimed) return;
         boolean flightSuppressesCrosshair = FlightRollController.suppressVanillaCrosshair();
         if (ModCrosshairRouting.shouldRenderFlightAim(flightSuppressesCrosshair,
@@ -84,10 +85,16 @@ public final class CrosshairController {
         ScaledResolution resolution = event.getResolution();
         float centerX = resolution.getScaledWidth() * 0.5F;
         float centerY = resolution.getScaledHeight() * 0.5F;
-        float[] shoulderOffset = cameraCrosshairOffset(event.getPartialTicks());
-        if (shoulderOffset != null) {
-            centerX += shoulderOffset[0];
-            centerY += shoulderOffset[1];
+        float[] cursorPosition = CameraRuntime.freeLookCursorPosition(event.getPartialTicks());
+        if (cursorPosition != null) {
+            centerX = cursorPosition[0];
+            centerY = cursorPosition[1];
+        } else {
+            float[] shoulderOffset = cameraCrosshairOffset(event.getPartialTicks());
+            if (shoulderOffset != null) {
+                centerX += shoulderOffset[0];
+                centerY += shoulderOffset[1];
+            }
         }
         drawSelectedCrosshair(resolution, centerX, centerY, event.getPartialTicks());
     }
@@ -97,7 +104,8 @@ public final class CrosshairController {
         float centerY = resolution.getScaledHeight() * 0.5F;
         float[] projected = flightAimCrosshairOffset(partialTicks);
         if (projected == null) {
-            if (CameraRuntime.isFreeLookActive() || CameraRuntime.isShoulderActive()
+            if (CameraRuntime.isFreeLookActive() || CameraRuntime.isCursorLookActive()
+                    || CameraRuntime.isShoulderActive()
                     || ShoulderSurfingCompat.isActive()) return;
         } else {
             centerX += projected[0];
@@ -180,6 +188,57 @@ public final class CrosshairController {
         line(outer, inner, outer, outer, color, thickness);
         line(inner, outer, outer, outer, color, thickness);
         quad(-1.25F, -1.25F, 1.25F, 1.25F, color);
+    }
+
+    private static void drawBlockInteractionAvailable(ScaledResolution resolution,
+                                                      float partialTicks) {
+        RayTraceResult hit = MC.objectMouseOver;
+        if (hit == null || hit.typeOfHit != RayTraceResult.Type.BLOCK
+                || !blockInteractionIndicatorEnabled()) return;
+        float[] center = interactionCursorPosition(resolution, partialTicks);
+        GlSnapshot state = new GlSnapshot();
+        try {
+            GlStateManager.pushMatrix();
+            try {
+                GlStateManager.translate(center[0] + 10.0F, center[1] + 7.0F, 0.0F);
+                GlStateManager.disableDepth();
+                GlStateManager.disableTexture2D();
+                GlStateManager.enableBlend();
+                GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA,
+                        GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                        GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+                quad(-3.5F, -3.5F, 3.5F, 3.5F, 0xD0000000);
+                quad(-2.5F, -2.5F, 2.5F, 2.5F, 0xE040D878);
+                line(-1.5F, 0.0F, -0.25F, 1.5F, 0xFFFFFFFF, 1.25F);
+                line(-0.25F, 1.5F, 2.0F, -1.5F, 0xFFFFFFFF, 1.25F);
+            } finally {
+                GlStateManager.popMatrix();
+            }
+        } finally {
+            state.restore();
+        }
+    }
+
+    private static boolean blockInteractionIndicatorEnabled() {
+        if (CameraRuntime.isCursorLookActive()) return CrosshairConfig.blockInteractionCursorLook;
+        if (CameraRuntime.isDroneActive()) return CrosshairConfig.blockInteractionDrone;
+        if (CameraRuntime.isFreeLookActive()) return CrosshairConfig.blockInteractionFreeLook;
+        if (CameraRuntime.isShoulderActive() || ShoulderSurfingCompat.isActive())
+            return CrosshairConfig.blockInteractionShoulder;
+        return MC.gameSettings.thirdPersonView == 0
+                ? CrosshairConfig.blockInteractionFirstPerson
+                : CrosshairConfig.blockInteractionThirdPerson;
+    }
+
+    private static float[] interactionCursorPosition(ScaledResolution resolution,
+                                                     float partialTicks) {
+        float x = resolution.getScaledWidth() * 0.5F;
+        float y = resolution.getScaledHeight() * 0.5F;
+        float[] cursor = CameraRuntime.freeLookCursorPosition(partialTicks);
+        if (cursor != null) return new float[]{cursor[0], cursor[1]};
+        float[] offset = cameraCrosshairOffset(partialTicks);
+        if (offset != null) { x += offset[0]; y += offset[1]; }
+        return new float[]{x, y};
     }
 
     /** Additive camera-origin reticle shown even when the normal UIE crosshair is disabled. */

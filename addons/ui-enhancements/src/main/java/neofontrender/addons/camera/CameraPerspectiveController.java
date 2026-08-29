@@ -16,7 +16,7 @@ import org.apache.logging.log4j.Logger;
 /** Owns the single F5 cycle and keeps custom camera sessions atomic with vanilla perspectives. */
 public final class CameraPerspectiveController {
     private static final Logger LOGGER = LogManager.getLogger("UIE Camera Perspective");
-    enum Mode { VANILLA_FIRST, VANILLA_THIRD, SHOULDER, FREE_LOOK, DRONE, VANILLA_FRONT }
+    enum Mode { VANILLA_FIRST, VANILLA_THIRD, SHOULDER, FREE_LOOK, CURSOR_LOOK, DRONE, VANILLA_FRONT }
 
     private static final Minecraft MC = Minecraft.getMinecraft();
     private static Mode activeMode = Mode.VANILLA_FIRST;
@@ -68,6 +68,7 @@ public final class CameraPerspectiveController {
         }
         if (!initialized) synchronizeMode();
         if ((activeMode == Mode.FREE_LOOK && !customModeActive(CameraRuntime.isFreeLookActive()))
+                || (activeMode == Mode.CURSOR_LOOK && !customModeActive(CameraRuntime.isCursorLookActive()))
                 || (activeMode == Mode.SHOULDER && !customModeActive(CameraRuntime.isShoulderActive()))
                 || (activeMode == Mode.DRONE && !customModeActive(CameraRuntime.isDroneActive()))) {
             synchronizeMode();
@@ -83,6 +84,7 @@ public final class CameraPerspectiveController {
             case VANILLA_FRONT: setVanillaPerspective(2); break;
             case SHOULDER: if (!open(CameraRigRequest.shoulder(100))) return false; break;
             case FREE_LOOK: if (!open(CameraRigRequest.freeLook(100))) return false; break;
+            case CURSOR_LOOK: if (!open(CameraRigRequest.cursorLook(100))) return false; break;
             case DRONE: if (!open(CameraRigRequest.drone(100))) return false; break;
             default: return false;
         }
@@ -121,6 +123,7 @@ public final class CameraPerspectiveController {
         }
         if (CameraRuntime.isDroneActive()) activeMode = Mode.DRONE;
         else if (CameraRuntime.isShoulderActive()) activeMode = Mode.SHOULDER;
+        else if (CameraRuntime.isCursorLookActive()) activeMode = Mode.CURSOR_LOOK;
         else if (CameraRuntime.isFreeLookActive()) activeMode = Mode.FREE_LOOK;
         else switch (MC.gameSettings.thirdPersonView) {
             case 1: activeMode = Mode.VANILLA_THIRD; break;
@@ -168,6 +171,7 @@ public final class CameraPerspectiveController {
         switch (mode) {
             case SHOULDER: return "shoulder";
             case FREE_LOOK: return "free_look";
+            case CURSOR_LOOK: return "cursor_look";
             case DRONE: return "drone";
             default: return "";
         }
@@ -190,6 +194,7 @@ public final class CameraPerspectiveController {
         else result.add(Mode.VANILLA_THIRD);
         if (!CameraPerspectiveConfig.replaceDefaultPerspective && CameraPerspectiveConfig.shoulderInF5) result.add(Mode.SHOULDER);
         if (CameraPerspectiveConfig.freeLookInF5) result.add(Mode.FREE_LOOK);
+        if (CameraPerspectiveConfig.cursorLookInF5) result.add(Mode.CURSOR_LOOK);
         if (CameraPerspectiveConfig.droneInF5) result.add(Mode.DRONE);
         if (!CameraPerspectiveConfig.skipThirdPersonFront) result.add(Mode.VANILLA_FRONT);
         return result;
@@ -204,6 +209,7 @@ public final class CameraPerspectiveController {
         if ("vanilla_third".equals(id)) return Mode.VANILLA_THIRD;
         if ("shoulder".equals(id)) return Mode.SHOULDER;
         if ("free_look".equals(id)) return Mode.FREE_LOOK;
+        if ("cursor_look".equals(id)) return Mode.CURSOR_LOOK;
         if ("drone".equals(id)) return Mode.DRONE;
         if ("vanilla_front".equals(id)) return Mode.VANILLA_FRONT;
         return Mode.VANILLA_FIRST;
@@ -214,6 +220,7 @@ public final class CameraPerspectiveController {
             case VANILLA_THIRD: return "vanilla_third";
             case SHOULDER: return "shoulder";
             case FREE_LOOK: return "free_look";
+            case CURSOR_LOOK: return "cursor_look";
             case DRONE: return "drone";
             case VANILLA_FRONT: return "vanilla_front";
             default: return "vanilla_first";
