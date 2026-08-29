@@ -29,6 +29,12 @@ public final class BlockOutlineRenderer {
             {4, 5}, {5, 7}, {7, 6}, {6, 4},
             {0, 4}, {1, 5}, {2, 6}, {3, 7}
     };
+    private static final float[][] LOCAL_CORNERS = {
+            {0.0F, 0.0F, 0.0F}, {1.0F, 0.0F, 0.0F},
+            {0.0F, 1.0F, 0.0F}, {1.0F, 1.0F, 0.0F},
+            {0.0F, 0.0F, 1.0F}, {1.0F, 0.0F, 1.0F},
+            {0.0F, 1.0F, 1.0F}, {1.0F, 1.0F, 1.0F}
+    };
     private static int program;
     private static boolean shaderUnavailable;
     private static float nativeMinimum = Float.NaN;
@@ -80,16 +86,24 @@ public final class BlockOutlineRenderer {
     private static void prepareState() {
         GL11.glDepthMask(false);
         GL11.glEnable(GL11.GL_BLEND);
+        applyConfiguredBlend();
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        GL11.glDisable(GL11.GL_CULL_FACE);
+        GL11.glDisable(GL11.GL_ALPHA_TEST);
+        GL11.glShadeModel(GL11.GL_SMOOTH);
+    }
+
+    private static void applyConfiguredBlend() {
         if (BlockOutlineConfig.BLEND_ADDITIVE.equals(BlockOutlineConfig.blendMode)) {
             GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE);
         } else {
             GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
                     GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
         }
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glDisable(GL11.GL_CULL_FACE);
-        GL11.glDisable(GL11.GL_ALPHA_TEST);
-        GL11.glShadeModel(GL11.GL_SMOOTH);
+    }
+
+    private static void applyGlowBlend() {
+        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE);
     }
 
     private static void drawPass(AxisAlignedBB box, BlockOutlineResolver.ResolvedOutline outline,
@@ -147,15 +161,35 @@ public final class BlockOutlineRenderer {
             uniform1(shader, "uRoundCaps", BlockOutlineConfig.CAP_ROUND.equals(BlockOutlineConfig.cap) ? 1.0F : 0.0F);
             uniform1(shader, "uDashLength", Math.max(1.0F, BlockOutlineConfig.dashLength));
             uniform1(shader, "uDashGap", Math.max(0.5F, BlockOutlineConfig.dashGap));
+            uniform1(shader, "uRainbow", BlockOutlineConfig.rainbowEnabled ? 1.0F : 0.0F);
+            uniform1(shader, "uRainbowPhase", rainbowCyclePhase(System.currentTimeMillis(),
+                    BlockOutlineConfig.rainbowCycleMillis));
+            uniform1(shader, "uBrightness", brightness());
+            float rainbowDensity = MathUtil.clamp(BlockOutlineConfig.rainbowDensity, 0.25F, 4.0F);
+            float glowRadius = BlockOutlineConfig.glowEnabled
+                    ? MathUtil.clamp(BlockOutlineConfig.glowRadius, 0.5F, 24.0F) : 0.0F;
+            float glowIntensity = MathUtil.clamp(BlockOutlineConfig.glowIntensity, 0.0F, 2.0F);
+            uniform1(shader, "uGlowRadius", glowRadius);
+            uniform1(shader, "uGlowIntensity", glowIntensity);
+            uniform1(shader, "uGlowFalloff", MathUtil.clamp(BlockOutlineConfig.glowFalloff, 0.5F, 4.0F));
             GL20.glUniform4f(GL20.glGetUniformLocation(shader, "uColor"),
                     Color.red(outline.argb) / 255.0F * brightness(),
                     Color.green(outline.argb) / 255.0F * brightness(),
                     Color.blue(outline.argb) / 255.0F * brightness(),
                     Color.alpha(outline.argb) / 255.0F * lineAlpha(alphaMultiplier));
 
-            for (int[] edge : EDGES) drawEdge(shader, clip[edge[0]], clip[edge[1]],
-                    viewportX, viewportY, viewportWidth, viewportHeight, outline.lineWidth,
-                    BlockOutlineConfig.antialias ? BlockOutlineConfig.antialiasWidth : 0.0F);
+            float feather = BlockOutlineConfig.antialias ? BlockOutlineConfig.antialiasWidth : 0.0F;
+            if (glowRadius > 0.0F && glowIntensity > 0.0F) {
+                // Keep the additive halo separate so the configured blend mode still controls the crisp core.
+                applyGlowBlend();
+                uniform1(shader, "uGlowPass", 1.0F);
+                drawEdges(shader, clip, viewportX, viewportY, viewportWidth, viewportHeight,
+                        outline.lineWidth, feather, glowRadius, rainbowDensity);
+                applyConfiguredBlend();
+            }
+            uniform1(shader, "uGlowPass", 0.0F);
+            drawEdges(shader, clip, viewportX, viewportY, viewportWidth, viewportHeight,
+                    outline.lineWidth, feather, glowRadius, rainbowDensity);
             return true;
         } finally {
             GL20.glUseProgram(previousProgram);
@@ -165,9 +199,19 @@ public final class BlockOutlineRenderer {
         }
     }
 
-    private static void drawEdge(int shader, ClipPoint originalA, ClipPoint originalB,
-                                 int viewportX, int viewportY, int viewportWidth, int viewportHeight,
-                                 float width, float feather) {
+    private static void drawEdges(int shader, ClipPoint[] clip,
+                                  int viewportX, int viewportY, int viewportWidth, int viewportHeight,
+                                  float width, float feather, float glowRadius, float rainbowDensity) {
+        for (int[] edge : EDGES) {
+            drawEdge(shader, edge[0], edge[1], clip[edge[0]], clip[edge[1]], viewportX, viewportY,
+                    viewportWidth, viewportHeight, width, feather, glowRadius, rainbowDensity);
+        }
+    }
+
+    private static void drawEdge(int shader, int startCorner, int endCorner,
+                                  ClipPoint originalA, ClipPoint originalB,
+                                  int viewportX, int viewportY, int viewportWidth, int viewportHeight,
+                                  float width, float feather, float glowRadius, float rainbowDensity) {
         ClipPoint[] clipped = clipToFrustum(originalA, originalB);
         if (clipped == null) return;
         ClipPoint a = clipped[0];
@@ -188,13 +232,16 @@ public final class BlockOutlineRenderer {
         double perpendicularX = -directionY;
         double perpendicularY = directionX;
         double halfWidth = Math.max(0.5D, Math.min(64.0D, width)) * 0.5D;
-        double extent = halfWidth + Math.max(0.0D, feather) + 1.0D;
+        double extent = halfWidth + Math.max(0.0D, feather) + Math.max(0.0D, glowRadius) + 1.0D;
         double alongNdcX = directionX * extent * 2.0D / viewportWidth;
         double alongNdcY = directionY * extent * 2.0D / viewportHeight;
         double acrossNdcX = perpendicularX * extent * 2.0D / viewportWidth;
         double acrossNdcY = perpendicularY * extent * 2.0D / viewportHeight;
 
         GL20.glUniform1f(GL20.glGetUniformLocation(shader, "uLength"), (float) length);
+        float hueStart = cornerHuePhase(startCorner, rainbowDensity);
+        uniform1(shader, "uHueStart", hueStart);
+        uniform1(shader, "uHueDelta", cornerHuePhase(endCorner, rainbowDensity) - hueStart);
         uniform2(shader, "uStart", (float) (viewportX + (ax + 1.0D) * viewportWidth * 0.5D),
                 (float) (viewportY + (ay + 1.0D) * viewportHeight * 0.5D));
         uniform2(shader, "uDirection", (float) directionX, (float) directionY);
@@ -241,6 +288,20 @@ public final class BlockOutlineRenderer {
 
     private static float brightness() {
         return MathUtil.clamp(BlockOutlineConfig.outlineBrightness, 0.0F, 4.0F);
+    }
+
+    static float rainbowCyclePhase(long timeMillis, float cycleMillis) {
+        double period = MathUtil.clamp(cycleMillis, 250.0F, 20000.0F);
+        double cycles = timeMillis / period;
+        return (float) (cycles - Math.floor(cycles));
+    }
+
+    static float cornerHuePhase(int corner, float density) {
+        if (corner < 0 || corner >= LOCAL_CORNERS.length) return 0.0F;
+        float[] point = LOCAL_CORNERS[corner];
+        // Unequal axis weights sum to one cycle and give every shared cube corner a stable hue.
+        float spatialPhase = point[0] * 0.31F + point[1] * 0.43F + point[2] * 0.26F;
+        return spatialPhase * MathUtil.clamp(density, 0.25F, 4.0F);
     }
 
     private static float patternValue() {
