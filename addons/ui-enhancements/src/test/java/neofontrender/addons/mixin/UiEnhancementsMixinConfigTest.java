@@ -157,6 +157,20 @@ class UiEnhancementsMixinConfigTest {
     }
 
     @Test
+    void droneMouseWheelGateDoesNotRedirectTheVanillaHotbarCall() {
+        String gateBytecode = bytecode(
+                "neofontrender/addons/mixin/MixinMinecraftDroneInputGate.class");
+        String cameraModuleBytecode = bytecode(
+                "neofontrender/addons/camera/CameraModule.class");
+
+        assertFalse(gateBytecode.contains("runTickMouse"));
+        assertFalse(gateBytecode.contains("changeCurrentItem"));
+        assertTrue(cameraModuleBytecode.contains("net/minecraftforge/client/event/MouseEvent"));
+        assertTrue(cameraModuleBytecode.contains("getDwheel"));
+        assertTrue(cameraModuleBytecode.contains("setCanceled"));
+    }
+
+    @Test
     void controllerLookRoutingRemainsInTheMouseBoundary() {
         String bytecode = bytecode(
                 "neofontrender/addons/mixin/MixinEntityRendererMouseInputEvent.class");
