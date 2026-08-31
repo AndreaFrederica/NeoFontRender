@@ -21,8 +21,8 @@ public final class CameraRenderBridge {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void cameraSetup(EntityViewRenderEvent.CameraSetup event) {
-        if (!CameraApi.isRenderOverrideActive()) return;
         CameraFrame frame = CameraApi.getFrame((float) event.getRenderPartialTicks());
+        if (!CameraApi.isRenderOverrideActive()) return;
         // Shoulder camera: apply offset in camera-local space (vanilla's rotations already
         // baked into GL matrix). anchoredViewTranslation() computes the local-space offset
         // via CameraPresentationTransform.translation(). Do NOT apply quaternion — vanilla's
@@ -35,8 +35,7 @@ public final class CameraRenderBridge {
             GlStateManager.translate((float) translation.x, (float) translation.y,
                     (float) translation.z);
         }
-        if (CameraPresentationPolicy.usesQuaternionView(CameraRuntime.isShoulderActive(),
-                CameraRuntime.isLookCameraActive(), CameraApi.isDroneActive())) {
+        if (CameraRuntime.usesQuaternionView(frame)) {
             applyQuaternionView(frame);
             event.setPitch(0.0F);
             event.setYaw(0.0F);

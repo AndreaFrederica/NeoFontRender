@@ -1,6 +1,7 @@
 package neofontrender.addons.mixin;
 
 import net.minecraft.client.renderer.EntityRenderer;
+import net.minecraft.client.settings.GameSettings;
 import neofontrender.addons.camera.CameraRuntime;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,5 +27,16 @@ public abstract class MixinEntityRendererCameraPresentation {
     private float nfrUi$zeroDetachedCameraDistancePrevious(EntityRenderer renderer) {
         return CameraRuntime.suppressesVanillaThirdPersonDisplacement()
                 ? 0.0F : thirdPersonDistancePrev;
+    }
+
+    /**
+     * The exact Flight full-quaternion sample already applies its local front-view turn. Normalize
+     * all three orientCamera perspective reads consistently so vanilla never adds a second turn.
+     */
+    @Redirect(method = "orientCamera", at = @At(value = "FIELD", opcode = Opcodes.GETFIELD,
+            target = "Lnet/minecraft/client/settings/GameSettings;thirdPersonView:I"),
+            require = 3, expect = 3)
+    private int nfrUi$avoidDuplicateFlightFrontTurn(GameSettings settings) {
+        return CameraRuntime.vanillaOrientationPerspective(settings.thirdPersonView);
     }
 }
