@@ -8,7 +8,6 @@ package neofontrender.addons.chat;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
-import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.network.play.client.CPacketTabComplete;
@@ -22,7 +21,10 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
+import java.lang.ref.WeakReference;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -51,16 +53,19 @@ public final class ChatCommandCompletionController {
     private boolean handle(GuiTextField field, int keyCode) {
         State state = states.get(field);
         if (!enabled(field) || state == null || state.values.isEmpty()) return false;
+        if (keyCode == Keyboard.KEY_ESCAPE) {
+            state.dismiss();
+            return true;
+        }
         if (keyCode == Keyboard.KEY_TAB) {
-            if (state.firstSelection) {
-                state.firstSelection = false;
-            } else if (GuiScreen.isShiftKeyDown()) {
-                state.selected = state.selected == 0
-                        ? state.values.size() - 1 : state.selected - 1;
-            } else {
-                state.selected = (state.selected + 1) % state.values.size();
-            }
-            state.select(state.selected);
+            state.commit(state.selected < 0 ? 0 : state.selected);
+            request(field);
+            return true;
+        }
+        if ((keyCode == Keyboard.KEY_RETURN || keyCode == Keyboard.KEY_NUMPADENTER)
+                && state.selected >= 0) {
+            state.commit(state.selected);
+            request(field);
             return true;
         }
         if (keyCode == Keyboard.KEY_UP) {
@@ -95,13 +100,14 @@ public final class ChatCommandCompletionController {
             return;
         }
         State state = states.computeIfAbsent(field, State::new);
-        state.beginRequest(wordStart(text, cursor));
+        if (!state.shouldRequest(prefix)) return;
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft.player == null || minecraft.player.connection == null) return;
         BlockPos target = targetBlock(minecraft);
         ClientCommandHandler.instance.autoComplete(prefix);
-        state.clientValues = ClientCommandCompletionApi.resolve(prefix,
+        String[] clientValues = ClientCommandCompletionApi.resolve(prefix,
                 completionPosition(target), ClientCommandHandler.instance.latestAutoComplete);
+        state.beginRequest(prefix, tokenRange(text, cursor), clientValues);
         minecraft.player.connection.sendPacket(new CPacketTabComplete(prefix, target, false));
     }
 
@@ -118,26 +124,45 @@ public final class ChatCommandCompletionController {
     }
 
     private void acceptCompletions(GuiTextField field, String[] values) {
-        if (!enabled(field)) return;
         State state = states.get(field);
-        if (state == null || !state.acceptingResponses) return;
+        if (state == null) return;
+        String text = field.getText();
+        int cursor = Math.max(0, Math.min(field.getCursorPosition(), text.length()));
+        String currentPrefix = text.substring(0, cursor);
+        Request accepted = state.acceptResponse(currentPrefix);
+        if (accepted == null || !enabled(field)) return;
         List<String> next = CommandCompletionCandidates.merge(
-                values, state.clientValues).styledValues();
-        String current = CommandCompletionCandidates.plain(currentWord(field));
-        next.removeIf(value -> CommandCompletionCandidates.plain(value).equals(current));
+                values, accepted.clientValues).styledValues();
+        CommandCompletionPresentation.rememberRootCandidates(currentPrefix, next);
+        TokenRange range = tokenRange(text, cursor);
+        String current = text.substring(range.start, range.end);
+        boolean exactMatch = next.stream().anyMatch(value -> sameCandidate(value, current));
+        if (exactMatch && (cursor < range.end || next.size() == 1)) {
+            state.dismiss();
+            return;
+        }
+        next.removeIf(value -> sameCandidate(value, current));
         if (state.values.equals(next)) return;
         state.values.clear();
         state.values.addAll(next);
-        if (state.values.isEmpty()) return;
-        state.selected = 0;
+        if (state.values.isEmpty()) {
+            state.dismiss();
+            return;
+        }
+        state.selected = -1;
         state.first = 0;
-        state.firstSelection = true;
+        CommandCompletionPresentation.update(field, state.values, state.selected);
     }
 
-    private String currentWord(GuiTextField field) {
-        String text = field.getText();
-        int cursor = Math.max(0, Math.min(field.getCursorPosition(), text.length()));
-        return text.substring(wordStart(text, cursor), cursor);
+    private static boolean sameCandidate(String left, String right) {
+        String first = normalizedCandidate(left);
+        String second = normalizedCandidate(right);
+        return first.equalsIgnoreCase(second);
+    }
+
+    private static String normalizedCandidate(String value) {
+        String plain = CommandCompletionCandidates.plain(value);
+        return plain.startsWith("/") ? plain.substring(1) : plain;
     }
 
     static int wordStart(String text, int cursor) {
@@ -145,6 +170,26 @@ public final class ChatCommandCompletionController {
         if (text == null) return start;
         while (start > 0 && !Character.isWhitespace(text.charAt(start - 1))) start--;
         return start;
+    }
+
+    static int wordEnd(String text, int cursor) {
+        if (text == null) return 0;
+        int end = Math.max(0, Math.min(cursor, text.length()));
+        while (end < text.length() && !Character.isWhitespace(text.charAt(end))) end++;
+        return end;
+    }
+
+    static TokenRange tokenRange(String text, int cursor) {
+        return new TokenRange(wordStart(text, cursor), wordEnd(text, cursor));
+    }
+
+    static String insertionValue(String text, TokenRange range, String candidate) {
+        String plain = CommandCompletionCandidates.plain(candidate);
+        if (range.start == 0 && text != null && text.startsWith("/")
+                && !plain.startsWith("/")) {
+            return "/" + plain;
+        }
+        return plain;
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -165,7 +210,8 @@ public final class ChatCommandCompletionController {
         if (Mouse.getEventButton() != 0 || !Mouse.getEventButtonState()) return;
         int row = layout == null ? -1 : layout.rowAt(mouseX(), mouseY());
         if (row < 0 || state.first + row >= state.values.size()) return;
-        state.select(state.first + row);
+        state.commit(state.first + row);
+        request(field);
         event.setCanceled(true);
     }
 
@@ -192,16 +238,7 @@ public final class ChatCommandCompletionController {
 
     private void close(GuiTextField field) {
         State state = states.get(field);
-        if (state != null) {
-            state.values.clear();
-            state.layout = null;
-            state.acceptingResponses = false;
-            state.firstSelection = false;
-            state.selected = 0;
-            state.first = 0;
-            state.wordStart = -1;
-            state.clientValues = new String[0];
-        }
+        if (state != null) state.dismiss();
     }
 
     private static int mouseX() {
@@ -219,55 +256,122 @@ public final class ChatCommandCompletionController {
         private ChatSuggestionPopup.Layout layout;
         private int selected;
         private int first;
-        private boolean firstSelection;
-        private boolean acceptingResponses;
         private int wordStart = -1;
-        private String[] clientValues = new String[0];
-        private final GuiTextField owner;
+        private final RequestTracker requests = new RequestTracker();
+        private final WeakReference<GuiTextField> owner;
 
         private State(GuiTextField owner) {
-            this.owner = owner;
+            this.owner = new WeakReference<>(owner);
         }
 
-        private void beginRequest(int nextWordStart) {
+        private boolean shouldRequest(String prefix) {
+            return requests.shouldRequest(prefix);
+        }
+
+        private void beginRequest(String prefix, TokenRange range, String[] nextClientValues) {
             // A delimiter starts a distinct candidate set. Reset immediately instead of leaving
             // the previous word selected until the network response arrives.
-            if (wordStart != nextWordStart) {
-                selected = 0;
+            if (wordStart != range.start) {
+                selected = -1;
                 first = 0;
-                firstSelection = true;
-                wordStart = nextWordStart;
+                wordStart = range.start;
                 values.clear();
                 layout = null;
-                clientValues = new String[0];
+                CommandCompletionPresentation.clear(owner.get());
             }
-            // For the same word (Tab cycles, edits inside it) keep showing the previous candidates
-            // until the response arrives; if the solution is unchanged, acceptCompletions leaves
-            // everything untouched so the popup never flickers.
-            acceptingResponses = true;
+            requests.beginRequest(prefix, nextClientValues);
+        }
+
+        private Request acceptResponse(String currentPrefix) {
+            return requests.acceptResponse(currentPrefix);
         }
 
         private void move(int delta) {
-            selected = (selected + delta + values.size()) % values.size();
+            if (selected < 0) selected = delta < 0 ? values.size() - 1 : 0;
+            else selected = (selected + delta + values.size()) % values.size();
             if (selected < first) first = selected;
             if (selected >= first + ChatSuggestionPopup.MAX_VISIBLE) {
                 first = selected - ChatSuggestionPopup.MAX_VISIBLE + 1;
             }
             first = Math.max(0, Math.min(first,
                     Math.max(0, values.size() - ChatSuggestionPopup.MAX_VISIBLE)));
-            select(selected);
+            CommandCompletionPresentation.update(owner.get(), values, selected);
         }
 
-        private void select(int index) {
+        private void commit(int index) {
             if (index < 0 || index >= values.size()) return;
-            GuiTextField field = owner;
+            GuiTextField field = owner.get();
+            if (field == null) return;
             String text = field.getText();
             int cursor = Math.max(0, Math.min(field.getCursorPosition(), text.length()));
-            int start = wordStart(text, cursor);
-            field.setCursorPosition(start);
-            field.setSelectionPos(cursor);
-            field.writeText(CommandCompletionCandidates.plain(values.get(index)));
-            selected = index;
+            TokenRange range = tokenRange(text, cursor);
+            String insertion = insertionValue(text, range, values.get(index));
+            field.setCursorPosition(range.start);
+            field.setSelectionPos(range.end);
+            field.writeText(insertion);
+            dismiss();
+        }
+
+        private void dismiss() {
+            values.clear();
+            layout = null;
+            requests.deactivate();
+            selected = -1;
+            first = 0;
+            wordStart = -1;
+            CommandCompletionPresentation.clear(owner.get());
+        }
+    }
+
+    static final class RequestTracker {
+        private String lastRequest = "";
+        private long nextRequestId;
+        private long activeRequestId = -1;
+        private final Deque<Request> pendingRequests = new ArrayDeque<>();
+
+        boolean shouldRequest(String prefix) {
+            return !prefix.equals(lastRequest);
+        }
+
+        void beginRequest(String prefix, String[] clientValues) {
+            lastRequest = prefix;
+            Request request = new Request(++nextRequestId, prefix, clientValues);
+            pendingRequests.addLast(request);
+            activeRequestId = request.id;
+        }
+
+        Request acceptResponse(String currentPrefix) {
+            Request request = pendingRequests.pollFirst();
+            if (request == null || request.id != activeRequestId
+                    || !request.prefix.equals(currentPrefix)) return null;
+            return request;
+        }
+
+        void deactivate() {
+            activeRequestId = -1;
+        }
+    }
+
+    static final class Request {
+        final long id;
+        final String prefix;
+        final String[] clientValues;
+
+        Request(long id, String prefix, String[] clientValues) {
+            this.id = id;
+            this.prefix = prefix;
+            this.clientValues = clientValues == null
+                    ? new String[0] : clientValues.clone();
+        }
+    }
+
+    static final class TokenRange {
+        final int start;
+        final int end;
+
+        TokenRange(int start, int end) {
+            this.start = start;
+            this.end = end;
         }
     }
 }

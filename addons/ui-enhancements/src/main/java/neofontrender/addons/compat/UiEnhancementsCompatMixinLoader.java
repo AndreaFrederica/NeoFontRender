@@ -29,13 +29,15 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
             "mixins.neofontrender_ui_enhancements_bettercombat.json";
     static final String THAUMCRAFT_CONFIG =
             "mixins.neofontrender_ui_enhancements_thaumcraft.json";
+    static final String CLEANROOM_COMMAND_SUGGESTIONS_CONFIG =
+            "mixins.neofontrender_ui_enhancements_cleanroom_command_suggestions.json";
 
     @Override
     public List<String> getMixinConfigs() {
         return Arrays.asList(HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG,
                 SHOULDER_SURFING_CONFIG, SHOULDER_SURFING_TCONSTRUCT_CONFIG,
                 SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG, BETTER_COMBAT_CONFIG,
-                THAUMCRAFT_CONFIG);
+                THAUMCRAFT_CONFIG, CLEANROOM_COMMAND_SUGGESTIONS_CONFIG);
     }
 
     @Override
@@ -89,6 +91,12 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
                     && classResourcePresent(
                             "thaumcraft/client/gui/GuiResearchBrowser.class")
                     && classResourcePresent("thaumcraft/client/lib/UtilsFX.class");
+        }
+        if (CLEANROOM_COMMAND_SUGGESTIONS_CONFIG.equals(config)) {
+            return classResourcePresent(
+                    "com/cleanroommc/client/chat/suggestion/SuggestionUpdater.class")
+                    && classResourcePresent(
+                    "com/cleanroommc/client/chat/suggestion/SuggestionList.class");
         }
         return false;
     }

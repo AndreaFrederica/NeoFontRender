@@ -5,10 +5,11 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.renderer.GlStateManager;
-
-import java.util.List;
 import neofontrender.addons.api.inline.InlineTextEngine;
 import neofontrender.addons.api.inline.InlineTextLayout;
+import neofontrender.addons.mixin.AccessorGuiTextFieldNavigation;
+
+import java.util.List;
 
 /** Shared suggestion popup used by Salutation command completion and @player completion. */
 public final class ChatSuggestionPopup {
@@ -63,8 +64,13 @@ public final class ChatSuggestionPopup {
         String beforeCursor = input.getText().substring(0, Math.max(0, cursor));
         int wordStart = beforeCursor.length();
         while (wordStart > 0 && !Character.isWhitespace(beforeCursor.charAt(wordStart - 1))) wordStart--;
+        int visibleStart = tabbyGeometry == null
+                ? Math.max(0, Math.min(beforeCursor.length(),
+                ((AccessorGuiTextFieldNavigation) input).nfrUi$getLineScrollOffset()))
+                : 0;
+        int anchorStart = Math.max(wordStart, visibleStart);
         int prefixWidth = Math.round(InlineTextEngine.width(font,
-                beforeCursor.substring(0, wordStart)) * scale);
+                beforeCursor.substring(visibleStart, anchorStart)) * scale);
         int panelX = Math.max(0, Math.min(inputX + Math.min(prefixWidth, inputWidth),
                 minecraft.currentScreen.width - panelWidth));
         int panelY = inputY - panelHeight - 3;
@@ -112,6 +118,18 @@ public final class ChatSuggestionPopup {
                 font.drawStringWithShadow(label,
                         textX + candidateLayout.width() + 4, rowY + 3, textColor);
             }
+        }
+        if (candidates.size() > rows) {
+            int trackTop = 1;
+            int trackHeight = Math.max(1, panelHeight - 2);
+            int thumbHeight = Math.max(ROW_HEIGHT,
+                    trackHeight * rows / candidates.size());
+            thumbHeight = Math.min(trackHeight, thumbHeight);
+            int maxFirst = Math.max(1, candidates.size() - rows);
+            int thumbY = trackTop + (trackHeight - thumbHeight) * safeFirst / maxFirst;
+            int barX = panelWidth - 2;
+            Gui.drawRect(barX, trackTop, panelWidth, trackTop + trackHeight, 0x80333333);
+            Gui.drawRect(barX, thumbY, panelWidth, thumbY + thumbHeight, 0xE0A0A0A0);
         }
         GlStateManager.enableDepth();
         GlStateManager.popMatrix();

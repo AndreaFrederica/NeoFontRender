@@ -31,6 +31,8 @@ class UiEnhancementsMixinConfigTest {
                 "mixins.neofontrender_ui_enhancements_shouldersurfing_matteroverdrive.json");
         String betterCombat = config(
                 "mixins.neofontrender_ui_enhancements_bettercombat.json");
+        String cleanroomCommandSuggestions = config(
+                "mixins.neofontrender_ui_enhancements_cleanroom_command_suggestions.json");
 
         assertTrue(hei.contains("\"required\": false"));
         assertTrue(hei.contains("\"compat.MixinJeiIngredientRendererHover\""));
@@ -59,6 +61,20 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(betterCombat.contains("\"required\": false"));
         assertTrue(betterCombat.contains(
                 "\"compat.MixinBetterCombatShoulderCrosshair\""));
+        assertTrue(cleanroomCommandSuggestions.contains("\"required\": false"));
+        assertTrue(cleanroomCommandSuggestions.contains(
+                "\"compat.MixinCleanroomSuggestionList\""));
+        assertTrue(cleanroomCommandSuggestions.contains(
+                "\"compat.MixinCleanroomSuggestionUpdater\""));
+
+        String loader = bytecode(
+                "neofontrender/addons/compat/UiEnhancementsCompatMixinLoader.class");
+        assertTrue(loader.contains(
+                "mixins.neofontrender_ui_enhancements_cleanroom_command_suggestions.json"));
+        assertTrue(loader.contains(
+                "com/cleanroommc/client/chat/suggestion/SuggestionUpdater.class"));
+        assertTrue(loader.contains(
+                "com/cleanroommc/client/chat/suggestion/SuggestionList.class"));
     }
 
     @Test
@@ -132,15 +148,15 @@ class UiEnhancementsMixinConfigTest {
     }
 
     @Test
-    void cameraPresentationUsesRequiredTargetedInjections() {
+    void cameraPresentationModifiesTheComputedDistance() {
         String bytecode = bytecode(
                 "neofontrender/addons/mixin/MixinEntityRendererCameraPresentation.class");
 
         assertTrue(bytecode.contains("orientCamera"));
-        assertTrue(bytecode.contains("thirdPersonDistancePrev"));
         assertTrue(bytecode.contains("suppressesVanillaThirdPersonDisplacement"));
-        assertTrue(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/Redirect;"));
-        assertTrue(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/ModifyConstant;"));
+        assertTrue(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/ModifyVariable;"));
+        assertFalse(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/Redirect;"));
+        assertFalse(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/ModifyConstant;"));
     }
 
     @Test

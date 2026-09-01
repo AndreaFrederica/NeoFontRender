@@ -10,6 +10,12 @@
 
 ## [uie/0.6.0]
 
+- Suppress Cleanroom 0.6.10+ chat suggestions while Revo UI owns command completion, preventing
+  duplicate dropdowns and requests while preserving Cleanroom completion in command blocks and
+  whenever Revo UI command completion is disabled.
+- Bring Revo UI command completion presentation in line with Cleanroom: deduplicate requests,
+  reject stale responses, replace complete tokens, show ghost text and command/argument colors,
+  and expose explicit selection plus a popup scrollbar.
 - Add loading-time prompt arbitration so Forge startup queries and modded confirmation screens
   remain visible and interactive, with a scrollable modern skin for Forge confirmations.
 - Expand the Flight API to v9 with shared quaternion attitude, body-pose and camera-tracking

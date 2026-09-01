@@ -2,6 +2,7 @@ package neofontrender.addons.mixin.compat;
 
 import neofontrender.addons.chat.ChatSuggestionPopup;
 import neofontrender.addons.chat.CommandCompletionCandidates;
+import neofontrender.addons.chat.CommandCompletionPresentation;
 import neofontrender.addons.chat.EnhancedChatConfigAccess;
 import neofontrender.addons.chat.ExternalChatCompat;
 import neofontrender.addons.api.command.CommandCompletionPosition;
@@ -42,6 +43,7 @@ public abstract class MixinSalutationAdvancedTabCompleter extends TabCompleter {
         if (EnhancedChatConfigAccess.commandCompletionEnabled()) return;
         this.completions.clear();
         this.nfrUi$layout = null;
+        CommandCompletionPresentation.clear(this.textField);
         ci.cancel();
     }
 
@@ -88,6 +90,8 @@ public abstract class MixinSalutationAdvancedTabCompleter extends TabCompleter {
             iterator.set(CommandCompletionCandidates.styled(value,
                     this.nfrUi$mergedCompletions.sourceOf(value)));
         }
+        CommandCompletionPresentation.update(
+                this.textField, this.completions, this.completionIdx);
     }
 
     @Inject(method = "render", at = @At("HEAD"), cancellable = true, require = 1, remap = false)
@@ -95,9 +99,12 @@ public abstract class MixinSalutationAdvancedTabCompleter extends TabCompleter {
             int mouseX, int mouseY, FontRenderer font, CallbackInfo ci) {
         if (!EnhancedChatConfigAccess.commandCompletionEnabled()) {
             this.nfrUi$layout = null;
+            CommandCompletionPresentation.clear(this.textField);
             ci.cancel();
             return;
         }
+        CommandCompletionPresentation.update(
+                this.textField, this.completions, this.completionIdx);
         ExternalChatCompat.InputGeometry geometry =
                 ExternalChatCompat.getSalutationInput(this.textField);
         if (geometry == null) return;

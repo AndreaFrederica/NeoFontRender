@@ -34,6 +34,7 @@ import neofontrender.addons.chat.ChatStyleRenderer;
 import neofontrender.addons.chat.ChatAnimationController;
 import neofontrender.addons.chat.ChatContextMenu;
 import neofontrender.addons.chat.ChatHudWindowController;
+import neofontrender.addons.chat.CommandCompletionPresentation;
 import neofontrender.addons.chat.EnhancedChatConfigAccess;
 import neofontrender.addons.api.inline.InlineTextEngine;
 import neofontrender.addons.api.inline.InlineTextLayout;
@@ -216,6 +217,11 @@ public class TextBox extends GuiComponent implements ChatInput {
         int yPos = 1;
         List<String> rawLines = getWrappedLines();
         List<ITextComponent> lines = getFormattedLines(rawLines);
+        String fullText = textField.getTextField().getText();
+        int sourceSearch = 0;
+        int lastTextX = 3 + inputInset();
+        int lastTextY = yPos;
+        String lastRaw = "";
         for (int index = 0; index < lines.size(); index++) {
             ITextComponent line = lines.get(index);
             int color = ChatStyleConfig.enabled
@@ -230,9 +236,36 @@ public class TextBox extends GuiComponent implements ChatInput {
             } else {
                 ffr.drawChat(line, textX, yPos, color, false);
             }
+            int lineStart = fullText.indexOf(raw, sourceSearch);
+            if (lineStart < 0) lineStart = Math.min(sourceSearch, fullText.length());
+            drawCommandColors(raw, lineStart, textX, yPos);
+            sourceSearch = Math.min(fullText.length(), lineStart + raw.length());
+            lastTextX = textX;
+            lastTextY = yPos;
+            lastRaw = raw;
             yPos += layout.height() + 2;
         }
+        drawCommandGhost(lastRaw, lastTextX, lastTextY);
 
+    }
+
+    private void drawCommandColors(String line, int lineStart, int textX, int textY) {
+        for (CommandCompletionPresentation.ColoredRange range
+                : CommandCompletionPresentation.coloredRanges(textField.getTextField())) {
+            int localStart = Math.max(0, range.start - lineStart);
+            int localEnd = Math.min(line.length(), range.end - lineStart);
+            if (localStart >= localEnd) continue;
+            int x = textX + InlineTextEngine.width(fr, line.substring(0, localStart));
+            InlineTextEngine.layout(fr, line.substring(localStart, localEnd))
+                    .draw(fr, x, textY, range.color, false);
+        }
+    }
+
+    private void drawCommandGhost(String lastLine, int textX, int textY) {
+        String suffix = CommandCompletionPresentation.ghostSuffix(textField.getTextField());
+        if (suffix.isEmpty()) return;
+        int x = textX + InlineTextEngine.width(fr, lastLine);
+        InlineTextEngine.layout(fr, suffix).draw(fr, x, textY, 0xFF808080, false);
     }
 
     private void drawSpellingDecorations(ITextComponent line, InlineTextLayout layout,
