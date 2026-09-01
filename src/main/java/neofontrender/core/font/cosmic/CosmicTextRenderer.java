@@ -19,6 +19,7 @@ import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.FramebufferAlphaBlend;
 import neofontrender.core.font.support.FontRenderDiagnostics;
 import neofontrender.core.font.support.ClientTextureDisposal;
 import neofontrender.core.font.support.ModernShadowRasterizer;
@@ -1089,11 +1090,11 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             GL11.glEnable(GL11.GL_BLEND);
             GL20.glBlendEquationSeparate(GL14.GL_FUNC_ADD, GL14.GL_FUNC_ADD);
             GlStateManager.tryBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA,
-                    GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+                    FramebufferAlphaBlend.SOURCE_FACTOR, FramebufferAlphaBlend.DESTINATION_FACTOR);
             // Mods sometimes mutate the driver through raw GL and leave GlStateManager's cache
             // stale. Reassert the factors in GL after synchronizing Minecraft's cache above.
             GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA,
-                    GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+                    FramebufferAlphaBlend.SOURCE_FACTOR, FramebufferAlphaBlend.DESTINATION_FACTOR);
         }
 
         @Override

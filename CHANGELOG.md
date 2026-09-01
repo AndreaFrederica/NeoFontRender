@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+- Preserve destination alpha across Cosmic and SFR/AWT text draws so transparent glyph padding
+  cannot punch holes in offscreen framebuffers such as Xaero's entity-name minimap layer.
+- Keep the current renderer active while SFR fonts load asynchronously, and perform atlas upload,
+  prewarming, disposal, and backend activation on Minecraft's client thread.
+
 ## [electric-elytra/0.1.0]
 
 - Initial alpha of the Revo Electric Elytra submod: vanilla-control electric elytra and

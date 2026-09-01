@@ -14,6 +14,7 @@ import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.backend.SampledShadowTextRenderResult;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.FramebufferAlphaBlend;
 import neofontrender.core.font.support.ShadowColorPolicy;
 import neofontrender.core.font.support.ShadowColorRemapRules;
 import neofontrender.core.font.support.ShadowRenderSpec;
@@ -473,7 +474,7 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             GlStateManager.disableAlpha();
             GlStateManager.enableBlend();
             GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
-                    GL11.GL_ONE, GL11.GL_ZERO);
+                    FramebufferAlphaBlend.SOURCE_FACTOR, FramebufferAlphaBlend.DESTINATION_FACTOR);
         }
 
         @Override

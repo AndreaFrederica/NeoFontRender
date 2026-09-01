@@ -50,14 +50,14 @@ public final class FontRenderPipeline {
             GlStateManager.tryBlendFuncSeparate(
                     GL11.GL_ONE,
                     GL11.GL_ONE_MINUS_SRC_ALPHA,
-                    GL11.GL_ONE,
-                    GL11.GL_ZERO);
+                    FramebufferAlphaBlend.SOURCE_FACTOR,
+                    FramebufferAlphaBlend.DESTINATION_FACTOR);
         } else {
             GlStateManager.tryBlendFuncSeparate(
                     GL11.GL_SRC_ALPHA,
                     GL11.GL_ONE_MINUS_SRC_ALPHA,
-                    GL11.GL_ONE,
-                    GL11.GL_ZERO);
+                    FramebufferAlphaBlend.SOURCE_FACTOR,
+                    FramebufferAlphaBlend.DESTINATION_FACTOR);
         }
 
         if (enhanced && NeofontrenderConfig.shaderTextPipeline() && state.previousProgram == 0) {
