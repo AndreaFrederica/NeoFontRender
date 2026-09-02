@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.client.renderer.entity.RenderPlayer;
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
@@ -23,6 +24,8 @@ import neofontrender.addons.api.flight.FlightDecision;
 import neofontrender.addons.api.flight.FlightHudAttitude;
 import neofontrender.addons.electricelytra.ElectricBodyAxis;
 import neofontrender.addons.electricelytra.ElectricFlightDebug;
+import neofontrender.addons.electricelytra.ElectricFlightController;
+import neofontrender.addons.electricelytra.ElectricFlightPhysics;
 import neofontrender.addons.electricelytra.CommonProxy;
 import neofontrender.addons.electricelytra.ElectricElytraItems;
 import neofontrender.addons.electricelytra.ElectricElytraConfig;
@@ -62,6 +65,7 @@ public final class ClientProxy extends CommonProxy {
     private float lastSentPitch = Float.NaN;
     private float lastSentYaw = Float.NaN;
     private float lastSentRoll = Float.NaN;
+    private boolean aerodynamicFlightLatched;
 
     @Override public void preInit() {
         ElectricElytraNetwork.initializeClient();
@@ -112,8 +116,7 @@ public final class ClientProxy extends CommonProxy {
                 // optional A/D yaw. Only the separate aerodynamic wings take those controls over.
                 return FlightDecision.PASS;
             }
-            boolean aerodynamicFlight = ItemElectricElytra.usesAerodynamicFlightModel(stack)
-                    && player.isElytraFlying() && !player.onGround;
+            boolean aerodynamicFlight = aerodynamicControlsActive(player, stack);
             // Engine-on at rest needs the instrument panel, not UIE's flight controller,
             // camera capture or rolled player renderer.
             if (!aerodynamicFlight) {
@@ -128,7 +131,7 @@ public final class ClientProxy extends CommonProxy {
         FlightApi.registerBodyPoseProvider(new ResourceLocation(ElectricElytraMod.MOD_ID,
                 "electric_elytra_body_axis"), 200, (player, partialTicks) -> {
             ItemStack stack = player.getItemStackFromSlot(EntityEquipmentSlot.CHEST);
-            if (player.onGround || !player.isElytraFlying()
+            if (!airborneAerodynamicControlsActive(player, stack)
                     || !ItemElectricElytra.usesAerodynamicFlightModel(stack)
                     || !ItemElectricElytra.isElectricElytra(stack)) return null;
             FlightAttitude attitude = Minecraft.getMinecraft().player == player
@@ -143,7 +146,7 @@ public final class ClientProxy extends CommonProxy {
         FlightApi.registerHudAttitudeProvider(new ResourceLocation(ElectricElytraMod.MOD_ID,
                 "electric_elytra_hud_attitude"), 200, (player, partialTicks) -> {
             ItemStack stack = player.getItemStackFromSlot(EntityEquipmentSlot.CHEST);
-            if (player.onGround || !player.isElytraFlying()
+            if (!airborneAerodynamicControlsActive(player, stack)
                     || !ItemElectricElytra.usesAerodynamicFlightModel(stack)
                     || !ItemElectricElytra.isElectricElytra(stack)) return null;
             return new FlightHudAttitude(ElectricBodyAxis.sampleAttitude(player, partialTicks));
@@ -151,7 +154,7 @@ public final class ClientProxy extends CommonProxy {
         FlightApi.registerManeuverHandler(new ResourceLocation(ElectricElytraMod.MOD_ID,
                 "electric_elytra_virtual_stick"), 200, input -> {
             ItemStack stack = input.getPlayer().getItemStackFromSlot(EntityEquipmentSlot.CHEST);
-            if (input.getPlayer().onGround || !input.getPlayer().isElytraFlying()
+            if (!aerodynamicControlsActive(input.getPlayer(), stack)
                     || !ItemElectricElytra.usesAerodynamicFlightModel(stack)
                     || !ItemElectricElytra.isElectricElytra(stack)) return false;
             maneuverPitch = input.getPitch();
@@ -164,7 +167,7 @@ public final class ClientProxy extends CommonProxy {
         FlightApi.registerCameraTrackingProvider(new ResourceLocation(ElectricElytraMod.MOD_ID,
                 "electric_elytra_camera"), 200, (player, partialTicks) -> {
             ItemStack stack = player.getItemStackFromSlot(EntityEquipmentSlot.CHEST);
-            if (player.onGround || !player.isElytraFlying()
+            if (!airborneAerodynamicControlsActive(player, stack)
                     || !ItemElectricElytra.usesAerodynamicFlightModel(stack)
                     || !ItemElectricElytra.isElectricElytra(stack)) return null;
             return FlightCameraTracking.rigid(
@@ -186,6 +189,7 @@ public final class ClientProxy extends CommonProxy {
             lastSentPitch = Float.NaN;
             lastSentYaw = Float.NaN;
             lastSentRoll = Float.NaN;
+            aerodynamicFlightLatched = false;
             ElectricRemoteAttitudes.clear();
             return;
         }
@@ -193,14 +197,16 @@ public final class ClientProxy extends CommonProxy {
 
         ItemStack chest = minecraft.player.getItemStackFromSlot(EntityEquipmentSlot.CHEST);
         boolean equipped = ItemElectricElytra.isElectricElytra(chest);
-        if (!equipped || minecraft.player.onGround || !minecraft.player.isElytraFlying()) {
+        boolean aerodynamicControls = aerodynamicControlsActive(minecraft.player, chest);
+        aerodynamicFlightLatched = aerodynamicControls;
+        ElectricFlightPhysics.setClientPrediction(minecraft.player, aerodynamicControls);
+        if (!aerodynamicControls) {
             ElectricBodyAxis.reset(minecraft.player);
             ElectricFlightDebug.clear(minecraft.player);
             maneuverPitch = maneuverYaw = maneuverRoll = 0.0F;
             if (minecraft.player.onGround) FlightApi.setRoll(0.0F);
         }
-        if (equipped && ItemElectricElytra.usesAerodynamicFlightModel(chest)
-                && !minecraft.player.onGround && minecraft.player.isElytraFlying()) {
+        if (aerodynamicControls) {
             ElectricBodyAxis.setManeuverCommand(minecraft.player, maneuverPitch,
                     maneuverRoll, maneuverYaw);
         }
@@ -232,10 +238,11 @@ public final class ClientProxy extends CommonProxy {
                 || Math.abs(maneuverYaw - lastSentYaw) >= 0.01F
                 || !Float.isFinite(lastSentRoll)
                 || Math.abs(maneuverRoll - lastSentRoll) >= 0.01F;
-        if (jump != lastJump || controlsChanged || ++heartbeat >= 3) {
+        int heartbeatInterval = aerodynamicControls ? 1 : 3;
+        if (jump != lastJump || controlsChanged || ++heartbeat >= heartbeatInterval) {
             FlightAttitude networkAttitude = equipped
                     && ItemElectricElytra.usesAerodynamicFlightModel(chest)
-                    && !minecraft.player.onGround && minecraft.player.isElytraFlying()
+                    && aerodynamicControls
                     ? ElectricBodyAxis.sampleAttitude(minecraft.player, 1.0F)
                     : FlightAttitude.fromMinecraftDegrees(minecraft.player.rotationPitch,
                     minecraft.player.rotationYaw, 0.0D);
@@ -247,6 +254,28 @@ public final class ClientProxy extends CommonProxy {
             lastSentRoll = maneuverRoll;
             heartbeat = 0;
         }
+    }
+
+    private boolean airborneAerodynamicControlsActive(EntityPlayer player, ItemStack stack) {
+        return !player.onGround && aerodynamicControlsActive(player, stack);
+    }
+
+    private boolean aerodynamicControlsActive(EntityPlayer player, ItemStack stack) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        boolean localPlayer = player == minecraft.player;
+        if (!localPlayer) {
+            return !player.onGround && player.isElytraFlying()
+                    && ItemElectricElytra.usesAerodynamicFlightModel(stack);
+        }
+        boolean jumpHeld = localPlayer && minecraft.currentScreen == null
+                && minecraft.gameSettings.keyBindJump.isKeyDown();
+        return ElectricFlightController.shouldMaintainClientAerodynamicFlight(
+                aerodynamicFlightLatched, player.isElytraFlying(), localPlayer,
+                player.capabilities.isFlying, player.onGround,
+                player.isInWater() || player.isInLava(), player.isRiding(),
+                ItemElectricElytra.usesAerodynamicFlightModel(stack),
+                ItemElectricElytra.isEngineEnabled(stack),
+                ItemElectricElytra.getThrottle(stack), jumpHeld, player.motionY);
     }
 
     private static void adjustThrottle(ItemStack stack, int delta) {

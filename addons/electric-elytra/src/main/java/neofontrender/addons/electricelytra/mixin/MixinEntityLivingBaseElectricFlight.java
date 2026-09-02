@@ -5,6 +5,7 @@ import net.minecraft.util.DamageSource;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.entity.MoverType;
 import neofontrender.addons.electricelytra.ElectricFlightPhysics;
+import neofontrender.addons.electricelytra.ElectricFlightController;
 import neofontrender.addons.electricelytra.ElectricVanillaThrust;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,6 +22,10 @@ public abstract class MixinEntityLivingBaseElectricFlight {
                                                   CallbackInfo callback) {
         EntityLivingBase entity = (EntityLivingBase) (Object) this;
         if (!(entity.isServerWorld() || entity.canPassengerSteer())) return;
+        // Vanilla updateElytra accepts only Items.ELYTRA and has just cleared flag 7.
+        // Restore it from the server latch or local prediction before selecting a travel solver.
+        if (ElectricFlightController.isAerodynamicFlightActive(entity)
+                || ElectricFlightPhysics.hasClientPrediction(entity)) entity.setFlag(7, true);
         // This path deliberately returns to vanilla travel after adding thrust. It does not
         // invoke ElectricFlightMath, body-axis control, SAS or aerodynamic force replacement.
         if (ElectricVanillaThrust.shouldApply(entity)) ElectricVanillaThrust.apply(entity);

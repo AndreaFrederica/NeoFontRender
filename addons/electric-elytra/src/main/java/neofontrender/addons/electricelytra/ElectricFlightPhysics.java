@@ -8,15 +8,38 @@ import net.minecraft.util.math.Vec3d;
 import neofontrender.addons.api.flight.FlightAttitude;
 import neofontrender.addons.api.flight.FlightVector;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 /** Runtime bridge between Minecraft's blocks/tick motion and the aerodynamic model. */
 public final class ElectricFlightPhysics {
+    private static final Map<EntityLivingBase, Boolean> CLIENT_PREDICTIONS = new WeakHashMap<>();
+
     private ElectricFlightPhysics() {}
 
     public static boolean shouldReplaceVanillaTravel(EntityLivingBase entity) {
-        if (!(entity instanceof EntityPlayer) || !entity.isElytraFlying()
-                || entity.isInWater() || entity.isInLava()) return false;
+        if (!(entity instanceof EntityPlayer)) return false;
         ItemStack chest = entity.getItemStackFromSlot(EntityEquipmentSlot.CHEST);
-        return ItemElectricElytra.usesAerodynamicFlightModel(chest);
+        return shouldUseAerodynamicSolver(entity.isElytraFlying(),
+                entity.world.isRemote && hasClientPrediction(entity), entity.isInWater(),
+                entity.isInLava(), ItemElectricElytra.usesAerodynamicFlightModel(chest));
+    }
+
+    public static synchronized void setClientPrediction(EntityLivingBase entity,
+                                                         boolean active) {
+        if (entity == null || !entity.world.isRemote) return;
+        if (active) CLIENT_PREDICTIONS.put(entity, Boolean.TRUE);
+        else CLIENT_PREDICTIONS.remove(entity);
+    }
+
+    public static synchronized boolean hasClientPrediction(EntityLivingBase entity) {
+        return CLIENT_PREDICTIONS.containsKey(entity);
+    }
+
+    static boolean shouldUseAerodynamicSolver(boolean elytraFlying, boolean clientPrediction,
+                                              boolean inWater, boolean inLava,
+                                              boolean aerodynamicModel) {
+        return (elytraFlying || clientPrediction) && !inWater && !inLava && aerodynamicModel;
     }
 
     public static void integrate(EntityLivingBase entity) {
