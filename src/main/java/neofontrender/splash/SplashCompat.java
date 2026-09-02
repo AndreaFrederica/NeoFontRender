@@ -48,6 +48,12 @@ public final class SplashCompat {
                 LOGGER.info("ModernSplash font override is disabled in config");
                 return;
             }
+            if (SplashDriverSafety.shouldDisableAwtUpload()) {
+                LOGGER.warn("Loading-screen AWT font was explicitly disabled for Intel OpenGL "
+                        + "with -D{}=true; using its bitmap font",
+                        SplashDriverSafety.DISABLE_INTEL_AWT_PROPERTY);
+                return;
+            }
 
             backend = new SplashAwtBackend();
             installed = true;
