@@ -51,6 +51,10 @@ java {
     if (generate_javadocs_jar.toBoolean()) withJavadocJar()
 }
 
+tasks.matching { it.name == 'sourcesJar' }.configureEach {
+    dependsOn tasks.named('generateBuildFeatures')
+}
+
 configurations {
     contain
     relocate
@@ -77,6 +81,8 @@ unimined.minecraft {
         runs.preLaunch('client', ':addons:ui-enhancements:prepareCombinedClientRun')
         runs.preLaunch('client', ':addons:ui-enhancements-controller:prepareCombinedClientRun')
         runs.preLaunch('client', ':addons:electric-elytra:prepareCombinedClientRun')
+        runs.preLaunch('client', ':addons:mui-xml-showcase:prepareCombinedClientRun')
+        runs.preLaunch('client', ':addons:inline-content-showcase:prepareCombinedClientRun')
         runs.all {
             args += ['--username', minecraft_username]
             // Dev runs use MCP-mapped classes, so reference-map remapping must stay disabled.

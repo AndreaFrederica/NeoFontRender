@@ -1,0 +1,26 @@
+:root {
+    --surface-root: #11161d;
+    --surface-panel: #18212a;
+    --surface-raised: #202c36;
+    --surface-hover: #2b3945;
+    --border: #3c4a57;
+    --text: #f3f6f8;
+    --text-muted: #a9b5c5;
+    --accent: #38bda6;
+    --accent-strong: #20d0b0;
+    --warning: #e3b45b;
+}
+
+mui|text {
+    color: var(--text);
+    text-align: center-left;
+}
+
+mui|button {
+    background: var(--surface-raised);
+    focusable: true;
+}
+
+mui|button:hover {
+    background: var(--surface-hover);
+}

@@ -1,0 +1,20 @@
+{
+  "formatVersion": 1,
+  "owner": "neofontrender_mui_xml_showcase",
+  "namespaces": {
+    "mui": "urn:mui",
+    "nfr": "urn:neofontrender:components"
+  },
+  "components": {
+    "nfr:app-shell": "components/app-shell.xml",
+    "nfr:nav-item": "components/nav-item.xml",
+    "nfr:card": "components/card.xml",
+    "nfr:toggle": "components/toggle.xml",
+    "nfr:field": "components/field.xml",
+    "nfr:action": "components/action.xml",
+    "nfr:player-inventory": "components/player-inventory.xml"
+  },
+  "stylesheets": [
+    "styles/showcase.css"
+  ]
+}

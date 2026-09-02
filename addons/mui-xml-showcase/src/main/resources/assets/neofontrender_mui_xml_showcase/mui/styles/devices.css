@@ -1,0 +1,192 @@
+@import "styles/tokens.css";
+
+.device-shell {
+    width: 194px;
+    height: 222px;
+    background: #12161d;
+    border-style: solid;
+    border-color: #3c4a57;
+    border-width: 1px;
+    padding: 0px;
+}
+
+.device-title {
+    left: 16px;
+    top: 11px;
+    width: 140px;
+    height: 12px;
+    color: #f3f6fa;
+    font-size: 1.0;
+}
+
+.device-subtitle {
+    left: 16px;
+    top: 25px;
+    width: 162px;
+    height: 9px;
+    color: #8792a3;
+    font-size: 0.65;
+}
+
+.device-close {
+    left: 169px;
+    top: 9px;
+    width: 16px;
+    height: 16px;
+    background: #29313d;
+    color: #f3f6fa;
+    focusable: true;
+    padding: 0px;
+}
+
+.device-close > mui|text {
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    font-size: 0.9;
+}
+
+.device-close:hover {
+    background: #bd4b55;
+}
+
+.slot-grid {
+    width: 162px;
+    gap: 0px;
+    grid-columns: 9;
+    background: transparent;
+}
+
+.machine-grid {
+    left: 16px;
+    top: 43px;
+    height: 54px;
+}
+
+.inventory-label {
+    left: 16px;
+    top: 105px;
+    width: 100px;
+    height: 9px;
+    color: #aeb8c7;
+    font-size: 0.72;
+}
+
+.player-inventory {
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+}
+
+.player-main {
+    left: 16px;
+    top: 119px;
+    height: 54px;
+}
+
+.player-hotbar {
+    left: 16px;
+    top: 181px;
+    height: 18px;
+}
+
+.single-slot {
+    width: 18px;
+    height: 18px;
+    background: #252d36;
+    border-style: solid;
+    border-color: #3c4a57;
+    border-width: 1px;
+}
+
+/* XML-created ItemSlot views bind to the fixed common-side protocol. */
+mui|item-slot {
+    width: 18px;
+    height: 18px;
+    background: #252d36;
+    border-style: dashed;
+    border-color: #647587;
+    border-width: 1px;
+    border-dash: 3px;
+    border-gap: 2px;
+}
+
+mui|item-slot:hover {
+    background: #36424f;
+    border-color: #38bda6;
+}
+
+.input-slot { left: 43px; top: 52px; }
+.fuel-slot { left: 43px; top: 83px; }
+.output-slot { left: 133px; top: 67px; }
+
+.progress-host {
+    background: transparent;
+    border-style: solid;
+    border-color: transparent;
+    border-width: 0px;
+}
+
+#cook-progress-host {
+    left: 88px;
+    top: 69px;
+    width: 28px;
+    height: 9px;
+}
+
+#burn-progress-host {
+    left: 67px;
+    top: 78px;
+    width: 9px;
+    height: 28px;
+}
+
+/* ProgressWidget keeps its server-synchronised value and Java texture, while CSS owns its box. */
+mui|progress {
+    background: transparent;
+    progress-render: bar;
+    progress-track-color: #27323d;
+    progress-fill-color: #38bda6;
+}
+
+#cook-progress-host > mui|progress {
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    progress-direction: right;
+    progress-fill-color: #e3b45b;
+}
+
+#burn-progress-host > mui|progress {
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    progress-direction: up;
+    progress-fill-color: #d66b5d;
+}
+
+.input-caption, .fuel-caption, .output-caption {
+    width: 42px;
+    height: 8px;
+    color: #8792a3;
+    font-size: 0.58;
+    text-align: center;
+}
+
+.input-caption { left: 31px; top: 42px; }
+.fuel-caption { left: 31px; top: 104px; }
+.output-caption { left: 121px; top: 55px; }
+
+.furnace-shell .inventory-label { top: 116px; }
+.furnace-shell .player-main { top: 130px; }
+.furnace-shell .player-hotbar { top: 192px; }
+
+@media screen and (max-width: 240px) {
+    .device-subtitle { visibility: hidden; }
+}

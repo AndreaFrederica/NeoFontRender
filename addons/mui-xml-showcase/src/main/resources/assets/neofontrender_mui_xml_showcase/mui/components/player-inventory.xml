@@ -1,0 +1,45 @@
+<mui:component-root xmlns:mui="urn:mui">
+    <mui:container class="player-inventory">
+        <mui:text class="inventory-label" text="Inventory"/>
+        <mui:grid id="player-main" class="slot-grid player-main" columns="9">
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.0"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.1"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.2"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.3"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.4"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.5"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.6"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.7"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.8"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.9"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.10"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.11"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.12"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.13"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.14"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.15"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.16"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.17"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.18"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.19"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.20"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.21"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.22"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.23"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.24"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.25"/>
+            <mui:item-slot class="player-slot player-main-slot" bind="player.main.26"/>
+        </mui:grid>
+        <mui:grid id="player-hotbar" class="slot-grid player-hotbar" columns="9">
+            <mui:item-slot class="player-slot player-hotbar-slot" bind="player.hotbar.0"/>
+            <mui:item-slot class="player-slot player-hotbar-slot" bind="player.hotbar.1"/>
+            <mui:item-slot class="player-slot player-hotbar-slot" bind="player.hotbar.2"/>
+            <mui:item-slot class="player-slot player-hotbar-slot" bind="player.hotbar.3"/>
+            <mui:item-slot class="player-slot player-hotbar-slot" bind="player.hotbar.4"/>
+            <mui:item-slot class="player-slot player-hotbar-slot" bind="player.hotbar.5"/>
+            <mui:item-slot class="player-slot player-hotbar-slot" bind="player.hotbar.6"/>
+            <mui:item-slot class="player-slot player-hotbar-slot" bind="player.hotbar.7"/>
+            <mui:item-slot class="player-slot player-hotbar-slot" bind="player.hotbar.8"/>
+        </mui:grid>
+    </mui:container>
+</mui:component-root>

@@ -1,0 +1,388 @@
+@import "styles/tokens.css";
+
+.app-shell {
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    background: var(--surface-root);
+}
+
+.shell-header {
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 52px;
+    background: #151d25;
+}
+
+.header-copy, .sidebar-copy, .page-stack, .footer-copy {
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+.brand-title {
+    left: 14px;
+    top: 9px;
+    width: 260px;
+    height: 17px;
+    font-size: 1.18;
+    color: #ffffff;
+}
+
+.brand-subtitle {
+    left: 14px;
+    top: 29px;
+    width: 320px;
+    height: 14px;
+    color: var(--text-muted);
+}
+
+.shell-sidebar {
+    left: 0px;
+    top: 52px;
+    bottom: 42px;
+    width: 156px;
+    background: #151d25;
+}
+
+.section-label {
+    left: 12px;
+    top: 12px;
+    width: 130px;
+    height: 14px;
+    color: #718292;
+    font-size: 0.84;
+}
+
+.nav-item {
+    left: 8px;
+    width: 140px;
+    height: 28px;
+    background: #151d25;
+}
+
+#nav-overview { top: 34px; }
+#nav-components { top: 66px; }
+
+.nav-item[data-selected="true"] {
+    background: #23463f;
+}
+
+.nav-item[data-selected="true"] .nav-label {
+    color: var(--accent-strong);
+}
+
+.nav-label {
+    left: 10px;
+    top: 0px;
+    width: 120px;
+    height: 100%;
+}
+
+.sidebar-note {
+    left: 12px;
+    bottom: 12px;
+    width: 132px;
+    height: 24px;
+    color: #748594;
+    max-width: 132;
+    font-size: 0.82;
+}
+
+.shell-content {
+    left: 156px;
+    right: 0px;
+    top: 52px;
+    bottom: 42px;
+    background: var(--surface-root);
+}
+
+.showcase-page {
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    overflow-y: auto;
+    scrollbar-background: #12181e;
+    scrollbar-speed: 14;
+}
+
+.showcase-page[data-active="false"] {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.page-flow {
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 620px;
+    gap: 12px;
+}
+
+.settings-card {
+    width: 100%;
+    height: 300px;
+    background: var(--surface-panel);
+}
+
+#preview-card, #event-card {
+    height: 170px;
+}
+
+#runtime-card { height: 300px; }
+
+.card-title {
+    left: 12px;
+    top: 9px;
+    right: 12px;
+    height: 16px;
+    color: var(--accent);
+    font-size: 1.02;
+}
+
+.card-body {
+    left: 12px;
+    right: 12px;
+    top: 34px;
+    bottom: 12px;
+}
+
+.control-list, .runtime-demo {
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    gap: 8px;
+}
+
+.toggle-row {
+    width: 100%;
+    height: 30px;
+    background: var(--surface-raised);
+}
+
+.toggle-row:checked {
+    background: #24594f;
+}
+
+.toggle-row:checked .toggle-label {
+    color: #bff8ec;
+}
+
+.toggle-label {
+    left: 10px;
+    top: 0px;
+    right: 10px;
+    height: 100%;
+}
+
+.field-row {
+    width: 100%;
+    height: 44px;
+    background: #1b252e;
+}
+
+.field-label {
+    left: 10px;
+    top: 0px;
+    width: 42%;
+    height: 100%;
+    color: var(--text-muted);
+}
+
+.field-control {
+    left: 44%;
+    right: 8px;
+    top: 7px;
+    height: 30px;
+}
+
+.field-control > * {
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+.value-button, nfr|text-field {
+    background: #111820;
+}
+
+.value-text {
+    left: 8px;
+    top: 0px;
+    right: 8px;
+    height: 100%;
+}
+
+.slider-control > nfr|slider {
+    left: 0px;
+    top: 4px;
+    right: 52px;
+    height: 22px;
+    background: #111820;
+}
+
+.slider-value {
+    right: 0px;
+    top: 0px;
+    width: 46px;
+    height: 100%;
+    text-align: center;
+    color: var(--accent);
+}
+
+.preview-box {
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    background: #0e141a;
+}
+
+.preview-text {
+    left: 14px;
+    right: 14px;
+    top: 18px;
+    height: 32px;
+    font-size: 1.45;
+    text-align: center;
+}
+
+.body-copy {
+    width: 100%;
+    height: 30px;
+    color: var(--text-muted);
+    max-width: 420;
+}
+
+.action-row {
+    width: 100%;
+    height: 28px;
+    gap: 8px;
+}
+
+.action-button {
+    width: 108px;
+    height: 28px;
+}
+
+.action-button.primary {
+    background: #22695d;
+}
+
+.action-label {
+    left: 6px;
+    top: 0px;
+    right: 6px;
+    height: 100%;
+    text-align: center;
+}
+
+.runtime-list {
+    width: 100%;
+    height: 154px;
+    gap: 5px;
+    overflow-y: auto;
+}
+
+.runtime-row {
+    width: 100%;
+    height: 24px;
+    background: #202b35;
+}
+
+.runtime-name {
+    left: 8px;
+    top: 0px;
+    right: 50px;
+    height: 100%;
+}
+
+.runtime-badge {
+    right: 7px;
+    top: 4px;
+    width: 36px;
+    height: 16px;
+    color: var(--accent);
+    text-align: center;
+}
+
+.event-info {
+    width: 100%;
+    height: 100%;
+}
+
+.metric-label {
+    left: 0px;
+    top: 42px;
+    width: 140px;
+    height: 24px;
+    color: var(--text-muted);
+}
+
+.metric-value {
+    left: 142px;
+    top: 42px;
+    width: 60px;
+    height: 24px;
+    color: var(--warning);
+    font-size: 1.25;
+}
+
+.shell-footer {
+    left: 0px;
+    bottom: 0px;
+    width: 100%;
+    height: 42px;
+    background: #151d25;
+}
+
+.status-text {
+    left: 12px;
+    top: 0px;
+    right: 270px;
+    height: 100%;
+    color: var(--text-muted);
+}
+
+.runtime-summary {
+    right: 198px;
+    top: 0px;
+    width: 86px;
+    height: 100%;
+    color: #748594;
+}
+
+.runtime-count {
+    right: 170px;
+    top: 0px;
+    width: 26px;
+    height: 100%;
+    color: var(--warning);
+}
+
+#reset-demo {
+    right: 10px;
+    top: 7px;
+    width: 150px;
+    height: 28px;
+}
+
+@media screen and (max-width: 520px) {
+    .shell-sidebar { width: 108px; }
+    .shell-content { left: 108px; }
+    .nav-item { width: 92px; }
+    .nav-label { width: 74px; }
+    .sidebar-note { width: 86px; max-width: 86; }
+    .brand-subtitle { visibility: hidden; }
+    .field-label { width: 34%; }
+    .field-control { left: 36%; }
+    .status-text { right: 168px; }
+    .runtime-summary, .runtime-count { visibility: hidden; }
+}

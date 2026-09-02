@@ -1,0 +1,38 @@
+<mui:container xmlns:mui="urn:mui" xmlns:nfr="urn:neofontrender:components" class="device-shell chest-shell">
+    <mui:text class="device-title" text="XML Storage"/>
+    <mui:text class="device-subtitle" text="27 server-backed slots projected into a DOM grid"/>
+    <mui:button id="device-close" class="device-close" onclick="device:close">
+        <mui:text text="x"/>
+    </mui:button>
+
+    <mui:grid id="machine-slots" class="slot-grid machine-grid" columns="9">
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.0"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.1"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.2"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.3"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.4"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.5"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.6"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.7"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.8"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.9"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.10"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.11"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.12"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.13"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.14"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.15"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.16"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.17"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.18"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.19"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.20"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.21"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.22"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.23"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.24"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.25"/>
+        <mui:item-slot class="machine-slot storage-slot" bind="machine.storage.26"/>
+    </mui:grid>
+    <nfr:player-inventory/>
+</mui:container>
