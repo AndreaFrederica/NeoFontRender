@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.network.NetHandlerPlayClient;
 import net.minecraftforge.client.ClientCommandHandler;
+import neofontrender.api.text.ModernText;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -108,6 +109,59 @@ public final class CommandCompletionPresentation {
         return ranges;
     }
 
+    /** Builds one draw-ready line instead of requiring a second colored overlay pass. */
+    public static StyledLine styleLine(
+            String line, int lineStart, List<ColoredRange> ranges) {
+        String source = line == null ? "" : line;
+        ModernText.Builder modern = ModernText.builder();
+        StringBuilder legacy = new StringBuilder(source.length() + 16);
+        int cursor = 0;
+        boolean legacyColorActive = false;
+        if (ranges != null) {
+            for (ColoredRange range : ranges) {
+                int start = Math.min(source.length(),
+                        Math.max(cursor, Math.max(0, range.start - lineStart)));
+                int end = Math.min(source.length(), range.end - lineStart);
+                if (start > cursor) {
+                    String plain = source.substring(cursor, start);
+                    modern.append(plain);
+                    if (legacyColorActive) legacy.append('\u00a7').append('r');
+                    legacy.append(plain);
+                    legacyColorActive = false;
+                    cursor = start;
+                }
+                if (start >= end) continue;
+                String colored = source.substring(start, end);
+                modern.append(colored, range.color);
+                legacy.append('\u00a7').append(legacyColorCode(range.color)).append(colored);
+                legacyColorActive = true;
+                cursor = end;
+            }
+        }
+        if (cursor < source.length()) {
+            String plain = source.substring(cursor);
+            modern.append(plain);
+            if (legacyColorActive) legacy.append('\u00a7').append('r');
+            legacy.append(plain);
+        }
+        return new StyledLine(modern.build(), legacy.toString());
+    }
+
+    private static char legacyColorCode(int argb) {
+        switch (argb & 0xFFFFFF) {
+            case 0xFFAA00: return '6';
+            case 0xFFFFFF: return 'f';
+            case 0xFFFF55: return 'e';
+            case 0x55FFFF: return 'b';
+            case 0x5555FF: return '9';
+            case 0xAA00FF: return '5';
+            case 0xFF55FF: return 'd';
+            case 0x55FF55: return 'a';
+            case 0xFF5555: return 'c';
+            default: return 'f';
+        }
+    }
+
     static void rememberRootCandidates(String input, List<String> candidates) {
         refreshKnownCommands();
         if (input == null || !input.startsWith("/") || containsWhitespace(input)) return;
@@ -154,11 +208,24 @@ public final class CommandCompletionPresentation {
         public final int end;
         public final int color;
 
-        private ColoredRange(int start, int end, int color) {
+        ColoredRange(int start, int end, int color) {
             this.start = start;
             this.end = end;
             this.color = color;
         }
+    }
+
+    public static final class StyledLine {
+        private final ModernText modernText;
+        private final String legacyText;
+
+        private StyledLine(ModernText modernText, String legacyText) {
+            this.modernText = modernText;
+            this.legacyText = legacyText;
+        }
+
+        public ModernText modernText() { return modernText; }
+        public String legacyText() { return legacyText; }
     }
 
     private static final class Snapshot {

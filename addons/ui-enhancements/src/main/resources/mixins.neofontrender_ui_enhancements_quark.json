@@ -8,6 +8,9 @@
   "mixins": [],
   "server": [],
   "client": [
-    "compat.MixinQuarkMapTooltip"
+    "compat.MixinQuarkEnchantedBooksShowItems",
+    "compat.MixinQuarkFoodTooltip",
+    "compat.MixinQuarkMapTooltip",
+    "compat.MixinQuarkVisualStatDisplay"
   ]
 }

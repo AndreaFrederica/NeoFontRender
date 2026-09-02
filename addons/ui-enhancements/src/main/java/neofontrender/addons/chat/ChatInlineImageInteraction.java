@@ -7,11 +7,11 @@ import net.minecraft.client.gui.GuiNewChat;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
-import neofontrender.addons.api.inline.InlineGlyph;
-import neofontrender.addons.api.inline.InlineGlyphHit;
-import neofontrender.addons.api.inline.InlineImagePreview;
-import neofontrender.addons.api.inline.InlineTextEngine;
-import neofontrender.addons.api.inline.InlineTextLayout;
+import neofontrender.api.text.pipeline.InlineContent;
+import neofontrender.api.text.pipeline.InlineContentHit;
+import neofontrender.addons.api.content.InlineImagePreview;
+import neofontrender.api.text.pipeline.TextPipelineEngine;
+import neofontrender.api.text.pipeline.TextPipelineLayout;
 import neofontrender.addons.mixin.AccessorGuiNewChatFeatures;
 import neofontrender.addons.tooltips.AddonI18n;
 import org.lwjgl.input.Mouse;
@@ -24,7 +24,7 @@ import java.util.List;
 public final class ChatInlineImageInteraction {
     private static final int PREVIEW_SIZE = 144;
     private static final int PADDING = 8;
-    private static InlineGlyph tabbyHoverGlyph;
+    private static InlineContent tabbyHoverGlyph;
     private static Rectangle tabbyHoverBounds;
 
     private ChatInlineImageInteraction() {}
@@ -55,10 +55,10 @@ public final class ChatInlineImageInteraction {
             int height = ChatInlineLayout.lineHeight(line, minecraft.fontRenderer);
             if (fromBottom >= before && fromBottom < before + height) {
                 String text = line.getChatComponent().getFormattedText();
-                InlineTextLayout layout = InlineTextEngine.layout(minecraft.fontRenderer, text);
+                TextPipelineLayout layout = TextPipelineEngine.layout(minecraft.fontRenderer, text);
                 int localY = height - 1 - (fromBottom - before);
-                InlineGlyphHit glyph = layout.glyphAt(localX, localY, minecraft.fontRenderer);
-                return glyph == null ? null : new Hit(glyph.match().glyph(), glyph.match().start(),
+                InlineContentHit glyph = layout.contentAt(localX, localY, minecraft.fontRenderer);
+                return glyph == null ? null : new Hit(glyph.match().content(), glyph.match().start(),
                         glyph.match().end(), text);
             }
             before += height;
@@ -67,9 +67,9 @@ public final class ChatInlineImageInteraction {
     }
 
     static void draw(int mouseX, int mouseY) {
-        InlineGlyph published = tabbyHoverGlyph;
+        InlineContent published = tabbyHoverGlyph;
         if (!EnhancedChatFeatures.imageGlyphHover() || ChatContextMenu.INSTANCE.isOpen()) return;
-        InlineGlyph glyph;
+        InlineContent glyph;
         if (EnhancedChatConfigAccess.tabbedChatEnabled()) {
             Minecraft minecraft = Minecraft.getMinecraft();
             if (minecraft.currentScreen == null) {
@@ -151,7 +151,7 @@ public final class ChatInlineImageInteraction {
     }
 
     /** Receives a Tabby/UIE-local hit and defers its preview until the screen's final overlay pass. */
-    public static void publishTabbyHover(@Nullable InlineGlyph glyph,
+    public static void publishTabbyHover(@Nullable InlineContent glyph,
                                          int glyphX, int glyphY, int glyphWidth, int glyphHeight) {
         tabbyHoverGlyph = glyph;
         tabbyHoverBounds = glyph == null ? null : new Rectangle(glyphX, glyphY,
@@ -172,12 +172,12 @@ public final class ChatInlineImageInteraction {
     }
 
     static final class Hit {
-        final InlineGlyph glyph;
+        final InlineContent glyph;
         final int start;
         final int end;
         final String source;
 
-        private Hit(InlineGlyph glyph, int start, int end, String source) {
+        private Hit(InlineContent glyph, int start, int end, String source) {
             this.glyph = glyph;
             this.start = start;
             this.end = end;

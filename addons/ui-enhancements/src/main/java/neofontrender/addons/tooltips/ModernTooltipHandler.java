@@ -6,6 +6,8 @@ import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 final class ModernTooltipHandler {
+    private static final String MODULAR_UI_PRE_EVENT =
+            "com.cleanroommc.modularui.screen.RichTooltipEvent$Pre";
     private final ModernTooltipRenderer renderer = new ModernTooltipRenderer();
     private boolean warnedLegendary;
 
@@ -27,8 +29,13 @@ final class ModernTooltipHandler {
             return;
         }
         if (renderer.draw(event, compactLines,
-                compactLines == null ? "vanilla" : "thaumcraft", thaumcraftContext)) {
+                compactLines == null ? "vanilla" : "thaumcraft", thaumcraftContext,
+                preservesCallerState(event.getClass().getName()))) {
             event.setCanceled(true);
         }
+    }
+
+    static boolean preservesCallerState(String eventClassName) {
+        return MODULAR_UI_PRE_EVENT.equals(eventClassName);
     }
 }

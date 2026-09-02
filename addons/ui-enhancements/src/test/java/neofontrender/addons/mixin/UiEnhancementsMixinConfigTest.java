@@ -46,6 +46,8 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(salutation.contains("\"required\": false"));
         assertTrue(salutation.contains("\"compat.MixinSalutationAdvancedTabCompleter\""));
         assertTrue(quark.contains("\"required\": false"));
+        assertTrue(quark.contains("\"compat.MixinQuarkEnchantedBooksShowItems\""));
+        assertTrue(quark.contains("\"compat.MixinQuarkFoodTooltip\""));
         assertTrue(quark.contains("\"compat.MixinQuarkMapTooltip\""));
         assertTrue(shoulderSurfing.contains("\"required\": false"));
         assertTrue(shoulderSurfing.contains(
@@ -105,6 +107,8 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinGlStateManagerCameraTransparency\""));
         assertTrue(config.contains("\"MixinRenderPlayerFlightRoll\""));
         assertTrue(config.contains("\"MixinRenderGlobalBlockOutlines\""));
+        assertTrue(config.contains("\"MixinGuiBossOverlayFlightHud\""));
+        assertTrue(config.contains("\"MixinGuiIngameForgeFlightHud\""));
         assertTrue(config.contains("\"MixinGuiIngameForgeCrosshair\""));
         assertTrue(config.contains("\"InvokerGuiIngameCrosshair\""));
         assertTrue(config.contains("\"AccessorGuiChatFeatures\""));

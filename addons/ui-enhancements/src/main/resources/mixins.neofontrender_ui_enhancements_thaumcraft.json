@@ -9,6 +9,7 @@
   "server": [],
   "client": [
     "compat.MixinThaumcraftResearchBrowserBackground",
-    "compat.MixinThaumcraftCustomTooltip"
+    "compat.MixinThaumcraftCustomTooltip",
+    "compat.MixinThaumcraftAspectTooltip"
   ]
 }

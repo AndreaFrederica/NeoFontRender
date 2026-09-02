@@ -5,8 +5,8 @@ import net.minecraft.client.gui.GuiUtilRenderComponents;
 import net.minecraft.util.text.ITextComponent;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.linebreak.CjkComponentLineWrapper;
-import neofontrender.api.text.CjkParagraphLayoutProvider;
-import neofontrender.api.text.CjkParagraphLayoutRegistry;
+import neofontrender.api.text.pipeline.ParagraphLayoutMiddleware;
+import neofontrender.api.text.pipeline.TextPipelineApi;
 import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,8 +27,8 @@ public abstract class MixinGuiUtilRenderComponents {
             String language = minecraft == null || minecraft.getLanguageManager() == null
                     || minecraft.getLanguageManager().getCurrentLanguage() == null ? ""
                     : minecraft.getLanguageManager().getCurrentLanguage().getLanguageCode();
-            List<ITextComponent> provided = CjkParagraphLayoutRegistry.splitComponents(
-                    new CjkParagraphLayoutProvider.ComponentRequest(text, maxWidth,
+            List<ITextComponent> provided = TextPipelineApi.splitComponents(
+                    new ParagraphLayoutMiddleware.ComponentRequest(text, maxWidth,
                             font.FONT_HEIGHT, language, removeLeadingSpace,
                             forceTextColor, font::getStringWidth));
             if (provided != null) {

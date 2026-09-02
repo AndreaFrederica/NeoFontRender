@@ -90,7 +90,11 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
             return context.isModPresent("thaumcraft")
                     && classResourcePresent(
                             "thaumcraft/client/gui/GuiResearchBrowser.class")
-                    && classResourcePresent("thaumcraft/client/lib/UtilsFX.class");
+                    && classResourcePresent("thaumcraft/client/lib/UtilsFX.class")
+                    && classResourcePresent(
+                            "thaumcraft/client/lib/events/RenderEventHandler.class")
+                    && classResourcePresent(
+                            "thaumcraft/client/lib/events/HudHandler.class");
         }
         if (CLEANROOM_COMMAND_SUGGESTIONS_CONFIG.equals(config)) {
             return classResourcePresent(

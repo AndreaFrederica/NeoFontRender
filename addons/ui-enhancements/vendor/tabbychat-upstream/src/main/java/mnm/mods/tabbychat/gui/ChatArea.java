@@ -44,9 +44,9 @@ import neofontrender.addons.chat.ChatPixelScrollLayout;
 import neofontrender.addons.chat.ChatSelectionModel;
 import neofontrender.addons.chat.ChatSource;
 import neofontrender.addons.chat.EnhancedChatFeatures;
-import neofontrender.addons.api.inline.InlineGlyphHit;
-import neofontrender.addons.api.inline.InlineTextEngine;
-import neofontrender.addons.api.inline.InlineTextLayout;
+import neofontrender.api.text.pipeline.InlineContentHit;
+import neofontrender.api.text.pipeline.TextPipelineEngine;
+import neofontrender.api.text.pipeline.TextPipelineLayout;
 import neofontrender.addons.cjk.ChatTypographyRenderer;
 import mnm.mods.tabbychat.ChatMessage;
 import org.lwjgl.input.Mouse;
@@ -222,7 +222,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         int glyphHeight = glyphHover == null ? 0
                 : Math.max(1, Math.round(glyphHover.height * hoverScale));
         ChatInlineImageInteraction.publishTabbyHover(
-                glyphHover == null ? null : glyphHover.hit.match().glyph(),
+                glyphHover == null ? null : glyphHover.hit.match().content(),
                 glyphX, glyphY, glyphWidth, glyphHeight);
     }
 
@@ -260,7 +260,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
             return;
         }
         ITextComponent display = line.getMessageWithOptionalTimestamp();
-        InlineTextLayout inline = cachedRow(line).messageLayout;
+        TextPipelineLayout inline = cachedRow(line).messageLayout;
         int contentHeight = inline.height();
         int iconY = yPos + Math.max(0, contentHeight - mc.fontRenderer.FONT_HEIGHT);
         float fade = getLineFade(line);
@@ -275,7 +275,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
                 ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity * fade)
                 : Color.WHITE.getHex() & 0x00FFFFFF
                     | ChatFadeMath.lineOpacity(mc.gameSettings.chatOpacity, fade) << 24;
-        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()) {
+        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()) {
             ChatTypographyRenderer.draw(mc.fontRenderer, display,
                     xPos + ChatHeadRenderer.textOffset(), yPos, configured, true);
         } else {
@@ -320,14 +320,14 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
 
     private void drawPrivateLine(Message line, int xPos, int yPos) {
         ITextComponent display = line.getMessageWithOptionalTimestamp();
-        InlineTextLayout inline = cachedRow(line).renderLayout;
+        TextPipelineLayout inline = cachedRow(line).renderLayout;
         int contentHeight = inline.height();
         ChatMessageMetadata metadata = line instanceof ChatMessage
                 ? ((ChatMessage) line).nfrUi$getMessageMetadata() : null;
         boolean outgoing = metadata != null && metadata.outgoing;
         float fade = getLineFade(line);
         int avatarSpace = EnhancedChatFeatures.playerHeads() ? ChatHeadRenderer.HEAD_SIZE + 5 : 0;
-        int textWidth = ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()
+        int textWidth = ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()
                 ? ChatTypographyRenderer.width(mc.fontRenderer, display) : inline.width();
         int bubbleWidth = Math.min(getBounds().width - avatarSpace - 8, textWidth + 8);
         int bubbleX = outgoing
@@ -354,7 +354,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         int configured = ChatStyleConfig.enabled
                 ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity * fade)
                 : 0x00FFFFFF | alpha << 24;
-        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()) {
+        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()) {
             ChatTypographyRenderer.draw(mc.fontRenderer, display,
                     textX, yPos + 1, configured, false);
         } else {
@@ -406,7 +406,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         int featureMask = (EnhancedChatFeatures.goslingImageGlyphs() ? 1 : 0)
                 | (EnhancedChatFeatures.externalImageGlyphs() ? 2 : 0)
                 | (EnhancedChatFeatures.localImageGlyphs() ? 4 : 0);
-        long generation = InlineTextEngine.layoutGeneration();
+        long generation = TextPipelineEngine.layoutGeneration();
         if (!nfrUi$layoutDirty && nfrUi$pixelIndex != null
                 && nfrUi$layoutFeatureMask == featureMask
                 && nfrUi$layoutGeneration == generation
@@ -431,10 +431,10 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
 
     private CachedRow measureRow(Message line, boolean privateView) {
         String message = messageText(line);
-        InlineTextLayout messageLayout = InlineTextEngine.layout(mc.fontRenderer, message);
+        TextPipelineLayout messageLayout = TextPipelineEngine.layout(mc.fontRenderer, message);
         String rendered = privateView ? lineText(line) : message;
-        InlineTextLayout renderLayout = rendered.equals(message) ? messageLayout
-                : InlineTextEngine.layout(mc.fontRenderer, rendered);
+        TextPipelineLayout renderLayout = rendered.equals(message) ? messageLayout
+                : TextPipelineEngine.layout(mc.fontRenderer, rendered);
         int content = EnhancedChatFeatures.inlineGlyphs()
                 ? messageLayout.height() : mc.fontRenderer.FONT_HEIGHT;
         int height = Math.max(mc.fontRenderer.FONT_HEIGHT, content)
@@ -499,7 +499,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         if (event.getType() == MouseEvent.CLICK && event.getButton() == 1 && imageHit != null) {
             ILocation actual = getActualLocation();
             float scale = getActualScale();
-            ChatContextMenu.INSTANCE.openImage(imageHit.hit.match().glyph(),
+            ChatContextMenu.INSTANCE.openImage(imageHit.hit.match().content(),
                     actual.getXPos() + Math.round(event.getMouseX() * scale),
                     actual.getYPos() + Math.round(event.getMouseY() * scale));
             return;
@@ -573,8 +573,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         String value = messageText(line);
         int localX = Math.max(0, mouseX - textX(line, 3));
         ITextComponent display = line.getMessageWithOptionalTimestamp();
-        InlineTextLayout inline = cachedRow(line).messageLayout;
-        int position = ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()
+        TextPipelineLayout inline = cachedRow(line).messageLayout;
+        int position = ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()
                 ? ChatTypographyRenderer.formattedIndexAt(display, localX)
                 : inline.sourceIndexAt(mc.fontRenderer, localX);
         int headX = isPrivateView() && isOutgoing(line)
@@ -594,14 +594,14 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         int x = textX(line, 3);
         if (mouseX < x) return null;
         ITextComponent display = line.getMessageWithOptionalTimestamp();
-        InlineTextLayout inline = cachedRow(line).messageLayout;
-        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()) {
+        TextPipelineLayout inline = cachedRow(line).messageLayout;
+        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()) {
             return ChatTypographyRenderer.componentAt(display, mouseX - x);
         }
         for (ITextComponent component : display) {
             String text = GuiUtilRenderComponents.removeTextColorsIfConfigured(
                     component.getUnformattedComponentText(), false);
-            x += InlineTextEngine.width(mc.fontRenderer, text);
+            x += TextPipelineEngine.width(mc.fontRenderer, text);
             if (x > mouseX) return component;
         }
         return null;
@@ -629,10 +629,10 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
             ChatSelectionModel.Range range = ranges.get(line);
             if (range == null || range.start >= range.end) continue;
             int textX = textX(line, xPos);
-            InlineTextLayout layout = cachedRow(line).messageLayout;
+            TextPipelineLayout layout = cachedRow(line).messageLayout;
             ITextComponent display = line.getMessageWithOptionalTimestamp();
             boolean positioned = ChatTypographyRenderer.isPositioned(display)
-                    && !layout.hasGlyphs();
+                    && !layout.hasInlineContent();
             int x1 = textX + Math.round(positioned
                     ? ChatTypographyRenderer.xAtFormattedIndex(display, range.start)
                     : layout.widthTo(mc.fontRenderer, range.start));
@@ -656,21 +656,21 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         if (rowHit == null) return null;
         Message line = rowHit.line;
         int textX = textX(line, 3);
-        InlineTextLayout layout = cachedRow(line).messageLayout;
-        InlineGlyphHit hit = layout.glyphAt(mouseX - textX,
+        TextPipelineLayout layout = cachedRow(line).messageLayout;
+        InlineContentHit hit = layout.contentAt(mouseX - textX,
                 mouseY - rowHit.rowTop, mc.fontRenderer);
         return hit == null ? null : new GlyphHover(hit,
                 textX + hit.x(), rowHit.rowTop + hit.y());
     }
 
     private static final class GlyphHover {
-        private final InlineGlyphHit hit;
+        private final InlineContentHit hit;
         private final int x;
         private final int y;
         private final int width;
         private final int height;
 
-        private GlyphHover(InlineGlyphHit hit, int x, int y) {
+        private GlyphHover(InlineContentHit hit, int x, int y) {
             this.hit = hit;
             this.x = x;
             this.y = y;
@@ -769,7 +769,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
                             // clean it up
                             String clean = GuiUtilRenderComponents.removeTextColorsIfConfigured(text, false);
                             // get it's width, then scale it.
-                            x += InlineTextEngine.width(this.mc.fontRenderer, clean) * scale;
+                            x += TextPipelineEngine.width(this.mc.fontRenderer, clean) * scale;
 
                             if (x > point.x) {
                                 return ichatcomponent;
@@ -910,17 +910,17 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     }
 
     private int nfrUi$textWidth(Message line, ITextComponent display) {
-        InlineTextLayout inline = cachedRow(line).renderLayout;
-        return ChatTypographyRenderer.isPositioned(display) && !inline.hasGlyphs()
+        TextPipelineLayout inline = cachedRow(line).renderLayout;
+        return ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()
                 ? ChatTypographyRenderer.width(mc.fontRenderer, display) : inline.width();
     }
 
     private static final class CachedRow {
-        private final InlineTextLayout messageLayout;
-        private final InlineTextLayout renderLayout;
+        private final TextPipelineLayout messageLayout;
+        private final TextPipelineLayout renderLayout;
         private final int height;
 
-        private CachedRow(InlineTextLayout messageLayout, InlineTextLayout renderLayout,
+        private CachedRow(TextPipelineLayout messageLayout, TextPipelineLayout renderLayout,
                           int height) {
             this.messageLayout = messageLayout;
             this.renderLayout = renderLayout;

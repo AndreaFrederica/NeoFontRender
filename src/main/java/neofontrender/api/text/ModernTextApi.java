@@ -4,7 +4,7 @@ import neofontrender.core.font.FontManager;
 import neofontrender.core.font.backend.CompositeTextRenderResult;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
-import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
+import neofontrender.api.text.pipeline.TextPipelineApi;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.ShadowRenderSpec;
 
@@ -56,7 +56,7 @@ public final class ModernTextApi {
             String text, float fontSize, int argb, boolean shadow) {
         if (text == null || text.isEmpty()) return ModernTextLayout.EMPTY;
         return layoutFormatted(
-                TextPreprocessingPipeline.process(text).modernText(),
+                TextPipelineApi.processRaw(text).modernText(),
                 fontSize, argb, shadow);
     }
 
@@ -103,7 +103,7 @@ public final class ModernTextApi {
             String text, float fontSize, int argb) {
         if (text == null || text.isEmpty()) return ModernTextLayout.EMPTY;
         return layoutFormattedWithShadow(
-                TextPreprocessingPipeline.process(text).modernText(), fontSize, argb,
+                TextPipelineApi.processRaw(text).modernText(), fontSize, argb,
                 ShadowRenderSpec.fromConfig());
     }
 
@@ -117,7 +117,7 @@ public final class ModernTextApi {
             String text, float fontSize, int argb, ShadowRenderSpec spec) {
         if (text == null || text.isEmpty()) return ModernTextLayout.EMPTY;
         return layoutFormattedWithShadow(
-                TextPreprocessingPipeline.process(text).modernText(), fontSize, argb, spec);
+                TextPipelineApi.processRaw(text).modernText(), fontSize, argb, spec);
     }
 
     public static ModernTextLayout layoutFormattedWithShadow(
@@ -145,7 +145,7 @@ public final class ModernTextApi {
             String text, float fontSize, int argb, boolean shadow) {
         if (text == null || text.isEmpty()) return 0.0F;
         return measureFormatted(
-                TextPreprocessingPipeline.process(text).modernText(),
+                TextPipelineApi.processRaw(text).modernText(),
                 fontSize, argb, shadow);
     }
 

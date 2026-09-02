@@ -2,7 +2,7 @@ package neofontrender.addons.cjk;
 
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
-import neofontrender.api.text.CjkParagraphLayoutProvider;
+import neofontrender.api.text.pipeline.ParagraphLayoutMiddleware;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,13 +10,13 @@ import java.util.List;
 
 /** A normal text component with non-serialized Tiqian line geometry. */
 public final class TiqianLineComponent extends TextComponentString implements PositionedTextLine {
-    private final List<CjkParagraphLayoutProvider.Run> runs;
+    private final List<ParagraphLayoutMiddleware.Run> runs;
     private final float width;
     private final int visibleLength;
     private final List<Cell> cells = new ArrayList<>();
     private final List<ComponentSpan> components = new ArrayList<>();
 
-    public TiqianLineComponent(List<CjkParagraphLayoutProvider.Run> runs,
+    public TiqianLineComponent(List<ParagraphLayoutMiddleware.Run> runs,
                                float width, int visibleLength) {
         super("");
         this.runs = Collections.unmodifiableList(new ArrayList<>(runs));
@@ -33,7 +33,7 @@ public final class TiqianLineComponent extends TextComponentString implements Po
     }
 
     @Override
-    public List<CjkParagraphLayoutProvider.Run> nfrUi$runs() {
+    public List<ParagraphLayoutMiddleware.Run> nfrUi$runs() {
         return runs;
     }
 

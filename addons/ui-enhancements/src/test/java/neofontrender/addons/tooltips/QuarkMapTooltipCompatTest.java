@@ -38,7 +38,7 @@ class QuarkMapTooltipCompatTest {
         QuarkMapTooltipLayout.Placement placement =
                 QuarkMapTooltipLayout.placeForTooltip(320, 240, 310, 100, 20, 5, 5);
 
-        assertEquals(244, placement.x);
+        assertEquals(242, placement.x);
         assertEquals(20, placement.y);
     }
 

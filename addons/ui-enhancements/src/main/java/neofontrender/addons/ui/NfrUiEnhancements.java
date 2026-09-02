@@ -28,6 +28,7 @@ import neofontrender.addons.cjk.CjkTypographyModule;
 import neofontrender.addons.camera.CameraModule;
 import neofontrender.addons.navigation.UiNavigationModule;
 import neofontrender.addons.outlines.BlockOutlinesModule;
+import neofontrender.addons.inline.EmbeddedContentFonts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -78,6 +79,7 @@ public final class NfrUiEnhancements {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        EmbeddedContentFonts.register();
         UiEnhancementsConfig.open();
         UiEnhancementsInfoContributions.register();
         MODULES.forEach(UiEnhancementModule::preInit);

@@ -3,6 +3,7 @@ package neofontrender.addons.mixin.compat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.client.event.RenderTooltipEvent;
 import neofontrender.addons.tooltips.HeiTooltipCompat;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
@@ -33,6 +34,22 @@ public abstract class MixinHeiTooltipRenderer {
                                                 int mouseX, int mouseY, int maxTextWidth,
                                                 FontRenderer font, CallbackInfo ci) {
         HeiTooltipCompat.end();
+    }
+
+    @Redirect(method = CUSTOM_METHOD,
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraftforge/client/event/RenderTooltipEvent$Pre;getScreenWidth()I"),
+            require = 0, remap = false)
+    private static int nfrUi$reserveHorizontalVisualExtent(RenderTooltipEvent.Pre event) {
+        return HeiTooltipCompat.availableScreenWidth(event.getScreenWidth());
+    }
+
+    @Redirect(method = CUSTOM_METHOD,
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraftforge/client/event/RenderTooltipEvent$Pre;getScreenHeight()I"),
+            require = 0, remap = false)
+    private static int nfrUi$reserveVerticalVisualExtent(RenderTooltipEvent.Pre event) {
+        return HeiTooltipCompat.availableScreenHeight(event.getScreenHeight());
     }
 
     @Redirect(method = CUSTOM_METHOD,

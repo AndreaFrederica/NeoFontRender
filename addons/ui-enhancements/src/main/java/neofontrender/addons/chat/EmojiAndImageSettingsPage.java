@@ -4,7 +4,7 @@ import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import neofontrender.addons.tooltips.AddonI18n;
 import neofontrender.addons.ui.NfrUiEnhancements;
-import neofontrender.addons.api.inline.InlineTextEngine;
+import neofontrender.api.text.pipeline.TextPipelineEngine;
 import neofontrender.api.client.settings.NfrSettingsPage;
 import neofontrender.api.client.settings.NfrSettingsPageContext;
 import neofontrender.api.client.settings.NfrSettingsPageSession;
@@ -63,7 +63,7 @@ final class EmojiAndImageSettingsPage implements NfrSettingsPage {
 
         @Override public void apply() {
             EmojiAndImageConfig.save();
-            InlineTextEngine.invalidateLayouts();
+            TextPipelineEngine.invalidate();
         }
 
         @Override public void cancel() {
@@ -73,7 +73,7 @@ final class EmojiAndImageSettingsPage implements NfrSettingsPage {
             EmojiAndImageConfig.imageGlyphHover = hover;
             EmojiAndImageConfig.imageAllowlist = allow;
             EmojiAndImageConfig.imageBlocklist = block;
-            InlineTextEngine.invalidateLayouts();
+            TextPipelineEngine.invalidate();
         }
     }
 

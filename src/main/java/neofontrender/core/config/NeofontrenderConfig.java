@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import neofontrender.NeoFontRender;
 import neofontrender.api.color.TextColorPaletteCodec;
 import neofontrender.api.color.TextColorPaletteRegistry;
+import neofontrender.api.client.font.BuiltinFontRegistry;
 import neofontrender.core.font.support.FontFileResolver;
 import neofontrender.core.font.support.ShadowColorRemapRules;
 import neofontrender.core.font.support.ShadowColorPolicy;
@@ -41,10 +42,12 @@ public final class NeofontrenderConfig {
     private static volatile boolean earlyLoadFailed;
     private static volatile Snapshot cached = Snapshot.defaults();
     private static volatile boolean cachedDebugRenderStats;
-    private static final List<BuiltinFont> BUILTIN_FONTS = Collections.unmodifiableList(Arrays.asList(
-            new BuiltinFont("Noto Sans SC", DEFAULT_FONT),
-            new BuiltinFont("Noto Color Emoji", "neofontrender:fonts/noto_color_emoji_regular.ttf")
-    ));
+    static {
+        BuiltinFontRegistry.register("neofontrender:noto_sans_sc", "Noto Sans SC",
+                DEFAULT_FONT, true);
+        BuiltinFontRegistry.register("neofontrender:noto_color_emoji", "Noto Color Emoji",
+                "neofontrender:fonts/noto_color_emoji_regular.ttf", true);
+    }
 
     public static boolean isLoaded() {
         return loaded;
@@ -106,8 +109,8 @@ public final class NeofontrenderConfig {
         addFontNames(fonts, primaryFontLocation());
         fonts.addAll(fontFallbacks());
         if (builtinFallbacksEnabled()) {
-            for (BuiltinFont font : builtinFonts()) {
-                fonts.add(font.location);
+            for (BuiltinFontRegistry.Entry font : builtinFonts()) {
+                if (font.defaultFallback()) fonts.add(font.location());
             }
         }
         if (fonts.isEmpty()) {
@@ -238,8 +241,8 @@ public final class NeofontrenderConfig {
         return cached.builtinFallbacks;
     }
 
-    public static List<BuiltinFont> builtinFonts() {
-        return BUILTIN_FONTS;
+    public static List<BuiltinFontRegistry.Entry> builtinFonts() {
+        return BuiltinFontRegistry.entries();
     }
 
     // ===================== Shadow =====================
@@ -1815,21 +1818,4 @@ public final class NeofontrenderConfig {
         }
     }
 
-    public static final class BuiltinFont {
-        private final String displayName;
-        private final String location;
-
-        private BuiltinFont(String displayName, String location) {
-            this.displayName = displayName;
-            this.location = location;
-        }
-
-        public String displayName() {
-            return displayName;
-        }
-
-        public String location() {
-            return location;
-        }
-    }
 }

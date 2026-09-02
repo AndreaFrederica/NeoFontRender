@@ -1,6 +1,10 @@
 package neofontrender.core.font.preprocess;
 
 import neofontrender.api.text.ModernText;
+import neofontrender.api.text.pipeline.ProcessedText;
+import neofontrender.core.font.pipeline.LayoutText;
+import neofontrender.core.font.pipeline.builtin.LegacyColorTextParser;
+import neofontrender.core.font.pipeline.builtin.TinkersAntiqueTextPreprocessor;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,9 +15,9 @@ class LayoutTextTest {
 
     @Test
     void removesHexMarkerFromLayoutAndRestoresItsDrawState() {
-        PreprocessedText source = LegacyColorTextParser.process(
+        ProcessedText source = LegacyColorTextParser.process(
                 "A#112233B", false, true, true);
-        LayoutText layout = LayoutText.fromPreprocessed(source);
+        LayoutText layout = LayoutText.fromProcessed(source);
 
         assertEquals("AB", layout.visibleText());
         assertFalse(layout.stateAt(0).hasRgbOverride());
@@ -22,7 +26,7 @@ class LayoutTextTest {
         assertEquals(1, layout.rawStartBoundary(1));
         assertEquals(8, layout.rawEndBoundary(1));
 
-        PreprocessedText restored = LegacyColorTextParser.process(
+        ProcessedText restored = LegacyColorTextParser.process(
                 layout.formattedDisplay(1, "B"), true, true, true);
         ModernText.Run run = restored.modernText().runs().get(0);
         assertEquals("B", restored.visibleText());
@@ -32,7 +36,7 @@ class LayoutTextTest {
 
     @Test
     void keepsPerCharacterGradientColorsOutsideLayoutText() {
-        LayoutText layout = LayoutText.fromPreprocessed(LegacyColorTextParser.process(
+        LayoutText layout = LayoutText.fromProcessed(LegacyColorTextParser.process(
                 "#FF0000-0000FFAB", false, true, true));
 
         assertEquals("AB", layout.visibleText());
@@ -43,7 +47,7 @@ class LayoutTextTest {
     @Test
     void removesTinkersMarkersAndRestoresTheirRgbState() {
         String marker = tinkersRgb(0x12, 0x80, 0xFE);
-        LayoutText layout = LayoutText.fromPreprocessed(
+        LayoutText layout = LayoutText.fromProcessed(
                 LegacyColorTextParser.process(marker + "字", true, false, true));
 
         assertEquals("字", layout.visibleText());
@@ -57,7 +61,7 @@ class LayoutTextTest {
     @Test
     void leavesTinkersCharactersInLayoutWhenCompatibilityDidNotDecodeThem() {
         String raw = tinkersRgb(1, 2, 3) + "字";
-        LayoutText layout = LayoutText.fromPreprocessed(PreprocessedText.unchanged(raw));
+        LayoutText layout = LayoutText.fromProcessed(ProcessedText.unchanged(raw));
 
         assertFalse(layout.transformed());
         assertEquals(raw, layout.visibleText());
@@ -66,8 +70,8 @@ class LayoutTextTest {
 
     @Test
     void stripsLegacyFormattingButRetainsItsPerCharacterState() {
-        LayoutText layout = LayoutText.fromPreprocessed(
-                PreprocessedText.unchanged("\u00A7l粗\u00A7r常"));
+        LayoutText layout = LayoutText.fromProcessed(
+                ProcessedText.unchanged("\u00A7l粗\u00A7r常"));
 
         assertEquals("粗常", layout.visibleText());
         assertTrue(layout.stateAt(0).bold());

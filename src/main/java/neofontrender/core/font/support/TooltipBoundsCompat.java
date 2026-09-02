@@ -2,8 +2,11 @@ package neofontrender.core.font.support;
 
 import net.minecraft.client.gui.FontRenderer;
 import neofontrender.core.font.FontManager;
+import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
+import neofontrender.api.text.ModernTextApi;
+import neofontrender.api.text.ModernTextLayout;
 
 /** Makes Forge tooltip layout account for shaped glyph overhang and shadow pixels. */
 public final class TooltipBoundsCompat {
@@ -35,6 +38,44 @@ public final class TooltipBoundsCompat {
         } catch (RuntimeException | LinkageError ignored) {
             // Tooltip rendering must remain available if an optional native backend fails.
             return advanceWidth + 2;
+        }
+    }
+
+    /** Actual vertical pixels produced at the same origin used by FontRenderer.drawString. */
+    public static VerticalBounds measuredVerticalBounds(FontRenderer font, String text,
+                                                         boolean shadow) {
+        float fallbackBottom = Math.max(1, font == null ? 9 : font.FONT_HEIGHT);
+        if (text == null || text.isEmpty() || !ModernTextApi.isAvailable()) {
+            return new VerticalBounds(0.0F, fallbackBottom);
+        }
+        try {
+            ModernTextLayout layout = shadow && NeofontrenderConfig.modernShadowEnabled()
+                    && ModernTextApi.isModernShadowAvailable()
+                    ? ModernTextApi.layoutFormattedWithShadow(text,
+                            NeofontrenderConfig.fontSize(), 0xFFFFFFFF)
+                    : ModernTextApi.layoutFormatted(text, NeofontrenderConfig.fontSize(),
+                            0xFFFFFFFF, false);
+            float top = layout.visualTop();
+            float bottom = layout.visualBottom();
+            if (!Float.isFinite(top) || !Float.isFinite(bottom) || bottom <= top) {
+                return new VerticalBounds(0.0F, fallbackBottom);
+            }
+            if (shadow && !NeofontrenderConfig.modernShadowEnabled()) {
+                bottom += Math.max(0.0F, NeofontrenderConfig.shadowLength());
+            }
+            return new VerticalBounds(top, bottom);
+        } catch (RuntimeException | LinkageError ignored) {
+            return new VerticalBounds(0.0F, fallbackBottom);
+        }
+    }
+
+    public static final class VerticalBounds {
+        public final float top;
+        public final float bottom;
+
+        VerticalBounds(float top, float bottom) {
+            this.top = top;
+            this.bottom = bottom;
         }
     }
 

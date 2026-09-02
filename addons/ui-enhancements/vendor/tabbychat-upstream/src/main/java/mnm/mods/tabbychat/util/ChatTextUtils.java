@@ -21,7 +21,7 @@ import neofontrender.addons.chat.ChatMessageMetadata;
 import neofontrender.addons.chat.ChatMessageMetadataRegistry;
 import neofontrender.addons.chat.ChatSource;
 import neofontrender.addons.cjk.CjkTypographyRenderer;
-import neofontrender.api.text.CjkParagraphLayoutProvider;
+import neofontrender.api.text.pipeline.ParagraphLayoutMiddleware;
 
 public class ChatTextUtils {
 
@@ -30,7 +30,7 @@ public class ChatTextUtils {
         ITextComponent decorated = ChatItemIconRenderer.decorate(chat);
         List<ITextComponent> positioned = CjkTypographyRenderer.splitComponents(
                 fr, decorated, width, false, false,
-                CjkParagraphLayoutProvider.ComponentRequest.Surface.CHAT);
+                ParagraphLayoutMiddleware.ComponentRequest.Surface.CHAT);
         return positioned != null ? positioned
                 : GuiUtilRenderComponents.splitText(decorated, width, fr, false, false);
     }

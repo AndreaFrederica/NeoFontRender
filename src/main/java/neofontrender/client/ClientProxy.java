@@ -5,23 +5,34 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import com.cleanroommc.modularui.api.text.MuiTextBackends;
 import neofontrender.NeoFontRender;
 import neofontrender.common.CommonProxy;
+import neofontrender.client.integration.NfrMuiTextBackend;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.splash.ModernSplashDetector;
 import neofontrender.splash.SplashCompat;
+import neofontrender.api.text.pipeline.TextPipelineApi;
+import neofontrender.core.font.pipeline.builtin.HexChatTextPreprocessor;
+import neofontrender.core.font.pipeline.builtin.TinkersAntiqueTextPreprocessor;
 
 public class ClientProxy extends CommonProxy {
 
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         NeoFontRender.LOGGER.info("ClientProxy preInit");
+        TextPipelineApi.register(TinkersAntiqueTextPreprocessor.INSTANCE);
+        TextPipelineApi.register(HexChatTextPreprocessor.INSTANCE);
         super.preInit(event);
     }
 
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+
+        // MUI remains independent of NFR. NFR registers its implementation on
+        // the client after the required MUI dependency has been loaded.
+        MuiTextBackends.register(new NfrMuiTextBackend());
 
         if (!NeofontrenderConfig.isLoaded()) {
             NeofontrenderConfig.load();

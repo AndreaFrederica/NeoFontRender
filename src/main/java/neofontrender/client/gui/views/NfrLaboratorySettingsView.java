@@ -1,19 +1,24 @@
 package neofontrender.client.gui.views;
 
+import com.cleanroommc.modularui.api.widget.IWidget;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
 import neofontrender.client.gui.model.NfrSettingsDraft;
 
 /** Experimental settings route. */
 public final class NfrLaboratorySettingsView extends NfrContentView<NfrLaboratorySettingsView> {
-    public NfrLaboratorySettingsView(NfrSettingsDraft d, NfrSettingsControls c) { this(options(d, c)); }
+    public NfrLaboratorySettingsView(NfrSettingsDraft d, NfrSettingsControls c,
+                                     Iterable<IWidget> contributedControls) {
+        this(options(d, c, contributedControls));
+    }
 
     private NfrLaboratorySettingsView(NfrOptionsGrid options) {
         super(section(options, options::preferredHeight));
     }
 
-    private static NfrOptionsGrid options(NfrSettingsDraft d, NfrSettingsControls c) {
-        return c.grid()
+    private static NfrOptionsGrid options(NfrSettingsDraft d, NfrSettingsControls c,
+                                          Iterable<IWidget> contributedControls) {
+        NfrOptionsGrid grid = c.grid()
                 .add(c.toggle("neofontrender.gui.option.hex_chat", "neofontrender.tooltip.hex_chat",
                         () -> d.laboratoryHexChat, value -> d.laboratoryHexChat = value))
                 .add(c.toggle("neofontrender.gui.option.hex_chat_reset_styles",
@@ -26,5 +31,11 @@ public final class NfrLaboratorySettingsView extends NfrContentView<NfrLaborator
                         () -> d.splashFontOverride, value -> d.splashFontOverride = value))
                 .add(c.toggle("neofontrender.gui.option.modern_splash", "neofontrender.tooltip.modern_splash",
                         () -> d.compatModernSplash, value -> d.compatModernSplash = value));
+        if (contributedControls != null) {
+            for (IWidget widget : contributedControls) {
+                if (widget != null) grid.add(widget);
+            }
+        }
+        return grid;
     }
 }

@@ -16,9 +16,14 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import neofontrender.api.text.ModernTextApi;
 import neofontrender.api.text.ModernTextLayout;
+import neofontrender.api.text.ModernText;
 import neofontrender.api.color.TextColorPaletteRegistry;
-import neofontrender.api.text.CjkParagraphLayoutProvider;
-import neofontrender.api.text.CjkParagraphLayoutRegistry;
+import neofontrender.api.text.pipeline.ParagraphLayoutMiddleware;
+import neofontrender.api.text.pipeline.ProcessedText;
+import neofontrender.api.text.pipeline.TextPipelineApi;
+import neofontrender.api.text.pipeline.TextPipelineEngine;
+import neofontrender.api.text.pipeline.TextPipelineLayout;
+import neofontrender.api.text.pipeline.TextPipelineWrapping;
 import neofontrender.build.BuildFeatures;
 import neofontrender.core.font.support.ScopedFontRenderBypass;
 import neofontrender.core.font.support.ShadowColorPolicy;
@@ -31,9 +36,8 @@ import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.backend.BackendTextSegmenter;
 import neofontrender.core.config.NeofontrenderConfig;
-import neofontrender.core.font.preprocess.PreprocessedText;
-import neofontrender.core.font.preprocess.LayoutText;
-import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
+import neofontrender.core.font.pipeline.LayoutText;
+import neofontrender.core.font.pipeline.builtin.TinkersAntiqueTextPreprocessor;
 import neofontrender.core.font.linebreak.CjkLineBreakRules;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.FontRenderDiagnostics;
@@ -88,20 +92,48 @@ public abstract class MixinFontRenderer {
     @Inject(method = "drawString(Ljava/lang/String;FFIZ)I", at = @At("HEAD"), cancellable = true)
     private void sfr$onDrawString(String text, float x, float y, int color, boolean dropShadow,
                                   CallbackInfoReturnable<Integer> cir) {
+        // Vanilla FontRenderer.drawString enables alpha before any path can render or return.
+        // This HEAD injection may cancel the method, so it must preserve that public contract.
+        // Reassert the driver state too because raw GL calls from other renderers can leave
+        // GlStateManager's cached flag out of sync and make enableAlpha() a no-op.
+        GlStateManager.enableAlpha();
+        GL11.glEnable(GL11.GL_ALPHA_TEST);
         FontRenderTuning.updateFromCurrentGlState(dropShadow);
         if (BuildFeatures.RENDER_STATS) {
             FontRenderDiagnostics.logFontEntry("font.drawString", text, color, dropShadow,
                     FontRenderTuning.currentDrawContext());
         }
+        if (text != null && TextPipelineApi.hasInlineContentMiddleware()
+                && TextPipelineEngine.enter()) {
+            try {
+                TextPipelineLayout inline = TextPipelineEngine.layout(
+                        (FontRenderer) (Object) this, text);
+                if (inline.hasInlineContent()) {
+                    cir.setReturnValue(inline.draw((FontRenderer) (Object) this,
+                            x, y, color, dropShadow));
+                    return;
+                }
+            } finally {
+                TextPipelineEngine.exit();
+            }
+        }
         if (!sfr$shouldHook() || text == null) {
             return;
         }
         sfr$syncTextColorPalette();
-        PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
+        ProcessedText preprocessed = TextPipelineApi.processRaw(text);
         if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
             color = sfr$resolveEffectiveColor(color);
             float advance = sfr$drawPreprocessedText(
                     preprocessed, x, y, color, dropShadow);
+            this.posX = x + advance;
+            this.posY = y;
+            cir.setReturnValue(sfr$drawStringReturnX(x, advance, dropShadow));
+            return;
+        }
+        if (preprocessed.transformed() && FontManager.INSTANCE.isTextBackendActive()) {
+            float advance = sfr$drawProcessedBackend(preprocessed.modernText(), x, y, color,
+                    dropShadow);
             this.posX = x + advance;
             this.posY = y;
             cir.setReturnValue(sfr$drawStringReturnX(x, advance, dropShadow));
@@ -112,7 +144,6 @@ public abstract class MixinFontRenderer {
             return;
         }
 
-        GlStateManager.enableAlpha();
         TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
         if (backend == null) {
             return;
@@ -148,7 +179,7 @@ public abstract class MixinFontRenderer {
             return;
         }
         sfr$syncTextColorPalette();
-        PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
+        ProcessedText preprocessed = TextPipelineApi.processRaw(text);
         if (shadow && !ShadowColorPolicy.VANILLA.equals(NeofontrenderConfig.shadowColorMode())
                 && (sfr$isAnyActive()
                     || preprocessed.transformed() && ModernTextApi.isAvailable())) {
@@ -161,6 +192,12 @@ public abstract class MixinFontRenderer {
             layout.draw(this.posX, this.posY,
                     shadow ? NeofontrenderConfig.shadowOpacity() : 1.0F);
             this.posX += layout.advance();
+            ci.cancel();
+            return;
+        }
+        if (preprocessed.transformed() && FontManager.INSTANCE.isTextBackendActive()) {
+            this.posX += sfr$drawProcessedBackend(preprocessed.modernText(), this.posX,
+                    this.posY, this.sfr$currentArgb(), shadow);
             ci.cancel();
             return;
         }
@@ -519,7 +556,8 @@ public abstract class MixinFontRenderer {
 
     @Inject(method = "getCharWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$onGetCharWidth(char character, CallbackInfoReturnable<Integer> cir) {
-        if (TextPreprocessingPipeline.isInvisibleControlCharacter(character)) {
+        if (TinkersAntiqueTextPreprocessor.INSTANCE.isEnabled()
+                && TinkersAntiqueTextPreprocessor.isMarker(character)) {
             cir.setReturnValue(0);
             return;
         }
@@ -561,7 +599,19 @@ public abstract class MixinFontRenderer {
         if (text == null) {
             return;
         }
-        PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
+        if (TextPipelineApi.hasInlineContentMiddleware() && TextPipelineEngine.enter()) {
+            try {
+                TextPipelineLayout inline = TextPipelineEngine.layout(
+                        (FontRenderer) (Object) this, text);
+                if (inline.hasInlineContent()) {
+                    cir.setReturnValue(inline.width());
+                    return;
+                }
+            } finally {
+                TextPipelineEngine.exit();
+            }
+        }
+        ProcessedText preprocessed = TextPipelineApi.processRaw(text);
         if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
             cir.setReturnValue((int) Math.ceil(ModernTextApi.measureFormatted(
                     preprocessed.modernText(), NeofontrenderConfig.fontSize(),
@@ -577,7 +627,22 @@ public abstract class MixinFontRenderer {
         if (text == null) {
             return;
         }
-        PreprocessedText preprocessed = TextPreprocessingPipeline.process(text);
+        if (TextPipelineApi.hasInlineContentMiddleware() && TextPipelineEngine.enter()) {
+            try {
+                TextPipelineLayout inline = TextPipelineEngine.layout(
+                        (FontRenderer) (Object) this, text);
+                if (inline.hasInlineContent()) {
+                    int boundary = reverse
+                            ? inline.sourceStartFittingReverse((FontRenderer) (Object) this, width)
+                            : inline.sourceIndexFitting((FontRenderer) (Object) this, width);
+                    cir.setReturnValue(reverse ? text.substring(boundary) : text.substring(0, boundary));
+                    return;
+                }
+            } finally {
+                TextPipelineEngine.exit();
+            }
+        }
+        ProcessedText preprocessed = TextPipelineApi.processRaw(text);
         if (preprocessed.transformed() && ModernTextApi.isAvailable()) {
             cir.setReturnValue(sfr$trimPreprocessedText(preprocessed, width, reverse));
             return;
@@ -644,7 +709,21 @@ public abstract class MixinFontRenderer {
         if (str == null) {
             return;
         }
-        CjkParagraphLayoutProvider.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
+        if (TextPipelineApi.hasInlineContentMiddleware() && TextPipelineEngine.enter()) {
+            try {
+                TextPipelineLayout inline = TextPipelineEngine.layout(
+                        (FontRenderer) (Object) this, str);
+                if (inline.hasInlineContent()) {
+                    List<String> lines = TextPipelineWrapping.wrap(
+                            (FontRenderer) (Object) this, str, wrapWidth);
+                    cir.setReturnValue(lines.isEmpty() ? 0 : lines.get(0).length());
+                    return;
+                }
+            } finally {
+                TextPipelineEngine.exit();
+            }
+        }
+        ParagraphLayoutMiddleware.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
         if (paragraph != null) {
             cir.setReturnValue(Math.min(str.length(),
                     Math.max(0, paragraph.firstRawBoundary(str.length()))));
@@ -717,11 +796,11 @@ public abstract class MixinFontRenderer {
     private void sfr$drawCjkParagraph(String str, int x, int y, int wrapWidth, int textColor,
                                       CallbackInfo ci) {
         if (str == null) return;
-        CjkParagraphLayoutProvider.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
+        ParagraphLayoutMiddleware.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
         if (paragraph == null) return;
         FontRenderer self = (FontRenderer) (Object) this;
-        for (CjkParagraphLayoutProvider.Line line : paragraph.lines()) {
-            for (CjkParagraphLayoutProvider.Run run : line.runs()) {
+        for (ParagraphLayoutMiddleware.Line line : paragraph.lines()) {
+            for (ParagraphLayoutMiddleware.Run run : line.runs()) {
                 self.drawString(run.formattedText(), x + run.xOffset(),
                         y + line.yOffset(), textColor, false);
             }
@@ -729,10 +808,10 @@ public abstract class MixinFontRenderer {
         ci.cancel();
     }
 
-    private CjkParagraphLayoutProvider.Layout sfr$layoutCjkParagraph(String text, int width) {
+    private ParagraphLayoutMiddleware.Layout sfr$layoutCjkParagraph(String text, int width) {
         if (!NeofontrenderConfig.fixCjkLineBreak()) return null;
         FontRenderer self = (FontRenderer) (Object) this;
-        return CjkParagraphLayoutRegistry.layout(new CjkParagraphLayoutProvider.Request(
+        return TextPipelineApi.layoutParagraph(new ParagraphLayoutMiddleware.Request(
                 text, width, this.FONT_HEIGHT, sfr$currentLanguageCode(), self::getStringWidth));
     }
 
@@ -939,7 +1018,7 @@ public abstract class MixinFontRenderer {
         return Math.max(main, (int) (x + advance + Math.max(0.0F, offset)));
     }
 
-    private float sfr$drawPreprocessedText(PreprocessedText text, float x, float y,
+    private float sfr$drawPreprocessedText(ProcessedText text, float x, float y,
                                            int color, boolean dropShadow) {
         GlStateManager.enableAlpha();
         float fontSize = NeofontrenderConfig.fontSize();
@@ -967,26 +1046,43 @@ public abstract class MixinFontRenderer {
         return foreground.advance();
     }
 
-    private String sfr$trimPreprocessedText(PreprocessedText text, int width,
+    /** Draws raw-middleware color runs when the selected backend has no ModernText adapter. */
+    private float sfr$drawProcessedBackend(ModernText text, float x, float y, int argb,
+                                            boolean shadow) {
+        TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
+        if (backend == null || text == null || text.isEmpty()) return 0.0F;
+        float advance = 0.0F;
+        for (ModernText.Run run : text.runs()) {
+            int runColor = run.hasColorOverride()
+                    ? (argb & 0xFF000000) | (run.rgb() & 0xFFFFFF) : argb;
+            TextRenderResult rendered = backend.renderFormatted(run.text(), runColor, shadow);
+            rendered.draw(x + advance, y, alphaFromColor(runColor));
+            advance += rendered.advance();
+        }
+        return advance;
+    }
+
+    private String sfr$trimPreprocessedText(ProcessedText text, int width,
                                             boolean reverse) {
         String raw = text.rawText();
         String visible = text.visibleText();
         if (visible.isEmpty()) return raw;
 
+        boolean[] boldAt = sfr$boldStateByIndex(visible);
+        float measured = 0.0F;
         if (!reverse) {
             int acceptedRawEnd = text.rawEndForVisibleBoundary(0);
             for (int index = 0; index < visible.length();) {
-                int next;
                 if (visible.charAt(index) == 167 && index + 1 < visible.length()) {
-                    next = index + 2;
-                } else {
-                    next = index + Character.charCount(visible.codePointAt(index));
+                    index += 2;
+                    acceptedRawEnd = text.rawEndForVisibleBoundary(index);
+                    continue;
                 }
-                int candidateRawEnd = text.rawEndForVisibleBoundary(next);
-                if (sfr$measurePreprocessedRaw(raw.substring(0, candidateRawEnd)) > width) {
-                    break;
-                }
-                acceptedRawEnd = candidateRawEnd;
+                int codePoint = visible.codePointAt(index);
+                int next = index + Character.charCount(codePoint);
+                measured += sfr$getCharWidthFloat(codePoint, boldAt[index]);
+                if (measured > width) break;
+                acceptedRawEnd = text.rawEndForVisibleBoundary(next);
                 index = next;
             }
             return raw.substring(0, acceptedRawEnd);
@@ -994,16 +1090,16 @@ public abstract class MixinFontRenderer {
 
         int acceptedRawStart = raw.length();
         for (int index = visible.length(); index > 0;) {
-            int start = index - Character.charCount(visible.codePointBefore(index));
-            if (start > 0 && visible.charAt(start - 1) == 167) {
-                start--;
+            if (index >= 2 && visible.charAt(index - 2) == 167) {
+                index -= 2;
+                acceptedRawStart = text.rawStartForVisibleBoundary(index);
+                continue;
             }
-            int candidateRawStart = text.rawStartForVisibleBoundary(start);
-            String prefix = sfr$activeFormatPrefix(raw.substring(0, candidateRawStart));
-            if (sfr$measurePreprocessedRaw(prefix + raw.substring(candidateRawStart)) > width) {
-                break;
-            }
-            acceptedRawStart = candidateRawStart;
+            int codePoint = visible.codePointBefore(index);
+            int start = index - Character.charCount(codePoint);
+            measured += sfr$getCharWidthFloat(codePoint, boldAt[start]);
+            if (measured > width) break;
+            acceptedRawStart = text.rawStartForVisibleBoundary(start);
             index = start;
         }
         return raw.substring(acceptedRawStart);
@@ -1043,31 +1139,6 @@ public abstract class MixinFontRenderer {
             index = next;
         }
         return text.rawText().length();
-    }
-
-    private float sfr$measurePreprocessedRaw(String raw) {
-        return ModernTextApi.measureFormatted(
-                raw, NeofontrenderConfig.fontSize(), 0xFFFFFFFF, false);
-    }
-
-    private static String sfr$activeFormatPrefix(String text) {
-        String color = "";
-        StringBuilder styles = new StringBuilder(10);
-        for (int index = 0; index + 1 < text.length(); index++) {
-            if (text.charAt(index) != 167) continue;
-            char code = Character.toLowerCase(text.charAt(++index));
-            if (sfr$isFormatColor(code)) {
-                color = "\u00A7" + code;
-                styles.setLength(0);
-            } else if (code == 'r') {
-                color = "";
-                styles.setLength(0);
-            } else if ("klmno".indexOf(code) >= 0
-                    && styles.indexOf("\u00A7" + code) < 0) {
-                styles.append('\u00A7').append(code);
-            }
-        }
-        return color + styles;
     }
 
     private void sfr$drawSelectiveShadow(TextRenderBackend backend, String text, float x, float y, int color) {

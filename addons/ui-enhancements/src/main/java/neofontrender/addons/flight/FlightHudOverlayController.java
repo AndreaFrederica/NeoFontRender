@@ -5,8 +5,8 @@ import net.minecraftforge.client.event.RenderHandEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-/** Selectively suppresses Forge's vanilla HUD elements while the flight HUD is active. */
-final class FlightHudOverlayController {
+/** Handles the explicit Forge-layer suppression options used by the flight HUD. */
+public final class FlightHudOverlayController {
     static final FlightHudOverlayController INSTANCE = new FlightHudOverlayController();
 
     private FlightHudOverlayController() {}
@@ -14,15 +14,21 @@ final class FlightHudOverlayController {
     @SubscribeEvent(priority = EventPriority.HIGHEST, receiveCanceled = false)
     public void beforeOverlay(RenderGameOverlayEvent.Pre event) {
         if (!FlightHudSurface.INSTANCE.visible()) return;
-        if (event.getType() == RenderGameOverlayEvent.ElementType.CROSSHAIRS) {
-            if (shouldHideForgeCrosshairLayer()) event.setCanceled(true);
-            return;
-        }
-        if (shouldHide(event.getType())) event.setCanceled(true);
+        if (shouldCancelForgeLayer(event.getType())) event.setCanceled(true);
     }
 
     static boolean shouldHideForgeCrosshairLayer() {
         return CrosshairConfig.hideForgeLayerDuringFlightHud;
+    }
+
+    static boolean shouldCancelForgeLayer(RenderGameOverlayEvent.ElementType type) {
+        return type == RenderGameOverlayEvent.ElementType.CROSSHAIRS
+                && shouldHideForgeCrosshairLayer();
+    }
+
+    /** Used by narrow render mixins that skip Minecraft's draw without canceling Forge events. */
+    public static boolean shouldSuppressVanilla(RenderGameOverlayEvent.ElementType type) {
+        return FlightHudSurface.INSTANCE.visible() && shouldHide(type);
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST, receiveCanceled = false)

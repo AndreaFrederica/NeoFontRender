@@ -46,16 +46,25 @@ final class LocalImageCatalog {
         return aliases.get(normalizeAlias(alias));
     }
 
-    List<String> suggestions(String prefix, int maximum) {
+    List<String> suggestions(String prefix, int maximum, boolean includeRaster,
+                             boolean includeSvg) {
         requestRefresh(false);
         String normalized = normalizeAlias(prefix);
         List<String> result = new ArrayList<>();
-        for (String alias : aliases.keySet()) {
+        for (Map.Entry<String, Path> entry : aliases.entrySet()) {
+            String alias = entry.getKey();
             if (!alias.startsWith(normalized)) continue;
-            result.add(":" + alias + ":");
+            boolean svg = isSvg(entry.getValue());
+            if ((!svg && !includeRaster) || (svg && !includeSvg)) continue;
+            result.add(svg ? "<svg:local:" + alias + ">" : ":" + alias + ":");
             if (result.size() >= maximum) break;
         }
         return result;
+    }
+
+    static boolean isSvg(Path path) {
+        return path != null && path.getFileName().toString()
+                .toLowerCase(Locale.ROOT).endsWith(".svg");
     }
 
     private void requestRefresh(boolean force) {
@@ -101,7 +110,7 @@ final class LocalImageCatalog {
     private static boolean supported(String extension) {
         String value = extension.toLowerCase(Locale.ROOT);
         return value.equals("png") || value.equals("jpg") || value.equals("jpeg")
-                || value.equals("gif") || value.equals("bmp");
+                || value.equals("gif") || value.equals("bmp") || value.equals("svg");
     }
 
     private static String normalizeAlias(String value) {

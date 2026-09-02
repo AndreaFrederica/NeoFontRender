@@ -45,4 +45,34 @@ class FlightHudOverlayControllerTest {
             CrosshairConfig.hideForgeLayerDuringFlightHud = oldForgeCrosshair;
         }
     }
+
+    @Test
+    void onlyTheExplicitCrosshairOptionCancelsAForgeLayer() {
+        boolean oldForgeCrosshair = CrosshairConfig.hideForgeLayerDuringFlightHud;
+        boolean oldStatus = FlightRollConfig.hudHidePlayerStatus;
+        boolean oldChat = FlightRollConfig.hudHideChat;
+        try {
+            FlightRollConfig.hudHidePlayerStatus = true;
+            FlightRollConfig.hudHideChat = true;
+            CrosshairConfig.hideForgeLayerDuringFlightHud = false;
+            for (RenderGameOverlayEvent.ElementType type
+                    : RenderGameOverlayEvent.ElementType.values()) {
+                assertFalse(FlightHudOverlayController.shouldCancelForgeLayer(type));
+            }
+
+            CrosshairConfig.hideForgeLayerDuringFlightHud = true;
+            for (RenderGameOverlayEvent.ElementType type
+                    : RenderGameOverlayEvent.ElementType.values()) {
+                if (type == RenderGameOverlayEvent.ElementType.CROSSHAIRS) {
+                    assertTrue(FlightHudOverlayController.shouldCancelForgeLayer(type));
+                } else {
+                    assertFalse(FlightHudOverlayController.shouldCancelForgeLayer(type));
+                }
+            }
+        } finally {
+            CrosshairConfig.hideForgeLayerDuringFlightHud = oldForgeCrosshair;
+            FlightRollConfig.hudHidePlayerStatus = oldStatus;
+            FlightRollConfig.hudHideChat = oldChat;
+        }
+    }
 }

@@ -1,20 +1,25 @@
 package neofontrender.core.font.preprocess;
 
 import neofontrender.api.text.ModernText;
+import neofontrender.api.text.pipeline.ProcessedText;
+import neofontrender.core.font.pipeline.builtin.HexChatTextPreprocessor;
+import neofontrender.core.font.pipeline.builtin.LegacyColorTextParser;
+import neofontrender.core.font.pipeline.builtin.TinkersAntiqueTextPreprocessor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HexChatTextPreprocessorTest {
 
     @Test
     void decodesHexMarkersIntoModernRgbRuns() {
-        PreprocessedText result =
-                HexChatTextPreprocessor.INSTANCE.process("base#12aBf0color");
+        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged("base#12aBf0color"));
 
         assertTrue(result.transformed());
         assertEquals("basecolor", result.visibleText());
@@ -29,8 +34,8 @@ class HexChatTextPreprocessorTest {
 
     @Test
     void preservesStylesAndRestoresCallerColorOnReset() {
-        PreprocessedText result = HexChatTextPreprocessor.INSTANCE.process(
-                "\u00A7lbefore#010203after\u00A7rbase");
+        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged("\u00A7lbefore#010203after\u00A7rbase"));
 
         List<ModernText.Run> runs = result.modernText().runs();
         assertEquals(3, runs.size());
@@ -43,8 +48,8 @@ class HexChatTextPreprocessorTest {
 
     @Test
     void mapsVisibleBoundariesAroundRemovedHexMarker() {
-        PreprocessedText result =
-                HexChatTextPreprocessor.INSTANCE.process("A#112233B");
+        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged("A#112233B"));
 
         assertEquals("AB", result.visibleText());
         assertEquals(1, result.rawStartForVisibleBoundary(1));
@@ -59,7 +64,7 @@ class HexChatTextPreprocessorTest {
                 (char) (TinkersAntiqueTextPreprocessor.MARKER_START + 0xBB),
                 (char) (TinkersAntiqueTextPreprocessor.MARKER_START + 0xCC)
         });
-        PreprocessedText result = LegacyColorTextParser.process(
+        ProcessedText result = LegacyColorTextParser.process(
                 pua + "pua#00FF00hex", true, true);
 
         List<ModernText.Run> runs = result.modernText().runs();
@@ -72,17 +77,14 @@ class HexChatTextPreprocessorTest {
 
     @Test
     void leavesInvalidHexTextVisible() {
-        PreprocessedText result =
-                HexChatTextPreprocessor.INSTANCE.process("literal #12ZZ34");
-
-        assertFalse(result.transformed());
-        assertEquals("literal #12ZZ34", result.visibleText());
+        assertNull(HexChatTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged("literal #12ZZ34")));
     }
 
     @Test
     void interpolatesRgbChatMultiColorGradient() {
-        PreprocessedText result = HexChatTextPreprocessor.INSTANCE.process(
-                "#FF0000-0000FFAB");
+        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged("#FF0000-0000FFAB"));
 
         List<ModernText.Run> runs = result.modernText().runs();
         assertEquals("AB", result.visibleText());
@@ -95,8 +97,8 @@ class HexChatTextPreprocessorTest {
 
     @Test
     void gradientCountsVisibleCharactersNotFormattingCodes() {
-        PreprocessedText result = HexChatTextPreprocessor.INSTANCE.process(
-                "#FF0000-0000FF\u00A7lAB");
+        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged("#FF0000-0000FF\u00A7lAB"));
 
         List<ModernText.Run> runs = result.modernText().runs();
         assertEquals(2, runs.size());
@@ -108,8 +110,8 @@ class HexChatTextPreprocessorTest {
 
     @Test
     void interpolatesAcrossMultipleRgbChatStops() {
-        PreprocessedText result = HexChatTextPreprocessor.INSTANCE.process(
-                "#FF0000-00FF00-0000FFABCDE");
+        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged("#FF0000-00FF00-0000FFABCDE"));
 
         List<ModernText.Run> runs = result.modernText().runs();
         assertEquals(5, runs.size());
@@ -122,7 +124,7 @@ class HexChatTextPreprocessorTest {
 
     @Test
     void canRetainStylesAtRgbMarkers() {
-        PreprocessedText result = LegacyColorTextParser.process(
+        ProcessedText result = LegacyColorTextParser.process(
                 "\u00A7lbefore#010203after", false, true, false);
 
         List<ModernText.Run> runs = result.modernText().runs();

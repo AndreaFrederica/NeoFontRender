@@ -2,7 +2,7 @@ package neofontrender.addons.chat;
 
 import net.minecraft.client.gui.ChatLine;
 import net.minecraft.client.gui.FontRenderer;
-import neofontrender.addons.api.inline.InlineTextEngine;
+import neofontrender.api.text.pipeline.TextPipelineEngine;
 
 import java.util.List;
 
@@ -12,7 +12,7 @@ public final class ChatInlineLayout {
 
     public static int lineHeight(ChatLine line, FontRenderer font) {
         if (!EnhancedChatFeatures.inlineGlyphs() || line == null) return font.FONT_HEIGHT;
-        return Math.max(font.FONT_HEIGHT, InlineTextEngine.layout(font,
+        return Math.max(font.FONT_HEIGHT, TextPipelineEngine.layout(font,
                 line.getChatComponent().getFormattedText()).height());
     }
 

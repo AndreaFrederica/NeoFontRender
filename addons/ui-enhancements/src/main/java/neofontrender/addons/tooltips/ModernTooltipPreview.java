@@ -97,7 +97,9 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
             if (mapPreview) drawMapPreview(panelLeft, panelTop);
             ModernTooltipRenderer.drawContent(textLeft, textTop, layoutWidth, lines,
                     preview.compactLines, lines.isEmpty() ? 0 : 1,
-                    textProfile ? profile : previewProfile(), font, preview.stack, false, null);
+                    textProfile ? profile : previewProfile(), font, preview.stack, false, null,
+                    TooltipLayout.lineAdvances(font, lines, preview.compactLines,
+                            (textProfile ? profile : previewProfile()).textScale), null);
 
             if (textProfile) {
                 String values = String.format(java.util.Locale.ROOT,
@@ -234,7 +236,9 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
                     : index == 0 ? Math.max(1, font.FONT_HEIGHT - 1) : TooltipConfig.lineHeight;
             height += Math.max(1, Math.round(advance * profileScale));
         }
-        if (preview.lines.size() > 1) height += TooltipConfig.titleGap;
+        if (TooltipConfig.titleBreak && preview.lines.size() > 1) {
+            height += TooltipConfig.titleGap;
+        }
         return height;
     }
 

@@ -8,7 +8,7 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import neofontrender.addons.cjk.CjkTypographyRenderer;
 import neofontrender.addons.cjk.ChatTypographyRenderer;
-import neofontrender.api.text.CjkParagraphLayoutProvider;
+import neofontrender.api.text.pipeline.ParagraphLayoutMiddleware;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -29,7 +29,7 @@ public abstract class MixinGuiScreenBookCjkTypography {
     @Shadow private List<ITextComponent> cachedComponents;
     @Shadow private int cachedPage;
     @Shadow private int currPage;
-    @Unique private CjkParagraphLayoutProvider.Layout nfrUi$signedPageLayout;
+    @Unique private ParagraphLayoutMiddleware.Layout nfrUi$signedPageLayout;
     @Unique private boolean nfrUi$signedPageDrawn;
 
     @Inject(method = "drawScreen", at = @At("HEAD"))
@@ -51,7 +51,7 @@ public abstract class MixinGuiScreenBookCjkTypography {
                 font, component.getFormattedText(), width, font.FONT_HEIGHT);
         List<ITextComponent> positioned = CjkTypographyRenderer.splitComponents(
                 font, component, width, removeLeadingSpace, forceTextColor,
-                CjkParagraphLayoutProvider.ComponentRequest.Surface.BOOK);
+                ParagraphLayoutMiddleware.ComponentRequest.Surface.BOOK);
         return positioned != null ? positioned : GuiUtilRenderComponents.splitText(
                 component, width, font, removeLeadingSpace, forceTextColor);
     }
@@ -98,11 +98,11 @@ public abstract class MixinGuiScreenBookCjkTypography {
             return;
         }
         String formatted = line.getUnformattedText();
-        CjkParagraphLayoutProvider.Layout layout = CjkTypographyRenderer.layout(
+        ParagraphLayoutMiddleware.Layout layout = CjkTypographyRenderer.layout(
                 fontRenderer, formatted, BOOK_TEXT_WIDTH, fontRenderer.FONT_HEIGHT);
         if (layout == null || layout.lines().isEmpty()) return;
 
-        List<CjkParagraphLayoutProvider.Run> runs = layout.lines().get(0).runs();
+        List<ParagraphLayoutMiddleware.Run> runs = layout.lines().get(0).runs();
         int rawOffset = 0;
         for (ITextComponent component : line) {
             if (!(component instanceof TextComponentString)) continue;
@@ -111,7 +111,7 @@ public abstract class MixinGuiScreenBookCjkTypography {
             float left = Float.POSITIVE_INFINITY;
             float right = Float.NEGATIVE_INFINITY;
             for (int runIndex = 0; runIndex < runs.size(); runIndex++) {
-                CjkParagraphLayoutProvider.Run run = runs.get(runIndex);
+                ParagraphLayoutMiddleware.Run run = runs.get(runIndex);
                 if (run.rawStart() < rawEnd && run.rawEnd() > rawOffset) {
                     left = Math.min(left, run.xOffset());
                     float runRight = runIndex + 1 < runs.size()

@@ -8,7 +8,8 @@ import net.minecraftforge.client.event.GuiOpenEvent;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import neofontrender.addons.inline.InlineGlyphMiddleware;
+import neofontrender.addons.inline.TextPipelineMiddleware;
+import neofontrender.addons.inline.EmbeddedContentConfig;
 import neofontrender.addons.mixin.AccessorGuiChatFeatures;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
@@ -72,7 +73,8 @@ public final class EmojiCompletionController {
 
     private void refresh(GuiTextField field) {
         input = field;
-        if ((!EnhancedChatFeatures.goslingImageGlyphs() && !EnhancedChatFeatures.localImageGlyphs())
+        if ((!EnhancedChatFeatures.goslingImageGlyphs() && !EnhancedChatFeatures.localImageGlyphs()
+                && !EmbeddedContentConfig.svgEnabled())
                 || field == null || !field.isFocused()) {
             closeCandidates();
             return;
@@ -88,7 +90,7 @@ public final class EmojiCompletionController {
         }
         String prefix = token.substring(1);
         if (!prefix.matches("[\\w+\\-]*")) { closeCandidates(); return; }
-        List<String> next = InlineGlyphMiddleware.emojiSuggestions(prefix, 200);
+        List<String> next = TextPipelineMiddleware.emojiSuggestions(prefix, 200);
         if (!next.equals(matches)) {
             String old = selected >= 0 && selected < matches.size() ? matches.get(selected) : "";
             matches.clear();

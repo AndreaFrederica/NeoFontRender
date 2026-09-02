@@ -1,6 +1,8 @@
 package neofontrender.core.font.preprocess;
 
 import neofontrender.api.text.ModernText;
+import neofontrender.api.text.pipeline.ProcessedText;
+import neofontrender.core.font.pipeline.builtin.TinkersAntiqueTextPreprocessor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,8 +16,8 @@ class TinkersAntiqueTextPreprocessorTest {
     @Test
     void decodesRgbMarkersIntoColoredRuns() {
         String marker = rgb(0x12, 0x80, 0xFE);
-        PreprocessedText result =
-                TinkersAntiqueTextPreprocessor.INSTANCE.process("base" + marker + "color");
+        ProcessedText result = TinkersAntiqueTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged("base" + marker + "color"));
 
         assertTrue(result.transformed());
         assertEquals("basecolor", result.visibleText());
@@ -30,8 +32,8 @@ class TinkersAntiqueTextPreprocessorTest {
 
     @Test
     void carriesMinecraftStylesAcrossColorBoundary() {
-        PreprocessedText result = TinkersAntiqueTextPreprocessor.INSTANCE.process(
-                "\u00A7lBold" + rgb(1, 2, 3) + "Still bold");
+        ProcessedText result = TinkersAntiqueTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged("\u00A7lBold" + rgb(1, 2, 3) + "Still bold"));
 
         List<ModernText.Run> runs = result.modernText().runs();
         assertEquals(2, runs.size());
@@ -43,8 +45,8 @@ class TinkersAntiqueTextPreprocessorTest {
     @Test
     void mapsVisibleBoundariesBackToRawMarkers() {
         String marker = rgb(10, 20, 30);
-        PreprocessedText result =
-                TinkersAntiqueTextPreprocessor.INSTANCE.process("A" + marker + "B");
+        ProcessedText result = TinkersAntiqueTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged("A" + marker + "B"));
 
         assertEquals("AB", result.visibleText());
         assertEquals(1, result.rawStartForVisibleBoundary(1));
@@ -59,8 +61,8 @@ class TinkersAntiqueTextPreprocessorTest {
                 (char) (TinkersAntiqueTextPreprocessor.MARKER_START + 5),
                 (char) (TinkersAntiqueTextPreprocessor.MARKER_START + 6)
         });
-        PreprocessedText result =
-                TinkersAntiqueTextPreprocessor.INSTANCE.process(partial + "text");
+        ProcessedText result = TinkersAntiqueTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged(partial + "text"));
 
         assertEquals("text", result.visibleText());
         ModernText.Run run = result.modernText().runs().get(0);
@@ -70,8 +72,8 @@ class TinkersAntiqueTextPreprocessorTest {
 
     @Test
     void vanillaResetReturnsFromPuaColorToCallerBaseColor() {
-        PreprocessedText result = TinkersAntiqueTextPreprocessor.INSTANCE.process(
-                rgb(0xAA, 0xBB, 0xCC) + "custom\u00A7rbase");
+        ProcessedText result = TinkersAntiqueTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged(rgb(0xAA, 0xBB, 0xCC) + "custom\u00A7rbase"));
 
         List<ModernText.Run> runs = result.modernText().runs();
         assertEquals(2, runs.size());
@@ -79,6 +81,30 @@ class TinkersAntiqueTextPreprocessorTest {
         assertEquals("custom", runs.get(0).text());
         assertFalse(runs.get(1).hasColorOverride());
         assertEquals("\u00A7rbase", runs.get(1).text());
+    }
+
+    @Test
+    void realDurabilityStringUsesGraySlashBetweenItsTwoRgbValues() {
+        String raw = "\u8010\u4e45: " + rgb(0x5B, 0xCC, 0x47) + "1,224"
+                + "\u00A77/" + rgb(0x47, 0xCC, 0x47) + "1,320\u00A7r\u00A7r";
+        ProcessedText result = TinkersAntiqueTextPreprocessor.INSTANCE.process(
+                ProcessedText.unchanged(raw));
+
+        assertEquals("\u8010\u4e45: 1,224\u00A77/1,320\u00A7r\u00A7r", result.visibleText());
+        List<ModernText.Run> runs = result.modernText().runs();
+        assertEquals(5, runs.size());
+        assertFalse(runs.get(0).hasColorOverride());
+        assertEquals("\u8010\u4e45: ", runs.get(0).text());
+        assertTrue(runs.get(1).hasColorOverride());
+        assertEquals(0x5BCC47, runs.get(1).rgb());
+        assertEquals("1,224", runs.get(1).text());
+        assertFalse(runs.get(2).hasColorOverride());
+        assertEquals("\u00A77/", runs.get(2).text());
+        assertTrue(runs.get(3).hasColorOverride());
+        assertEquals(0x47CC47, runs.get(3).rgb());
+        assertEquals("1,320", runs.get(3).text());
+        assertFalse(runs.get(4).hasColorOverride());
+        assertEquals("\u00A7r\u00A7r", runs.get(4).text());
     }
 
     private static String rgb(int red, int green, int blue) {

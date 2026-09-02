@@ -12,6 +12,10 @@ public final class FontEntry {
     }
 
     public FontEntry(String familyName, String faceName, String path) {
+        this(null, familyName, faceName, path);
+    }
+
+    public FontEntry(String displayName, String familyName, String faceName, String path) {
         this.familyName = familyName == null ? "" : familyName;
         this.faceName = faceName == null || faceName.isEmpty() ? this.familyName : faceName;
         this.path = path;
@@ -19,6 +23,8 @@ public final class FontEntry {
         if (variant.regionMatches(true, 0, this.familyName, 0, this.familyName.length())) {
             variant = variant.substring(this.familyName.length()).trim();
         }
-        this.displayName = variant.isEmpty() ? this.familyName : this.familyName + " — " + variant;
+        String inferred = variant.isEmpty() ? this.familyName : this.familyName + " — " + variant;
+        this.displayName = displayName == null || displayName.trim().isEmpty()
+                ? inferred : displayName.trim();
     }
 }

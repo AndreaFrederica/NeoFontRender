@@ -35,12 +35,16 @@ import neofontrender.addons.chat.ChatAnimationController;
 import neofontrender.addons.chat.ChatContextMenu;
 import neofontrender.addons.chat.ChatHudWindowController;
 import neofontrender.addons.chat.CommandCompletionPresentation;
+import neofontrender.addons.chat.CommandCompletionPresentation.ColoredRange;
+import neofontrender.addons.chat.CommandCompletionPresentation.StyledLine;
 import neofontrender.addons.chat.EnhancedChatConfigAccess;
-import neofontrender.addons.api.inline.InlineTextEngine;
-import neofontrender.addons.api.inline.InlineTextLayout;
-import neofontrender.addons.api.inline.InlineTextWrapping;
-import neofontrender.addons.api.inline.InlineGlyphHit;
+import neofontrender.api.text.ModernTextApi;
+import neofontrender.api.text.pipeline.InlineContentHit;
+import neofontrender.api.text.pipeline.TextPipelineEngine;
+import neofontrender.api.text.pipeline.TextPipelineLayout;
+import neofontrender.api.text.pipeline.TextPipelineWrapping;
 import neofontrender.addons.chat.EnhancedChatFeatures;
+import neofontrender.core.config.NeofontrenderConfig;
 
 import java.awt.Dimension;
 import java.awt.Rectangle;
@@ -130,13 +134,13 @@ public class TextBox extends GuiComponent implements ChatInput {
         int end = Math.max(pos, sel);
 
         for (String text : getWrappedLines()) {
-            InlineTextLayout layout = InlineTextEngine.layout(fr, text);
+            TextPipelineLayout layout = TextPipelineEngine.layout(fr, text);
             int textLine = line + Math.max(0, layout.height() - fr.FONT_HEIGHT);
 
             // cursor drawing
             if (pos >= 0 && pos <= text.length()) {
                 // cursor is on this line
-                int c = InlineTextEngine.width(fr, text.substring(0, pos)) + inputInset();
+                int c = TextPipelineEngine.width(fr, text.substring(0, pos)) + inputInset();
                 boolean cursorBlink = this.cursorCounter / 6 % 3 != 0;
                 if (cursorBlink) {
                     if (textField.getCursorPosition() < this.textField.getValue().length()) {
@@ -159,12 +163,12 @@ public class TextBox extends GuiComponent implements ChatInput {
 
             // test the start
             if (start >= 0 && start <= text.length()) {
-                    x = InlineTextEngine.width(fr, text.substring(0, start)) + inputInset();
+                    x = TextPipelineEngine.width(fr, text.substring(0, start)) + inputInset();
             }
 
             // test the end
             if (end >= 0 && end <= text.length()) {
-                w = InlineTextEngine.width(fr, text.substring(start < 0 ? 0 : start, end)) + 2;
+                w = TextPipelineEngine.width(fr, text.substring(start < 0 ? 0 : start, end)) + 2;
             }
 
             final int LINE_Y = textLine + fr.FONT_HEIGHT + 2;
@@ -177,7 +181,7 @@ public class TextBox extends GuiComponent implements ChatInput {
                     if (x >= 0) {
                         // started on this line
                         drawSelectionBox(x + 2, textLine,
-                                x + InlineTextEngine.width(fr, text.substring(start)) + 1, LINE_Y);
+                                x + TextPipelineEngine.width(fr, text.substring(start)) + 1, LINE_Y);
                     }
                     if (w >= 0) {
                         // ends on this line
@@ -186,7 +190,7 @@ public class TextBox extends GuiComponent implements ChatInput {
                     if (start < 0 && end > text.length()) {
                         // full line
                         drawSelectionBox(1 + inputInset(), textLine,
-                                InlineTextEngine.width(fr, text) + inputInset(), LINE_Y);
+                                TextPipelineEngine.width(fr, text) + inputInset(), LINE_Y);
                     }
                 }
             }
@@ -221,54 +225,101 @@ public class TextBox extends GuiComponent implements ChatInput {
         int sourceSearch = 0;
         int lastTextX = 3 + inputInset();
         int lastTextY = yPos;
-        String lastRaw = "";
+        float lastTextAdvance = 0.0F;
+        List<ColoredRange> commandColors =
+                CommandCompletionPresentation.coloredRanges(textField.getTextField());
         for (int index = 0; index < lines.size(); index++) {
             ITextComponent line = lines.get(index);
             int color = ChatStyleConfig.enabled
                     ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity)
                     : Color.WHITE.getHex();
             String raw = rawLines.get(index);
-            InlineTextLayout layout = InlineTextEngine.layout(fr, raw);
+            TextPipelineLayout layout = TextPipelineEngine.layout(fr, raw);
             int textX = 3 + inputInset();
-            if (layout.hasGlyphs()) {
-                layout.draw(fr, textX, yPos, color, false);
-                drawSpellingDecorations(line, layout, textX, yPos);
-            } else {
-                ffr.drawChat(line, textX, yPos, color, false);
-            }
             int lineStart = fullText.indexOf(raw, sourceSearch);
             if (lineStart < 0) lineStart = Math.min(sourceSearch, fullText.length());
-            drawCommandColors(raw, lineStart, textX, yPos);
+            StyledLine styled = CommandCompletionPresentation.styleLine(
+                    raw, lineStart, commandColors);
+            if (!commandColors.isEmpty()) {
+                lastTextAdvance = drawCommandLine(
+                        raw, lineStart, layout, commandColors, styled, textX, yPos, color);
+                drawSpellingDecorations(line, layout, textX, yPos);
+            } else if (layout.hasInlineContent()) {
+                layout.draw(fr, textX, yPos, color, false);
+                drawSpellingDecorations(line, layout, textX, yPos);
+                lastTextAdvance = layout.width();
+            } else {
+                ffr.drawChat(line, textX, yPos, color, false);
+                lastTextAdvance = layout.width();
+            }
             sourceSearch = Math.min(fullText.length(), lineStart + raw.length());
             lastTextX = textX;
             lastTextY = yPos;
-            lastRaw = raw;
             yPos += layout.height() + 2;
         }
-        drawCommandGhost(lastRaw, lastTextX, lastTextY);
+        drawCommandGhost(lastTextAdvance, lastTextX, lastTextY);
 
     }
 
-    private void drawCommandColors(String line, int lineStart, int textX, int textY) {
-        for (CommandCompletionPresentation.ColoredRange range
-                : CommandCompletionPresentation.coloredRanges(textField.getTextField())) {
-            int localStart = Math.max(0, range.start - lineStart);
-            int localEnd = Math.min(line.length(), range.end - lineStart);
-            if (localStart >= localEnd) continue;
-            int x = textX + InlineTextEngine.width(fr, line.substring(0, localStart));
-            InlineTextEngine.layout(fr, line.substring(localStart, localEnd))
-                    .draw(fr, x, textY, range.color, false);
+    private float drawCommandLine(String source, int lineStart, TextPipelineLayout layout,
+                                  List<ColoredRange> colors, StyledLine styled,
+                                  int textX, int textY, int baseColor) {
+        if (!layout.hasInlineContent()) {
+            return drawCommandText(styled, textX, textY, baseColor);
+        }
+        int cursor = 0;
+        for (InlineContentHit content : layout.inlineContentBounds(fr)) {
+            int start = content.match().start();
+            if (cursor < start) {
+                drawCommandText(CommandCompletionPresentation.styleLine(
+                                source.substring(cursor, start), lineStart + cursor, colors),
+                        textX + layout.widthTo(fr, cursor), textY, baseColor);
+            }
+            int contentColor = commandColorAt(
+                    colors, lineStart + start, baseColor);
+            content.match().content().draw(textX + content.x(), textY + content.y(),
+                    contentColor, false);
+            cursor = content.match().end();
+        }
+        if (cursor < source.length()) {
+            drawCommandText(CommandCompletionPresentation.styleLine(
+                            source.substring(cursor), lineStart + cursor, colors),
+                    textX + layout.widthTo(fr, cursor), textY, baseColor);
+        }
+        return layout.width();
+    }
+
+    private float drawCommandText(StyledLine line, int textX, int textY, int color) {
+        if (ModernTextApi.isAvailable()) {
+            return ModernTextApi.drawFormatted(line.modernText(), textX, textY,
+                    NeofontrenderConfig.fontSize(), color, false);
+        }
+        fr.drawString(line.legacyText(), textX, textY, color, false);
+        return fr.getStringWidth(line.legacyText());
+    }
+
+    private static int commandColorAt(
+            List<ColoredRange> colors, int sourceIndex, int baseColor) {
+        for (ColoredRange range : colors) {
+            if (sourceIndex >= range.start && sourceIndex < range.end) {
+                return (baseColor & 0xFF000000) | (range.color & 0xFFFFFF);
+            }
+        }
+        return baseColor;
+    }
+
+    private void drawCommandGhost(float lineAdvance, int textX, int textY) {
+        String suffix = CommandCompletionPresentation.ghostSuffix(textField.getTextField());
+        if (suffix.isEmpty()) return;
+        float x = textX + lineAdvance;
+        if (ModernTextApi.isAvailable()) {
+            ModernTextApi.draw(suffix, x, textY, NeofontrenderConfig.fontSize(), 0xFF808080);
+        } else {
+            fr.drawString(suffix, x, textY, 0xFF808080, false);
         }
     }
 
-    private void drawCommandGhost(String lastLine, int textX, int textY) {
-        String suffix = CommandCompletionPresentation.ghostSuffix(textField.getTextField());
-        if (suffix.isEmpty()) return;
-        int x = textX + InlineTextEngine.width(fr, lastLine);
-        InlineTextEngine.layout(fr, suffix).draw(fr, x, textY, 0xFF808080, false);
-    }
-
-    private void drawSpellingDecorations(ITextComponent line, InlineTextLayout layout,
+    private void drawSpellingDecorations(ITextComponent line, TextPipelineLayout layout,
                                           int textX, int textY) {
         int sourceIndex = 0;
         for (ITextComponent component : line) {
@@ -278,7 +329,7 @@ public class TextBox extends GuiComponent implements ChatInput {
                 Color underline = ((FancyTextComponent) component)
                         .getFancyStyle().getUnderline();
                 if (underline.getAlpha() > 0
-                        && !layout.hasGlyphInSourceRange(sourceIndex, end)) {
+                        && !layout.hasInlineContentInSourceRange(sourceIndex, end)) {
                     int left = textX + layout.widthTo(fr, sourceIndex);
                     int right = textX + layout.widthTo(fr, end);
                     if (right > left) {
@@ -299,20 +350,20 @@ public class TextBox extends GuiComponent implements ChatInput {
         if (row < 0) return;
         int rowTop = heightBefore(lines, row);
         int textX = 3 + inputInset();
-        InlineTextLayout layout = InlineTextEngine.layout(fr, lines.get(row));
-        InlineGlyphHit hit = layout.glyphAt(mouseX - textX,
+        TextPipelineLayout layout = TextPipelineEngine.layout(fr, lines.get(row));
+        InlineContentHit hit = layout.contentAt(mouseX - textX,
                 visualY - rowTop - 1, fr);
         if (hit == null) return;
 
         final int preview = 56;
-        String description = fr.trimStringToWidth(hit.match().glyph().description(), 180);
+        String description = fr.trimStringToWidth(hit.match().content().description(), 180);
         int panelWidth = Math.max(preview + 10, fr.getStringWidth(description) + 10);
         int panelHeight = preview + fr.FONT_HEIGHT + 13;
         int x = Math.max(2, Math.min(mouseX + 12, getBounds().width - panelWidth - 2));
         int y = -panelHeight - 5;
         drawRect(x, y, x + panelWidth, y + panelHeight, 0xF0181D24);
         drawRect(x + 1, y + 1, x + panelWidth - 1, y + panelHeight - 1, 0xF02B3440);
-        hit.match().glyph().drawPreview(x + (panelWidth - preview) / 2,
+        hit.match().content().drawPreview(x + (panelWidth - preview) / 2,
                 y + 5, preview, 0xFFFFFFFF);
         fr.drawStringWithShadow(description, x + 5, y + preview + 8, 0xFFF2F5F7);
         GlStateManager.color(1, 1, 1, 1);
@@ -389,7 +440,7 @@ public class TextBox extends GuiComponent implements ChatInput {
 
     @Override
     public List<String> getWrappedLines() {
-        return InlineTextWrapping.wrap(fr, textField.getValue(),
+        return TextPipelineWrapping.wrap(fr, textField.getValue(),
                 Math.max(8, getBounds().width - inputInset()));
     }
 
@@ -484,7 +535,7 @@ public class TextBox extends GuiComponent implements ChatInput {
             // listFormattedStringToWidth trims the wrapping space from the visual line.
             if (index < getText().length() && getText().charAt(index) == ' ') index++;
         }
-        index += InlineTextEngine.layout(fr, lines.get(row)).sourceIndexAt(fr,
+        index += TextPipelineEngine.layout(fr, lines.get(row)).sourceIndexAt(fr,
                 Math.max(0, x - 3 - inputInset()));
         index = Math.max(0, Math.min(index, getText().length()));
         if (extendSelection) textField.getTextField().setSelectionPos(index);
@@ -494,7 +545,7 @@ public class TextBox extends GuiComponent implements ChatInput {
     private int contentHeight(List<String> lines) {
         int height = 0;
         for (String line : lines) {
-            height += InlineTextEngine.layout(fr, line).height() + 2;
+            height += TextPipelineEngine.layout(fr, line).height() + 2;
         }
         return Math.max(fr.FONT_HEIGHT + 2, height);
     }
@@ -502,7 +553,7 @@ public class TextBox extends GuiComponent implements ChatInput {
     private int heightBefore(List<String> lines, int row) {
         int height = 0;
         for (int index = 0; index < row; index++) {
-            height += InlineTextEngine.layout(fr, lines.get(index)).height() + 2;
+            height += TextPipelineEngine.layout(fr, lines.get(index)).height() + 2;
         }
         return height;
     }
@@ -511,7 +562,7 @@ public class TextBox extends GuiComponent implements ChatInput {
         if (y < 0) return -1;
         int top = 0;
         for (int row = 0; row < lines.size(); row++) {
-            top += InlineTextEngine.layout(fr, lines.get(row)).height() + 2;
+            top += TextPipelineEngine.layout(fr, lines.get(row)).height() + 2;
             if (y < top) return row;
         }
         return -1;

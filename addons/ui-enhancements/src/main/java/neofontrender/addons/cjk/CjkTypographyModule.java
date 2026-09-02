@@ -2,13 +2,13 @@ package neofontrender.addons.cjk;
 
 import neofontrender.addons.ui.UiEnhancementModule;
 import neofontrender.api.client.settings.NfrSettingsPageRegistry;
-import neofontrender.api.text.CjkParagraphLayoutRegistry;
+import neofontrender.api.text.pipeline.TextPipelineApi;
 
 public final class CjkTypographyModule implements UiEnhancementModule {
     @Override
     public void preInit() {
         CjkTypographyConfig.load();
-        CjkParagraphLayoutRegistry.register(TiqianParagraphProvider.INSTANCE);
+        TextPipelineApi.register(TiqianParagraphProvider.INSTANCE);
     }
 
     @Override

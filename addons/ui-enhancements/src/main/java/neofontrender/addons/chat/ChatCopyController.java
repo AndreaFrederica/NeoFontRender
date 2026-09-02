@@ -16,8 +16,8 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.mixin.AccessorGuiChatFeatures;
 import neofontrender.addons.mixin.AccessorGuiNewChatFeatures;
 import org.lwjgl.input.Mouse;
-import neofontrender.addons.api.inline.InlineTextEngine;
-import neofontrender.addons.api.inline.InlineTextLayout;
+import neofontrender.api.text.pipeline.TextPipelineEngine;
+import neofontrender.api.text.pipeline.TextPipelineLayout;
 import neofontrender.addons.cjk.ChatTypographyRenderer;
 
 import java.util.List;
@@ -162,10 +162,10 @@ public final class ChatCopyController {
             ChatSelectionModel.Range range = ranges.get(line);
             if (range == null || range.start >= range.end) continue;
             String value = text(line);
-            InlineTextLayout layout = InlineTextEngine.layout(minecraft.fontRenderer, value);
+            TextPipelineLayout layout = TextPipelineEngine.layout(minecraft.fontRenderer, value);
             ITextComponent component = line.getChatComponent();
             boolean positioned = ChatTypographyRenderer.isPositioned(component)
-                    && !layout.hasGlyphs();
+                    && !layout.hasInlineContent();
             float startX = positioned
                     ? ChatTypographyRenderer.xAtFormattedIndex(component, range.start)
                     : layout.widthTo(minecraft.fontRenderer, range.start);
@@ -262,8 +262,8 @@ public final class ChatCopyController {
         String value = text(line);
         int textX = Math.max(0, panelX - ChatHeadRenderer.textOffset());
         ITextComponent component = line.getChatComponent();
-        InlineTextLayout layout = InlineTextEngine.layout(minecraft.fontRenderer, value);
-        int position = ChatTypographyRenderer.isPositioned(component) && !layout.hasGlyphs()
+        TextPipelineLayout layout = TextPipelineEngine.layout(minecraft.fontRenderer, value);
+        int position = ChatTypographyRenderer.isPositioned(component) && !layout.hasInlineContent()
                 ? ChatTypographyRenderer.formattedIndexAt(component, textX)
                 : layout.sourceIndexAt(minecraft.fontRenderer, textX);
         boolean head = EnhancedChatFeatures.playerHeads()

@@ -38,6 +38,18 @@ class CameraPresentationPolicyTest {
     }
 
     @Test
+    void vanillaThirdPersonDistanceIsOnlySuppressedForAuthoritativeCameraDisplacement() {
+        assertEquals(4.0D,
+                CameraPresentationPolicy.vanillaThirdPersonDistance(4.0D, false));
+        assertEquals(2.75D,
+                CameraPresentationPolicy.vanillaThirdPersonDistance(2.75D, false));
+        assertEquals(0.0D,
+                CameraPresentationPolicy.vanillaThirdPersonDistance(4.0D, true));
+        assertEquals(0.0D,
+                CameraPresentationPolicy.vanillaThirdPersonDistance(-3.5D, true));
+    }
+
+    @Test
     void f5CycleAdvancesEveryVanillaAndBuiltInModeInOrder() {
         List<String> modes = Arrays.asList("first", "third", "shoulder", "free", "drone", "front");
         String active = "first";

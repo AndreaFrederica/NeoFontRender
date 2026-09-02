@@ -3,10 +3,10 @@ package neofontrender.addons.inline;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.util.ResourceLocation;
-import neofontrender.addons.api.inline.ExternalImagePolicy;
-import neofontrender.addons.api.inline.InlineGlyph;
-import neofontrender.addons.api.inline.InlineImageHandle;
-import neofontrender.addons.api.inline.InlineTextEngine;
+import neofontrender.addons.api.content.ExternalImagePolicy;
+import neofontrender.api.text.pipeline.InlineContent;
+import neofontrender.addons.api.content.InlineImageHandle;
+import neofontrender.api.text.pipeline.TextPipelineEngine;
 import neofontrender.addons.chat.EnhancedChatFeatures;
 import neofontrender.addons.ui.NfrUiEnhancements;
 
@@ -55,7 +55,7 @@ public enum InlineImageService {
     private final Map<Key, Handle> handles = new ConcurrentHashMap<>();
 
     @Nullable
-    public InlineGlyph glyph(URI uri, String description, boolean goslingSource) {
+    public InlineContent glyph(URI uri, String description, boolean goslingSource) {
         ExternalImagePolicy policy = policy(goslingSource);
         if (!policy.allows(uri)) return null;
         Key key = new Key(uri.normalize(), goslingSource);
@@ -71,7 +71,7 @@ public enum InlineImageService {
     }
 
     @Nullable
-    InlineGlyph localGlyph(Path path, String description) {
+    InlineContent localGlyph(Path path, String description) {
         Path normalized = path.toAbsolutePath().normalize();
         URI uri = normalized.toUri();
         Key key = new Key(uri, false);
@@ -88,7 +88,7 @@ public enum InlineImageService {
 
     /** Policy-aware public bridge used by the inline glyph API. */
     @Nullable
-    public InlineGlyph localGlyph(String alias, String description) {
+    public InlineContent localGlyph(String alias, String description) {
         if (!EnhancedChatFeatures.localImageGlyphs()) return null;
         Path path = LocalImageCatalog.INSTANCE.image(alias);
         return path == null ? null : localGlyph(path, description);
@@ -121,7 +121,7 @@ public enum InlineImageService {
             Minecraft.getMinecraft().addScheduledTask(() -> upload(handle, decoded));
         } catch (Throwable failure) {
             handle.state = InlineImageHandle.State.FAILED;
-            InlineTextEngine.invalidateLayouts();
+            TextPipelineEngine.invalidate();
             NfrUiEnhancements.LOGGER.debug("Inline image rejected or unavailable: {}", handle.uri, failure);
         }
     }
@@ -135,9 +135,13 @@ public enum InlineImageService {
             Minecraft.getMinecraft().addScheduledTask(() -> upload(handle, image));
         } catch (Throwable failure) {
             handle.state = InlineImageHandle.State.FAILED;
-            InlineTextEngine.invalidateLayouts();
+            TextPipelineEngine.invalidate();
             NfrUiEnhancements.LOGGER.debug("Local inline image rejected or unavailable: {}", path, failure);
         }
+    }
+
+    static byte[] downloadExternal(URI initial) throws IOException {
+        return download(initial, false);
     }
 
     private static byte[] download(URI initial, boolean goslingSource) throws IOException {
@@ -205,6 +209,10 @@ public enum InlineImageService {
         return output.toByteArray();
     }
 
+    static BufferedImage decodeRaster(byte[] bytes) throws IOException {
+        return decode(bytes);
+    }
+
     private static BufferedImage decode(byte[] bytes) throws IOException {
         try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
             if (input == null) throw new IOException("No image input stream");
@@ -249,11 +257,11 @@ public enum InlineImageService {
             handle.texture = texture;
             handle.location = location;
             handle.state = InlineImageHandle.State.READY;
-            InlineTextEngine.invalidateLayouts();
+            TextPipelineEngine.invalidate();
             evictOldTextures();
         } catch (Throwable failure) {
             handle.state = InlineImageHandle.State.FAILED;
-            InlineTextEngine.invalidateLayouts();
+            TextPipelineEngine.invalidate();
             NfrUiEnhancements.LOGGER.debug("Could not upload inline image {}", handle.uri, failure);
         }
     }
@@ -276,7 +284,7 @@ public enum InlineImageService {
             handle.texture = null;
             handle.image = null;
             handle.state = InlineImageHandle.State.FAILED;
-            InlineTextEngine.invalidateLayouts();
+            TextPipelineEngine.invalidate();
         }
     }
 

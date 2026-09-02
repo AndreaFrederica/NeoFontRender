@@ -186,7 +186,7 @@ public final class NfrSettingsDraft {
     public boolean isSelected(FontEntry font) {
         switch (fontTarget) {
             case TARGET_FALLBACK:
-                return parseFontList(fontFallbacks).contains(font.familyName);
+                return parseFontList(fontFallbacks).contains(fallbackFontValue(font));
             case TARGET_COSMIC_REGULAR:
                 return fontValue(font).equals(cosmicRegular);
             case TARGET_COSMIC_BOLD:
@@ -209,7 +209,7 @@ public final class NfrSettingsDraft {
     public void selectFont(FontEntry font) {
         switch (fontTarget) {
             case TARGET_FALLBACK:
-                String value = font.familyName;
+                String value = fallbackFontValue(font);
                 List<String> fonts = parseFontList(fontFallbacks);
                 if (fonts.contains(value)) {
                     fonts.remove(value);
@@ -428,5 +428,10 @@ public final class NfrSettingsDraft {
     private static String fontValue(FontEntry font) {
         String path = font.path == null ? "" : font.path.trim();
         return path.isEmpty() ? font.displayName : path;
+    }
+
+    private static String fallbackFontValue(FontEntry font) {
+        String path = font.path == null ? "" : font.path.trim();
+        return path.indexOf(':') > 0 ? path : font.familyName;
     }
 }

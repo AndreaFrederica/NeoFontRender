@@ -5,8 +5,8 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.renderer.GlStateManager;
-import neofontrender.addons.api.inline.InlineTextEngine;
-import neofontrender.addons.api.inline.InlineTextLayout;
+import neofontrender.api.text.pipeline.TextPipelineEngine;
+import neofontrender.api.text.pipeline.TextPipelineLayout;
 import neofontrender.addons.mixin.AccessorGuiTextFieldNavigation;
 
 import java.util.List;
@@ -34,19 +34,19 @@ public final class ChatSuggestionPopup {
 
         Minecraft minecraft = Minecraft.getMinecraft();
         int maxTextWidth = 0;
-        InlineTextLayout[] visibleLayouts = new InlineTextLayout[rows];
+        TextPipelineLayout[] visibleLayouts = new TextPipelineLayout[rows];
         int[] rowOffsets = new int[rows];
         int[] rowHeights = new int[rows];
         int contentHeight = 0;
         for (int row = 0; row < rows; row++) {
             String candidate = candidates.get(safeFirst + row);
-            InlineTextLayout candidateLayout = InlineTextEngine.layout(font, candidate);
+            TextPipelineLayout candidateLayout = TextPipelineEngine.layout(font, candidate);
             visibleLayouts[row] = candidateLayout;
             rowOffsets[row] = contentHeight;
             rowHeights[row] = Math.max(ROW_HEIGHT, candidateLayout.height() + 4);
             contentHeight += rowHeights[row];
             int visualWidth = candidateLayout.width();
-            if (candidateLayout.hasGlyphs()) {
+            if (candidateLayout.hasInlineContent()) {
                 visualWidth += 4 + font.getStringWidth(candidateLabel(candidate));
             }
             maxTextWidth = Math.max(maxTextWidth, visualWidth);
@@ -69,7 +69,7 @@ public final class ChatSuggestionPopup {
                 ((AccessorGuiTextFieldNavigation) input).nfrUi$getLineScrollOffset()))
                 : 0;
         int anchorStart = Math.max(wordStart, visibleStart);
-        int prefixWidth = Math.round(InlineTextEngine.width(font,
+        int prefixWidth = Math.round(TextPipelineEngine.width(font,
                 beforeCursor.substring(visibleStart, anchorStart)) * scale);
         int panelX = Math.max(0, Math.min(inputX + Math.min(prefixWidth, inputWidth),
                 minecraft.currentScreen.width - panelWidth));
@@ -111,9 +111,9 @@ public final class ChatSuggestionPopup {
                 ChatHeadRenderer.renderCandidate(candidateText, 3, rowY + 3, 1.0F);
             }
             int textX = 4 + contentOffset;
-            InlineTextLayout candidateLayout = visibleLayouts[row];
+            TextPipelineLayout candidateLayout = visibleLayouts[row];
             candidateLayout.draw(font, textX, rowY + 2, textColor, true);
-            if (candidateLayout.hasGlyphs()) {
+            if (candidateLayout.hasInlineContent()) {
                 String label = candidateLabel(candidateText);
                 font.drawStringWithShadow(label,
                         textX + candidateLayout.width() + 4, rowY + 3, textColor);
