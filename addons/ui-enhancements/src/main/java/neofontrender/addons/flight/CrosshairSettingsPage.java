@@ -41,7 +41,6 @@ final class CrosshairSettingsPage implements NfrSettingsPage {
             grid.add(toggle(c, "prefer_mod", "prefer_mod", () -> CrosshairConfig.preferModCrosshair,
                     v -> CrosshairConfig.preferModCrosshair = v));
             grid.add(toggle(c, "hide_flight", "hide_flight", () -> CrosshairConfig.hideVanillaDuringFlightHud, v -> CrosshairConfig.hideVanillaDuringFlightHud = v));
-            grid.add(toggle(c, "hide_forge_flight", "hide_forge_flight", () -> CrosshairConfig.hideForgeLayerDuringFlightHud, v -> CrosshairConfig.hideForgeLayerDuringFlightHud = v));
             grid.add(c.dropdownText("crosshair_style", () -> tr("gui.crosshair.style"),
                     () -> CrosshairConfig.style, value -> CrosshairConfig.style = value,
                     Arrays.asList("vanilla", "vanilla_plus", "cross", "dot", "circle", "square", "triangle", "arrow", "chevron", "debug", "drawn"),

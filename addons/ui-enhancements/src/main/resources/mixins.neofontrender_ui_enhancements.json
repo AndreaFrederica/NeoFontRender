@@ -47,8 +47,6 @@
     "MixinChatLineMetadata",
     "MixinEntityRendererZoomMouse",
     "MixinForgeGuiUtilsButtonAlpha",
-    "MixinGuiBossOverlayFlightHud",
-    "MixinGuiIngameForgeFlightHud",
     "MixinGuiIngameForgeCrosshair",
     "MixinGuiChatAnimation",
     "MixinGuiChatCommandCompletion",

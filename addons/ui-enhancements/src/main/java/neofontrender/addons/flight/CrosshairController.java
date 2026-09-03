@@ -24,6 +24,7 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.mixin.InvokerGuiIngameCrosshair;
+import neofontrender.addons.api.flight.FlightApi;
 import neofontrender.addons.zoom.ZoomModule;
 import neofontrender.addons.camera.CameraRuntime;
 import org.lwjgl.opengl.GL11;
@@ -37,7 +38,7 @@ public final class CrosshairController {
 
     private CrosshairController() {}
 
-    /** Claims the crosshair layer before item mods such as TiC draw and cancel their own crosshair. */
+    /** Optionally claims the crosshair layer before item mods such as TiC draw. */
     @SubscribeEvent(priority = EventPriority.HIGH, receiveCanceled = true)
     public void claimCrosshairLayer(RenderGameOverlayEvent.Pre event) {
         if (event.getType() != RenderGameOverlayEvent.ElementType.CROSSHAIRS) return;
@@ -48,7 +49,7 @@ public final class CrosshairController {
             return;
         }
         if (!event.isCanceled() && CrosshairConfig.customEnabled
-                && !CrosshairConfig.preferModCrosshair) {
+                && !CrosshairConfig.preferModCrosshair && shouldCancelCrosshairEvent()) {
             claimedLayer = event;
             event.setCanceled(true);
         }
@@ -72,14 +73,15 @@ public final class CrosshairController {
         boolean flightSuppressesCrosshair = FlightRollController.suppressVanillaCrosshair();
         if (ModCrosshairRouting.shouldRenderFlightAim(flightSuppressesCrosshair,
                 holdsPlayerAimItem(MC.player), isVisible(true))) {
-            if (!event.isCanceled()) event.setCanceled(true);
+            if (!event.isCanceled() && shouldCancelCrosshairEvent()) event.setCanceled(true);
             drawFlightAimCrosshair(event.getResolution(), event.getPartialTicks());
             return;
         }
         if (!CrosshairConfig.customEnabled || flightSuppressesCrosshair) return;
         // In mod-priority mode an item mod gets the first chance to cancel the layer. Reaching
-        // LOWEST means nobody took it, so UIE becomes the renderer and suppresses vanilla.
-        if (!event.isCanceled()) event.setCanceled(true);
+        // LOWEST means nobody took it, so UIE becomes the renderer; event cancellation remains
+        // opt-in so third-party CROSSHAIRS listeners continue to receive the lifecycle.
+        if (!event.isCanceled() && shouldCancelCrosshairEvent()) event.setCanceled(true);
         if (!isVisible() || !cameraCrosshairVisible(event.getPartialTicks())) return;
 
         ScaledResolution resolution = event.getResolution();
@@ -283,6 +285,14 @@ public final class CrosshairController {
 
     public static boolean preferModCrosshairs() {
         return CrosshairConfig.customEnabled && CrosshairConfig.preferModCrosshair;
+    }
+
+    static boolean shouldCancelCrosshairEvent(boolean flying) {
+        return CrosshairEventPolicy.shouldCancel(flying);
+    }
+
+    private static boolean shouldCancelCrosshairEvent() {
+        return shouldCancelCrosshairEvent(FlightApi.isActive());
     }
 
     /** Unified offset consumed by UIE, vanilla and supported mod crosshair renderers. */

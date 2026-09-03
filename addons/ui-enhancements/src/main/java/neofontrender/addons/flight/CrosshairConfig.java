@@ -10,7 +10,8 @@ final class CrosshairConfig {
     static boolean customEnabled;
     static boolean preferModCrosshair = true;
     static boolean hideVanillaDuringFlightHud = true;
-    static boolean hideForgeLayerDuringFlightHud;
+    static boolean cancelCrosshairEventOnGround;
+    static boolean cancelCrosshairEventDuringFlight;
 
     static String style = "cross";
     static boolean keepDebugCrosshair;
@@ -78,8 +79,10 @@ final class CrosshairConfig {
                         "Allow item-specific mod crosshairs such as TiC's to take priority; UIE remains the fallback.")
                 .define("crosshair.hideVanillaDuringFlightHud", true,
                         "Allow themes using HIDE_VANILLA to suppress Minecraft's vanilla/custom crosshair.")
-                .define("crosshair.hideForgeLayerDuringFlightHud", false,
-                        "Cancel Forge's CROSSHAIRS layer too; this can also hide mod crosshairs.")
+                .define("crosshair.cancelEventOnGround", false,
+                        "Cancel the CROSSHAIRS event on the ground; this may hide crosshairs or HUD elements from other mods.")
+                .define("crosshair.cancelEventDuringFlight", false,
+                        "Cancel the CROSSHAIRS event during flight; this may hide crosshairs or HUD elements from other mods.")
                 .define("crosshair.style", "cross", "vanilla, vanilla_plus, cross, dot, circle, square, triangle, arrow, debug, drawn, or chevron")
                 .define("crosshair.keepDebugCrosshair", false, "Use the vanilla 3D debug crosshair while F3 is visible.")
                 .define("crosshair.color", "#FFFFFFFF", "Custom crosshair ARGB color.")
@@ -147,7 +150,8 @@ final class CrosshairConfig {
         customEnabled = file.getBoolean("crosshair.customEnabled", false);
         preferModCrosshair = file.getBoolean("crosshair.preferModCrosshair", true);
         hideVanillaDuringFlightHud = file.getBoolean("crosshair.hideVanillaDuringFlightHud", true);
-        hideForgeLayerDuringFlightHud = file.getBoolean("crosshair.hideForgeLayerDuringFlightHud", false);
+        cancelCrosshairEventOnGround = file.getBoolean("crosshair.cancelEventOnGround", false);
+        cancelCrosshairEventDuringFlight = file.getBoolean("crosshair.cancelEventDuringFlight", false);
         style = normalizeStyle(file.getString("crosshair.style", "cross"));
         keepDebugCrosshair = file.getBoolean("crosshair.keepDebugCrosshair", false);
         color = parseColor(file.getString("crosshair.color", "#FFFFFFFF"), 0xFFFFFFFF);
@@ -223,7 +227,8 @@ final class CrosshairConfig {
                 .set("crosshair.customEnabled", customEnabled)
                 .set("crosshair.preferModCrosshair", preferModCrosshair)
                 .set("crosshair.hideVanillaDuringFlightHud", hideVanillaDuringFlightHud)
-                .set("crosshair.hideForgeLayerDuringFlightHud", hideForgeLayerDuringFlightHud)
+                .set("crosshair.cancelEventOnGround", cancelCrosshairEventOnGround)
+                .set("crosshair.cancelEventDuringFlight", cancelCrosshairEventDuringFlight)
                 .set("crosshair.style", style).set("crosshair.keepDebugCrosshair", keepDebugCrosshair)
                 .set("crosshair.color", hex(color)).set("crosshair.adaptiveColor", adaptiveColor)
                 .set("crosshair.width", width).set("crosshair.height", height).set("crosshair.gap", gap)
@@ -263,7 +268,8 @@ final class CrosshairConfig {
 
     static final class Snapshot {
         private final boolean[] booleans = {customEnabled, preferModCrosshair,
-                hideVanillaDuringFlightHud, hideForgeLayerDuringFlightHud,
+                hideVanillaDuringFlightHud,
+                cancelCrosshairEventOnGround, cancelCrosshairEventDuringFlight,
                 keepDebugCrosshair, adaptiveColor, visibleByDefault, visibleWithHiddenGui, visibleInDebug,
                 visibleInThirdPerson, visibleAsSpectator, visibleHoldingRanged, visibleHoldingThrowable,
                 visibleUsingSpyglass, outlineEnabled, dotEnabled, dynamicAttack, dynamicBow, highlightHostiles, highlightPassives,
@@ -283,7 +289,8 @@ final class CrosshairConfig {
         void restore() {
             int b = 0;
             customEnabled = booleans[b++]; preferModCrosshair = booleans[b++];
-            hideVanillaDuringFlightHud = booleans[b++]; hideForgeLayerDuringFlightHud = booleans[b++];
+            hideVanillaDuringFlightHud = booleans[b++];
+            cancelCrosshairEventOnGround = booleans[b++]; cancelCrosshairEventDuringFlight = booleans[b++];
             keepDebugCrosshair = booleans[b++]; adaptiveColor = booleans[b++]; visibleByDefault = booleans[b++];
             visibleWithHiddenGui = booleans[b++]; visibleInDebug = booleans[b++]; visibleInThirdPerson = booleans[b++];
             visibleAsSpectator = booleans[b++]; visibleHoldingRanged = booleans[b++]; visibleHoldingThrowable = booleans[b++];

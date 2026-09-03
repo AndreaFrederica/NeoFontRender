@@ -107,8 +107,8 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinGlStateManagerCameraTransparency\""));
         assertTrue(config.contains("\"MixinRenderPlayerFlightRoll\""));
         assertTrue(config.contains("\"MixinRenderGlobalBlockOutlines\""));
-        assertTrue(config.contains("\"MixinGuiBossOverlayFlightHud\""));
-        assertTrue(config.contains("\"MixinGuiIngameForgeFlightHud\""));
+        assertFalse(config.contains("\"MixinGuiBossOverlayFlightHud\""));
+        assertFalse(config.contains("\"MixinGuiIngameForgeFlightHud\""));
         assertTrue(config.contains("\"MixinGuiIngameForgeCrosshair\""));
         assertTrue(config.contains("\"InvokerGuiIngameCrosshair\""));
         assertTrue(config.contains("\"AccessorGuiChatFeatures\""));
