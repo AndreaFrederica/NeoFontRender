@@ -9,6 +9,7 @@ public final class EmbeddedContentConfig {
     static boolean svgEnabled;
     static boolean fullSvgEnabled;
     static boolean markdownEnabled;
+    static boolean tooltipLayoutDebug;
     static boolean latexMatchLineHeight;
     static String latexFontFamily;
     static float latexOversample;
@@ -27,6 +28,8 @@ public final class EmbeddedContentConfig {
                         "Enable all JSVG-supported static features and embedded resources; scripts remain disabled.")
                 .define("embeddedContent.markdown", false,
                         "Render bounded single-line Markdown through the standard text pipeline.")
+                .define("embeddedContent.tooltipLayoutDebug", false,
+                        "Show tooltip layout bounds while the F3 debug overlay is visible.")
                 .define("embeddedContent.latexMatchLineHeight", true,
                         "Align LaTeX inline content to the active FontRenderer line height.")
                 .define("embeddedContent.latexFontFamily", "",
@@ -41,6 +44,7 @@ public final class EmbeddedContentConfig {
         svgEnabled = file.getBoolean("embeddedContent.svg", false);
         fullSvgEnabled = file.getBoolean("embeddedContent.fullSvg", false);
         markdownEnabled = file.getBoolean("embeddedContent.markdown", false);
+        tooltipLayoutDebug = file.getBoolean("embeddedContent.tooltipLayoutDebug", false);
         latexMatchLineHeight = file.getBoolean("embeddedContent.latexMatchLineHeight", true);
         latexFontFamily = file.getString("embeddedContent.latexFontFamily", "").trim();
         latexOversample = clampOversample(file.getDouble("embeddedContent.latexOversample", 2.0D,
@@ -58,6 +62,7 @@ public final class EmbeddedContentConfig {
                 .set("embeddedContent.svg", svgEnabled)
                 .set("embeddedContent.fullSvg", fullSvgEnabled)
                 .set("embeddedContent.markdown", markdownEnabled)
+                .set("embeddedContent.tooltipLayoutDebug", tooltipLayoutDebug)
                 .set("embeddedContent.latexMatchLineHeight", latexMatchLineHeight)
                 .set("embeddedContent.latexFontFamily", latexFontFamily)
                 .set("embeddedContent.latexOversample", latexOversample)
@@ -70,6 +75,7 @@ public final class EmbeddedContentConfig {
     public static boolean svgEnabled() { return svgEnabled; }
     public static boolean fullSvgEnabled() { return svgEnabled && fullSvgEnabled; }
     public static boolean markdownEnabled() { return markdownEnabled; }
+    public static boolean tooltipLayoutDebug() { return tooltipLayoutDebug; }
     public static boolean latexMatchLineHeight() { return latexMatchLineHeight; }
     public static String latexFontFamily() { return latexFontFamily == null ? "" : latexFontFamily; }
     public static float latexOversample() { return latexOversample; }

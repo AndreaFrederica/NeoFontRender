@@ -13,6 +13,9 @@ final class ModernTooltipHandler {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onTooltip(RenderTooltipEvent.Pre event) {
+        // ItemTooltipEvent is not the final construction stage for extensible tooltips such as
+        // ModularUI RichTooltip. Reassert provenance placement after every builder has run.
+        ModNameTooltipHandler.moveToEnd(event.getStack(), event.getLines());
         ThaumcraftTooltipCompat.Context thaumcraftContext =
                 ThaumcraftTooltipCompat.consumeContext(event.getLines());
         boolean[] compactLines = thaumcraftContext == null ? null : thaumcraftContext.compact;

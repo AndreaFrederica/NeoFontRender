@@ -41,8 +41,8 @@ public class MixinGuiOverlayDebug {
         FontManager manager = FontManager.INSTANCE;
         String activeEngine = manager.isCosmicActive() ? "cosmic" : manager.isSfrActive() ? "sfr" : "vanilla";
         List<String> lines = new ArrayList<>();
-        lines.add("NFR: " + activeEngine + " mod=" + Tags.VERSION + " core=" + manager.getBackendVersion()
-                + " cfg=" + NeofontrenderConfig.renderingEngine()
+        lines.add("NFR: " + activeEngine + " mod=" + Tags.VERSION + " core=" + manager.getBackendVersion());
+        lines.add("NFR cfg=" + NeofontrenderConfig.renderingEngine()
                 + " adv=" + NeofontrenderConfig.advancedStringMode()
                 + " scale=" + String.format(Locale.ROOT, "%.1f", NeofontrenderConfig.fontOversample()));
 

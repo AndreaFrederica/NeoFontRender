@@ -34,6 +34,7 @@ public final class EmbeddedContentLaboratorySettings {
         private final boolean svg = EmbeddedContentConfig.svgEnabled;
         private final boolean fullSvg = EmbeddedContentConfig.fullSvgEnabled;
         private final boolean markdown = EmbeddedContentConfig.markdownEnabled;
+        private final boolean tooltipLayoutDebug = EmbeddedContentConfig.tooltipLayoutDebug;
         private final boolean latexMatchLineHeight = EmbeddedContentConfig.latexMatchLineHeight;
         private final String latexFontFamily = EmbeddedContentConfig.latexFontFamily;
         private final float latexOversample = EmbeddedContentConfig.latexOversample;
@@ -63,6 +64,11 @@ public final class EmbeddedContentLaboratorySettings {
                     () -> tr("tooltip.laboratory.markdown"),
                     () -> EmbeddedContentConfig.markdownEnabled,
                     value -> EmbeddedContentConfig.markdownEnabled = value));
+            controls.add(context.controls().toggleText(
+                    () -> tr("gui.laboratory.tooltip_layout_debug"),
+                    () -> tr("tooltip.laboratory.tooltip_layout_debug"),
+                    () -> EmbeddedContentConfig.tooltipLayoutDebug,
+                    value -> EmbeddedContentConfig.tooltipLayoutDebug = value));
             controls.add(context.controls().toggleText(
                     () -> tr("gui.laboratory.latex_match_line_height"),
                     () -> tr("tooltip.laboratory.latex_match_line_height"),
@@ -107,6 +113,7 @@ public final class EmbeddedContentLaboratorySettings {
             EmbeddedContentConfig.svgEnabled = svg;
             EmbeddedContentConfig.fullSvgEnabled = fullSvg;
             EmbeddedContentConfig.markdownEnabled = markdown;
+            EmbeddedContentConfig.tooltipLayoutDebug = tooltipLayoutDebug;
             EmbeddedContentConfig.latexMatchLineHeight = latexMatchLineHeight;
             EmbeddedContentConfig.latexFontFamily = latexFontFamily;
             EmbeddedContentConfig.latexOversample = latexOversample;

@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 class TooltipConfigTest {
     @Test
@@ -59,5 +61,15 @@ class TooltipConfigTest {
                 Arrays.asList("Item", "  \u00a79\u00a7oMinecraft  "), "Minecraft"));
         assertFalse(ModNameTooltipSupport.containsModName(
                 Arrays.asList("Item", "minecraft:stone"), "Minecraft"));
+    }
+
+    @Test
+    void movesModNameAfterLinesAddedLater() {
+        List<String> lines = new ArrayList<>(Arrays.asList(
+                "Iron Ingot", "\u00a79\u00a7oMinecraft", "1"));
+
+        assertTrue(ModNameTooltipSupport.moveModNameToEnd(lines, "Minecraft"));
+        assertEquals(Arrays.asList("Iron Ingot", "1", "\u00a79\u00a7oMinecraft"), lines);
+        assertFalse(ModNameTooltipSupport.moveModNameToEnd(lines, "Minecraft"));
     }
 }

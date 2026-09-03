@@ -25,6 +25,7 @@ import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import neofontrender.addons.cjk.CjkTypographyRenderer;
+import neofontrender.addons.inline.EmbeddedContentConfig;
 import neofontrender.api.text.pipeline.ParagraphLayoutMiddleware;
 import neofontrender.api.text.pipeline.InlineContentHit;
 import neofontrender.api.text.pipeline.TextPipelineEngine;
@@ -108,7 +109,8 @@ final class ModernTooltipRenderer {
     /** F3 overlay for inspecting logical rows before ScaledResolution projects them. */
     private static void drawDebugLayout(TooltipLayout layout, FontRenderer font, ItemStack stack) {
         Minecraft minecraft = Minecraft.getMinecraft();
-        if (minecraft.gameSettings == null || !minecraft.gameSettings.showDebugInfo) return;
+        if (minecraft.gameSettings == null || !minecraft.gameSettings.showDebugInfo
+                || !EmbeddedContentConfig.tooltipLayoutDebug()) return;
 
         int contentTop = layout.y + layout.visualTop;
         int contentBottom = layout.y + layout.visualBottom;

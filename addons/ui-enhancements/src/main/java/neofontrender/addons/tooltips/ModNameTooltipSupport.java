@@ -10,10 +10,26 @@ final class ModNameTooltipSupport {
     static boolean containsModName(List<String> tooltip, String modName) {
         if (tooltip == null || modName == null) return false;
         for (String line : tooltip) {
-            String plain = stripFormatting(line);
-            if (plain != null && modName.equals(plain.trim())) return true;
+            if (isModNameLine(line, modName)) return true;
         }
         return false;
+    }
+
+    static boolean moveModNameToEnd(List<String> tooltip, String modName) {
+        if (tooltip == null || modName == null) return false;
+        for (int i = 0; i < tooltip.size(); i++) {
+            if (!isModNameLine(tooltip.get(i), modName)) continue;
+            if (i + 1 == tooltip.size()) return false;
+            String line = tooltip.remove(i);
+            tooltip.add(line);
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean isModNameLine(String line, String modName) {
+        String plain = stripFormatting(line);
+        return plain != null && modName.equals(plain.trim());
     }
 
     static String format(String friendlyFormat) {
