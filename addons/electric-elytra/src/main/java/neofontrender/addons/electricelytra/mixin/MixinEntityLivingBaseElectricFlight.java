@@ -26,6 +26,12 @@ public abstract class MixinEntityLivingBaseElectricFlight {
         // Restore it from the server latch or local prediction before selecting a travel solver.
         if (ElectricFlightController.isAerodynamicFlightActive(entity)
                 || ElectricFlightPhysics.hasClientPrediction(entity)) entity.setFlag(7, true);
+        // The local client predicts the aerodynamic motion. Running a second server integrator
+        // would move the same player from delayed input and cause correction jitter.
+        if (ElectricFlightPhysics.shouldDeferToClientMovement(entity)) {
+            callback.cancel();
+            return;
+        }
         // This path deliberately returns to vanilla travel after adding thrust. It does not
         // invoke ElectricFlightMath, body-axis control, SAS or aerodynamic force replacement.
         if (ElectricVanillaThrust.shouldApply(entity)) ElectricVanillaThrust.apply(entity);

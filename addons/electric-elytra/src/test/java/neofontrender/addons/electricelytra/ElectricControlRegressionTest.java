@@ -82,6 +82,13 @@ final class ElectricControlRegressionTest {
     }
 
     @Test
+    void serverMovementPathIsDeferredToClientForActiveAerodynamics() {
+        assertTrue(ElectricFlightPhysics.shouldDeferToClientMovement(true, true));
+        assertFalse(ElectricFlightPhysics.shouldDeferToClientMovement(false, true));
+        assertFalse(ElectricFlightPhysics.shouldDeferToClientMovement(true, false));
+    }
+
+    @Test
     void fireworkAddsSpeedAboveVanillaTargetInsteadOfBraking() {
         ElectricFireworkBoost.Velocity boosted = ElectricFireworkBoost.apply(
                 80.0D, 0.0D, 0.0D, 1.0D, 0.0D, 0.0D, 24.0D, 108.0D);

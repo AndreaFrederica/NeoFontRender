@@ -25,6 +25,16 @@ public final class ElectricFlightPhysics {
                 entity.isInLava(), ItemElectricElytra.usesAerodynamicFlightModel(chest));
     }
 
+    /** Server players are moved by their vanilla movement packets; the server only validates. */
+    public static boolean shouldDeferToClientMovement(EntityLivingBase entity) {
+        return entity != null && shouldDeferToClientMovement(
+                entity.isServerWorld(), ElectricFlightController.isAerodynamicFlightActive(entity));
+    }
+
+    static boolean shouldDeferToClientMovement(boolean serverWorld, boolean active) {
+        return serverWorld && active;
+    }
+
     public static synchronized void setClientPrediction(EntityLivingBase entity,
                                                          boolean active) {
         if (entity == null || !entity.world.isRemote) return;

@@ -29,6 +29,16 @@ public final class ElectricFlightController {
                 player.isRiding(), ItemElectricElytra.usesAerodynamicFlightModel(chest));
     }
 
+    /** Bounds-checks the client-owned velocity before it is accepted as a movement snapshot. */
+    public static boolean isClientVelocityValid(EntityLivingBase entity) {
+        if (entity == null) return false;
+        double x = entity.motionX, y = entity.motionY, z = entity.motionZ;
+        if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) return false;
+        double speed = Math.sqrt(x * x + y * y + z * z) * 20.0D;
+        return Double.isFinite(speed)
+                && speed <= ElectricElytraConfig.hardSpeedLimitBlocksPerSecond + 1.0E-6D;
+    }
+
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END || event.player.world.isRemote) return;
@@ -97,6 +107,7 @@ public final class ElectricFlightController {
 
         boolean flying = ACTIVE_FLIGHTS.contains(id) && !player.onGround && !player.isRiding();
         if (flying) player.setFlag(7, true);
+        if (flying) validateClientVelocity(player);
 
         int power = engine ? (flying
                 ? ElectricFlightMath.indicatedPower(throttle) : 12) : 0;
@@ -127,6 +138,22 @@ public final class ElectricFlightController {
 
     private static void notify(EntityPlayer player, String key) {
         if (player instanceof EntityPlayerMP) player.sendStatusMessage(new TextComponentTranslation(key), true);
+    }
+
+    private static void validateClientVelocity(EntityPlayer player) {
+        if (isClientVelocityValid(player)) return;
+        double x = player.motionX, y = player.motionY, z = player.motionZ;
+        double speed = Math.sqrt(x * x + y * y + z * z);
+        double limit = ElectricElytraConfig.hardSpeedLimitBlocksPerSecond / 20.0D;
+        if (!Double.isFinite(speed) || speed < 1.0E-12D) {
+            player.motionX = player.motionY = player.motionZ = 0.0D;
+        } else {
+            double scale = Math.min(1.0D, limit / speed);
+            player.motionX = x * scale;
+            player.motionY = y * scale;
+            player.motionZ = z * scale;
+        }
+        player.velocityChanged = true;
     }
 
     static boolean shouldStartFlight(boolean creativeFlying, boolean onGround,
