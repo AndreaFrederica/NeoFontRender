@@ -7,6 +7,18 @@
 - Keep the current renderer active while SFR fonts load asynchronously, and perform atlas upload,
   prewarming, disposal, and backend activation on Minecraft's client thread.
 
+## [uie/0.7.0]
+
+- Route UIE structured inline content and CJK paragraph layout through NFR's unified text-rendering
+  protocol, including shared layout options for LaTeX, Typst, SVG, images, and emoji.
+
+## [0.6.0]
+
+- Introduce the unified structured-text, route, paragraph, GL component, and post-processing APIs
+  used by both modern renderers and optional content addons.
+- Add the standalone Text Render Lab for testing AWT, Cosmic, UIE, LaTeX, Typst, images, formatting,
+  CJK layout, shadows, and animated effects outside Minecraft.
+
 ## [electric-elytra/0.1.0]
 
 - Initial alpha of the Revo Electric Elytra submod: vanilla-control electric elytra and

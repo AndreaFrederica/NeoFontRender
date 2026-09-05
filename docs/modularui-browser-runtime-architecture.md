@@ -1103,8 +1103,8 @@ capability grant
 | Java | MUI core `8` bytecode；Graal addon/client `25` | runtime/toolchain | server/no-JS client 不依赖 Graal |
 | Cleanroom Loader | `0.6.1-alpha` | required platform | 以 UIE 当前构建基线为准，发布前再锁正式兼容范围 |
 | ModularUI | `3.2.0-nfr.1` / commit `75f86da` | required mod/API | browser core/document sync 实施后应升 API 版本 |
-| NFR | `0.5.2` | required for NFR component pack | 字体、Arc3D facade、视觉组件 |
-| UIE | `0.6.0` | required by RTS，browser runtime 本身 optional | camera/input/navigation |
+| NFR | `0.6.0` | required for NFR component pack | 字体、Arc3D facade、视觉组件 |
+| UIE | `0.7.0` | required by RTS，browser runtime 本身 optional | camera/input/navigation |
 
 RTS addon 的 metadata 应要求带 browser core 的 ModularUI、NFR component pack 和 UIE；只有声明 JS 的
 application 才要求 `modularui-js-graal`。MUI core 不反向硬依赖 NFR、RTS、UIE 或 Graal。

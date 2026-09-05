@@ -90,6 +90,13 @@ The project ships as a main mod and several optional modules. All UIE modules sh
   <td>MIT</td>
   <td>Server-side self-message network support, server-side chat history persistence (H2), group chat commands (`/nfrgroup`, `/msg`). Optional, only needed on dedicated servers.</td>
 </tr>
+<tr>
+  <td><img src="src/main/resources/assets/neofontrender/logo.png" width="32"></td>
+  <td><b>NFR Typst Renderer</b></td>
+  <td><code>neofontrender_typst_renderer</code></td>
+  <td>Apache-2.0 (Typst)</td>
+  <td>Optional client addon for complete Typst inline rendering through an isolated JNI engine and direct RGBA raster protocol. Building the platform-specific addon JAR requires Rust 1.92+.</td>
+</tr>
 </tbody>
 </table>
 

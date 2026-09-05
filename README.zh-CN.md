@@ -88,6 +88,13 @@ Neo Font Render 用可配置的现代渲染器替代 Minecraft 1.12.2 的传统�
   <td>MIT</td>
   <td>服务端自身消息网络支持、服务端聊天历史持久化（H2）、群组聊天命令（`/nfrgroup`、`/msg`）。可选，仅在独立服务器上需要。</td>
 </tr>
+<tr>
+  <td><img src="src/main/resources/assets/neofontrender/logo.png" width="32"></td>
+  <td><b>NFR Typst Renderer</b></td>
+  <td><code>neofontrender_typst_renderer</code></td>
+  <td>Apache-2.0（Typst）</td>
+  <td>可选客户端 addon，通过隔离的 JNI 引擎和直接 RGBA 光栅协议提供完整 Typst 行内渲染；构建对应平台的 addon JAR 需要 Rust 1.92+。</td>
+</tr>
 </tbody>
 </table>
 
