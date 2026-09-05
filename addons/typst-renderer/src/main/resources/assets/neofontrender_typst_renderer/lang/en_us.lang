@@ -1,0 +1,2 @@
+neofontrender_typst_renderer.gui.laboratory.enabled=Embedded Typst
+neofontrender_typst_renderer.tooltip.laboratory.enabled=Experimental: render <typst:...> and <typst>...</typst> documents through the standard structured-text pipeline.

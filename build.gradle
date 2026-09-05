@@ -83,6 +83,7 @@ unimined.minecraft {
         runs.preLaunch('client', ':addons:electric-elytra:prepareCombinedClientRun')
         runs.preLaunch('client', ':addons:mui-xml-showcase:prepareCombinedClientRun')
         runs.preLaunch('client', ':addons:inline-content-showcase:prepareCombinedClientRun')
+        runs.preLaunch('client', ':addons:typst-renderer:prepareCombinedClientRun')
         runs.all {
             args += ['--username', minecraft_username]
             // Dev runs use MCP-mapped classes, so reference-map remapping must stay disabled.

@@ -1,0 +1,2 @@
+neofontrender_typst_renderer.gui.laboratory.enabled=嵌入 Typst
+neofontrender_typst_renderer.tooltip.laboratory.enabled=实验功能：通过标准结构化文本管线渲染 <typst:...> 和 <typst>...</typst> 文档。

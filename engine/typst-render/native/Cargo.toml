@@ -1,0 +1,27 @@
+[package]
+name = "nfr-typst-renderer"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+rust-version = "1.92"
+
+[lib]
+name = "neofontrender_typst"
+crate-type = ["cdylib"]
+
+[dependencies]
+typst = { path = "../../../addons/typst-renderer/vendor/typst/crates/typst" }
+typst-layout = { path = "../../../addons/typst-renderer/vendor/typst/crates/typst-layout" }
+typst-library = { path = "../../../addons/typst-renderer/vendor/typst/crates/typst-library" }
+typst-render = { path = "../../../addons/typst-renderer/vendor/typst/crates/typst-render" }
+typst-utils = { path = "../../../addons/typst-renderer/vendor/typst/crates/typst-utils" }
+typst-kit = { path = "../../../addons/typst-renderer/vendor/typst/crates/typst-kit", default-features = false, features = ["system-packages", "system-downloader"] }
+typst-assets = { git = "https://github.com/typst/typst-assets", rev = "94dcb99", features = ["fonts"] }
+jni = { version = "0.21", default-features = false }
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+panic = "unwind"

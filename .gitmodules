@@ -1,3 +1,6 @@
 [submodule "addons/ui-enhancements/vendor/tiqian"]
 	path = addons/ui-enhancements/vendor/tiqian
 	url = https://github.com/tiqian-cjk/tiqian.git
+[submodule "addons/typst-renderer/vendor/typst"]
+	path = addons/typst-renderer/vendor/typst
+	url = https://github.com/typst/typst.git

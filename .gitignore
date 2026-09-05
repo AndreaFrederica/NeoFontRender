@@ -22,6 +22,7 @@ build
 
 # Rust native build output; Cargo.lock remains tracked for reproducible JNI binaries.
 native/**/target/
+/engine/typst-render/native/target/
 
 # other
 eclipse

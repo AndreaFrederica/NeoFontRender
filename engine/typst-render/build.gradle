@@ -1,0 +1,60 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'neofontrender.engine'
+version = providers.gradleProperty('typst_renderer_version').get()
+base { archivesName = 'neofontrender-typst-render' }
+
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+
+def hostOs = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
+def hostArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
+def nativeArch = (hostArch == 'amd64' || hostArch == 'x86_64') ? 'x86_64' :
+        (hostArch == 'aarch64' || hostArch == 'arm64') ? 'aarch64' : null
+def nativePlatform = nativeArch == null ? null :
+        (hostOs.contains('win') ? "windows-${nativeArch}" :
+                (hostOs.contains('mac') ? "macos-${nativeArch}" :
+                        (hostOs.contains('linux') ? "linux-${nativeArch}-gnu" : null)))
+def nativeLibraryName = hostOs.contains('win') ? 'neofontrender_typst.dll' :
+        (hostOs.contains('mac') ? 'libneofontrender_typst.dylib' : 'libneofontrender_typst.so')
+def nativeLibrary = layout.projectDirectory.file("native/target/release/${nativeLibraryName}")
+
+def buildTypstNative = tasks.register('buildTypstNative', Exec) {
+    group = 'build'
+    description = 'Builds the host Typst JNI library.'
+    workingDir project.projectDir
+    inputs.files('native/Cargo.toml', 'native/Cargo.lock')
+    inputs.dir('native/src')
+    outputs.file(nativeLibrary)
+    doFirst {
+        if (nativePlatform == null) {
+            throw new GradleException("Unsupported Typst native platform: ${hostOs}/${hostArch}")
+        }
+    }
+    commandLine 'cargo', 'build', '--release', '--locked', '--ignore-rust-version',
+            '--manifest-path', 'native/Cargo.toml'
+}
+
+repositories { mavenCentral() }
+
+dependencies {
+    api project(':engine:text-core')
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+processResources {
+    dependsOn buildTypstNative
+    from(nativeLibrary) {
+        into "assets/neofontrender/typst-native/${nativePlatform}"
+    }
+}
+
+test {
+    useJUnitPlatform()
+    dependsOn processResources
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+}
+
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }

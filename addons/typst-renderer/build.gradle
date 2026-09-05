@@ -1,0 +1,117 @@
+plugins {
+    id 'java'
+    id 'java-library'
+    id 'xyz.wagyourtail.unimined' version '1.4.26-kappa'
+}
+
+group = 'neofontrender.addons'
+version = providers.gradleProperty('typst_renderer_version').get()
+base { archivesName = 'neofontrender-typst-renderer' }
+
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+
+def hostOs = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
+def hostArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
+def nativeArch = (hostArch == 'amd64' || hostArch == 'x86_64') ? 'x86_64' :
+        (hostArch == 'aarch64' || hostArch == 'arm64') ? 'aarch64' : null
+def nativePlatform = nativeArch == null ? null :
+        (hostOs.contains('win') ? "windows-${nativeArch}" :
+                (hostOs.contains('mac') ? "macos-${nativeArch}" :
+                        (hostOs.contains('linux') ? "linux-${nativeArch}-gnu" : null)))
+def nativeLibraryName = hostOs.contains('win') ? 'neofontrender_typst.dll' :
+        (hostOs.contains('mac') ? 'libneofontrender_typst.dylib' : 'libneofontrender_typst.so')
+evaluationDependsOn(':engine:typst-render')
+def typstEngine = project(':engine:typst-render')
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.cleanroommc.com/releases' }
+    maven { url = 'https://maven.minecraftforge.net/' }
+}
+
+unimined.minecraft {
+    version '1.12.2'
+    mappings { mcp('stable', '39-1.12') }
+    cleanroom { loader '0.6.8-alpha'; runs.off = true }
+    defaultRemapJar = false
+    remap(tasks.named('jar').get())
+}
+
+dependencies {
+    compileOnly project(':')
+    compileOnly project(':engine:text-core')
+    compileOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
+    implementation typstEngine
+    testImplementation project(':')
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+processResources {
+    inputs.property('version', project.version)
+    inputs.property('nfrVersion', providers.gradleProperty('mod_version').get())
+    filesMatching('mcmod.info') {
+        expand(version: project.version,
+                nfrVersion: providers.gradleProperty('mod_version').get())
+    }
+    from('NOTICE.md') { into 'META-INF'; rename { 'NOTICE-NFR-TYPST-RENDERER.md' } }
+    from('vendor/typst/LICENSE') { into 'META-INF'; rename { 'LICENSE-Typst.txt' } }
+    from('vendor/typst/NOTICE') { into 'META-INF'; rename { 'NOTICE-Typst.txt' } }
+}
+
+jar {
+    dependsOn typstEngine.tasks.named('jar')
+    archiveClassifier = 'dev'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ zipTree(typstEngine.tasks.named('jar').get().archiveFile.get().asFile) }) {
+        exclude 'META-INF/MANIFEST.MF'
+    }
+    manifest.attributes('ModType': 'CRL')
+    finalizedBy tasks.named('remapJar')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
+}
+
+test {
+    useJUnitPlatform()
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+}
+
+tasks.register('verifyBundledTypstNative') {
+    group = 'verification'
+    description = 'Verifies that the addon JAR contains the isolated Typst JNI module.'
+    dependsOn tasks.named('jar')
+    doLast {
+        def archive = tasks.named('jar').get().archiveFile.get().asFile
+        def expected = "assets/neofontrender/typst-native/${nativePlatform}/${nativeLibraryName}"
+        def file = new java.util.jar.JarFile(archive)
+        try {
+            def entry = file.getJarEntry(expected)
+            if (entry == null || entry.size <= 0) {
+                throw new GradleException("Typst addon JAR is missing ${expected}")
+            }
+            if (file.getJarEntry('neofontrender/typst/TypstEngine.class') == null) {
+                throw new GradleException('Typst addon JAR is missing the isolated Java engine')
+            }
+        } finally {
+            file.close()
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyBundledTypstNative')
+}
+
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+tasks.register('prepareCombinedClientRun', Copy) {
+    dependsOn tasks.named('jar')
+    from(tasks.named('jar').flatMap { it.archiveFile })
+    into rootProject.layout.projectDirectory.dir('run/client/mods')
+    rename { 'neofontrender-typst-renderer-dev.jar' }
+}
