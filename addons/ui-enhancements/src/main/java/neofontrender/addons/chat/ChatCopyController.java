@@ -16,8 +16,8 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.mixin.AccessorGuiChatFeatures;
 import neofontrender.addons.mixin.AccessorGuiNewChatFeatures;
 import org.lwjgl.input.Mouse;
-import neofontrender.api.text.pipeline.TextPipelineEngine;
-import neofontrender.api.text.pipeline.TextPipelineLayout;
+import neofontrender.api.text.route.TextRenderRouteApi;
+import neofontrender.api.text.route.TextRenderRouteLayout;
 import neofontrender.addons.cjk.ChatTypographyRenderer;
 
 import java.util.List;
@@ -162,16 +162,16 @@ public final class ChatCopyController {
             ChatSelectionModel.Range range = ranges.get(line);
             if (range == null || range.start >= range.end) continue;
             String value = text(line);
-            TextPipelineLayout layout = TextPipelineEngine.layout(minecraft.fontRenderer, value);
+            TextRenderRouteLayout layout = TextRenderRouteApi.layout(minecraft.fontRenderer, value);
             ITextComponent component = line.getChatComponent();
             boolean positioned = ChatTypographyRenderer.isPositioned(component)
                     && !layout.hasInlineContent();
             float startX = positioned
                     ? ChatTypographyRenderer.xAtFormattedIndex(component, range.start)
-                    : layout.widthTo(minecraft.fontRenderer, range.start);
+                    : layout.widthToSource(range.start);
             float endX = positioned
                     ? ChatTypographyRenderer.xAtFormattedIndex(component, range.end)
-                    : layout.widthTo(minecraft.fontRenderer, range.end);
+                    : layout.widthToSource(range.end);
             int x1 = 2 + Math.round(scale * (textOffset + startX));
             int x2 = 2 + Math.round(scale * (textOffset + endX));
             int before = ChatInlineLayout.heightBefore(lines, scroll, row, minecraft.fontRenderer);
@@ -262,10 +262,10 @@ public final class ChatCopyController {
         String value = text(line);
         int textX = Math.max(0, panelX - ChatHeadRenderer.textOffset());
         ITextComponent component = line.getChatComponent();
-        TextPipelineLayout layout = TextPipelineEngine.layout(minecraft.fontRenderer, value);
+        TextRenderRouteLayout layout = TextRenderRouteApi.layout(minecraft.fontRenderer, value);
         int position = ChatTypographyRenderer.isPositioned(component) && !layout.hasInlineContent()
                 ? ChatTypographyRenderer.formattedIndexAt(component, textX)
-                : layout.sourceIndexAt(minecraft.fontRenderer, textX);
+                : layout.sourceIndexAt(textX);
         boolean head = EnhancedChatFeatures.playerHeads()
                 && panelX >= 0 && panelX < ChatHeadRenderer.HEAD_SIZE
                 && line instanceof ChatHeadLineMetadata

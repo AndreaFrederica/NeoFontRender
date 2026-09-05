@@ -47,7 +47,7 @@ import java.util.List;
 public final class NfrUiEnhancements {
     public static final String MOD_ID = "neofontrender_ui_enhancements";
     public static final String MOD_NAME = "Revo UI";
-    public static final String VERSION = "0.6.0";
+    public static final String VERSION = "0.7.0";
     public static final String DEPENDENCIES =
             "required-after:" + Tags.MOD_ID + "@[" + Tags.VERSION + ",);"
                     + "required-after:modularui@[3.2.0-nfr.1,);"

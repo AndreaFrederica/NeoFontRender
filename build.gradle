@@ -107,6 +107,7 @@ unimined.minecraft {
 }
 
 dependencies {
+    contain project(':engine:text-core')
     if (use_asset_mover.toBoolean()) implementation "com.cleanroommc:assetmover:${asset_mover_version}"
     if (enable_junit_testing.toBoolean()) {
         testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'

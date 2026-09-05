@@ -5,9 +5,8 @@ import net.minecraftforge.client.event.RenderTooltipEvent;
 import neofontrender.core.font.support.TooltipBoundsCompat;
 import neofontrender.core.font.FontManager;
 import neofontrender.addons.cjk.CjkTypographyRenderer;
-import neofontrender.api.text.pipeline.TextPipelineApi;
-import neofontrender.api.text.pipeline.TextPipelineEngine;
-import neofontrender.api.text.pipeline.TextPipelineWrapping;
+import neofontrender.api.text.route.TextRenderRouteApi;
+import neofontrender.api.text.route.TextRenderRouteLayout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -247,7 +246,7 @@ final class TooltipLayout {
                 lineBottom = lineAdvances.get(i);
             } else if (hasInlineContent(font, line)) {
                 lineBottom = Math.max(lineAdvances.get(i),
-                        TextPipelineEngine.height(font, line) * scale);
+                        TextRenderRouteApi.height(font, line) * scale);
             } else {
                 TooltipBoundsCompat.VerticalBounds measured =
                         TooltipBoundsCompat.measuredVerticalBounds(
@@ -310,11 +309,9 @@ final class TooltipLayout {
 
     /** Returns zero for ordinary text, even when inline middleware is globally registered. */
     private static int inlineContentHeight(FontRenderer font, String line) {
-        if (!TextPipelineApi.hasInlineContentMiddleware()) return 0;
         try {
-            neofontrender.api.text.pipeline.TextPipelineLayout measured =
-                    TextPipelineEngine.layout(font, line);
-            return measured.hasInlineContent() ? measured.height() : 0;
+            TextRenderRouteLayout measured = TextRenderRouteApi.layout(font, line);
+            return measured.hasInlineContent() ? Math.round(measured.height()) : 0;
         } catch (RuntimeException ignored) {
             return 0;
         }
@@ -330,8 +327,8 @@ final class TooltipLayout {
                     font, line, width, TooltipConfig.lineHeight);
             if (tiqian != null) return tiqian;
         }
-        return TextPipelineApi.hasInlineContentMiddleware()
-                ? TextPipelineWrapping.wrap(font, line, width)
+        return hasInlineContent(font, line)
+                ? TextRenderRouteApi.wrap(font, line, width)
                 : font.listFormattedStringToWidth(line, width);
     }
 
@@ -434,9 +431,8 @@ final class TooltipLayout {
     }
 
     private static boolean hasInlineContent(FontRenderer font, String line) {
-        if (!TextPipelineApi.hasInlineContentMiddleware()) return false;
         try {
-            return TextPipelineEngine.layout(font, line).hasInlineContent();
+            return TextRenderRouteApi.layout(font, line).hasInlineContent();
         } catch (RuntimeException ignored) {
             return false;
         }
@@ -444,11 +440,9 @@ final class TooltipLayout {
 
     /** Returns logical inline width, or -1 when the line is ordinary text. */
     private static int pipelineWidth(FontRenderer font, String line) {
-        if (!TextPipelineApi.hasInlineContentMiddleware()) return -1;
         try {
-            neofontrender.api.text.pipeline.TextPipelineLayout measured =
-                    TextPipelineEngine.layout(font, line);
-            return measured.hasInlineContent() ? measured.width() : -1;
+            TextRenderRouteLayout measured = TextRenderRouteApi.layout(font, line);
+            return measured.hasInlineContent() ? Math.round(measured.advance()) : -1;
         } catch (RuntimeException ignored) {
             // Layout measurement must never make a vanilla tooltip fail closed.
             return -1;

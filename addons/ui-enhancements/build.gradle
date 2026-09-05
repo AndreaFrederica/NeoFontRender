@@ -9,6 +9,8 @@ group = 'neofontrender.addons'
 version = providers.gradleProperty('ui_enhancements_version').get()
 
 base { archivesName = 'neofontrender-ui-enhancements' }
+def uiTextProject = project(':addons:ui-enhancements-text')
+def localModularUiPath = rootProject.findProperty('local_modularui_jar')?.toString()?.trim()
 
 java {
     toolchain { languageVersion = JavaLanguageVersion.of(25) }
@@ -24,6 +26,9 @@ repositories {
 
 configurations {
     contain
+    uiTextEmbed {
+        transitive = false
+    }
     implementation.extendsFrom(contain)
 }
 
@@ -51,7 +56,13 @@ unimined.minecraft {
 
 dependencies {
     compileOnly project(':')
-    compileOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
+    implementation uiTextProject
+    uiTextEmbed uiTextProject
+    if (localModularUiPath) {
+        compileOnly files(localModularUiPath)
+    } else {
+        compileOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
+    }
     compileOnly('curse.maven:neverenoughanimation-1062347:6533650-sources-6533651') { transitive = false }
 
     // Cleanroom exposes the real LWJGL 3 API and translates Minecraft's old LWJGL 2 calls
@@ -70,6 +81,7 @@ dependencies {
     contain('com.github.weisj:jsvg:2.1.0') { transitive = false }
     // JLaTeXMath is linked through its GPLv2 Classpath Exception and remains unmodified.
     contain 'org.scilab.forge:jlatexmath:1.0.7'
+    contain 'com.google.code.gson:gson:2.12.1'
     // Chinese segmentation and dictionary used by TabbyChat spell checking.
     // Cleanroom already supplies a compatible commons-lang3, so avoid embedding 3.3.1.
     contain('com.huaban:jieba-analysis:1.0.2') { transitive = false }
@@ -83,7 +95,11 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
     testImplementation 'com.h2database:h2:2.3.232'
     testImplementation project(':')
-    testRuntimeOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
+    if (localModularUiPath) {
+        testRuntimeOnly files(localModularUiPath)
+    } else {
+        testRuntimeOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
+    }
     testImplementation 'org.lwjgl:lwjgl:3.4.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
@@ -168,8 +184,12 @@ processResources {
 }
 
 jar {
+    dependsOn ':addons:ui-enhancements-text:jar'
     archiveClassifier = 'dev'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.uiTextEmbed.collect { zipTree(it) } }) {
+        exclude 'META-INF/MANIFEST.MF'
+    }
     from(configurations.contain) { into '/' }
     from(mixinRefMap)
     doFirst {

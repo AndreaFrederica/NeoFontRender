@@ -2,7 +2,7 @@ package neofontrender.addons.inline;
 
 import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
-import neofontrender.api.text.pipeline.TextPipelineEngine;
+import neofontrender.api.text.route.TextRenderRouteApi;
 import neofontrender.addons.tooltips.AddonI18n;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.api.client.settings.NfrSettingsPageContext;
@@ -99,13 +99,13 @@ public final class EmbeddedContentLaboratorySettings {
             return controls;
         }
 
-        @Override public void preview() { TextPipelineEngine.invalidate(); }
+        @Override public void preview() { TextRenderRouteApi.invalidate(); }
 
         @Override public void apply() {
             if (!EmbeddedContentConfig.svgEnabled) EmbeddedContentConfig.fullSvgEnabled = false;
             EmbeddedContentConfig.save();
             RasterGlyphService.INSTANCE.trimToConfiguredBudget();
-            TextPipelineEngine.invalidate();
+            TextRenderRouteApi.invalidate();
         }
 
         @Override public void cancel() {
@@ -119,7 +119,7 @@ public final class EmbeddedContentLaboratorySettings {
             EmbeddedContentConfig.latexOversample = latexOversample;
             EmbeddedContentConfig.rasterCacheEntries = rasterCacheEntries;
             EmbeddedContentConfig.rasterCacheMegapixels = rasterCacheMegapixels;
-            TextPipelineEngine.invalidate();
+            TextRenderRouteApi.invalidate();
         }
     }
 

@@ -8,10 +8,11 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import neofontrender.api.text.pipeline.InlineContent;
-import neofontrender.api.text.pipeline.InlineContentHit;
 import neofontrender.addons.api.content.InlineImagePreview;
-import neofontrender.api.text.pipeline.TextPipelineEngine;
-import neofontrender.api.text.pipeline.TextPipelineLayout;
+import neofontrender.api.text.route.TextInlineBounds;
+import neofontrender.api.text.route.TextRenderRouteApi;
+import neofontrender.api.text.route.TextRenderRouteLayout;
+import neofontrender.addons.inline.StructuredInlineContentAdapter;
 import neofontrender.addons.mixin.AccessorGuiNewChatFeatures;
 import neofontrender.addons.tooltips.AddonI18n;
 import org.lwjgl.input.Mouse;
@@ -55,11 +56,13 @@ public final class ChatInlineImageInteraction {
             int height = ChatInlineLayout.lineHeight(line, minecraft.fontRenderer);
             if (fromBottom >= before && fromBottom < before + height) {
                 String text = line.getChatComponent().getFormattedText();
-                TextPipelineLayout layout = TextPipelineEngine.layout(minecraft.fontRenderer, text);
+                TextRenderRouteLayout layout = TextRenderRouteApi.layout(
+                        minecraft.fontRenderer, text);
                 int localY = height - 1 - (fromBottom - before);
-                InlineContentHit glyph = layout.contentAt(localX, localY, minecraft.fontRenderer);
-                return glyph == null ? null : new Hit(glyph.match().content(), glyph.match().start(),
-                        glyph.match().end(), text);
+                TextInlineBounds glyph = layout.contentAt(localX, localY);
+                return glyph == null ? null : new Hit(
+                        new StructuredInlineContentAdapter(glyph.content()), glyph.sourceStart(),
+                        glyph.sourceEnd(), text);
             }
             before += height;
         }
@@ -100,7 +103,8 @@ public final class ChatInlineImageInteraction {
                 ? InlineImagePreview.naturalSize(glyph,
                 resolution.getScaledWidth() - PADDING * 4,
                 resolution.getScaledHeight() - 46, PREVIEW_SIZE)
-                : new int[] { PREVIEW_SIZE, PREVIEW_SIZE };
+                : InlineImagePreview.naturalSize(glyph, PREVIEW_SIZE, PREVIEW_SIZE,
+                PREVIEW_SIZE);
         String hint = AddonI18n.tr("neofontrender_ui_enhancements.chat.image.copy_hint");
         int descriptionWidth = minecraft.fontRenderer.getStringWidth(glyph.description());
         int maximumContentWidth = resolution.getScaledWidth() - PADDING * 4;

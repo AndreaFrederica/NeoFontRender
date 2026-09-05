@@ -41,8 +41,8 @@ class FontRendererGlContractTest {
                                     && "glEnable".equals(calledName)) {
                                 driverEnableAlphaIndex[0] = index;
                             }
-                            if ("neofontrender/api/text/pipeline/TextPipelineApi".equals(owner)
-                                    && "hasInlineContentMiddleware".equals(calledName)) {
+                            if ("neofontrender/api/text/route/TextRenderRouteApi".equals(owner)
+                                    && "layout".equals(calledName)) {
                                 firstCancellablePathIndex[0] = index;
                             }
                         }
@@ -55,7 +55,7 @@ class FontRendererGlContractTest {
         assertTrue(driverEnableAlphaIndex[0] >= 0,
                 "drawString hook must synchronize the OpenGL driver state");
         assertTrue(firstCancellablePathIndex[0] >= 0,
-                "expected the inline-content early-return path");
+                "expected the unified render-route path");
         assertTrue(enableAlphaIndex[0] < firstCancellablePathIndex[0],
                 "alpha must be enabled before a cancellable rendering path can return");
         assertTrue(driverEnableAlphaIndex[0] < firstCancellablePathIndex[0],

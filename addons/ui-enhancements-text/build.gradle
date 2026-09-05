@@ -1,0 +1,37 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'neofontrender.addons'
+version = providers.gradleProperty('ui_enhancements_version').get()
+base { archivesName = 'neofontrender-ui-enhancements-text-v3' }
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+}
+
+dependencies {
+    api project(':engine:text-core')
+    implementation 'org.scilab.forge:jlatexmath:1.0.7'
+    implementation('com.github.weisj:jsvg:2.1.0') { transitive = false }
+    implementation 'com.google.code.gson:gson:2.12.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+processResources {
+    from('../ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/emoji/gosling-emojis.min.json') {
+        into 'assets/neofontrender_ui_enhancements/emoji'
+    }
+    from('../ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/fonts/fira_math-regular.otf') {
+        into 'assets/neofontrender_ui_enhancements/fonts'
+    }
+}
+
+test { useJUnitPlatform() }
+
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }

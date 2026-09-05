@@ -36,6 +36,11 @@ public final class NeofontrenderConfig {
     private static final String DEFAULT_TEXT_COLOR_PALETTE =
             "000000,0000AA,00AA00,00AAAA,AA0000,AA00AA,FFAA00,AAAAAA,"
                     + "555555,5555FF,55FF55,55FFFF,FF5555,FF55FF,FFFF55,FFFFFF";
+    private static final List<String> DEFAULT_BRILLIANT_BINDINGS = Collections.unmodifiableList(Arrays.asList(
+            "g=FF986B31|FFFCE670|FFFCE670|neofontrender:textures/particles/glow.png|FFFCE670|100|200|2-4|1-360|0-1",
+            "s=FF4C5E6F|FFD5EAF8|00000000|neofontrender:textures/particles/glow.png|FFD5EAF8|100|200|2-4|1-360|0-1",
+            "q=FF60241E|FFE77B49|00000000",
+            "v=FFFFFFFF|00000000|00000000|neofontrender:textures/particles/glow_2.png|FFFF4433|20|200|1-2|0-360|0-1"));
     private static Path configPath;
     private static volatile CommentedFileConfig config;
     private static volatile boolean loaded;
@@ -397,6 +402,25 @@ public final class NeofontrenderConfig {
         return cached.shaderTextPipeline;
     }
 
+    public static boolean vanillaFormattingCompatibility() {
+        return cached.vanillaFormattingCompatibility;
+    }
+
+    /** Enables the source-compatible Brilliant Text effect layer on modern renderers. */
+    public static boolean brilliantTextEnabled() {
+        return cached.brilliantTextEnabled;
+    }
+
+    /** Configured Brilliant Text bindings in the original char=color|outline|glow|particle form. */
+    public static List<String> brilliantTextBindings() {
+        if (config == null) return DEFAULT_BRILLIANT_BINDINGS;
+        Object value = config.get("brilliant.bindings");
+        if (!(value instanceof List)) return DEFAULT_BRILLIANT_BINDINGS;
+        List<String> result = new ArrayList<>();
+        for (Object entry : (List<?>) value) if (entry != null && !entry.toString().trim().isEmpty()) result.add(entry.toString());
+        return result.isEmpty() ? DEFAULT_BRILLIANT_BINDINGS : Collections.unmodifiableList(result);
+    }
+
     public static float renderingBrightness() {
         return cached.renderingBrightness;
     }
@@ -514,6 +538,7 @@ public final class NeofontrenderConfig {
     public static boolean laboratoryTextUndoRedo() {
         return cached.laboratoryTextUndoRedo;
     }
+    public static boolean laboratoryBrilliantAnyPosition() { return cached.laboratoryBrilliantAnyPosition; }
 
     public static boolean compatModernSplash() {
         return cached.compatModernSplash;
@@ -735,6 +760,9 @@ public final class NeofontrenderConfig {
     public static void setLaboratoryTextUndoRedo(boolean value) {
         setValue("laboratory.textUndoRedo", value);
     }
+    public static void setLaboratoryBrilliantAnyPosition(boolean value) {
+        setValue("laboratory.brilliantAnyPosition", value);
+    }
 
     public static void setCompatModernSplash(boolean value) {
         setValue("compat.modernsplash.enabled", value);
@@ -847,6 +875,14 @@ public final class NeofontrenderConfig {
 
     public static void setShaderTextPipeline(boolean value) {
         setValue("rendering.shaderTextPipeline", value);
+    }
+
+    public static void setVanillaFormattingCompatibility(boolean value) {
+        setValue("rendering.vanillaFormattingCompatibility", value);
+    }
+
+    public static void setBrilliantTextEnabled(boolean value) {
+        setValue("brilliant.enabled", value);
     }
 
     public static void setRenderingBrightness(float value) {
@@ -1139,9 +1175,14 @@ public final class NeofontrenderConfig {
             w.write("smoothShadowThreshold = 24.0\n");
             w.write("enhancedTextPipeline = false\n");
             w.write("shaderTextPipeline = false\n");
+            w.write("vanillaFormattingCompatibility = true\n");
             w.write("brightness = 0.0\n");
             w.write("brightnessAuto = true\n");
             w.write("forceBlendForText = true\n");
+            w.write("\n");
+            w.write("[brilliant]\n");
+            w.write("enabled = true\n");
+            w.write("bindings = [\"g=FF986B31|FFFCE670|FFFCE670|neofontrender:textures/particles/glow.png|FFFCE670|100|200|2-4|1-360|0-1\", \"s=FF4C5E6F|FFD5EAF8|00000000|neofontrender:textures/particles/glow.png|FFD5EAF8|100|200|2-4|1-360|0-1\", \"q=FF60241E|FFE77B49|00000000\", \"v=FFFFFFFF|00000000|00000000|neofontrender:textures/particles/glow_2.png|FFFF4433|20|200|1-2|0-360|0-1\"]\n");
             w.write("\n");
             w.write("[performance]\n");
             w.write("asyncInit = true\n");
@@ -1168,6 +1209,7 @@ public final class NeofontrenderConfig {
             w.write("cjkLineBreak = true\n");
             w.write("\n");
             w.write("[laboratory]\n");
+            w.write("brilliantAnyPosition = false\n");
             w.write("hexChat = false\n");
             w.write("hexChatResetStyles = true\n");
             w.write("textUndoRedo = false\n");
@@ -1240,6 +1282,7 @@ public final class NeofontrenderConfig {
         config.setComment("laboratory.textUndoRedo", "Enable per-field undo/redo history in vanilla and ModularUI text inputs (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z).");
         config.setComment("laboratory.hexChat", "Experimental #RRGGBB chat rendering for the Cosmic text backend.");
         config.setComment("laboratory.hexChatResetStyles", "Match RGB Chat Vintage by clearing bold/italic/etc. when a #RGB marker starts a new color run.");
+        config.setComment("laboratory.brilliantAnyPosition", "Allow Brilliant Text format codes to start in the middle of a line.");
         config.setComment("compat", "Compatibility options for third-party mods.");
         config.setComment("compat.modernsplash.enabled", "Allow the loading-screen font override to patch ModernSplash when it is installed. Requires splash.enabled and a restart.");
         config.setComment("compat.tinkersantique.enabled", "Handle Tinkers' Construct / TinkersAntique custom PUA color markers (\\uE700-\\uE7FF) as invisible color-change characters instead of rendering them as glyphs.");
@@ -1275,6 +1318,7 @@ public final class NeofontrenderConfig {
         config.setComment("rendering.smoothShadowThreshold", "Minimum effective font resolution where shadow text is allowed to use smooth filtering.");
         config.setComment("rendering.enhancedTextPipeline", "Use a dedicated text draw pipeline that forces straight-alpha blending and restores previous GL state after rendering. Keep this OFF for color emoji; it can alter emoji colors.");
         config.setComment("rendering.shaderTextPipeline", "Use a tiny fixed-pipeline-compatible shader to compensate thin anti-aliased glyph edges. Automatically falls back if shader compilation fails.");
+        config.setComment("rendering.vanillaFormattingCompatibility", "Match Minecraft FontRenderer behavior for unknown section-sign formatting codes, including consuming the code pair and resetting styles.");
         config.setComment("rendering.brightness", "Text edge compensation strength used by the enhanced shader pipeline. 0 disables extra alpha boost; 3 is close to SmoothFont-style defaults.");
         config.setComment("rendering.brightnessAuto", "Automatically detect brightness compensation from sample glyph rasterization. When true, rendering.brightness is ignored.");
         config.setComment("rendering.forceBlendForText", "Force GL_BLEND on for anti-aliased replacement text when Minecraft disables it for bitmap-font rendering.");
@@ -1342,6 +1386,7 @@ public final class NeofontrenderConfig {
         private final boolean laboratoryHexChat;
         private final boolean laboratoryHexChatResetStyles;
         private final boolean laboratoryTextUndoRedo;
+        private final boolean laboratoryBrilliantAnyPosition;
         private final boolean compatModernSplash;
         private final boolean compatTinkersAntique;
         private final boolean compatThaumcraftTooltip;
@@ -1400,6 +1445,8 @@ public final class NeofontrenderConfig {
         private final float smoothShadowThreshold;
         private final boolean enhancedTextPipeline;
         private final boolean shaderTextPipeline;
+        private final boolean vanillaFormattingCompatibility;
+        private final boolean brilliantTextEnabled;
         private final float renderingBrightness;
         private final boolean renderingBrightnessAuto;
         private final boolean forceBlendForText;
@@ -1430,6 +1477,7 @@ public final class NeofontrenderConfig {
             laboratoryHexChat = false;
             laboratoryHexChatResetStyles = true;
             laboratoryTextUndoRedo = false;
+            laboratoryBrilliantAnyPosition = false;
             compatModernSplash = true;
             compatTinkersAntique = true;
             compatThaumcraftTooltip = true;
@@ -1488,6 +1536,8 @@ public final class NeofontrenderConfig {
             smoothShadowThreshold = 24.0F;
             enhancedTextPipeline = false;
             shaderTextPipeline = false;
+            vanillaFormattingCompatibility = true;
+            brilliantTextEnabled = true;
             renderingBrightness = 0.0F;
             renderingBrightnessAuto = true;
             forceBlendForText = true;
@@ -1519,6 +1569,7 @@ public final class NeofontrenderConfig {
             laboratoryHexChat = config.getOrElse("laboratory.hexChat", false);
             laboratoryHexChatResetStyles = config.getOrElse("laboratory.hexChatResetStyles", true);
             laboratoryTextUndoRedo = config.getOrElse("laboratory.textUndoRedo", false);
+            laboratoryBrilliantAnyPosition = config.getOrElse("laboratory.brilliantAnyPosition", false);
             compatModernSplash = config.getOrElse("compat.modernsplash.enabled", true);
             compatTinkersAntique = config.getOrElse("compat.tinkersantique.enabled", true);
             compatThaumcraftTooltip = config.getOrElse("compat.thaumcraft.tooltip.enabled", true);
@@ -1582,6 +1633,8 @@ public final class NeofontrenderConfig {
             smoothShadowThreshold = getFloat(config, "rendering.smoothShadowThreshold", 24.0F);
             enhancedTextPipeline = config.getOrElse("rendering.enhancedTextPipeline", false);
             shaderTextPipeline = config.getOrElse("rendering.shaderTextPipeline", false);
+            vanillaFormattingCompatibility = config.getOrElse("rendering.vanillaFormattingCompatibility", true);
+            brilliantTextEnabled = config.getOrElse("brilliant.enabled", true);
             renderingBrightness = getFloat(config, "rendering.brightness", 0.0F);
             renderingBrightnessAuto = config.getOrElse("rendering.brightnessAuto", true);
             forceBlendForText = config.getOrElse("rendering.forceBlendForText", true);

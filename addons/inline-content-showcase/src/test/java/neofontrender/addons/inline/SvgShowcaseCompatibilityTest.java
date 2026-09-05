@@ -1,6 +1,11 @@
 package neofontrender.addons.inline;
 
 import neofontrender.addons.inlinecontent.CrownEtherSample;
+import neofontrender.text.InlineSpan;
+import neofontrender.text.StructuredText;
+import neofontrender.text.pipeline.StructuredTextPipeline;
+import neofontrender.text.syntax.StandardSyntaxEngines;
+import neofontrender.uie.text.v3.UiEnhancementsTextPlugin;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -28,10 +33,21 @@ class SvgShowcaseCompatibilityTest {
 
     @Test
     void crownEtherTooltipRequestsA48PixelAtomicGlyph() {
-        SvgTokenParser.Match match = SvgTokenParser.match(CrownEtherSample.STRUCTURE_TOKEN, 0);
-        assertNotNull(match);
-        assertEquals(48, match.height);
-        assertEquals(CrownEtherSample.STRUCTURE_TOKEN.length(), match.end);
+        UiEnhancementsTextPlugin plugin = new UiEnhancementsTextPlugin();
+        StructuredTextPipeline pipeline = new StructuredTextPipeline(
+                StandardSyntaxEngines.minecraftWithBrilliantDefaults(),
+                plugin.structuredMiddlewares(), plugin.lineBreakProviders());
+
+        StructuredText parsed = pipeline.parse(CrownEtherSample.STRUCTURE_TOKEN);
+
+        assertEquals(1, parsed.inlineSpans().size());
+        InlineSpan span = parsed.inlineSpans().get(0);
+        assertEquals("svg", span.content().kind());
+        assertEquals(48, span.content().displayHeight());
+        assertEquals(48.0F, span.content().layout()
+                .resolve(span.content().raster(), 8.5F).height());
+        assertEquals(CrownEtherSample.STRUCTURE_TOKEN.length(),
+                parsed.sourceMap().sourceEnd(span.end()));
     }
 
     @Test

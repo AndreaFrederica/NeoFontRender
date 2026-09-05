@@ -1,136 +1,105 @@
-package neofontrender.core.font.preprocess;
+package neofontrender.core.font.pipeline.builtin;
 
-import neofontrender.api.text.ModernText;
-import neofontrender.api.text.pipeline.ProcessedText;
-import neofontrender.core.font.pipeline.builtin.HexChatTextPreprocessor;
-import neofontrender.core.font.pipeline.builtin.LegacyColorTextParser;
-import neofontrender.core.font.pipeline.builtin.TinkersAntiqueTextPreprocessor;
+import neofontrender.text.StructuredText;
+import neofontrender.text.syntax.MinecraftLegacySyntaxProvider;
+import neofontrender.text.syntax.TextSyntaxEngine;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HexChatTextPreprocessorTest {
+    private static final TextSyntaxEngine ENGINE = TextSyntaxEngine.builder()
+            .register(TinkersAntiqueSyntaxProvider.INSTANCE)
+            .register(MinecraftLegacySyntaxProvider.INSTANCE)
+            .build();
 
     @Test
-    void decodesHexMarkersIntoModernRgbRuns() {
-        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
-                ProcessedText.unchanged("base#12aBf0color"));
+    void decodesHexMarkerIntoStructuredColor() {
+        StructuredText result = process("base#12aBf0color", true);
 
-        assertTrue(result.transformed());
-        assertEquals("basecolor", result.visibleText());
-        List<ModernText.Run> runs = result.modernText().runs();
-        assertEquals(2, runs.size());
-        assertFalse(runs.get(0).hasColorOverride());
-        assertEquals("base", runs.get(0).text());
-        assertTrue(runs.get(1).hasColorOverride());
-        assertEquals(0x12ABF0, runs.get(1).rgb());
-        assertEquals("color", runs.get(1).text());
+        assertEquals("basecolor", result.plainText());
+        assertFalse(result.styleAt(0).hasColorOverride());
+        assertEquals(0x12ABF0, result.styleAt(4).rgb());
+        assertTrue(result.appliedMiddlewareIds().contains("neofontrender:hex_chat"));
     }
 
     @Test
-    void preservesStylesAndRestoresCallerColorOnReset() {
-        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
-                ProcessedText.unchanged("\u00A7lbefore#010203after\u00A7rbase"));
+    void resetModeClearsStylesAtMarker() {
+        StructuredText result = process("\u00A7lbefore#010203after", true);
 
-        List<ModernText.Run> runs = result.modernText().runs();
-        assertEquals(3, runs.size());
-        assertEquals("\u00A7lbefore", runs.get(0).text());
-        assertEquals("after", runs.get(1).text());
-        assertEquals(0x010203, runs.get(1).rgb());
-        assertFalse(runs.get(2).hasColorOverride());
-        assertEquals("\u00A7rbase", runs.get(2).text());
+        assertTrue(result.styleAt(0).bold());
+        assertFalse(result.styleAt("before".length()).bold());
+        assertEquals(0x010203, result.styleAt("before".length()).rgb());
     }
 
     @Test
-    void mapsVisibleBoundariesAroundRemovedHexMarker() {
-        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
-                ProcessedText.unchanged("A#112233B"));
+    void retainModeCarriesStylesAtMarker() {
+        StructuredText result = process("\u00A7lbefore#010203after", false);
 
-        assertEquals("AB", result.visibleText());
-        assertEquals(1, result.rawStartForVisibleBoundary(1));
-        assertEquals(8, result.rawEndForVisibleBoundary(1));
-        assertEquals(9, result.rawEndForVisibleBoundary(2));
+        assertTrue(result.styleAt("before".length()).bold());
+        assertEquals(0x010203, result.styleAt("before".length()).rgb());
     }
 
     @Test
-    void combinesPuaAndHexProtocolsInOnePass() {
-        String pua = new String(new char[]{
-                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + 0xAA),
-                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + 0xBB),
-                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + 0xCC)
-        });
-        ProcessedText result = LegacyColorTextParser.process(
-                pua + "pua#00FF00hex", true, true);
+    void mapsPlainBoundariesAroundRemovedHexMarker() {
+        StructuredText result = process("A#112233B", true);
 
-        List<ModernText.Run> runs = result.modernText().runs();
-        assertEquals(2, runs.size());
-        assertEquals(0xAABBCC, runs.get(0).rgb());
-        assertEquals("pua", runs.get(0).text());
-        assertEquals(0x00FF00, runs.get(1).rgb());
-        assertEquals("hex", runs.get(1).text());
+        assertEquals("AB", result.plainText());
+        assertEquals(1, result.sourceMap().sourceStart(1));
+        assertEquals(8, result.sourceMap().sourceEnd(1));
+        assertEquals(9, result.sourceMap().sourceEnd(2));
+    }
+
+    @Test
+    void combinesPuaAndHexProtocols() {
+        StructuredText result = process(rgb(0xAA, 0xBB, 0xCC) + "pua#00FF00hex", true);
+
+        assertEquals("puahex", result.plainText());
+        assertEquals(0xAABBCC, result.styleAt(0).rgb());
+        assertEquals(0x00FF00, result.styleAt(3).rgb());
     }
 
     @Test
     void leavesInvalidHexTextVisible() {
-        assertNull(HexChatTextPreprocessor.INSTANCE.process(
-                ProcessedText.unchanged("literal #12ZZ34")));
+        StructuredText parsed = ENGINE.parse("literal #12ZZ34");
+        assertSame(parsed, HexChatStructuredMiddleware.process(parsed, true));
     }
 
     @Test
-    void interpolatesRgbChatMultiColorGradient() {
-        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
-                ProcessedText.unchanged("#FF0000-0000FFAB"));
+    void interpolatesMultiStopGradientByCodePoint() {
+        StructuredText result = process("#FF0000-00FF00-0000FFABCDE", true);
 
-        List<ModernText.Run> runs = result.modernText().runs();
-        assertEquals("AB", result.visibleText());
-        assertEquals(2, runs.size());
-        assertEquals(0xFF0000, runs.get(0).rgb());
-        assertEquals("A", runs.get(0).text());
-        assertEquals(0x0000FF, runs.get(1).rgb());
-        assertEquals("B", runs.get(1).text());
+        assertEquals("ABCDE", result.plainText());
+        assertEquals(0xFF0000, result.styleAt(0).rgb());
+        assertEquals(0x808000, result.styleAt(1).rgb());
+        assertEquals(0x00FF00, result.styleAt(2).rgb());
+        assertEquals(0x008080, result.styleAt(3).rgb());
+        assertEquals(0x0000FF, result.styleAt(4).rgb());
     }
 
     @Test
-    void gradientCountsVisibleCharactersNotFormattingCodes() {
-        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
-                ProcessedText.unchanged("#FF0000-0000FF\u00A7lAB"));
+    void minecraftColorAndResetTerminateHexRange() {
+        StructuredText color = process("#FF0000A\u00A7aB", true);
+        StructuredText reset = process("#FF0000A\u00A7rB", true);
 
-        List<ModernText.Run> runs = result.modernText().runs();
-        assertEquals(2, runs.size());
-        assertEquals("\u00A7lA", runs.get(0).text());
-        assertEquals("\u00A7lB", runs.get(1).text());
-        assertEquals(0xFF0000, runs.get(0).rgb());
-        assertEquals(0x0000FF, runs.get(1).rgb());
+        assertEquals(0xFF0000, color.styleAt(0).rgb());
+        assertEquals(0x55FF55, color.styleAt(1).rgb());
+        assertEquals(0xFF0000, reset.styleAt(0).rgb());
+        assertFalse(reset.styleAt(1).hasColorOverride());
     }
 
-    @Test
-    void interpolatesAcrossMultipleRgbChatStops() {
-        ProcessedText result = HexChatTextPreprocessor.INSTANCE.process(
-                ProcessedText.unchanged("#FF0000-00FF00-0000FFABCDE"));
-
-        List<ModernText.Run> runs = result.modernText().runs();
-        assertEquals(5, runs.size());
-        assertEquals(0xFF0000, runs.get(0).rgb());
-        assertEquals(0x808000, runs.get(1).rgb());
-        assertEquals(0x00FF00, runs.get(2).rgb());
-        assertEquals(0x008080, runs.get(3).rgb());
-        assertEquals(0x0000FF, runs.get(4).rgb());
+    private static StructuredText process(String value, boolean resetStyles) {
+        return HexChatStructuredMiddleware.process(ENGINE.parse(value), resetStyles);
     }
 
-    @Test
-    void canRetainStylesAtRgbMarkers() {
-        ProcessedText result = LegacyColorTextParser.process(
-                "\u00A7lbefore#010203after", false, true, false);
-
-        List<ModernText.Run> runs = result.modernText().runs();
-        assertEquals(2, runs.size());
-        assertEquals("\u00A7lbefore", runs.get(0).text());
-        assertEquals("\u00A7lafter", runs.get(1).text());
-        assertEquals(0x010203, runs.get(1).rgb());
+    private static String rgb(int red, int green, int blue) {
+        return new String(new char[]{
+                (char) (TinkersAntiqueSyntaxProvider.MARKER_START + red),
+                (char) (TinkersAntiqueSyntaxProvider.MARKER_START + green),
+                (char) (TinkersAntiqueSyntaxProvider.MARKER_START + blue)
+        });
     }
 }

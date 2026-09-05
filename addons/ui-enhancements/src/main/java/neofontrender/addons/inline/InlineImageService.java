@@ -6,7 +6,6 @@ import net.minecraft.util.ResourceLocation;
 import neofontrender.addons.api.content.ExternalImagePolicy;
 import neofontrender.api.text.pipeline.InlineContent;
 import neofontrender.addons.api.content.InlineImageHandle;
-import neofontrender.api.text.pipeline.TextPipelineEngine;
 import neofontrender.addons.chat.EnhancedChatFeatures;
 import neofontrender.addons.ui.NfrUiEnhancements;
 
@@ -34,6 +33,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import neofontrender.text.InlineRaster;
+import neofontrender.api.text.route.TextRenderRouteApi;
 
 /** Asynchronous, policy-gated remote image cache shared by emoji and external image providers. */
 public enum InlineImageService {
@@ -68,6 +69,19 @@ public enum InlineImageService {
         if (handle.state == InlineImageHandle.State.FAILED) return null;
         return new RemoteImageGlyph(handle, description == null ? uri.toString() : description,
                 goslingSource);
+    }
+
+    neofontrender.text.InlineContent resolveStructured(
+            neofontrender.text.InlineContent descriptor, URI uri, boolean goslingSource) {
+        glyph(uri, descriptor.description(), goslingSource);
+        Handle handle = handles.get(new Key(uri.normalize(), goslingSource));
+        InlineRaster raster = handle == null ? null : handle.raster();
+        if (handle == null || handle.state != InlineImageHandle.State.READY || raster == null) {
+            return descriptor;
+        }
+        return new neofontrender.text.InlineContent(descriptor.kind(), descriptor.key(),
+                descriptor.description(), descriptor.tint(), raster,
+                descriptor.attributes(), descriptor.layout());
     }
 
     @Nullable
@@ -118,10 +132,11 @@ public enum InlineImageService {
                 writeCache(handle.uri, image);
             }
             BufferedImage decoded = image;
-            Minecraft.getMinecraft().addScheduledTask(() -> upload(handle, decoded));
+            InlineRaster raster = raster(decoded);
+            Minecraft.getMinecraft().addScheduledTask(() -> complete(handle, decoded, raster));
         } catch (Throwable failure) {
             handle.state = InlineImageHandle.State.FAILED;
-            TextPipelineEngine.invalidate();
+            TextRenderRouteApi.invalidate();
             NfrUiEnhancements.LOGGER.debug("Inline image rejected or unavailable: {}", handle.uri, failure);
         }
     }
@@ -132,10 +147,11 @@ public enum InlineImageService {
                 throw new IOException("Local image is missing or exceeds byte limit");
             }
             BufferedImage image = decode(Files.readAllBytes(path));
-            Minecraft.getMinecraft().addScheduledTask(() -> upload(handle, image));
+            InlineRaster raster = raster(image);
+            Minecraft.getMinecraft().addScheduledTask(() -> complete(handle, image, raster));
         } catch (Throwable failure) {
             handle.state = InlineImageHandle.State.FAILED;
-            TextPipelineEngine.invalidate();
+            TextRenderRouteApi.invalidate();
             NfrUiEnhancements.LOGGER.debug("Local inline image rejected or unavailable: {}", path, failure);
         }
     }
@@ -245,25 +261,14 @@ public enum InlineImageService {
         }
     }
 
-    private void upload(Handle handle, BufferedImage image) {
-        try {
-            DynamicTexture texture = new DynamicTexture(image);
-            texture.setBlurMipmap(true, false);
-            ResourceLocation location = Minecraft.getMinecraft().getTextureManager()
-                    .getDynamicTextureLocation("nfr_inline_image", texture);
-            handle.width = image.getWidth();
-            handle.height = image.getHeight();
-            handle.image = image;
-            handle.texture = texture;
-            handle.location = location;
-            handle.state = InlineImageHandle.State.READY;
-            TextPipelineEngine.invalidate();
-            evictOldTextures();
-        } catch (Throwable failure) {
-            handle.state = InlineImageHandle.State.FAILED;
-            TextPipelineEngine.invalidate();
-            NfrUiEnhancements.LOGGER.debug("Could not upload inline image {}", handle.uri, failure);
-        }
+    private void complete(Handle handle, BufferedImage image, InlineRaster raster) {
+        handle.width = image.getWidth();
+        handle.height = image.getHeight();
+        handle.image = image;
+        handle.raster = raster;
+        handle.state = InlineImageHandle.State.READY;
+        TextRenderRouteApi.invalidate();
+        evictOldTextures();
     }
 
     private void evictOldTextures() {
@@ -283,8 +288,9 @@ public enum InlineImageService {
             handle.location = null;
             handle.texture = null;
             handle.image = null;
+            handle.raster = null;
             handle.state = InlineImageHandle.State.FAILED;
-            TextPipelineEngine.invalidate();
+            TextRenderRouteApi.invalidate();
         }
     }
 
@@ -354,6 +360,7 @@ public enum InlineImageService {
         private volatile DynamicTexture texture;
         private volatile ResourceLocation location;
         private volatile BufferedImage image;
+        private volatile InlineRaster raster;
         private volatile long lastAccess = System.nanoTime();
 
         private Handle(URI uri) { this.uri = uri; }
@@ -361,7 +368,27 @@ public enum InlineImageService {
         @Override public State state() { return state; }
         @Override public int pixelWidth() { return width; }
         @Override public int pixelHeight() { return height; }
-        @Override public ResourceLocation texture() { return location; }
+        @Override public synchronized ResourceLocation texture() {
+            if (location != null || state != State.READY || image == null) return location;
+            try {
+                DynamicTexture created = new DynamicTexture(image);
+                created.setBlurMipmap(true, false);
+                location = Minecraft.getMinecraft().getTextureManager()
+                        .getDynamicTextureLocation("nfr_inline_image", created);
+                texture = created;
+            } catch (Throwable failure) {
+                NfrUiEnhancements.LOGGER.debug("Could not upload inline image {}", uri, failure);
+            }
+            return location;
+        }
         BufferedImage image() { return image; }
+        InlineRaster raster() { return raster; }
+    }
+
+    private static InlineRaster raster(BufferedImage image) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        return new InlineRaster(width, height,
+                image.getRGB(0, 0, width, height, null, 0, width));
     }
 }

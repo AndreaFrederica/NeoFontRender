@@ -24,11 +24,18 @@ import neofontrender.core.font.support.FontRenderDiagnostics;
 import neofontrender.core.font.support.ClientTextureDisposal;
 import neofontrender.core.font.support.ModernShadowRasterizer;
 import neofontrender.core.font.support.ShadowColorPolicy;
-import neofontrender.core.font.support.ShadowColorRemapRules;
 import neofontrender.core.font.support.ShadowMaskRules;
 import neofontrender.core.font.support.ShadowRenderSpec;
+import neofontrender.text.StructuredText;
+import neofontrender.text.InlineSpan;
+import neofontrender.core.font.inline.InlineRasterTextRenderResult;
+import neofontrender.core.font.backend.CompositeTextRenderResult;
+import neofontrender.text.StyledSpan;
+import neofontrender.text.TextStyle;
+import neofontrender.text.animation.TextAnimationFrame;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL20;
 
@@ -60,6 +67,13 @@ public final class CosmicTextRenderer implements TextRenderBackend {
     private final TextureManager textureManager;
     private final Map<RenderKey, CosmicRenderedText> renderCache = new LinkedHashMap<>(128, 0.75F, true);
     private final Map<MeasureKey, Float> measureCache = new LinkedHashMap<>(256, 0.75F, true);
+    private final Map<ObfuscatedCandidateKey, String[]> obfuscatedCandidateCache =
+            new LinkedHashMap<ObfuscatedCandidateKey, String[]>(128, 0.75F, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<ObfuscatedCandidateKey, String[]> eldest) {
+                    return size() > 512;
+                }
+            };
     private long engine;
     private int nextTextureId;
     private final String primaryFamily;
@@ -281,97 +295,216 @@ public final class CosmicTextRenderer implements TextRenderBackend {
     }
 
     @Override
-    public float measureFormatted(String text, int baseArgb, boolean shadow) {
-        return measureFormattedAtSize(text, baseArgb, shadow, NeofontrenderConfig.fontSize());
-    }
-
-    @Override
-    public float measureFormattedAtSize(String text, int baseArgb, boolean shadow,
-                                        float requestedFontSize) {
-        float width = 0.0F;
-        float scale = Math.max(1.0F, FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
-        float fontSize = Math.max(1.0F, requestedFontSize);
-        for (FormattedRun run : parseFormatted(text, baseArgb, shadow)) {
-            for (String segment : renderingSegments(run.text, run.bold, run.italic, fontSize, scale)) {
-                width += measureAtSize(segment, run.bold, run.italic, fontSize);
-            }
-        }
-        return width;
-    }
-
-    @Override
-    public TextRenderResult renderFormatted(String text, int baseArgb, boolean shadow) {
-        return renderFormattedAtSize(text, baseArgb, shadow, NeofontrenderConfig.fontSize());
-    }
-
-    @Override
     public boolean supportsNativeFontSize() {
         return true;
     }
 
     @Override
-    public TextRenderResult renderFormattedAtSize(String text, int baseArgb, boolean shadow,
-                                                  float fontSize) {
-        List<PositionedResult> results = new ArrayList<>();
-        float x = 0.0F;
-        float logicalSize = Math.max(1.0F, fontSize);
+    public float measureStructuredAtSize(StructuredText text, int baseArgb, boolean shadow,
+                                         float requestedFontSize) {
+        if (text == null || text.plainText().isEmpty()) return 0.0F;
+        float fontSize = Math.max(1.0F, requestedFontSize);
+        if (!text.inlineSpans().isEmpty()) {
+            float advance = 0.0F;
+            int cursor = 0;
+            for (InlineSpan inline : text.inlineSpans()) {
+                if (inline.start() > cursor) advance += measureStructuredAtSize(
+                        text.slice(cursor, inline.start()), baseArgb, shadow, fontSize);
+                advance += new InlineRasterTextRenderResult(inline.content(), fontSize,
+                        inlineColor(text, inline.start(), baseArgb, shadow,
+                                ShadowRenderSpec.fromConfig()), shadow).advance();
+                cursor = inline.end();
+            }
+            if (cursor < text.plainText().length()) advance += measureStructuredAtSize(
+                    text.slice(cursor, text.plainText().length()), baseArgb, shadow, fontSize);
+            return advance;
+        }
+        float width = 0.0F;
+        for (FormattedRun run : structuredRuns(text, baseArgb, shadow,
+                ShadowRenderSpec.fromConfig())) {
+            width += measureAtSize(run.text, run.bold, run.italic, fontSize);
+        }
+        return width;
+    }
+
+    @Override
+    public TextRenderResult renderStructuredAtSize(StructuredText text, int baseArgb,
+                                                   boolean shadow, float requestedFontSize) {
+        if (text == null || text.plainText().isEmpty()) return TextRenderResult.EMPTY;
+        float fontSize = Math.max(1.0F, requestedFontSize);
         float scale = Math.max(1.0F,
                 FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
-        for (FormattedRun run : parseFormatted(text, baseArgb, shadow)) {
-            TextRenderResult renderedRun = renderAtScale(run.text, run.argb, run.bold, run.italic,
-                    run.underline, run.strikethrough, logicalSize, scale);
-            results.add(new PositionedResult(x, renderedRun));
-            x += renderedRun.advance();
+        if (!text.inlineSpans().isEmpty()) {
+            return structuredWithInline(text, baseArgb, shadow, fontSize, scale,
+                    ShadowRenderSpec.fromConfig());
         }
-        return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
-    }
-
-    @Override
-    public boolean supportsModernShadow() {
-        return true;
-    }
-
-    @Override
-    public TextRenderResult renderFormattedWithShadow(String text, int baseArgb) {
-        return renderFormattedWithShadowAtSize(
-                text, baseArgb, NeofontrenderConfig.fontSize());
-    }
-
-    @Override
-    public TextRenderResult renderFormattedWithShadowAtSize(
-            String text, int baseArgb, float requestedFontSize) {
-        return renderFormattedWithShadowAtSize(text, baseArgb, requestedFontSize,
-                ShadowRenderSpec.fromConfig());
-    }
-
-    @Override
-    public TextRenderResult renderFormattedWithShadowAtSize(
-            String text, int baseArgb, float requestedFontSize, ShadowRenderSpec shadowSpec) {
-        ShadowRenderSpec spec = shadowSpec == null ? ShadowRenderSpec.fromConfig() : shadowSpec;
         List<PositionedResult> results = new ArrayList<>();
         float x = 0.0F;
-        float scale = Math.max(1.0F, FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
-        float fontSize = Math.max(1.0F, requestedFontSize);
-        List<FormattedRun> foregroundRuns = parseFormatted(text, baseArgb, false, spec);
-        List<FormattedRun> shadowRuns = parseFormatted(text, baseArgb, true, spec);
-        for (int index = 0; index < foregroundRuns.size(); index++) {
-            FormattedRun run = foregroundRuns.get(index);
-            FormattedRun shadowRun = shadowRuns.get(index);
-            for (String segment : renderingSegments(run.text, run.bold, run.italic, fontSize, scale)) {
-                TextRenderResult renderedRun = renderSingle(segment, run.argb, run.bold, run.italic,
-                        run.underline, run.strikethrough, fontSize, scale, true,
-                        shadowRun.argb, spec);
-                results.add(new PositionedResult(x, renderedRun));
-                x += renderedRun.advance();
-            }
+        for (FormattedRun run : structuredRuns(text, baseArgb, shadow,
+                ShadowRenderSpec.fromConfig())) {
+            TextRenderResult rendered = run.obfuscated
+                    ? new AnimatedObfuscatedResult(run, fontSize, scale)
+                    : renderAtScale(run.text, run.argb, run.bold, run.italic,
+                    run.underline, run.strikethrough, fontSize, scale);
+            results.add(new PositionedResult(x, rendered));
+            x += rendered.advance();
         }
         return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
+    }
+
+    @Override
+    public TextRenderResult renderStructuredShadowSourceAtSize(
+            StructuredText text, int baseArgb, float requestedFontSize, ShadowRenderSpec spec) {
+        if (text == null || text.plainText().isEmpty()) return TextRenderResult.EMPTY;
+        float fontSize = Math.max(1.0F, requestedFontSize);
+        float scale = Math.max(1.0F,
+                FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
+        if (!text.inlineSpans().isEmpty()) {
+            return structuredWithInline(text, baseArgb, true, fontSize, scale,
+                    spec == null ? ShadowRenderSpec.fromConfig() : spec);
+        }
+        List<PositionedResult> results = new ArrayList<>();
+        float x = 0.0F;
+        for (FormattedRun run : structuredRuns(text, baseArgb, true,
+                spec == null ? ShadowRenderSpec.fromConfig() : spec)) {
+            TextRenderResult rendered = run.obfuscated
+                    ? new AnimatedObfuscatedResult(run, fontSize, scale)
+                    : renderAtScale(run.text, run.argb, run.bold, run.italic,
+                    run.underline, run.strikethrough, fontSize, scale);
+            results.add(new PositionedResult(x, rendered));
+            x += rendered.advance();
+        }
+        return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
+    }
+
+    @Override
+    public TextRenderResult renderStructuredModernShadowAtSize(
+            StructuredText text, int baseArgb, float requestedFontSize, ShadowRenderSpec spec) {
+        if (text == null || text.plainText().isEmpty()) return TextRenderResult.EMPTY;
+        // Inline rasters and animated obfuscated glyphs need independently changing draw results;
+        // keep those on the post-processor's generic composition path.
+        if (!text.inlineSpans().isEmpty()) return null;
+        float fontSize = Math.max(1.0F, requestedFontSize);
+        float scale = Math.max(1.0F,
+                FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
+        ShadowRenderSpec effectiveSpec = spec == null ? ShadowRenderSpec.fromConfig() : spec;
+        List<PositionedResult> results = new ArrayList<>();
+        float x = 0.0F;
+        for (FormattedRun run : structuredRuns(text, baseArgb, false, effectiveSpec)) {
+            if (run.obfuscated) return null;
+            TextRenderResult rendered = shouldRenderShadow(run.text)
+                    ? renderAtScaleWithModernShadow(run, fontSize, scale, effectiveSpec)
+                    : renderAtScale(run.text, run.argb, run.bold, run.italic,
+                    run.underline, run.strikethrough, fontSize, scale);
+            results.add(new PositionedResult(x, rendered));
+            x += rendered.advance();
+        }
+        return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
+    }
+
+    private TextRenderResult renderAtScaleWithModernShadow(
+            FormattedRun run, float fontSize, float scale, ShadowRenderSpec spec) {
+        List<String> segments = renderingSegments(run.text, run.bold, run.italic, fontSize, scale);
+        if (segments.size() > 1) {
+            return renderModernShadowSegments(segments, run, fontSize, scale, spec);
+        }
+        try {
+            return renderSingle(run.text, run.argb, run.bold, run.italic,
+                    run.underline, run.strikethrough, fontSize, scale, true, null, spec);
+        } catch (IllegalStateException error) {
+            if (!isRasterSizeError(error)) throw error;
+            List<String> fallbackSegments = CosmicTextSegmenter.splitInHalf(run.text);
+            if (fallbackSegments.size() <= 1) throw error;
+            return renderModernShadowSegments(fallbackSegments, run, fontSize, scale, spec);
+        }
+    }
+
+    private TextRenderResult renderModernShadowSegments(
+            List<String> segments, FormattedRun run, float fontSize, float scale,
+            ShadowRenderSpec spec) {
+        List<TextRenderResult> results = new ArrayList<>(segments.size());
+        for (String segment : segments) {
+            FormattedRun part = new FormattedRun(segment, run.argb, run.bold, run.italic,
+                    run.underline, run.strikethrough, false);
+            results.add(renderAtScaleWithModernShadow(part, fontSize, scale, spec));
+        }
+        return CompositeTextRenderResult.of(results);
     }
 
     private List<String> renderingSegments(String text, boolean bold, boolean italic,
                                            float fontSize, float scale) {
         return CosmicTextSegmenter.split(text, SEGMENT_RASTER_ADVANCE_LIMIT,
                 segment -> measureAtSize(segment, bold, italic, fontSize) * scale);
+    }
+
+    private List<FormattedRun> structuredRuns(StructuredText text, int baseArgb, boolean shadow,
+                                              ShadowRenderSpec shadowSpec) {
+        List<FormattedRun> result = new ArrayList<>();
+        int base = normalizeAlpha(baseArgb);
+        ShadowRenderSpec spec = shadowSpec == null ? ShadowRenderSpec.fromConfig() : shadowSpec;
+        for (StyledSpan span : text.styles()) {
+            if (span.end() <= span.start()) continue;
+            TextStyle style = span.style();
+            int color = style.hasColorOverride()
+                    ? (base & 0xFF000000) | style.rgb() : base;
+            if (shadow) {
+                color = ShadowColorPolicy.modernColor(color, spec.color, spec.colorMode,
+                        spec.colorOverrides, legacyColorCodes,
+                        spec.coloredRatio, spec.coloredFunction);
+            }
+            result.add(new FormattedRun(text.plainText().substring(span.start(), span.end()),
+                    color, style.bold(), style.italic(), style.underline(),
+                    style.strikethrough(), style.obfuscated()));
+        }
+        return result;
+    }
+
+    private TextRenderResult structuredWithInline(StructuredText text, int baseArgb,
+                                                   boolean shadow, float fontSize, float scale,
+                                                   ShadowRenderSpec spec) {
+        List<TextRenderResult> pieces = new ArrayList<>();
+        int cursor = 0;
+        for (InlineSpan inline : text.inlineSpans()) {
+            if (inline.start() > cursor) {
+                StructuredText segment = text.slice(cursor, inline.start());
+                pieces.add(renderStructuredSegment(segment, baseArgb, shadow, fontSize, scale, spec));
+            }
+            pieces.add(new InlineRasterTextRenderResult(inline.content(), fontSize,
+                    inlineColor(text, inline.start(), baseArgb, shadow, spec), shadow));
+            cursor = inline.end();
+        }
+        if (cursor < text.plainText().length()) {
+            pieces.add(renderStructuredSegment(text.slice(cursor, text.plainText().length()),
+                    baseArgb, shadow, fontSize, scale, spec));
+        }
+        return CompositeTextRenderResult.of(pieces);
+    }
+
+    private TextRenderResult renderStructuredSegment(StructuredText text, int baseArgb,
+                                                      boolean shadow, float fontSize, float scale,
+                                                      ShadowRenderSpec spec) {
+        List<PositionedResult> results = new ArrayList<>();
+        float x = 0.0F;
+        for (FormattedRun run : structuredRuns(text, baseArgb, shadow, spec)) {
+            TextRenderResult rendered = run.obfuscated
+                    ? new AnimatedObfuscatedResult(run, fontSize, scale)
+                    : renderAtScale(run.text, run.argb, run.bold, run.italic,
+                    run.underline, run.strikethrough, fontSize, scale);
+            results.add(new PositionedResult(x, rendered));
+            x += rendered.advance();
+        }
+        return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
+    }
+
+    private int inlineColor(StructuredText text, int index, int baseArgb, boolean shadow,
+                            ShadowRenderSpec shadowSpec) {
+        TextStyle style = text.styleAt(index);
+        int color = style.hasColorOverride()
+                ? (normalizeAlpha(baseArgb) & 0xFF000000) | style.rgb() : normalizeAlpha(baseArgb);
+        if (!shadow) return color;
+        ShadowRenderSpec spec = shadowSpec == null ? ShadowRenderSpec.fromConfig() : shadowSpec;
+        return ShadowColorPolicy.modernColor(color, spec.color, spec.colorMode,
+                spec.colorOverrides, legacyColorCodes, spec.coloredRatio, spec.coloredFunction);
     }
 
     private TextRenderResult renderSegments(List<String> segments, int argb,
@@ -481,31 +614,30 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         }
 
         if (modernShadow) {
-            // Keep the foreground anchored to the native glyph bearing. Compositing it into the
-            // expanded blur texture makes the whole title inherit the blur origin and can turn
-            // tiny raster-scale changes into visible horizontal motion.
+            // Compose ordinary RGBA text into one expanded texture. The expanded origin is
+            // carried into the draw offset below, so the native glyph bearing and advance stay
+            // unchanged while the shadow and foreground share one upload and one quad.
             float shadowGeometryScale = Math.max(1.0F, fontSize)
                     / Math.max(1.0F, NeofontrenderConfig.fontSize());
-            ModernShadowRasterizer.Result shadow = ModernShadowRasterizer.shadow(
+            int shadowColor = explicitShadowArgb != null ? explicitShadowArgb
+                    : ShadowColorPolicy.modernColor(
+                            foregroundArgb, spec.color, spec.colorMode,
+                            spec.colorOverrides, legacyColorCodes,
+                            spec.coloredRatio, spec.coloredFunction);
+            ModernShadowRasterizer.Result composed = ModernShadowRasterizer.compose(
                     foregroundPixels, width, height, scale,
                     spec.offsetX * shadowGeometryScale,
                     spec.offsetY * shadowGeometryScale,
                     spec.blurRadius * shadowGeometryScale,
-                    explicitShadowArgb != null ? explicitShadowArgb
-                            : ShadowColorPolicy.modernColor(
-                                        foregroundArgb, spec.color, spec.colorMode,
-                                        spec.colorOverrides, legacyColorCodes,
-                                        spec.coloredRatio, spec.coloredFunction),
-                    spec.opacity, false);
-            UploadedTexture foreground = uploadRgbaTexture(foregroundPixels, width, height, scale);
-            UploadedTexture shadowTexture = uploadRgbaTexture(shadow.pixels,
-                    shadow.width, shadow.height, scale);
-            return new CosmicRenderedText(diagnosticText, foreground.location, foreground.texture,
-                    shadowTexture.location, shadowTexture.texture,
-                    advance, width / scale, height / scale, baseOffsetX, baseOffsetY, scale,
-                    false, foregroundArgb, shadow.width / scale, shadow.height / scale,
-                    baseOffsetX - shadow.originX / scale,
-                    baseOffsetY - shadow.originY / scale);
+                    shadowColor, spec.opacity, false);
+            UploadedTexture composedTexture = uploadRgbaTexture(composed.pixels,
+                    composed.width, composed.height, scale);
+            return new CosmicRenderedText(diagnosticText, composedTexture.location,
+                    composedTexture.texture, null, null,
+                    advance, composed.width / scale, composed.height / scale,
+                    baseOffsetX - composed.originX / scale,
+                    baseOffsetY - composed.originY / scale, scale,
+                    false, foregroundArgb, 0.0F, 0.0F, 0.0F, 0.0F);
         }
         UploadedTexture uploaded = uploadRgbaTexture(foregroundPixels, width, height, scale);
         return new CosmicRenderedText(diagnosticText, uploaded.location, uploaded.texture, null, null,
@@ -678,72 +810,6 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         return output.toByteArray();
     }
 
-    private List<FormattedRun> parseFormatted(String text, int baseArgb, boolean shadow) {
-        return parseFormatted(text, baseArgb, shadow,
-                shadow ? ShadowRenderSpec.fromConfig() : null);
-    }
-
-    private List<FormattedRun> parseFormatted(String text, int baseArgb, boolean shadow,
-                                               ShadowRenderSpec shadowSpec) {
-        List<FormattedRun> runs = new ArrayList<>();
-        if (text == null || text.isEmpty()) {
-            return runs;
-        }
-        int[] colorCodes = legacyColorCodes;
-        ShadowRenderSpec spec = shadowSpec == null ? ShadowRenderSpec.fromConfig() : shadowSpec;
-        String colorMode = spec.colorMode;
-        ShadowColorRemapRules remapRules = spec.colorOverrides;
-        int configuredShadowColor = spec.color;
-        int color = shadow
-                ? ShadowColorPolicy.shadowColor(normalizeAlpha(baseArgb), colorMode,
-                        configuredShadowColor, remapRules, colorCodes,
-                        spec.coloredRatio, spec.coloredFunction)
-                : normalizeAlpha(baseArgb);
-        boolean bold = false;
-        boolean italic = false;
-        boolean underline = false;
-        boolean strikethrough = false;
-        int start = 0;
-        for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) != '\u00a7' || i + 1 >= text.length()) {
-                continue;
-            }
-            if (i > start) {
-                runs.add(new FormattedRun(text.substring(start, i), color, bold, italic,
-                        underline, strikethrough));
-            }
-            char code = Character.toLowerCase(text.charAt(++i));
-            int colorIndex = "0123456789abcdef".indexOf(code);
-            if (colorIndex >= 0) {
-                color = ShadowColorPolicy.paletteColor(colorIndex,
-                        normalizeAlpha(baseArgb), shadow, colorMode, configuredShadowColor,
-                        remapRules, colorCodes, spec.coloredRatio, spec.coloredFunction);
-                bold = italic = underline = strikethrough = false;
-            } else if (code == 'l') {
-                bold = true;
-            } else if (code == 'm') {
-                strikethrough = true;
-            } else if (code == 'n') {
-                underline = true;
-            } else if (code == 'o') {
-                italic = true;
-            } else if (code == 'r') {
-                color = shadow
-                        ? ShadowColorPolicy.shadowColor(normalizeAlpha(baseArgb), colorMode,
-                                configuredShadowColor, remapRules, colorCodes,
-                                spec.coloredRatio, spec.coloredFunction)
-                        : normalizeAlpha(baseArgb);
-                bold = italic = underline = strikethrough = false;
-            }
-            start = i + 1;
-        }
-        if (start < text.length()) {
-            runs.add(new FormattedRun(text.substring(start), color, bold, italic,
-                    underline, strikethrough));
-        }
-        return runs;
-    }
-
     private static int normalizeAlpha(int color) {
         return (color & 0xFC000000) == 0 ? color | 0xFF000000 : color;
     }
@@ -843,6 +909,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         }
         renderCache.clear();
         measureCache.clear();
+        obfuscatedCandidateCache.clear();
         if (engine != 0L) {
             CosmicNative.destroyEngine(engine);
             engine = 0L;
@@ -949,15 +1016,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             float left = FontRenderTuning.alignToPixel(x + offsetX);
             float top = FontRenderTuning.alignToPixel(y + offsetY);
             if (sdf) {
-                if (shadowTexture != null && shadowLocation != null
-                        && shadowWidth > 0.0F && shadowHeight > 0.0F) {
-                    float shadowLeft = FontRenderTuning.alignToPixel(x + shadowOffsetX);
-                    float shadowTop = FontRenderTuning.alignToPixel(y + shadowOffsetY);
-                    try (PremultipliedBlendState ignored = new PremultipliedBlendState()) {
-                        drawRgba(shadowLocation, shadowTexture, shadowLeft, shadowTop,
-                                shadowWidth, shadowHeight, tint);
-                    }
-                }
+                drawShadowOnly(x, y, tint);
                 try (CosmicSdfPipeline.State ignored = CosmicSdfPipeline.begin()) {
                     if (ignored.isNoop()) return;
                     if (BuildFeatures.RENDER_STATS) {
@@ -975,15 +1034,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                 }
                 return;
             }
-            if (shadowTexture != null && shadowLocation != null
-                    && shadowWidth > 0.0F && shadowHeight > 0.0F) {
-                float shadowLeft = FontRenderTuning.alignToPixel(x + shadowOffsetX);
-                float shadowTop = FontRenderTuning.alignToPixel(y + shadowOffsetY);
-                try (PremultipliedBlendState ignored = new PremultipliedBlendState()) {
-                    drawRgba(shadowLocation, shadowTexture, shadowLeft, shadowTop,
-                            shadowWidth, shadowHeight, tint);
-                }
-            }
+            drawShadowOnly(x, y, tint);
             // Cosmic uploaders provide premultiplied textures (RGBA8 or RGBA16F). Force the matching
             // blend function because surrounding mods frequently leave Minecraft's cached blend
             // state configured for straight-alpha GUI textures.
@@ -993,6 +1044,17 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                             x, y, width, height, offsetX, offsetY, scale);
                 }
                 drawRgba(location, texture, left, top, width, height, tint);
+            }
+        }
+
+        private void drawShadowOnly(float x, float y, float tint) {
+            if (shadowTexture == null || shadowLocation == null
+                    || shadowWidth <= 0.0F || shadowHeight <= 0.0F) return;
+            float shadowLeft = FontRenderTuning.alignToPixel(x + shadowOffsetX);
+            float shadowTop = FontRenderTuning.alignToPixel(y + shadowOffsetY);
+            try (PremultipliedBlendState ignored = new PremultipliedBlendState()) {
+                drawRgba(shadowLocation, shadowTexture, shadowLeft, shadowTop,
+                        shadowWidth, shadowHeight, tint);
             }
         }
 
@@ -1065,20 +1127,31 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         private final boolean blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
         private final boolean alphaTestEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
         private final boolean fogEnabled = GL11.glIsEnabled(GL11.GL_FOG);
-        private final boolean textureEnabled = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
         private final int srcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
         private final int dstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
         private final int srcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
         private final int dstAlpha = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
         private final int blendEquationRgb = GL11.glGetInteger(GL20.GL_BLEND_EQUATION_RGB);
         private final int blendEquationAlpha = GL11.glGetInteger(GL20.GL_BLEND_EQUATION_ALPHA);
-        private final int textureBinding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         private final boolean[] colorMask = readColorMask();
         private final float[] color = readColor();
+        private final int activeTexture;
+        private final boolean activeTextureEnabled;
+        private final int activeTextureBinding;
+        private final boolean texture0Enabled;
+        private final int texture0Binding;
 
         private PremultipliedBlendState() {
+            activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+            activeTextureEnabled = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
+            activeTextureBinding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            selectTextureUnit(GL13.GL_TEXTURE0);
+            texture0Enabled = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
+            texture0Binding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
             GlStateManager.enableTexture2D();
+            GL11.glEnable(GL11.GL_TEXTURE_2D);
             GlStateManager.disableAlpha();
+            GL11.glDisable(GL11.GL_ALPHA_TEST);
             // Fixed-function fog adds fog RGB without scaling it by glyph coverage. That breaks the
             // premultiplied invariant at antialiased edges and GL_ONE then exposes it as a halo.
             GlStateManager.disableFog();
@@ -1111,13 +1184,36 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             }
             if (alphaTestEnabled) GlStateManager.enableAlpha();
             else GlStateManager.disableAlpha();
+            if (alphaTestEnabled) GL11.glEnable(GL11.GL_ALPHA_TEST);
+            else GL11.glDisable(GL11.GL_ALPHA_TEST);
             if (fogEnabled) GlStateManager.enableFog();
             else GlStateManager.disableFog();
-            if (textureEnabled) GlStateManager.enableTexture2D();
-            else GlStateManager.disableTexture2D();
-            GlStateManager.bindTexture(textureBinding);
+            if (fogEnabled) GL11.glEnable(GL11.GL_FOG);
+            else GL11.glDisable(GL11.GL_FOG);
+            restoreTextureUnit(GL13.GL_TEXTURE0, texture0Enabled, texture0Binding);
+            if (activeTexture != GL13.GL_TEXTURE0) {
+                restoreTextureUnit(activeTexture, activeTextureEnabled, activeTextureBinding);
+            }
+            selectTextureUnit(activeTexture);
+            GlStateManager.colorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
             GL11.glColorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
             GlStateManager.color(color[0], color[1], color[2], color[3]);
+            GL11.glColor4f(color[0], color[1], color[2], color[3]);
+        }
+
+        private static void restoreTextureUnit(int unit, boolean enabled, int binding) {
+            selectTextureUnit(unit);
+            if (enabled) GlStateManager.enableTexture2D();
+            else GlStateManager.disableTexture2D();
+            if (enabled) GL11.glEnable(GL11.GL_TEXTURE_2D);
+            else GL11.glDisable(GL11.GL_TEXTURE_2D);
+            GlStateManager.bindTexture(binding);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, binding);
+        }
+
+        private static void selectTextureUnit(int unit) {
+            GlStateManager.setActiveTexture(unit);
+            GL13.glActiveTexture(unit);
         }
 
         private static boolean[] readColorMask() {
@@ -1193,6 +1289,114 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         }
     }
 
+    private final class AnimatedObfuscatedResult implements TextRenderResult {
+        private static final String CANDIDATES =
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                        + "\u5929\u5730\u7384\u9ec4\u5b87\u5b99\u6d2a\u8352\u4e2d\u6587\u6d4b\u8bd5";
+        private final FormattedRun run;
+        private final float fontSize;
+        private final float scale;
+        private final List<ObfuscatedSlot> slots = new ArrayList<>();
+        private final float advance;
+
+        private AnimatedObfuscatedResult(FormattedRun run, float fontSize, float scale) {
+            this.run = run;
+            this.fontSize = fontSize;
+            this.scale = scale;
+            float cursor = 0.0F;
+            for (int index = 0; index < run.text.length();) {
+                int codePoint = run.text.codePointAt(index);
+                String original = new String(Character.toChars(codePoint));
+                float width = measureAtSize(original, run.bold, run.italic, fontSize);
+                if (!Character.isWhitespace(codePoint)) {
+                    slots.add(new ObfuscatedSlot(cursor, width,
+                            candidatesNearestTo(width, run.bold, run.italic, fontSize), index));
+                }
+                cursor += width;
+                index += Character.charCount(codePoint);
+            }
+            advance = cursor;
+        }
+
+        @Override public float advance() { return advance; }
+        @Override public float visualRight() { return advance; }
+        @Override public float visualBottom() { return fontSize + 2.0F; }
+
+        @Override
+        public void draw(float x, float y, float alpha) {
+            long frame = TextAnimationFrame.current();
+            for (ObfuscatedSlot slot : slots) {
+                int mixed = (int) ((frame * 0x9E3779B97F4A7C15L
+                        + slot.sourceIndex * 0xC2B2AE3D27D4EB4FL) >>> 32);
+                String selected = slot.candidates[Math.floorMod(mixed, slot.candidates.length)];
+                TextRenderResult glyph = renderAtScale(selected, run.argb, run.bold, run.italic,
+                        run.underline, run.strikethrough, fontSize, scale);
+                glyph.draw(x + slot.x, y, alpha);
+            }
+        }
+
+        private String[] candidatesNearestTo(float target, boolean bold, boolean italic,
+                                             float size) {
+            ObfuscatedCandidateKey key = new ObfuscatedCandidateKey(target, bold, italic, size);
+            String[] cached = obfuscatedCandidateCache.get(key);
+            if (cached != null) return cached;
+            List<String> candidates = new ArrayList<>();
+            float best = Float.POSITIVE_INFINITY;
+            for (int index = 0; index < CANDIDATES.length();) {
+                int codePoint = CANDIDATES.codePointAt(index);
+                String value = new String(Character.toChars(codePoint));
+                float delta = Math.abs(measureAtSize(value, bold, italic, size) - target);
+                if (delta + 0.01F < best) {
+                    candidates.clear();
+                    best = delta;
+                }
+                if (Math.abs(delta - best) <= 0.01F) candidates.add(value);
+                index += Character.charCount(codePoint);
+            }
+            String[] result = candidates.isEmpty() ? new String[]{"?"} : candidates.toArray(new String[0]);
+            obfuscatedCandidateCache.put(key, result);
+            return result;
+        }
+    }
+
+    private static final class ObfuscatedCandidateKey {
+        final int target;
+        final int size;
+        final int flags;
+
+        ObfuscatedCandidateKey(float target, boolean bold, boolean italic, float size) {
+            this.target = Float.floatToIntBits(target);
+            this.size = Float.floatToIntBits(size);
+            this.flags = (bold ? 1 : 0) | (italic ? 2 : 0);
+        }
+
+        @Override
+        public boolean equals(Object object) {
+            if (!(object instanceof ObfuscatedCandidateKey)) return false;
+            ObfuscatedCandidateKey other = (ObfuscatedCandidateKey) object;
+            return target == other.target && size == other.size && flags == other.flags;
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * (31 * target + size) + flags;
+        }
+    }
+
+    private static final class ObfuscatedSlot {
+        final float x;
+        final float advance;
+        final String[] candidates;
+        final int sourceIndex;
+
+        private ObfuscatedSlot(float x, float advance, String[] candidates, int sourceIndex) {
+            this.x = x;
+            this.advance = advance;
+            this.candidates = candidates;
+            this.sourceIndex = sourceIndex;
+        }
+    }
+
     private static final class FormattedRun {
         private final String text;
         private final int argb;
@@ -1200,15 +1404,22 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         private final boolean italic;
         private final boolean underline;
         private final boolean strikethrough;
+        private final boolean obfuscated;
 
         private FormattedRun(String text, int argb, boolean bold, boolean italic,
                              boolean underline, boolean strikethrough) {
+            this(text, argb, bold, italic, underline, strikethrough, false);
+        }
+
+        private FormattedRun(String text, int argb, boolean bold, boolean italic,
+                             boolean underline, boolean strikethrough, boolean obfuscated) {
             this.text = text;
             this.argb = argb;
             this.bold = bold;
             this.italic = italic;
             this.underline = underline;
             this.strikethrough = strikethrough;
+            this.obfuscated = obfuscated;
         }
     }
 

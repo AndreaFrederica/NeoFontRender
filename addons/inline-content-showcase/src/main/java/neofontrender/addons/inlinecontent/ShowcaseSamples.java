@@ -30,7 +30,7 @@ public final class ShowcaseSamples {
     public static final List<Sample> MARKDOWN = Collections.unmodifiableList(Arrays.asList(
             new Sample("Emphasis", "**Bold**  *italic*  ~~strikethrough~~",
                     "**Bold**  *italic*  ~~strikethrough~~"),
-            new Sample("Code and link", "Use `TextPipelineApi.register` or [open docs](https://example.invalid)",
+            new Sample("Code and link", "Use `StructuredTextApi.register` or [open docs](https://example.invalid)",
                     "`code` and [label](url)"),
             new Sample("Markdown with LaTeX", "**Euler identity:** $e^{i\\pi}+1=0$",
                     "**Euler identity:** followed by $...$"),

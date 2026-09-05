@@ -15,11 +15,11 @@ import neofontrender.addons.chat.ChatItemIconRenderer;
 import neofontrender.addons.chat.ChatTimestampDecorator;
 import neofontrender.addons.chat.ChatInlineLayout;
 import neofontrender.addons.chat.EnhancedChatFeatures;
-import neofontrender.api.text.pipeline.TextPipelineEngine;
-import neofontrender.api.text.pipeline.TextPipelineLayout;
+import neofontrender.api.text.route.TextRenderRouteApi;
+import neofontrender.api.text.route.TextRenderRouteLayout;
 import neofontrender.addons.cjk.ChatTypographyRenderer;
 import neofontrender.addons.cjk.CjkTypographyRenderer;
-import neofontrender.api.text.pipeline.ParagraphLayoutMiddleware;
+import neofontrender.api.text.paragraph.TextParagraphProvider;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -75,7 +75,7 @@ public abstract class MixinGuiNewChatFeatures {
         ITextComponent decorated = ChatItemIconRenderer.decorate(component);
         List<ITextComponent> positioned = CjkTypographyRenderer.splitComponents(
                 font, decorated, width, keepNewlines, forceTextColor,
-                ParagraphLayoutMiddleware.ComponentRequest.Surface.CHAT);
+                TextParagraphProvider.ComponentRequest.Surface.CHAT);
         return positioned != null ? positioned : GuiUtilRenderComponents.splitText(
                 decorated, width, font, keepNewlines, forceTextColor);
     }
@@ -116,10 +116,6 @@ public abstract class MixinGuiNewChatFeatures {
         if (EnhancedChatFeatures.inlineGlyphs()) {
             int row = Math.max(0, Math.round((-y - 8.0F) / 9.0F));
             drawY = ChatInlineLayout.contentY(drawnChatLines, scrollPos, row, font);
-            TextPipelineLayout inline = TextPipelineEngine.layout(font, text);
-            if (inline.hasInlineContent()) {
-                return inline.draw(font, drawX, drawY, color, true);
-            }
         }
         return ChatTypographyRenderer.isPositioned(component)
                 ? ChatTypographyRenderer.draw(font, component, drawX, drawY, color, true)
@@ -168,7 +164,7 @@ public abstract class MixinGuiNewChatFeatures {
             cir.setReturnValue(null);
             return;
         }
-        TextPipelineLayout inline = TextPipelineEngine.layout(
+        TextRenderRouteLayout inline = TextRenderRouteApi.layout(
                 minecraft.fontRenderer, line.getFormattedText());
         if (ChatTypographyRenderer.isPositioned(line) && !inline.hasInlineContent()) {
             cir.setReturnValue(ChatTypographyRenderer.componentAt(line, localX));
@@ -179,7 +175,7 @@ public abstract class MixinGuiNewChatFeatures {
             if (!(component instanceof TextComponentString)) continue;
             String clean = GuiUtilRenderComponents.removeTextColorsIfConfigured(
                     ((TextComponentString) component).getText(), false);
-            right += TextPipelineEngine.width(minecraft.fontRenderer, clean);
+            right += TextRenderRouteApi.width(minecraft.fontRenderer, clean);
             if (right > localX) {
                 cir.setReturnValue(component);
                 return;

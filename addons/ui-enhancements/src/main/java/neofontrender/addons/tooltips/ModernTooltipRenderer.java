@@ -26,10 +26,10 @@ import java.util.ArrayList;
 import java.util.List;
 import neofontrender.addons.cjk.CjkTypographyRenderer;
 import neofontrender.addons.inline.EmbeddedContentConfig;
-import neofontrender.api.text.pipeline.ParagraphLayoutMiddleware;
-import neofontrender.api.text.pipeline.InlineContentHit;
-import neofontrender.api.text.pipeline.TextPipelineEngine;
-import neofontrender.api.text.pipeline.TextPipelineLayout;
+import neofontrender.api.text.paragraph.TextParagraphProvider;
+import neofontrender.api.text.route.TextInlineBounds;
+import neofontrender.api.text.route.TextRenderRouteApi;
+import neofontrender.api.text.route.TextRenderRouteLayout;
 
 final class ModernTooltipRenderer {
     private static final int Z_LEVEL = 300;
@@ -151,9 +151,9 @@ final class ModernTooltipRenderer {
 
     private static void drawInlineDebugBounds(TooltipLayout tooltip, FontRenderer font,
                                               int lineIndex, int rowY) {
-        TextPipelineLayout line;
+        TextRenderRouteLayout line;
         try {
-            line = TextPipelineEngine.layout(font, tooltip.lines.get(lineIndex));
+            line = TextRenderRouteApi.layout(font, tooltip.lines.get(lineIndex));
         } catch (RuntimeException ignored) {
             return;
         }
@@ -167,7 +167,7 @@ final class ModernTooltipRenderer {
         }
         float originX = lineX + tooltip.profile().offsetX;
         float originY = rowY + tooltip.profile().offsetY;
-        for (InlineContentHit hit : line.inlineContentBounds(font)) {
+        for (TextInlineBounds hit : line.inlineBounds()) {
             int left = Math.round(originX + hit.x() * scale);
             int top = Math.round(originY + hit.y() * scale);
             int right = Math.round(originX + (hit.x() + hit.width()) * scale);
@@ -374,7 +374,7 @@ final class ModernTooltipRenderer {
             int paragraphWidth = lineBreaksAlreadyApplied ? 1_000_000
                     : Math.max(1, compact ? Math.round(width * 2.0F / activeProfile.textScale)
                             : Math.round(width / activeProfile.textScale));
-            ParagraphLayoutMiddleware.Layout paragraph = CjkTypographyRenderer.layout(
+            TextParagraphProvider.Layout paragraph = CjkTypographyRenderer.layout(
                     font, line, paragraphWidth,
                     compact ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT * 2 : TooltipConfig.lineHeight);
             int renderedWidth = lineBreaksAlreadyApplied && measuredLineWidths != null

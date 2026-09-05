@@ -57,6 +57,8 @@ public final class NfrSettingsDraft {
     public final boolean originalMipmap = NeofontrenderConfig.renderingMipmap();
     public final boolean originalEnhancedTextPipeline = NeofontrenderConfig.enhancedTextPipeline();
     public final boolean originalShaderTextPipeline = NeofontrenderConfig.shaderTextPipeline();
+    public final boolean originalVanillaFormattingCompatibility = NeofontrenderConfig.vanillaFormattingCompatibility();
+    public final boolean originalBrilliantTextEnabled = NeofontrenderConfig.brilliantTextEnabled();
     public final boolean originalDebugRenderStats = NeofontrenderConfig.debugRenderStats();
     public final boolean originalSignModelLod = NeofontrenderConfig.signModelLod();
     public final boolean originalSignBlockOcclusionCulling = NeofontrenderConfig.signBlockOcclusionCulling();
@@ -83,6 +85,7 @@ public final class NfrSettingsDraft {
     public final boolean originalLaboratoryHexChat = NeofontrenderConfig.laboratoryHexChat();
     public final boolean originalLaboratoryHexChatResetStyles = NeofontrenderConfig.laboratoryHexChatResetStyles();
     public final boolean originalLaboratoryTextUndoRedo = NeofontrenderConfig.laboratoryTextUndoRedo();
+    public final boolean originalLaboratoryBrilliantAnyPosition = NeofontrenderConfig.laboratoryBrilliantAnyPosition();
     public final boolean originalCompatModernSplash = NeofontrenderConfig.compatModernSplash();
     public final boolean originalCompatTinkersAntique = NeofontrenderConfig.compatTinkersAntique();
     public final boolean originalCompatThaumcraftTooltip = NeofontrenderConfig.compatThaumcraftTooltip();
@@ -113,6 +116,8 @@ public final class NfrSettingsDraft {
     public boolean mipmap = originalMipmap;
     public boolean enhancedTextPipeline = originalEnhancedTextPipeline;
     public boolean shaderTextPipeline = originalShaderTextPipeline;
+    public boolean vanillaFormattingCompatibility = originalVanillaFormattingCompatibility;
+    public boolean brilliantTextEnabled = originalBrilliantTextEnabled;
     public boolean debugRenderStats = originalDebugRenderStats;
     public boolean signModelLod = originalSignModelLod;
     public boolean signBlockOcclusionCulling = originalSignBlockOcclusionCulling;
@@ -138,6 +143,7 @@ public final class NfrSettingsDraft {
     public boolean laboratoryHexChat = originalLaboratoryHexChat;
     public boolean laboratoryHexChatResetStyles = originalLaboratoryHexChatResetStyles;
     public boolean laboratoryTextUndoRedo = originalLaboratoryTextUndoRedo;
+    public boolean laboratoryBrilliantAnyPosition = originalLaboratoryBrilliantAnyPosition;
     public boolean compatModernSplash = originalCompatModernSplash;
     public boolean compatTinkersAntique = originalCompatTinkersAntique;
     public boolean compatThaumcraftTooltip = originalCompatThaumcraftTooltip;
@@ -276,6 +282,8 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setRenderingMipmap(mipmap);
         NeofontrenderConfig.setEnhancedTextPipeline(enhancedTextPipeline);
         NeofontrenderConfig.setShaderTextPipeline(shaderTextPipeline);
+        NeofontrenderConfig.setVanillaFormattingCompatibility(vanillaFormattingCompatibility);
+        NeofontrenderConfig.setBrilliantTextEnabled(brilliantTextEnabled);
         NeofontrenderConfig.setDebugRenderStats(debugRenderStats);
         NeofontrenderConfig.setSignModelLod(signModelLod);
         NeofontrenderConfig.setSignBlockOcclusionCulling(signBlockOcclusionCulling);
@@ -303,6 +311,7 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryHexChat(laboratoryHexChat);
         NeofontrenderConfig.setLaboratoryHexChatResetStyles(laboratoryHexChatResetStyles);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(laboratoryTextUndoRedo);
+        NeofontrenderConfig.setLaboratoryBrilliantAnyPosition(laboratoryBrilliantAnyPosition);
         NeofontrenderConfig.setCompatModernSplash(compatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(compatTinkersAntique);
         NeofontrenderConfig.setCompatThaumcraftTooltip(compatThaumcraftTooltip);
@@ -355,6 +364,8 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setRenderingMipmap(originalMipmap);
         NeofontrenderConfig.setEnhancedTextPipeline(originalEnhancedTextPipeline);
         NeofontrenderConfig.setShaderTextPipeline(originalShaderTextPipeline);
+        NeofontrenderConfig.setVanillaFormattingCompatibility(originalVanillaFormattingCompatibility);
+        NeofontrenderConfig.setBrilliantTextEnabled(originalBrilliantTextEnabled);
         NeofontrenderConfig.setDebugRenderStats(originalDebugRenderStats);
         NeofontrenderConfig.setSignModelLod(originalSignModelLod);
         NeofontrenderConfig.setSignBlockOcclusionCulling(originalSignBlockOcclusionCulling);
@@ -380,6 +391,7 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryHexChat(originalLaboratoryHexChat);
         NeofontrenderConfig.setLaboratoryHexChatResetStyles(originalLaboratoryHexChatResetStyles);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(originalLaboratoryTextUndoRedo);
+        NeofontrenderConfig.setLaboratoryBrilliantAnyPosition(originalLaboratoryBrilliantAnyPosition);
         NeofontrenderConfig.setCompatModernSplash(originalCompatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(originalCompatTinkersAntique);
         NeofontrenderConfig.setCompatThaumcraftTooltip(originalCompatThaumcraftTooltip);

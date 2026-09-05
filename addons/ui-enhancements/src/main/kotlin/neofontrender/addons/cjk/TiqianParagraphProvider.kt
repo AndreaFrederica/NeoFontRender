@@ -2,7 +2,7 @@ package neofontrender.addons.cjk
 
 import net.minecraft.util.text.ITextComponent
 import net.minecraft.util.text.TextComponentString
-import neofontrender.api.text.pipeline.ParagraphLayoutMiddleware
+import neofontrender.api.text.paragraph.TextParagraphProvider
 import neofontrender.core.font.pipeline.LayoutText
 import org.tiqian.clreq.CjkPunctuationGlyphPolicy
 import org.tiqian.clreq.ClreqProfile
@@ -36,18 +36,18 @@ import java.util.Locale
 import kotlin.math.abs
 
 /** Tiqian-backed paragraph provider kept entirely inside the optional UIE addon. */
-object TiqianParagraphProvider : ParagraphLayoutMiddleware {
+object TiqianParagraphProvider : TextParagraphProvider {
     private const val CACHE_LIMIT = 512
     private const val PROFILE_LOCALE = "zh-Hans"
     private val chatSpeakerPrefix = Regex(
         "^\\s*(?:\\[[^\\]\\r\\n]{1,32}]\\s*)*(<[^<>\\s]{1,64}>)",
     )
 
-    private val cache = object : LinkedHashMap<CacheKey, ParagraphLayoutMiddleware.Layout>(
+    private val cache = object : LinkedHashMap<CacheKey, TextParagraphProvider.Layout>(
         CACHE_LIMIT + 1, 0.75f, true,
     ) {
         override fun removeEldestEntry(
-            eldest: MutableMap.MutableEntry<CacheKey, ParagraphLayoutMiddleware.Layout>,
+            eldest: MutableMap.MutableEntry<CacheKey, TextParagraphProvider.Layout>,
         ): Boolean = size > CACHE_LIMIT
     }
 
@@ -56,8 +56,8 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
     override fun priority(): Int = 100
 
     override fun layout(
-        request: ParagraphLayoutMiddleware.Request,
-    ): ParagraphLayoutMiddleware.Layout? {
+        request: TextParagraphProvider.Request,
+    ): TextParagraphProvider.Layout? {
         if (!enabledFor(request.languageCode())) return null
         val parsed = LayoutText.process(request.formattedText())
         if (!containsCjk(parsed.visibleText())) return null
@@ -73,10 +73,10 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
     }
 
     override fun splitComponents(
-        request: ParagraphLayoutMiddleware.ComponentRequest,
+        request: TextParagraphProvider.ComponentRequest,
     ): List<ITextComponent>? {
         if (!enabledFor(request.languageCode())) return null
-        if (request.surface() == ParagraphLayoutMiddleware.ComponentRequest.Surface.DEFAULT) return null
+        if (request.surface() == TextParagraphProvider.ComponentRequest.Surface.DEFAULT) return null
 
         val segments = mutableListOf<ComponentSegment>()
         val formatted = StringBuilder()
@@ -162,7 +162,7 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
         return false
     }
 
-    private fun metricProbe(measurer: ParagraphLayoutMiddleware.TextMeasurer): Int {
+    private fun metricProbe(measurer: TextParagraphProvider.TextMeasurer): Int {
         var hash = 1
         for (sample in listOf("汉", "Aa", "，。", "\u00a7l汉")) {
             hash = 31 * hash + measurer.measureFormatted(sample).toBits()
@@ -174,13 +174,13 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
         parsed: LayoutText,
         maxWidth: Int,
         lineHeight: Int,
-        measurer: ParagraphLayoutMiddleware.TextMeasurer,
-        surface: ParagraphLayoutMiddleware.ComponentRequest.Surface =
-            ParagraphLayoutMiddleware.ComponentRequest.Surface.DEFAULT,
+        measurer: TextParagraphProvider.TextMeasurer,
+        surface: TextParagraphProvider.ComponentRequest.Surface =
+            TextParagraphProvider.ComponentRequest.Surface.DEFAULT,
     ): BuiltLayout {
         if (parsed.visibleText().isEmpty()) {
-            val line = ParagraphLayoutMiddleware.Line(0, 0, 0f, false, emptyList())
-            return BuiltLayout(ParagraphLayoutMiddleware.Layout(listOf(line)), listOf(TextRange(0, 0)))
+            val line = TextParagraphProvider.Line(0, 0, 0f, false, emptyList())
+            return BuiltLayout(TextParagraphProvider.Layout(listOf(line)), listOf(TextRange(0, 0)))
         }
 
         val em = maxOf(1f, measurer.measureFormatted("汉"))
@@ -205,7 +205,7 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
         var guiProfile = ClreqProfile.MainlandHorizontal.copy(
             punctuationGlyphPolicy = CjkPunctuationGlyphPolicy.PreserveInput,
         )
-        if (surface == ParagraphLayoutMiddleware.ComponentRequest.Surface.CHAT) {
+        if (surface == TextParagraphProvider.ComponentRequest.Surface.CHAT) {
             guiProfile = guiProfile.copy(
                 kinsokuMode = KinsokuMode.Fixed(
                     KinsokuLevel.Basic, HangingPunctuationStyle.Disabled,
@@ -235,7 +235,7 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
         )
         val positionedByLine = result.positionedClusters().groupBy { it.lineIndex }
         val apiLines = result.lines.mapIndexed { lineIndex, line ->
-            val runs = mutableListOf<ParagraphLayoutMiddleware.Run>()
+            val runs = mutableListOf<TextParagraphProvider.Run>()
             var pendingText = StringBuilder()
             var pendingStart = -1
             var pendingEnd = -1
@@ -245,7 +245,7 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
 
             fun flushPending() {
                 if (pendingStart < 0) return
-                runs += ParagraphLayoutMiddleware.Run(
+                runs += TextParagraphProvider.Run(
                     parsed.formattedDisplay(pendingStart, pendingText.toString()),
                     pendingX,
                     parsed.rawStartBoundary(pendingStart),
@@ -283,14 +283,14 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
             if (line.hyphenAdvance > 0f) {
                 val boundary = parsed.rawEndBoundary(line.range.end)
                 val styleOffset = (line.range.end - 1).coerceAtLeast(line.range.start)
-                runs += ParagraphLayoutMiddleware.Run(
+                runs += TextParagraphProvider.Run(
                     parsed.formattedDisplay(styleOffset, "-"),
                     line.indent + line.visualWidth,
                     boundary,
                     boundary,
                 )
             }
-            ParagraphLayoutMiddleware.Line(
+            TextParagraphProvider.Line(
                 parsed.rawStartBoundary(line.range.start),
                 parsed.rawEndBoundary(line.range.end),
                 lineIndex * lineHeight.toFloat(),
@@ -299,7 +299,7 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
             )
         }
         return BuiltLayout(
-            ParagraphLayoutMiddleware.Layout(apiLines),
+            TextParagraphProvider.Layout(apiLines),
             result.lines.map { it.range },
             result.lines.mapIndexedNotNull { index, line ->
                 index.takeIf { line.hyphenAdvance > 0f }
@@ -317,9 +317,9 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
 
     private fun chatSpeakerDecoration(
         text: String,
-        surface: ParagraphLayoutMiddleware.ComponentRequest.Surface,
+        surface: TextParagraphProvider.ComponentRequest.Surface,
     ): List<DecorationSpan> {
-        if (surface != ParagraphLayoutMiddleware.ComponentRequest.Surface.CHAT) return emptyList()
+        if (surface != TextParagraphProvider.ComponentRequest.Surface.CHAT) return emptyList()
         val token = chatSpeakerPrefix.find(text)?.groups?.get(1) ?: return emptyList()
         return listOf(
             DecorationSpan(
@@ -331,7 +331,7 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
 
     private class HostTextShaper(
         private val parsed: LayoutText,
-        private val measurer: ParagraphLayoutMiddleware.TextMeasurer,
+        private val measurer: TextParagraphProvider.TextMeasurer,
     ) : TextShaper {
         override fun shape(input: ShapingInput): ShapingResult {
             val source = input.text.substring(input.range.start, input.range.end)
@@ -365,7 +365,7 @@ object TiqianParagraphProvider : ParagraphLayoutMiddleware {
     }
 
     private data class BuiltLayout(
-        val layout: ParagraphLayoutMiddleware.Layout,
+        val layout: TextParagraphProvider.Layout,
         val visibleLines: List<TextRange>,
         val hyphenatedLines: Set<Int> = emptySet(),
         val positionedLines: List<List<PositionedCell>> = emptyList(),

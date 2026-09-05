@@ -5,8 +5,8 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.renderer.GlStateManager;
-import neofontrender.api.text.pipeline.TextPipelineEngine;
-import neofontrender.api.text.pipeline.TextPipelineLayout;
+import neofontrender.api.text.route.TextRenderRouteApi;
+import neofontrender.api.text.route.TextRenderRouteLayout;
 import neofontrender.addons.mixin.AccessorGuiTextFieldNavigation;
 
 import java.util.List;
@@ -34,18 +34,19 @@ public final class ChatSuggestionPopup {
 
         Minecraft minecraft = Minecraft.getMinecraft();
         int maxTextWidth = 0;
-        TextPipelineLayout[] visibleLayouts = new TextPipelineLayout[rows];
+        TextRenderRouteLayout[] visibleLayouts = new TextRenderRouteLayout[rows];
         int[] rowOffsets = new int[rows];
         int[] rowHeights = new int[rows];
         int contentHeight = 0;
         for (int row = 0; row < rows; row++) {
             String candidate = candidates.get(safeFirst + row);
-            TextPipelineLayout candidateLayout = TextPipelineEngine.layout(font, candidate);
+            TextRenderRouteLayout candidateLayout = TextRenderRouteApi.layout(
+                    font, candidate, 0xFFFFFFFF, true);
             visibleLayouts[row] = candidateLayout;
             rowOffsets[row] = contentHeight;
-            rowHeights[row] = Math.max(ROW_HEIGHT, candidateLayout.height() + 4);
+            rowHeights[row] = Math.max(ROW_HEIGHT, Math.round(candidateLayout.height()) + 4);
             contentHeight += rowHeights[row];
-            int visualWidth = candidateLayout.width();
+            int visualWidth = Math.round(candidateLayout.advance());
             if (candidateLayout.hasInlineContent()) {
                 visualWidth += 4 + font.getStringWidth(candidateLabel(candidate));
             }
@@ -69,7 +70,7 @@ public final class ChatSuggestionPopup {
                 ((AccessorGuiTextFieldNavigation) input).nfrUi$getLineScrollOffset()))
                 : 0;
         int anchorStart = Math.max(wordStart, visibleStart);
-        int prefixWidth = Math.round(TextPipelineEngine.width(font,
+        int prefixWidth = Math.round(TextRenderRouteApi.width(font,
                 beforeCursor.substring(visibleStart, anchorStart)) * scale);
         int panelX = Math.max(0, Math.min(inputX + Math.min(prefixWidth, inputWidth),
                 minecraft.currentScreen.width - panelWidth));
@@ -111,12 +112,13 @@ public final class ChatSuggestionPopup {
                 ChatHeadRenderer.renderCandidate(candidateText, 3, rowY + 3, 1.0F);
             }
             int textX = 4 + contentOffset;
-            TextPipelineLayout candidateLayout = visibleLayouts[row];
-            candidateLayout.draw(font, textX, rowY + 2, textColor, true);
+            TextRenderRouteLayout candidateLayout = visibleLayouts[row];
+            if (candidateLayout.handled()) candidateLayout.draw(textX, rowY + 2);
+            else font.drawStringWithShadow(candidateText, textX, rowY + 2, textColor);
             if (candidateLayout.hasInlineContent()) {
                 String label = candidateLabel(candidateText);
                 font.drawStringWithShadow(label,
-                        textX + candidateLayout.width() + 4, rowY + 3, textColor);
+                        textX + Math.round(candidateLayout.advance()) + 4, rowY + 3, textColor);
             }
         }
         if (candidates.size() > rows) {

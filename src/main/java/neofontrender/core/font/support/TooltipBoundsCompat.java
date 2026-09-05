@@ -5,6 +5,7 @@ import neofontrender.core.font.FontManager;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
+import neofontrender.core.font.pipeline.StructuredTextRuntime;
 import neofontrender.api.text.ModernTextApi;
 import neofontrender.api.text.ModernTextLayout;
 
@@ -29,7 +30,9 @@ public final class TooltipBoundsCompat {
             return advanceWidth;
         }
         try {
-            TextRenderResult rendered = backend.renderFormatted(text, 0xFFFFFFFF, false);
+            TextRenderResult rendered = backend.renderStructuredAtSize(
+                    StructuredTextRuntime.parse(text), 0xFFFFFFFF, false,
+                    NeofontrenderConfig.fontSize());
             float left = Math.min(0.0F, rendered.visualLeft());
             // drawStringWithShadow may add one pixel beyond the foreground raster.
             float right = Math.max(rendered.advance(), rendered.visualRight()) + 1.0F;

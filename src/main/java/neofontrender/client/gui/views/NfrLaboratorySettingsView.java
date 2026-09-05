@@ -27,6 +27,12 @@ public final class NfrLaboratorySettingsView extends NfrContentView<NfrLaborator
                         value -> d.laboratoryHexChatResetStyles = value))
                 .add(c.toggle("neofontrender.gui.option.text_undo_redo", "neofontrender.tooltip.text_undo_redo",
                         () -> d.laboratoryTextUndoRedo, value -> d.laboratoryTextUndoRedo = value))
+                .add(c.toggle("neofontrender.gui.option.brilliant", "neofontrender.tooltip.brilliant",
+                        () -> d.brilliantTextEnabled, value -> d.brilliantTextEnabled = value))
+                .add(c.toggle("neofontrender.gui.option.brilliant_any_position",
+                        "neofontrender.tooltip.brilliant_any_position",
+                        () -> d.laboratoryBrilliantAnyPosition,
+                        value -> d.laboratoryBrilliantAnyPosition = value))
                 .add(c.toggle("neofontrender.gui.option.splash_override", "neofontrender.tooltip.splash_override",
                         () -> d.splashFontOverride, value -> d.splashFontOverride = value))
                 .add(c.toggle("neofontrender.gui.option.modern_splash", "neofontrender.tooltip.modern_splash",

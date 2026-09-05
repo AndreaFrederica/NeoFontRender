@@ -12,14 +12,19 @@ import neofontrender.core.font.awt.providers.AwtTtfGlyphProvider;
 import neofontrender.core.font.awt.providers.MissingGlyphProvider;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
-import neofontrender.core.font.backend.SampledShadowTextRenderResult;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.FramebufferAlphaBlend;
 import neofontrender.core.font.support.ShadowColorPolicy;
-import neofontrender.core.font.support.ShadowColorRemapRules;
 import neofontrender.core.font.support.ShadowRenderSpec;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
+import neofontrender.text.StructuredText;
+import neofontrender.text.InlineSpan;
+import neofontrender.core.font.inline.InlineRasterTextRenderResult;
+import neofontrender.core.font.backend.CompositeTextRenderResult;
+import neofontrender.text.StyledSpan;
+import neofontrender.text.TextStyle;
+import neofontrender.text.animation.TextAnimationFrame;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,17 +42,12 @@ import java.util.Map;
  */
 public final class AwtModernTextRenderer implements TextRenderBackend {
     private static final int MAX_SIZE_ATLASES = 16;
-    private static final int MAX_LAYOUTS = 2048;
-    private static final long LAYOUT_TTL_MS = 300_000L; // 5 minutes
     private final TextureManager textureManager;
     private final IResourceManager resourceManager;
     private final List<String> selectors;
     private final LinkedHashMap<SizeKey, FontSet> fontSets =
             new LinkedHashMap<>(8, 0.75F, true);
-    private final LinkedHashMap<LayoutKey, CachedLayout> layouts =
-            new LinkedHashMap<>(128, 0.75F, true);
     private int nextAtlasId;
-    private long lastCleanupMs = System.currentTimeMillis();
     private volatile int[] legacyColorCodes = TextColorPaletteRegistry.vanillaColorCodes();
 
     public AwtModernTextRenderer(TextureManager textureManager, IResourceManager resourceManager) {
@@ -72,7 +72,6 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         int[] normalized = TextColorPaletteRegistry.normalizeColorCodes(colorCodes);
         if (!Arrays.equals(legacyColorCodes, normalized)) {
             legacyColorCodes = normalized;
-            layouts.clear();
         }
     }
 
@@ -87,17 +86,41 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
     }
 
     @Override
-    public float measureFormatted(String text, int baseArgb, boolean shadow) {
-        return measureFormattedAtSize(text, baseArgb, shadow, NeofontrenderConfig.fontSize());
+    public TextRenderResult render(String text, int argb, boolean bold, boolean italic) {
+        if (text == null || text.isEmpty()) return TextRenderResult.EMPTY;
+        float size = NeofontrenderConfig.fontSize();
+        FontSet set = fontSet(size);
+        return build(set, List.of(new FormattedRun(text, normalizeAlpha(argb), bold, italic,
+                false, false, false)), size);
     }
 
     @Override
-    public float measureFormattedAtSize(String text, int baseArgb, boolean shadow, float fontSize) {
-        if (text == null || text.isEmpty()) return 0.0F;
+    public float measureStructuredAtSize(StructuredText text, int baseArgb, boolean shadow,
+                                         float fontSize) {
+        if (text == null || text.plainText().isEmpty()) return 0.0F;
         FontSet set = fontSet(fontSize);
+        if (!text.inlineSpans().isEmpty()) {
+            float advance = 0.0F;
+            int cursor = 0;
+            for (InlineSpan inline : text.inlineSpans()) {
+                if (inline.start() > cursor) {
+                    advance += measureStructuredAtSize(text.slice(cursor, inline.start()),
+                            baseArgb, shadow, fontSize);
+                }
+                advance += new InlineRasterTextRenderResult(inline.content(), fontSize,
+                        inlineColor(text, inline.start(), baseArgb, shadow,
+                                ShadowRenderSpec.fromConfig()), shadow).advance();
+                cursor = inline.end();
+            }
+            if (cursor < text.plainText().length()) {
+                advance += measureStructuredAtSize(text.slice(cursor, text.plainText().length()),
+                        baseArgb, shadow, fontSize);
+            }
+            return advance;
+        }
         float advance = 0.0F;
         float sizeRatio = fontSize / Math.max(1.0F, NeofontrenderConfig.fontSize());
-        for (FormattedRun run : parseFormatted(text, baseArgb, shadow)) {
+        for (FormattedRun run : structuredRuns(text, baseArgb, shadow)) {
             float[] positions = layoutPositions(set, run.text, run.bold, sizeRatio);
             advance += positions[positions.length - 1];
         }
@@ -105,97 +128,34 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
     }
 
     @Override
-    public TextRenderResult render(String text, int argb, boolean bold, boolean italic) {
-        if (text == null || text.isEmpty()) return TextRenderResult.EMPTY;
-        float size = NeofontrenderConfig.fontSize();
-        FontSet set = fontSet(size);
-        return build(set, List.of(new FormattedRun(text, normalizeAlpha(argb), bold, italic,
-                false, false)), size);
-    }
-
-    @Override
-    public TextRenderResult renderFormatted(String text, int baseArgb, boolean shadow) {
-        return renderFormattedAtSize(text, baseArgb, shadow, NeofontrenderConfig.fontSize());
-    }
-
-    @Override
-    public synchronized TextRenderResult renderFormattedAtSize(
-            String text, int baseArgb, boolean shadow, float requestedFontSize) {
-        if (text == null || text.isEmpty()) return TextRenderResult.EMPTY;
-        float fontSize = Math.max(1.0F, requestedFontSize);
-        float rasterScale = currentRasterScale();
-        FontSet fs = fontSet(fontSize, rasterScale);
-        fs.flushAtlas();
-        LayoutKey key = new LayoutKey(text, baseArgb, shadow,
-                shadow ? NeofontrenderConfig.shadowColorMode() : "",
-                NeofontrenderConfig.shadowColorOverrides().profileHash(),
-                NeofontrenderConfig.shadowColoredRatio(),
-                NeofontrenderConfig.shadowColoredFunction(), fontSize, rasterScale);
-        CachedLayout cached = layouts.get(key);
-        if (cached != null) {
-            cached.lastAccessMs = System.currentTimeMillis();
-            return cached.result;
-        }
-        TextRenderResult rendered = build(fs,
-                parseFormatted(text, baseArgb, shadow), fontSize);
-        layouts.put(key, new CachedLayout(rendered));
-        evictOldEntries();
-        return rendered;
-    }
-
-    @Override
-    public boolean supportsModernShadow() {
-        return true;
-    }
-
-    @Override
-    public TextRenderResult renderFormattedWithShadow(String text, int baseArgb) {
-        return renderFormattedWithShadowAtSize(text, baseArgb, NeofontrenderConfig.fontSize());
-    }
-
-    @Override
-    public synchronized TextRenderResult renderFormattedWithShadowAtSize(
-            String text, int baseArgb, float requestedFontSize) {
-        return renderFormattedWithShadowAtSize(text, baseArgb, requestedFontSize,
-                ShadowRenderSpec.fromConfig());
-    }
-
-    @Override
-    public synchronized TextRenderResult renderFormattedWithShadowAtSize(
-            String text, int baseArgb, float requestedFontSize, ShadowRenderSpec shadowSpec) {
-        if (text == null || text.isEmpty()) return TextRenderResult.EMPTY;
-        ShadowRenderSpec spec = shadowSpec == null ? ShadowRenderSpec.fromConfig() : shadowSpec;
+    public synchronized TextRenderResult renderStructuredAtSize(
+            StructuredText text, int baseArgb, boolean shadow, float requestedFontSize) {
+        if (text == null || text.plainText().isEmpty()) return TextRenderResult.EMPTY;
         float fontSize = Math.max(1.0F, requestedFontSize);
         float rasterScale = currentRasterScale();
         FontSet set = fontSet(fontSize, rasterScale);
         set.flushAtlas();
-        List<FormattedRun> foregroundRuns = parseFormatted(text, baseArgb, false);
-        List<FormattedRun> shadowRuns = new ArrayList<>(foregroundRuns.size());
-        for (FormattedRun run : foregroundRuns) {
-            shadowRuns.add(new FormattedRun(run.text,
-                    ShadowColorPolicy.modernColor(run.argb, spec.color, spec.colorMode,
-                            spec.colorOverrides, legacyColorCodes,
-                            spec.coloredRatio, spec.coloredFunction),
-                    run.bold, run.italic, run.underline, run.strikethrough));
+        if (!text.inlineSpans().isEmpty()) {
+            return structuredWithInline(set, text, baseArgb, shadow, fontSize,
+                    ShadowRenderSpec.fromConfig());
         }
-        TextRenderResult foreground = build(set, foregroundRuns, fontSize);
-        TextRenderResult shadow = build(set, shadowRuns, fontSize);
-        float geometryScale = fontSize / Math.max(1.0F, NeofontrenderConfig.fontSize());
-        float colorAlpha = ShadowColorPolicy.SOLID.equals(spec.colorMode)
-                ? (spec.color >>> 24) / 255.0F : 1.0F;
-        return new SampledShadowTextRenderResult(shadow, foreground,
-                spec.offsetX, spec.offsetY, spec.blurRadius,
-                spec.opacity * colorAlpha, geometryScale);
+        return build(set, structuredRuns(text, baseArgb, shadow), fontSize);
     }
 
-    private void evictOldEntries() {
-        long now = System.currentTimeMillis();
-        if (now - lastCleanupMs < 10_000L) return; // cleanup at most every 10 seconds
-        lastCleanupMs = now;
-        layouts.entrySet().removeIf(entry -> {
-            if (layouts.size() <= MAX_LAYOUTS / 2) return false;
-            return (now - entry.getValue().lastAccessMs) > LAYOUT_TTL_MS;
-        });
+    @Override
+    public synchronized TextRenderResult renderStructuredShadowSourceAtSize(
+            StructuredText text, int baseArgb, float requestedFontSize, ShadowRenderSpec spec) {
+        if (text == null || text.plainText().isEmpty()) return TextRenderResult.EMPTY;
+        float fontSize = Math.max(1.0F, requestedFontSize);
+        float rasterScale = currentRasterScale();
+        FontSet set = fontSet(fontSize, rasterScale);
+        set.flushAtlas();
+        if (!text.inlineSpans().isEmpty()) {
+            return structuredWithInline(set, text, baseArgb, true, fontSize,
+                    spec == null ? ShadowRenderSpec.fromConfig() : spec);
+        }
+        return build(set, structuredRuns(text, baseArgb, true,
+                spec == null ? ShadowRenderSpec.fromConfig() : spec), fontSize);
     }
 
     private float measurePlainAtSize(String text, boolean bold, boolean italic, float fontSize) {
@@ -264,7 +224,6 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             Iterator<Map.Entry<SizeKey, FontSet>> iterator = fontSets.entrySet().iterator();
             Map.Entry<SizeKey, FontSet> eldest = iterator.next();
             iterator.remove();
-            layouts.clear();
             eldest.getValue().close();
         }
         return created;
@@ -289,8 +248,10 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
                     BakedGlyph glyph = set.getGlyph(codePoint);
                     if (glyph != null) {
                         float glyphX = runStart + positions[index];
+                        GlyphInfo info = set.getGlyphInfo(codePoint);
                         glyphs.add(new GlyphDraw(glyph, glyphX, run.argb, run.bold, run.italic,
-                                sizeRatio));
+                                sizeRatio, run.obfuscated ? set : null,
+                                info == null ? 0.0F : info.getAdvance(false)));
                         visualLeft = Math.min(visualLeft, glyphX + glyph.visualLeft());
                         visualRight = Math.max(visualRight, glyphX + glyph.visualRight()
                                 + (run.bold ? sizeRatio : 0.0F));
@@ -318,6 +279,64 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
                 visualTop, visualBottom);
     }
 
+    private List<FormattedRun> structuredRuns(StructuredText text, int baseArgb, boolean shadow) {
+        return structuredRuns(text, baseArgb, shadow, ShadowRenderSpec.fromConfig());
+    }
+
+    private TextRenderResult structuredWithInline(FontSet set, StructuredText text, int baseArgb,
+                                                   boolean shadow, float fontSize,
+                                                   ShadowRenderSpec spec) {
+        List<TextRenderResult> pieces = new ArrayList<>();
+        int cursor = 0;
+        for (InlineSpan inline : text.inlineSpans()) {
+            if (inline.start() > cursor) {
+                StructuredText segment = text.slice(cursor, inline.start());
+                pieces.add(build(set, structuredRuns(segment, baseArgb, shadow, spec), fontSize));
+            }
+            pieces.add(new InlineRasterTextRenderResult(inline.content(), fontSize,
+                    inlineColor(text, inline.start(), baseArgb, shadow, spec), shadow));
+            cursor = inline.end();
+        }
+        if (cursor < text.plainText().length()) {
+            StructuredText segment = text.slice(cursor, text.plainText().length());
+            pieces.add(build(set, structuredRuns(segment, baseArgb, shadow, spec), fontSize));
+        }
+        return CompositeTextRenderResult.of(pieces);
+    }
+
+    private int inlineColor(StructuredText text, int index, int baseArgb, boolean shadow,
+                            ShadowRenderSpec shadowSpec) {
+        TextStyle style = text.styleAt(index);
+        int color = style.hasColorOverride()
+                ? (normalizeAlpha(baseArgb) & 0xFF000000) | style.rgb() : normalizeAlpha(baseArgb);
+        if (!shadow) return color;
+        ShadowRenderSpec spec = shadowSpec == null ? ShadowRenderSpec.fromConfig() : shadowSpec;
+        return ShadowColorPolicy.modernColor(color, spec.color, spec.colorMode,
+                spec.colorOverrides, legacyColorCodes, spec.coloredRatio, spec.coloredFunction);
+    }
+
+    private List<FormattedRun> structuredRuns(StructuredText text, int baseArgb, boolean shadow,
+                                              ShadowRenderSpec shadowSpec) {
+        List<FormattedRun> result = new ArrayList<>();
+        int base = normalizeAlpha(baseArgb);
+        ShadowRenderSpec spec = shadowSpec == null ? ShadowRenderSpec.fromConfig() : shadowSpec;
+        for (StyledSpan span : text.styles()) {
+            if (span.end() <= span.start()) continue;
+            TextStyle style = span.style();
+            int color = style.hasColorOverride()
+                    ? (base & 0xFF000000) | style.rgb() : base;
+            if (shadow) {
+                color = ShadowColorPolicy.modernColor(color, spec.color, spec.colorMode,
+                        spec.colorOverrides, legacyColorCodes,
+                        spec.coloredRatio, spec.coloredFunction);
+            }
+            result.add(new FormattedRun(text.plainText().substring(span.start(), span.end()),
+                    color, style.bold(), style.italic(), style.underline(),
+                    style.strikethrough(), style.obfuscated()));
+        }
+        return result;
+    }
+
     /**
      * FontSet's legacy bold advance is fixed at one GUI unit. Native-size API layouts scale that
      * synthetic bold stroke with the requested font size, so its advance must scale as well.
@@ -338,63 +357,6 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         return positions;
     }
 
-    private List<FormattedRun> parseFormatted(String text, int baseArgb, boolean shadow) {
-        List<FormattedRun> runs = new ArrayList<>();
-        int[] colorCodes = legacyColorCodes;
-        String colorMode = NeofontrenderConfig.shadowColorMode();
-        ShadowColorRemapRules remapRules = NeofontrenderConfig.shadowColorOverrides();
-        int configuredShadowColor = NeofontrenderConfig.shadowColor();
-        int color = shadow
-                ? ShadowColorPolicy.shadowColor(normalizeAlpha(baseArgb), colorMode,
-                        configuredShadowColor, remapRules, colorCodes,
-                        NeofontrenderConfig.shadowColoredRatio(),
-                        NeofontrenderConfig.shadowColoredFunction())
-                : normalizeAlpha(baseArgb);
-        boolean bold = false;
-        boolean italic = false;
-        boolean underline = false;
-        boolean strikethrough = false;
-        int start = 0;
-        for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) != '\u00a7' || i + 1 >= text.length()) continue;
-            if (i > start) {
-                runs.add(new FormattedRun(text.substring(start, i), color, bold, italic,
-                        underline, strikethrough));
-            }
-            int style = "0123456789abcdefklmnor".indexOf(
-                    Character.toLowerCase(text.charAt(++i)));
-            if (style >= 0 && style < 16) {
-                color = ShadowColorPolicy.paletteColor(style, normalizeAlpha(baseArgb), shadow,
-                        colorMode, configuredShadowColor, remapRules, colorCodes,
-                        NeofontrenderConfig.shadowColoredRatio(),
-                        NeofontrenderConfig.shadowColoredFunction());
-                bold = italic = underline = strikethrough = false;
-            } else if (style == 17) {
-                bold = true;
-            } else if (style == 18) {
-                strikethrough = true;
-            } else if (style == 19) {
-                underline = true;
-            } else if (style == 20) {
-                italic = true;
-            } else if (style == 21) {
-                color = shadow
-                        ? ShadowColorPolicy.shadowColor(normalizeAlpha(baseArgb), colorMode,
-                                configuredShadowColor, remapRules, colorCodes,
-                                NeofontrenderConfig.shadowColoredRatio(),
-                                NeofontrenderConfig.shadowColoredFunction())
-                        : normalizeAlpha(baseArgb);
-                bold = italic = underline = strikethrough = false;
-            }
-            start = i + 1;
-        }
-        if (start < text.length()) {
-            runs.add(new FormattedRun(text.substring(start), color, bold, italic,
-                    underline, strikethrough));
-        }
-        return runs;
-    }
-
     private static int normalizeAlpha(int argb) {
         return (argb & 0xFC000000) == 0 ? argb | 0xFF000000 : argb;
     }
@@ -406,7 +368,6 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
 
     @Override
     public synchronized void close() {
-        layouts.clear();
         for (FontSet set : fontSets.values()) set.close();
         fontSets.clear();
     }
@@ -444,13 +405,21 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
             GlStateManager.enableTexture2D();
             try (StraightAlphaBlendState ignored = new StraightAlphaBlendState()) {
                 for (GlyphDraw draw : glyphs) {
-                    mc.getTextureManager().bindTexture(draw.glyph.getTextureLocation());
+                    BakedGlyph glyph = draw.glyph;
+                    if (draw.obfuscatedSet != null) {
+                        long frame = TextAnimationFrame.current();
+                        BakedGlyph random = draw.obfuscatedSet.getRandomGlyph(draw.obfuscatedAdvance,
+                                frame * 0x9E3779B97F4A7C15L
+                                        ^ Float.floatToIntBits(draw.x) * 0xC2B2AE3D27D4EB4FL);
+                        if (random != null) glyph = random;
+                    }
+                    mc.getTextureManager().bindTexture(glyph.getTextureLocation());
                     float red = (draw.argb >> 16 & 255) / 255.0F;
                     float green = (draw.argb >> 8 & 255) / 255.0F;
                     float blue = (draw.argb & 255) / 255.0F;
-                    draw.glyph.render(draw.italic, x + draw.x, y, red, green, blue, alpha);
+                    glyph.render(draw.italic, x + draw.x, y, red, green, blue, alpha);
                     if (draw.bold) {
-                        draw.glyph.render(draw.italic, x + draw.x + draw.boldOffset, y,
+                        glyph.render(draw.italic, x + draw.x + draw.boldOffset, y,
                                 red, green, blue, alpha);
                     }
                 }
@@ -510,15 +479,19 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         private final boolean bold;
         private final boolean italic;
         private final float boldOffset;
+        private final FontSet obfuscatedSet;
+        private final float obfuscatedAdvance;
 
         private GlyphDraw(BakedGlyph glyph, float x, int argb, boolean bold, boolean italic,
-                          float boldOffset) {
+                          float boldOffset, FontSet obfuscatedSet, float obfuscatedAdvance) {
             this.glyph = glyph;
             this.x = x;
             this.argb = argb;
             this.bold = bold;
             this.italic = italic;
             this.boldOffset = boldOffset;
+            this.obfuscatedSet = obfuscatedSet;
+            this.obfuscatedAdvance = obfuscatedAdvance;
         }
     }
 
@@ -538,16 +511,6 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         }
     }
 
-    private static final class CachedLayout {
-        final TextRenderResult result;
-        volatile long lastAccessMs;
-
-        CachedLayout(TextRenderResult result) {
-            this.result = result;
-            this.lastAccessMs = System.currentTimeMillis();
-        }
-    }
-
     private static final class FormattedRun {
         private final String text;
         private final int argb;
@@ -555,15 +518,17 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         private final boolean italic;
         private final boolean underline;
         private final boolean strikethrough;
+        private final boolean obfuscated;
 
         private FormattedRun(String text, int argb, boolean bold, boolean italic,
-                             boolean underline, boolean strikethrough) {
+                             boolean underline, boolean strikethrough, boolean obfuscated) {
             this.text = text;
             this.argb = argb;
             this.bold = bold;
             this.italic = italic;
             this.underline = underline;
             this.strikethrough = strikethrough;
+            this.obfuscated = obfuscated;
         }
     }
 
@@ -588,50 +553,4 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         }
     }
 
-    private static final class LayoutKey {
-        private final String text;
-        private final int argb;
-        private final boolean shadow;
-        private final String colorMode;
-        private final int remapProfile;
-        private final int coloredRatio;
-        private final String coloredFunction;
-        private final SizeKey size;
-
-        private LayoutKey(String text, int argb, boolean shadow, String colorMode, int remapProfile,
-                          float coloredRatio, String coloredFunction,
-                          float fontSize, float rasterScale) {
-            this.text = text;
-            this.argb = argb;
-            this.shadow = shadow;
-            this.colorMode = colorMode == null ? "" : colorMode;
-            this.remapProfile = shadow ? remapProfile : 0;
-            this.coloredRatio = shadow ? Float.floatToIntBits(coloredRatio) : 0;
-            this.coloredFunction = shadow && coloredFunction != null ? coloredFunction : "";
-            this.size = new SizeKey(fontSize, rasterScale);
-        }
-
-        @Override
-        public boolean equals(Object object) {
-            if (!(object instanceof LayoutKey)) return false;
-            LayoutKey other = (LayoutKey) object;
-            return argb == other.argb && shadow == other.shadow
-                    && colorMode.equals(other.colorMode)
-                    && remapProfile == other.remapProfile
-                    && coloredRatio == other.coloredRatio
-                    && coloredFunction.equals(other.coloredFunction)
-                    && text.equals(other.text) && size.equals(other.size);
-        }
-
-        @Override
-        public int hashCode() {
-            int hash = 31 * text.hashCode() + argb;
-            hash = 31 * hash + (shadow ? 1 : 0);
-            hash = 31 * hash + colorMode.hashCode();
-            hash = 31 * hash + remapProfile;
-            hash = 31 * hash + coloredRatio;
-            hash = 31 * hash + coloredFunction.hashCode();
-            return 31 * hash + size.hashCode();
-        }
-    }
 }

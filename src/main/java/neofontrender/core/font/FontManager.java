@@ -8,7 +8,7 @@ import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.api.color.TextColorPaletteRegistry;
-import neofontrender.api.text.pipeline.TextPipelineEngine;
+import neofontrender.api.text.route.TextRenderRouteApi;
 import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.awt.FontTexture;
 import neofontrender.core.font.awt.GlyphProvider;
@@ -152,7 +152,7 @@ public class FontManager implements AutoCloseable {
     }
 
     private synchronized long beginReload() {
-        TextPipelineEngine.invalidate();
+        TextRenderRouteApi.invalidate();
         long generation = reloadGeneration.incrementAndGet();
         CompletableFuture<Void> pending = pendingReload.getAndSet(null);
         if (pending != null) pending.cancel(false);

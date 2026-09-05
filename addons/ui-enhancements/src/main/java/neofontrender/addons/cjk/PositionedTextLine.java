@@ -1,13 +1,13 @@
 package neofontrender.addons.cjk;
 
 import net.minecraft.util.text.ITextComponent;
-import neofontrender.api.text.pipeline.ParagraphLayoutMiddleware;
+import neofontrender.api.text.paragraph.TextParagraphProvider;
 
 import java.util.List;
 
 /** Transient Tiqian geometry attached to a component line owned by UIE. */
 public interface PositionedTextLine {
-    List<ParagraphLayoutMiddleware.Run> nfrUi$runs();
+    List<TextParagraphProvider.Run> nfrUi$runs();
     float nfrUi$width();
     int nfrUi$visibleOffsetAt(float x);
     float nfrUi$xAtVisibleOffset(int offset);

@@ -18,6 +18,15 @@ class UiEnhancementsMixinConfigTest {
     }
 
     @Test
+    void startupDoesNotReferenceTheObsoleteTextDependencySynchronizer() {
+        String loader = bytecode(
+                "neofontrender/addons/mixin/UiEnhancementsMixinLoader.class");
+
+        assertFalse(loader.contains(
+                "ContainedDependencySynchronizer"));
+    }
+
+    @Test
     void optionalCompatMixinsAreLateAndNonRequired() {
         String hei = config("mixins.neofontrender_ui_enhancements_hei.json");
         String obscure = config("mixins.neofontrender_ui_enhancements_obscure_tooltips.json");

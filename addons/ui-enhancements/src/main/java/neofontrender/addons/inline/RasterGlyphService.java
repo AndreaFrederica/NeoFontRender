@@ -4,7 +4,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.api.text.pipeline.InlineContent;
-import neofontrender.api.text.pipeline.TextPipelineEngine;
+import neofontrender.api.text.route.TextRenderRouteApi;
+import neofontrender.text.InlineRaster;
 import neofontrender.addons.ui.NfrUiEnhancements;
 
 import java.awt.image.BufferedImage;
@@ -14,7 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /** Shared CPU-raster and client-thread texture cache for formula and vector providers. */
-enum RasterGlyphService {
+public enum RasterGlyphService {
     INSTANCE;
 
     private final ExecutorService workers = Executors.newFixedThreadPool(2, runnable -> {
@@ -24,8 +25,31 @@ enum RasterGlyphService {
     });
     private final Map<String, Handle> handles = new ConcurrentHashMap<>();
 
-    InlineContent glyph(String key, String description, int displayHeight, boolean tint,
+    public InlineContent glyph(String key, String description, int displayHeight, boolean tint,
                         boolean matchFontLineHeight, RasterJob job) {
+        Handle handle = handle(key, job);
+        if (handle == null || handle.state == State.FAILED) return null;
+        return new RasterInlineContent(handle, description, displayHeight, tint, matchFontLineHeight);
+    }
+
+    public neofontrender.text.InlineContent structuredGlyph(
+            String key, String description, int displayHeight, boolean tint,
+            boolean matchFontLineHeight, RasterJob job) {
+        Handle handle = handle(key, job);
+        if (handle == null || handle.state == State.FAILED) return null;
+        BufferedImage image = handle.image;
+        InlineRaster raster = null;
+        if (image != null) {
+            int[] pixels = image.getRGB(0, 0, image.getWidth(), image.getHeight(),
+                    null, 0, image.getWidth());
+            raster = new InlineRaster(image.getWidth(), image.getHeight(), pixels);
+        }
+        return new neofontrender.text.InlineContent("raster", key, description,
+                displayHeight, tint, matchFontLineHeight, raster,
+                java.util.Collections.singletonMap("status", raster == null ? "loading" : "ready"));
+    }
+
+    private Handle handle(String key, RasterJob job) {
         Handle existing = handles.get(key);
         int maxEntries = EmbeddedContentConfig.rasterCacheEntries();
         if (existing == null && handles.size() >= maxEntries) {
@@ -39,8 +63,7 @@ enum RasterGlyphService {
             return created;
         });
         handle.lastAccess = System.nanoTime();
-        if (handle.state == State.FAILED) return null;
-        return new RasterInlineContent(handle, description, displayHeight, tint, matchFontLineHeight);
+        return handle;
     }
 
     void trimToConfiguredBudget() {
@@ -53,10 +76,12 @@ enum RasterGlyphService {
             if (image == null || image.getWidth() <= 0 || image.getHeight() <= 0) {
                 throw new IllegalArgumentException("Rasterizer returned an empty image");
             }
+            handle.image = image;
+            TextRenderRouteApi.invalidate();
             Minecraft.getMinecraft().addScheduledTask(() -> upload(handle, key, image));
         } catch (Throwable failure) {
             handle.state = State.FAILED;
-            TextPipelineEngine.invalidate();
+            TextRenderRouteApi.invalidate();
             NfrUiEnhancements.LOGGER.debug("Embedded content could not be rasterized: {}", key, failure);
         }
     }
@@ -72,11 +97,11 @@ enum RasterGlyphService {
             handle.texture = texture;
             handle.location = location;
             handle.state = State.READY;
-            TextPipelineEngine.invalidate();
+            TextRenderRouteApi.invalidate();
             evictOldTextures(EmbeddedContentConfig.rasterCacheEntries(), pixelBudget());
         } catch (Throwable failure) {
             handle.state = State.FAILED;
-            TextPipelineEngine.invalidate();
+            TextRenderRouteApi.invalidate();
             NfrUiEnhancements.LOGGER.debug("Embedded content texture upload failed: {}", key, failure);
         }
     }
@@ -102,8 +127,9 @@ enum RasterGlyphService {
             }
             handle.location = null;
             handle.texture = null;
+            handle.image = null;
             handle.state = State.FAILED;
-            TextPipelineEngine.invalidate();
+            TextRenderRouteApi.invalidate();
         }
     }
 
@@ -116,7 +142,7 @@ enum RasterGlyphService {
     }
 
     @FunctionalInterface
-    interface RasterJob { BufferedImage render() throws Exception; }
+    public interface RasterJob { BufferedImage render() throws Exception; }
 
     enum State { LOADING, READY, FAILED }
 
@@ -126,6 +152,7 @@ enum RasterGlyphService {
         volatile int height;
         volatile DynamicTexture texture;
         volatile ResourceLocation location;
+        volatile BufferedImage image;
         volatile long lastAccess = System.nanoTime();
     }
 }

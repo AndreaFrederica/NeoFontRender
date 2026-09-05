@@ -15,6 +15,7 @@ import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.backend.BackendTextSegmenter;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.cosmic.CosmicTextRenderer;
+import neofontrender.core.font.pipeline.StructuredTextRuntime;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -104,7 +105,9 @@ public final class NeofontrenderCommand extends CommandBase {
             return;
         }
         String sample = NeofontrenderBranding.displayName() + " fi العربية 😀";
-        message(sender, TextFormatting.AQUA, "Measured sample width: " + backend.measureFormatted(sample, 0xFFFFFFFF, false));
+        message(sender, TextFormatting.AQUA, "Measured sample width: "
+                + backend.measureStructuredAtSize(StructuredTextRuntime.parse(sample),
+                0xFFFFFFFF, false, NeofontrenderConfig.fontSize()));
     }
 
     private static void gui(ICommandSender sender) {

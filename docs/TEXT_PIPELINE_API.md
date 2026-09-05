@@ -1,68 +1,101 @@
-# Text pipeline API
+# Structured text pipeline API
 
-Neo Font Render exposes its client text extension API under
-`neofontrender.api.text.pipeline`. Core compatibility transforms, UI Enhancements embedded
-content, CJK paragraph layout, and third-party extensions all use the same registry.
+Neo Font Render parses every string into the game-independent `StructuredText`
+protocol before a renderer owns it. Minecraft formatting, extension syntax,
+inline objects, source mappings, CJK break opportunities, post-processing, and
+GL execution therefore share one representation.
 
-Choose the narrowest stage that owns the behavior:
+## Registering text contributions
 
-- `RawTextMiddleware` transforms a whole string while retaining source-boundary mappings.
-- `InlineContentMiddleware` replaces one atomic source range with measured drawable content.
-- `ParagraphLayoutMiddleware` optionally owns paragraph or component line layout.
-
-Every middleware has a namespaced `id()`, optional `priority()`, and dynamic `isEnabled()` state.
-Registration replaces an existing middleware with the same ID and returns a handle:
+Game integrations use `neofontrender.api.text.StructuredTextApi`:
 
 ```java
-TextMiddlewareRegistration registration = TextPipelineApi.register(new MyMiddleware());
+StructuredTextRegistration registration = StructuredTextApi.register(myProviderOrPlugin);
 // Later:
 registration.close();
 ```
 
-Closing an older handle does not remove a newer same-ID replacement. Registration order is not
-semantic: higher priority runs first, then IDs provide deterministic ordering. A provider failure
-is logged once and isolated so lower-priority providers can continue.
+Use a `TextSyntaxProvider` for control syntax which changes semantic state. A
+provider reports a trigger and returns a `SyntaxMatch`; it must not rasterize or
+mutate renderer state. Minecraft section-sign codes, Brilliant effect codes,
+and the Tinkers PUA protocol use this stage.
 
-## Inline content
+Use a `StructuredTextMiddleware` for post-syntax structural transformations.
+Middleware receives immutable `StructuredText` and returns either the same
+instance or a rewritten value with a valid `SourceMap`. UIE Markdown, LaTeX,
+SVG, local images, external-image descriptors, and Gosling aliases use this
+stage through a Minecraft-free `TextPipelinePlugin`.
 
-An inline provider declares cheap first-character triggers and performs bounded CPU-only parsing:
+Use `LineBreakOpportunityProvider` for layout opportunities such as CJK
+kinsoku handling. Line breaking is not syntax rewriting. Use
+`InlineContentResolver` only to resolve deferred inline descriptors, such as a
+downloaded image, into a stable renderer-independent ARGB raster.
 
-```java
-public final class MyTokenMiddleware implements InlineContentMiddleware {
-    public String id() { return "example:my_token"; }
-    public int priority() { return 0; }
-    public TextTrigger trigger() { return TextTrigger.exact('['); }
+The optional Typst addon follows the same contract without using UIE or an image
+codec. Its `StructuredTextMiddleware` recognizes bounded Typst syntax, submits
+CPU work to its asynchronous cache, and publishes the completed result as an
+`InlineRaster`. The Minecraft-free `engine:typst-render` JNI module compiles and
+rasterizes Typst into straight RGBA; PNG, `BufferedImage`, subprocess pipes, and
+OpenGL are not part of that module.
 
-    public InlineContentMatch match(CharSequence source, int index) {
-        if (!matchesMyToken(source, index)) return null;
-        return new InlineContentMatch(index, tokenEnd, myContent);
-    }
-}
+All contribution IDs are namespaced. Priorities are deterministic and IDs
+break ties. Call `StructuredTextApi.invalidate()` whenever enabled state,
+resolved content, or metrics change; this advances the shared revision and
+invalidates route-owned layouts.
+
+## Rendering routes
+
+`TextRenderRouteApi` is the only `FontRenderer` dispatcher. Built-in routes are:
+
+```text
+neofontrender:modern_structured
+neofontrender:vanilla_compatibility
+neofontrender:vanilla_passthrough
 ```
 
-`match` runs during measurement and rendering. It must not perform disk or network I/O, use an
-unbounded parser, or call back into the text pipeline. `InlineContent.advance()` and `height()`
-must stay stable for a cached layout. NFR indexes exact ASCII triggers and only calls relevant
-providers at a source position. Layouts are cached per `FontRenderer` in a bounded 512-entry LRU.
+The modern route sends `StructuredText` to the configured AWT or Cosmic
+backend, then through registered `TextPostProcessor` and `TextGlComponent`
+stages. The vanilla compatibility route reconstructs vanilla style runs around
+the same inline spans. Plain text selected for vanilla remains an explicit,
+observable passthrough.
 
-When a provider's dynamic state or rendered metrics change, call `TextPipelineApi.invalidate()`.
-This advances the shared revision and invalidates NFR and consumer-owned layout caches. With all
-inline providers disabled, the normal FontRenderer path is an O(1), allocation-free branch.
+Drawing, measurement, trimming, wrapping, hit testing, and inline bounds are
+methods of the selected `TextRenderRouteLayout`; consumers should not parse or
+measure the source independently.
 
-## Raw transformations
+## Inline compatibility
 
-Raw middleware receives a `ProcessedText`. If it transforms `input.visibleText()`, return a result
-whose boundaries still refer to the original `input.rawText()`. `ProcessedText.compose(input,
-transformation)` rebases a transformation onto the previous stage's original source mapping.
-Returning `null` passes the current representation to the next middleware.
+`neofontrender.text.InlineContent` is the structured, renderer-independent
+descriptor used by the pipeline. Its `InlineLayout` separates logical layout
+from raster density: row spans are measured in line-height units, column spans
+in em units, automatic width preserves the source aspect ratio, and an optional
+maximum width scales automatic-width content down without distortion. The same
+layout is consumed by AWT, Cosmic, vanilla compatibility, GL drawing, bounds,
+and interaction adapters.
 
-## Images and embedded content
+LaTeX and Typst accept the same optional suffix:
 
-UI Enhancements exposes policy-gated image helpers under
-`neofontrender.addons.api.content`. `InlineImages.external(uri, description)` cannot bypass the
-user's external-image switch, host allowlist, blocklist, HTTPS/DNS checks, redirect validation, or
-size limits. `InlineImages.local(alias, description)` resolves the asynchronous local gallery.
+```text
+$x^2$[rows=2,columns=8,max-width=12em,supersample=4,align=center]
+<typst:$ integral_0^1 x^2 dif x $>[height=2lh,width=auto,max-width=20em,supersample=4]
+```
 
-Built-in experimental LaTeX, SVG, full-SVG compatibility and Markdown switches live in the NFR
-Laboratory settings. Markdown supports bounded single-line bold, italic, strikethrough, inline
-code and link labels. Block Markdown is intentionally outside the FontRenderer pipeline.
+`rows`/`height` control logical height, `columns`/`width` control logical width,
+`max-columns`/`max-width` constrain it, and `align` is one of `baseline`, `top`,
+`center`, or `bottom`. `flow=block` isolates the object on mapped line
+boundaries; the default is `flow=inline`. `supersample` (with `oversample` as an alias) controls
+only source raster density and never changes layout size. The legacy LaTeX
+`scale` option remains an alias for multiplying logical row height.
+
+The older
+`neofontrender.api.text.pipeline.InlineContent` remains only as a Minecraft
+drawable/interaction adapter for existing UIE menus and clipboard previews. It
+does not scan strings, select routes, or own layout.
+
+## Standalone plugins
+
+A plugin JAR exposes `TextPipelinePlugin` with Java `ServiceLoader`. The
+standalone laboratory and UIE isolated loader link only the Minecraft-free
+plugin module, so Forge and Minecraft classes in the containing mod are not
+loaded. The same plugin can therefore be tested with both the AWT and Cosmic
+laboratory backends before it is installed in a game.

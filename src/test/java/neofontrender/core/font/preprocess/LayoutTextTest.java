@@ -1,10 +1,11 @@
 package neofontrender.core.font.preprocess;
 
-import neofontrender.api.text.ModernText;
-import neofontrender.api.text.pipeline.ProcessedText;
 import neofontrender.core.font.pipeline.LayoutText;
-import neofontrender.core.font.pipeline.builtin.LegacyColorTextParser;
-import neofontrender.core.font.pipeline.builtin.TinkersAntiqueTextPreprocessor;
+import neofontrender.core.font.pipeline.builtin.HexChatStructuredMiddleware;
+import neofontrender.core.font.pipeline.builtin.TinkersAntiqueSyntaxProvider;
+import neofontrender.text.StructuredText;
+import neofontrender.text.syntax.MinecraftLegacySyntaxProvider;
+import neofontrender.text.syntax.TextSyntaxEngine;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,12 +13,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LayoutTextTest {
+    private static final TextSyntaxEngine ENGINE = TextSyntaxEngine.builder()
+            .register(TinkersAntiqueSyntaxProvider.INSTANCE)
+            .register(MinecraftLegacySyntaxProvider.INSTANCE)
+            .build();
 
     @Test
     void removesHexMarkerFromLayoutAndRestoresItsDrawState() {
-        ProcessedText source = LegacyColorTextParser.process(
-                "A#112233B", false, true, true);
-        LayoutText layout = LayoutText.fromProcessed(source);
+        LayoutText layout = LayoutText.fromStructured(hex("A#112233B"));
 
         assertEquals("AB", layout.visibleText());
         assertFalse(layout.stateAt(0).hasRgbOverride());
@@ -26,18 +29,14 @@ class LayoutTextTest {
         assertEquals(1, layout.rawStartBoundary(1));
         assertEquals(8, layout.rawEndBoundary(1));
 
-        ProcessedText restored = LegacyColorTextParser.process(
-                layout.formattedDisplay(1, "B"), true, true, true);
-        ModernText.Run run = restored.modernText().runs().get(0);
-        assertEquals("B", restored.visibleText());
-        assertTrue(run.hasColorOverride());
-        assertEquals(0x112233, run.rgb());
+        StructuredText restored = hex(layout.formattedDisplay(1, "B"));
+        assertEquals("B", restored.plainText());
+        assertEquals(0x112233, restored.styleAt(0).rgb());
     }
 
     @Test
     void keepsPerCharacterGradientColorsOutsideLayoutText() {
-        LayoutText layout = LayoutText.fromProcessed(LegacyColorTextParser.process(
-                "#FF0000-0000FFAB", false, true, true));
+        LayoutText layout = LayoutText.fromStructured(hex("#FF0000-0000FFAB"));
 
         assertEquals("AB", layout.visibleText());
         assertEquals(0xFF0000, layout.stateAt(0).rgb());
@@ -47,8 +46,7 @@ class LayoutTextTest {
     @Test
     void removesTinkersMarkersAndRestoresTheirRgbState() {
         String marker = tinkersRgb(0x12, 0x80, 0xFE);
-        LayoutText layout = LayoutText.fromProcessed(
-                LegacyColorTextParser.process(marker + "字", true, false, true));
+        LayoutText layout = LayoutText.fromStructured(ENGINE.parse(marker + "字"));
 
         assertEquals("字", layout.visibleText());
         assertTrue(layout.stateAt(0).hasRgbOverride());
@@ -61,7 +59,9 @@ class LayoutTextTest {
     @Test
     void leavesTinkersCharactersInLayoutWhenCompatibilityDidNotDecodeThem() {
         String raw = tinkersRgb(1, 2, 3) + "字";
-        LayoutText layout = LayoutText.fromProcessed(ProcessedText.unchanged(raw));
+        TextSyntaxEngine minecraftOnly = TextSyntaxEngine.builder()
+                .register(MinecraftLegacySyntaxProvider.INSTANCE).build();
+        LayoutText layout = LayoutText.fromStructured(minecraftOnly.parse(raw));
 
         assertFalse(layout.transformed());
         assertEquals(raw, layout.visibleText());
@@ -70,8 +70,7 @@ class LayoutTextTest {
 
     @Test
     void stripsLegacyFormattingButRetainsItsPerCharacterState() {
-        LayoutText layout = LayoutText.fromProcessed(
-                ProcessedText.unchanged("\u00A7l粗\u00A7r常"));
+        LayoutText layout = LayoutText.fromStructured(ENGINE.parse("\u00A7l粗\u00A7r常"));
 
         assertEquals("粗常", layout.visibleText());
         assertTrue(layout.stateAt(0).bold());
@@ -82,9 +81,13 @@ class LayoutTextTest {
 
     private static String tinkersRgb(int red, int green, int blue) {
         return new String(new char[]{
-                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + red),
-                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + green),
-                (char) (TinkersAntiqueTextPreprocessor.MARKER_START + blue)
+                (char) (TinkersAntiqueSyntaxProvider.MARKER_START + red),
+                (char) (TinkersAntiqueSyntaxProvider.MARKER_START + green),
+                (char) (TinkersAntiqueSyntaxProvider.MARKER_START + blue)
         });
+    }
+
+    private static StructuredText hex(String source) {
+        return HexChatStructuredMiddleware.INSTANCE.process(ENGINE.parse(source));
     }
 }

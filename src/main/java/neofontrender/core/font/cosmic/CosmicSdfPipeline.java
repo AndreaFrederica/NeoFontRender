@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import neofontrender.NeoFontRender;
 import neofontrender.core.font.support.FramebufferAlphaBlend;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL20;
 
@@ -26,16 +27,20 @@ final class CosmicSdfPipeline {
     }
 
     static State begin() {
-        State state = new State();
-        state.capture();
         int shader = getOrCreateProgram();
         if (shader == 0) {
+            State state = new State();
             state.noop = true;
             return state;
         }
+        State state = new State();
+        state.capture();
         GlStateManager.enableTexture2D();
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
         GlStateManager.disableAlpha();
+        GL11.glDisable(GL11.GL_ALPHA_TEST);
         GlStateManager.disableFog();
+        GL11.glDisable(GL11.GL_FOG);
         GlStateManager.enableBlend();
         // Legacy renderers such as TC6 toggle blending through raw GL11 calls and can leave
         // GlStateManager's cache disagreeing with the driver. Keep both layers synchronized.
@@ -121,8 +126,11 @@ final class CosmicSdfPipeline {
         private boolean blendEnabled;
         private boolean alphaEnabled;
         private boolean fogEnabled;
-        private boolean textureEnabled;
-        private int textureBinding;
+        private int activeTexture;
+        private boolean activeTextureEnabled;
+        private int activeTextureBinding;
+        private boolean texture0Enabled;
+        private int texture0Binding;
         private int srcRgb;
         private int dstRgb;
         private int srcAlpha;
@@ -133,8 +141,12 @@ final class CosmicSdfPipeline {
             blendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
             alphaEnabled = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
             fogEnabled = GL11.glIsEnabled(GL11.GL_FOG);
-            textureEnabled = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
-            textureBinding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+            activeTextureEnabled = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
+            activeTextureBinding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            selectTextureUnit(GL13.GL_TEXTURE0);
+            texture0Enabled = GL11.glIsEnabled(GL11.GL_TEXTURE_2D);
+            texture0Binding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
             srcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
             dstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
             srcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
@@ -161,11 +173,32 @@ final class CosmicSdfPipeline {
             }
             if (alphaEnabled) GlStateManager.enableAlpha();
             else GlStateManager.disableAlpha();
+            if (alphaEnabled) GL11.glEnable(GL11.GL_ALPHA_TEST);
+            else GL11.glDisable(GL11.GL_ALPHA_TEST);
             if (fogEnabled) GlStateManager.enableFog();
             else GlStateManager.disableFog();
-            if (textureEnabled) GlStateManager.enableTexture2D();
+            if (fogEnabled) GL11.glEnable(GL11.GL_FOG);
+            else GL11.glDisable(GL11.GL_FOG);
+            restoreTextureUnit(GL13.GL_TEXTURE0, texture0Enabled, texture0Binding);
+            if (activeTexture != GL13.GL_TEXTURE0) {
+                restoreTextureUnit(activeTexture, activeTextureEnabled, activeTextureBinding);
+            }
+            selectTextureUnit(activeTexture);
+        }
+
+        private static void restoreTextureUnit(int unit, boolean enabled, int binding) {
+            selectTextureUnit(unit);
+            if (enabled) GlStateManager.enableTexture2D();
             else GlStateManager.disableTexture2D();
-            GlStateManager.bindTexture(textureBinding);
+            if (enabled) GL11.glEnable(GL11.GL_TEXTURE_2D);
+            else GL11.glDisable(GL11.GL_TEXTURE_2D);
+            GlStateManager.bindTexture(binding);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, binding);
+        }
+
+        private static void selectTextureUnit(int unit) {
+            GlStateManager.setActiveTexture(unit);
+            GL13.glActiveTexture(unit);
         }
     }
 }

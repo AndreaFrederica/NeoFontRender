@@ -1,13 +1,10 @@
 package neofontrender.core.font.pipeline;
 
-import neofontrender.api.text.ModernText;
-import neofontrender.api.text.pipeline.ProcessedText;
-import neofontrender.api.text.pipeline.TextPipelineApi;
-import neofontrender.core.font.pipeline.builtin.TinkersAntiqueTextPreprocessor;
+import neofontrender.core.font.pipeline.builtin.TinkersAntiqueSyntaxProvider;
+import neofontrender.text.StructuredText;
+import neofontrender.text.TextStyle;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -43,16 +40,23 @@ public final class LayoutText {
 
     public static LayoutText process(String rawText) {
         String raw = rawText == null ? "" : rawText;
-        return fromProcessed(TextPipelineApi.processRaw(raw));
+        return fromStructured(StructuredTextRuntime.parse(raw));
     }
 
-    public static LayoutText fromProcessed(ProcessedText preprocessed) {
-        Objects.requireNonNull(preprocessed, "preprocessed");
-        BoundaryText boundaries = stripFormatting(preprocessed);
-        return new LayoutText(preprocessed.rawText(), boundaries.visible,
-                boundaries.rawStarts, boundaries.rawEnds,
-                drawStates(preprocessed.modernText(), boundaries.visible.length()),
-                preprocessed.transformed(), TinkersAntiqueTextPreprocessor.INSTANCE.isEnabled());
+    public static LayoutText fromStructured(StructuredText structured) {
+        Objects.requireNonNull(structured, "structured");
+        int length = structured.plainText().length();
+        int[] starts = new int[length + 1];
+        int[] ends = new int[length + 1];
+        for (int index = 0; index <= length; index++) {
+            starts[index] = structured.sourceMap().sourceStart(index);
+            ends[index] = structured.sourceMap().sourceEnd(index);
+        }
+        boolean transformed = !structured.sourceText().equals(structured.plainText())
+                || !structured.inlineSpans().isEmpty() || !structured.effects().isEmpty();
+        return new LayoutText(structured.sourceText(), structured.plainText(), starts, ends,
+                drawStates(structured), transformed,
+                TinkersAntiqueSyntaxProvider.INSTANCE.isEnabled());
     }
 
     public String rawText() { return rawText; }
@@ -96,11 +100,11 @@ public final class LayoutText {
         // necessarily the source of the RGB state. This keeps either feature independently
         // switchable and avoids inventing an always-active hidden protocol.
         if (tinkersRgbEncoding) {
-            target.append((char) (TinkersAntiqueTextPreprocessor.MARKER_START
+            target.append((char) (TinkersAntiqueSyntaxProvider.MARKER_START
                             + ((rgb >>> 16) & 0xFF)))
-                    .append((char) (TinkersAntiqueTextPreprocessor.MARKER_START
+                    .append((char) (TinkersAntiqueSyntaxProvider.MARKER_START
                             + ((rgb >>> 8) & 0xFF)))
-                    .append((char) (TinkersAntiqueTextPreprocessor.MARKER_START
+                    .append((char) (TinkersAntiqueSyntaxProvider.MARKER_START
                             + (rgb & 0xFF)));
         } else {
             target.append(String.format(Locale.ROOT, "#%06X", rgb & 0xFFFFFF));
@@ -111,63 +115,23 @@ public final class LayoutText {
         return Math.max(0, Math.min(visibleText.length(), boundary));
     }
 
-    private static BoundaryText stripFormatting(ProcessedText text) {
-        String source = text.visibleText();
-        StringBuilder visible = new StringBuilder(source.length());
-        List<Integer> starts = new ArrayList<>(source.length() + 1);
-        List<Integer> ends = new ArrayList<>(source.length() + 1);
-        starts.add(text.rawStartForVisibleBoundary(0));
-        ends.add(text.rawEndForVisibleBoundary(0));
-
-        for (int offset = 0; offset < source.length();) {
-            if (source.charAt(offset) == '\u00A7' && offset + 1 < source.length()) {
-                offset += 2;
-                ends.set(ends.size() - 1, text.rawEndForVisibleBoundary(offset));
-                continue;
-            }
-            int codePoint = source.codePointAt(offset);
-            int count = Character.charCount(codePoint);
-            visible.appendCodePoint(codePoint);
-            for (int unit = 1; unit <= count; unit++) {
-                int boundary = offset + unit;
-                starts.add(text.rawStartForVisibleBoundary(boundary));
-                ends.add(text.rawEndForVisibleBoundary(boundary));
-            }
-            offset += count;
-        }
-        return new BoundaryText(visible.toString(), toArray(starts), toArray(ends));
-    }
-
-    private static TreeMap<Integer, State> drawStates(ModernText modernText, int visibleLength) {
+    private static TreeMap<Integer, State> drawStates(StructuredText text) {
         TreeMap<Integer, State> states = new TreeMap<>();
-        int visibleOffset = 0;
         State last = State.EMPTY;
-        for (ModernText.Run run : modernText.runs()) {
-            MutableLegacyState legacy = new MutableLegacyState();
-            String text = run.text();
-            for (int offset = 0; offset < text.length();) {
-                if (text.charAt(offset) == '\u00A7' && offset + 1 < text.length()) {
-                    legacy.apply(text.charAt(offset + 1));
-                    offset += 2;
-                    continue;
-                }
-                int codePoint = text.codePointAt(offset);
-                int count = Character.charCount(codePoint);
-                last = legacy.freeze(run.hasColorOverride(), run.rgb());
-                if (visibleOffset < visibleLength) states.put(visibleOffset, last);
-                visibleOffset += count;
-                offset += count;
-            }
+        for (int offset = 0; offset < text.plainText().length();) {
+            TextStyle style = text.styleAt(offset);
+            Character legacyColor = style.hasColorOverride()
+                    ? StructuredTextRuntime.legacyColorCode(style.rgb()) : null;
+            last = new State(legacyColor,
+                    style.hasColorOverride() && legacyColor == null, style.rgb(),
+                    style.obfuscated(), style.bold(), style.strikethrough(),
+                    style.underline(), style.italic());
+            states.put(offset, last);
+            offset += Character.charCount(text.plainText().codePointAt(offset));
         }
         states.putIfAbsent(0, State.EMPTY);
-        states.put(visibleLength, last);
+        states.put(text.plainText().length(), last);
         return states;
-    }
-
-    private static int[] toArray(List<Integer> values) {
-        int[] result = new int[values.size()];
-        for (int i = 0; i < values.size(); i++) result[i] = values.get(i);
-        return result;
     }
 
     public static final class State {
@@ -231,50 +195,4 @@ public final class LayoutText {
         }
     }
 
-    private static final class MutableLegacyState {
-        private Character color;
-        private boolean random;
-        private boolean bold;
-        private boolean strike;
-        private boolean underline;
-        private boolean italic;
-
-        private void apply(char rawCode) {
-            char code = Character.toLowerCase(rawCode);
-            if ((code >= '0' && code <= '9') || (code >= 'a' && code <= 'f')) {
-                color = code;
-                random = bold = strike = underline = italic = false;
-                return;
-            }
-            switch (code) {
-                case 'k': random = true; break;
-                case 'l': bold = true; break;
-                case 'm': strike = true; break;
-                case 'n': underline = true; break;
-                case 'o': italic = true; break;
-                case 'r':
-                    color = null;
-                    random = bold = strike = underline = italic = false;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        private State freeze(boolean rgbOverride, int rgb) {
-            return new State(color, rgbOverride, rgb, random, bold, strike, underline, italic);
-        }
-    }
-
-    private static final class BoundaryText {
-        private final String visible;
-        private final int[] rawStarts;
-        private final int[] rawEnds;
-
-        private BoundaryText(String visible, int[] rawStarts, int[] rawEnds) {
-            this.visible = visible;
-            this.rawStarts = rawStarts;
-            this.rawEnds = rawEnds;
-        }
-    }
 }
