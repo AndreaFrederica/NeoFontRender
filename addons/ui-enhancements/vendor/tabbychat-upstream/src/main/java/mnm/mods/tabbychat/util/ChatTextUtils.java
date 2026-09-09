@@ -70,6 +70,7 @@ public class ChatTextUtils {
                 List<ITextComponent> chatlist = split(display, width);
                 UUID senderId = line instanceof ChatMessage
                         ? ((ChatMessage) line).nfrUi$getSenderId() : ChatHeadResolver.detect(line.getMessage());
+                ChatMessage sourceMessage = line instanceof ChatMessage ? (ChatMessage) line : null;
                 for (int i = chatlist.size() - 1; i >= 0; i--) {
                     ITextComponent chat = chatlist.get(i);
                     ChatMessageMetadata fragmentMetadata = metadata;
@@ -80,8 +81,11 @@ public class ChatTextUtils {
                                 metadata.privatePeer, true, display.getUnformattedText());
                     }
                     ChatMessageMetadataRegistry.put(chat, fragmentMetadata);
+                    long animationInstanceId = sourceMessage == null
+                            ? neofontrender.api.text.animation.TextAnimationApi.createInstanceId()
+                            : sourceMessage.nfrUi$getFragmentAnimationInstanceId(i);
                     result.add(new ChatMessage(line.getCounter(), chat, line.getID(), false,
-                            senderId, i == 0));
+                            senderId, i == 0, animationInstanceId));
                 }
             }
             return result;

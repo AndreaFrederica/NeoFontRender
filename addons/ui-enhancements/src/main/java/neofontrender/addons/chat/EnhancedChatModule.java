@@ -15,6 +15,7 @@ public final class EnhancedChatModule implements UiEnhancementModule {
     @Override
     public void preInit() {
         SelfMessageCapability.initialize();
+        ClientChatPolicy.initialize();
         EnhancedChatConfig.load();
         EmojiAndImageConfig.load();
         EmbeddedContentConfig.load();

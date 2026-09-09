@@ -16,6 +16,7 @@ import neofontrender.addons.scrolling.SmoothScrollingModule;
 import neofontrender.addons.input.TextInputModule;
 import neofontrender.addons.effects.ScreenEffectsModule;
 import neofontrender.addons.chat.EnhancedChatModule;
+import neofontrender.addons.server.UiEnhancementsServerConfig;
 import neofontrender.addons.hud.HudBarsModule;
 import neofontrender.addons.loading.WorldLoadingModule;
 import neofontrender.addons.loading.ResourceReloadModule;
@@ -79,6 +80,7 @@ public final class NfrUiEnhancements {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        UiEnhancementsServerConfig.load(event.getModConfigurationDirectory());
         EmbeddedContentFonts.register();
         UiEnhancementsConfig.open();
         UiEnhancementsInfoContributions.register();

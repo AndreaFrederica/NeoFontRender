@@ -40,6 +40,12 @@ public enum ChatMessageProcessor {
                     .applyActivePrivateCommand(message);
             event.setMessage(message);
         }
+        if (!ClientChatPolicy.canSend(Minecraft.getMinecraft().getConnection() == null ? null
+                : Minecraft.getMinecraft().getConnection().getNetworkManager(), message)) {
+            event.setCanceled(true);
+            recentOutgoing = null;
+            return;
+        }
         recentOutgoing = ChatOutgoingMessage.parse(message,
                 EnhancedChatConfig.privateMessageCommand, System.currentTimeMillis());
         if (isUnsupportedSelfMessage(recentOutgoing)) {
@@ -51,12 +57,14 @@ public enum ChatMessageProcessor {
 
     @SubscribeEvent
     public void connected(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        ClientChatPolicy.connected(event.getManager());
         SelfMessageCapability.resetClient();
         Minecraft.getMinecraft().addScheduledTask(SelfMessageCapability::probeServer);
     }
 
     @SubscribeEvent
     public void disconnected(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        ClientChatPolicy.disconnected(event.getManager());
         SelfMessageCapability.resetClient();
     }
 

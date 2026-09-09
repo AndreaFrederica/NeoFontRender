@@ -9,7 +9,10 @@
   "mixins": [
     "MixinCommandHandlerCompletionProviders",
     "MixinCommandMessageSelfTarget",
-    "MixinCommandMessageRecord"
+    "MixinCommandMessageRecord",
+    "MixinServerChatCharacters",
+    "MixinTextAnimatorGameRules",
+    "MixinContainerRepairTextAnimator"
   ],
   "server": [],
   "client": [
@@ -50,6 +53,8 @@
     "MixinGuiIngameForgeCrosshair",
     "MixinGuiChatAnimation",
     "MixinGuiChatCommandCompletion",
+    "MixinGuiTextFieldChatCharacters",
+    "MixinNetworkManagerChatCharacters",
     "MixinGuiButtonCreateWorldStyle",
     "MixinGuiButtonCursor",
     "MixinGuiButtonExtHover",

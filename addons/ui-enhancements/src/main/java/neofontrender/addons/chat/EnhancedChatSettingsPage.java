@@ -35,6 +35,8 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
         private final boolean copySelection = EnhancedChatConfig.copySelection;
         private final boolean copyFormattingCodes = EnhancedChatConfig.copyFormattingCodes;
         private final boolean ampersandFormatting = EnhancedChatConfig.ampersandFormatting;
+        private final boolean allowSectionSignInput = EnhancedChatConfig.allowSectionSignInput;
+        private final boolean sourcePreview = EnhancedChatConfig.sourcePreview;
         private final boolean forceServerTranslations = EnhancedChatConfig.salutationForceServerTranslations;
         private final boolean disableSalutationOverride = EnhancedChatConfig.salutationDisableOverride;
 
@@ -62,7 +64,15 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
                     .add(c.toggleText(() -> tr("gui.chat.salutation_disable_override"),
                             () -> tr("tooltip.chat.salutation_disable_override"),
                             () -> EnhancedChatConfig.salutationDisableOverride,
-                            value -> EnhancedChatConfig.salutationDisableOverride = value));
+                            value -> EnhancedChatConfig.salutationDisableOverride = value))
+                    .add(c.toggleText(() -> tr("gui.chat.allow_section_sign"),
+                            () -> tr("tooltip.chat.allow_section_sign"),
+                            () -> EnhancedChatConfig.allowSectionSignInput,
+                            value -> EnhancedChatConfig.allowSectionSignInput = value))
+                    .add(c.toggleText(() -> tr("gui.chat.source_preview"),
+                            () -> tr("tooltip.chat.source_preview"),
+                            () -> EnhancedChatConfig.sourcePreview,
+                            value -> EnhancedChatConfig.sourcePreview = value));
             NfrOptionsGrid history = c.grid()
                     .add(c.toggleText(() -> tr("gui.chat.extended_history"), () -> tr("tooltip.chat.extended_history"),
                             () -> EnhancedChatConfig.extendedHistory, value -> EnhancedChatConfig.extendedHistory = value))
@@ -110,6 +120,8 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
             EnhancedChatConfig.copySelection = copySelection;
             EnhancedChatConfig.copyFormattingCodes = copyFormattingCodes;
             EnhancedChatConfig.ampersandFormatting = ampersandFormatting;
+            EnhancedChatConfig.allowSectionSignInput = allowSectionSignInput;
+            EnhancedChatConfig.sourcePreview = sourcePreview;
             EnhancedChatConfig.salutationForceServerTranslations = forceServerTranslations;
             EnhancedChatConfig.salutationDisableOverride = disableSalutationOverride;
         }

@@ -47,6 +47,8 @@ import neofontrender.addons.chat.EnhancedChatFeatures;
 import neofontrender.api.text.route.TextInlineBounds;
 import neofontrender.api.text.route.TextRenderRouteApi;
 import neofontrender.api.text.route.TextRenderRouteLayout;
+import neofontrender.api.text.animation.TextAnimationApi;
+import neofontrender.api.text.animation.TextAnimationScope;
 import neofontrender.addons.inline.StructuredInlineContentAdapter;
 import neofontrender.addons.cjk.ChatTypographyRenderer;
 import mnm.mods.tabbychat.ChatMessage;
@@ -257,6 +259,14 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     }
 
     private void drawChatLine(Message line, int xPos, int yPos) {
+        long animationInstanceId = line instanceof ChatMessage
+                ? ((ChatMessage) line).nfrUi$getAnimationInstanceId() : 0L;
+        try (TextAnimationScope ignored = TextAnimationApi.openInstance(animationInstanceId)) {
+            drawChatLineInScope(line, xPos, yPos);
+        }
+    }
+
+    private void drawChatLineInScope(Message line, int xPos, int yPos) {
         if (isPrivateView()) {
             drawPrivateLine(line, xPos, yPos);
             return;
@@ -277,7 +287,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
                 ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity * fade)
                 : Color.WHITE.getHex() & 0x00FFFFFF
                     | ChatFadeMath.lineOpacity(mc.gameSettings.chatOpacity, fade) << 24;
-        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()) {
+        if (canUsePositionedTypography(display, inline)) {
             ChatTypographyRenderer.draw(mc.fontRenderer, display,
                     xPos + ChatHeadRenderer.textOffset(), yPos, configured, true);
         } else {
@@ -329,7 +339,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         boolean outgoing = metadata != null && metadata.outgoing;
         float fade = getLineFade(line);
         int avatarSpace = EnhancedChatFeatures.playerHeads() ? ChatHeadRenderer.HEAD_SIZE + 5 : 0;
-        int textWidth = ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()
+        int textWidth = canUsePositionedTypography(display, inline)
                 ? ChatTypographyRenderer.width(mc.fontRenderer, display)
                 : (int) Math.ceil(inline.advance());
         int bubbleWidth = Math.min(getBounds().width - avatarSpace - 8, textWidth + 8);
@@ -357,7 +367,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         int configured = ChatStyleConfig.enabled
                 ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity * fade)
                 : 0x00FFFFFF | alpha << 24;
-        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()) {
+        if (canUsePositionedTypography(display, inline)) {
             ChatTypographyRenderer.draw(mc.fontRenderer, display,
                     textX, yPos + 1, configured, false);
         } else {
@@ -579,7 +589,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         int localX = Math.max(0, mouseX - textX(line, 3));
         ITextComponent display = line.getMessageWithOptionalTimestamp();
         TextRenderRouteLayout inline = cachedRow(line).messageLayout;
-        int position = ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()
+        int position = canUsePositionedTypography(display, inline)
                 ? ChatTypographyRenderer.formattedIndexAt(display, localX)
                 : inline.sourceIndexAt(localX);
         int headX = isPrivateView() && isOutgoing(line)
@@ -600,7 +610,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         if (mouseX < x) return null;
         ITextComponent display = line.getMessageWithOptionalTimestamp();
         TextRenderRouteLayout inline = cachedRow(line).messageLayout;
-        if (ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()) {
+        if (canUsePositionedTypography(display, inline)) {
             return ChatTypographyRenderer.componentAt(display, mouseX - x);
         }
         for (ITextComponent component : display) {
@@ -636,8 +646,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
             int textX = textX(line, xPos);
             TextRenderRouteLayout layout = cachedRow(line).messageLayout;
             ITextComponent display = line.getMessageWithOptionalTimestamp();
-            boolean positioned = ChatTypographyRenderer.isPositioned(display)
-                    && !layout.hasInlineContent();
+            boolean positioned = canUsePositionedTypography(display, layout);
             int x1 = textX + Math.round(positioned
                     ? ChatTypographyRenderer.xAtFormattedIndex(display, range.start)
                     : layout.widthToSource(range.start));
@@ -650,6 +659,13 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
 
     private static String messageText(Message line) {
         return line.getMessageWithOptionalTimestamp().getFormattedText();
+    }
+
+    private static boolean canUsePositionedTypography(ITextComponent display,
+                                                        TextRenderRouteLayout layout) {
+        return ChatTypographyRenderer.isPositioned(display)
+                && !layout.hasInlineContent()
+                && layout.structuredText().effects().isEmpty();
     }
 
     private GlyphHover nfrUi$glyphAt(int mouseX, int mouseY) {
@@ -916,7 +932,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
 
     private int nfrUi$textWidth(Message line, ITextComponent display) {
         TextRenderRouteLayout inline = cachedRow(line).renderLayout;
-        return ChatTypographyRenderer.isPositioned(display) && !inline.hasInlineContent()
+        return canUsePositionedTypography(display, inline)
                 ? ChatTypographyRenderer.width(mc.fontRenderer, display)
                 : (int) Math.ceil(inline.advance());
     }

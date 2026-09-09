@@ -45,6 +45,9 @@ import neofontrender.api.text.route.TextRenderRouteLayout;
 import neofontrender.addons.inline.StructuredInlineContentAdapter;
 import neofontrender.addons.chat.EnhancedChatFeatures;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.text.edit.SourceEditProjection;
+import neofontrender.text.edit.SourceEditState;
+import neofontrender.text.edit.SourceSpan;
 
 import java.awt.Dimension;
 import java.awt.Rectangle;
@@ -73,6 +76,10 @@ public class TextBox extends GuiComponent implements ChatInput {
     private long lastHeightUpdateNanos;
     private final IntBuffer oldScissor = BufferUtils.createIntBuffer(4);
     private boolean scissorWasEnabled;
+    private String sourceProjectionText;
+    private SourceEditProjection sourceProjection;
+    private int sourceProjectionCursor = -1;
+    private SourceEditState sourceProjectionState;
 
     TextBox() {
         textField.getTextField().setMaxStringLength(ChatManager.MAX_CHAT_LENGTH);
@@ -141,7 +148,7 @@ public class TextBox extends GuiComponent implements ChatInput {
             // cursor drawing
             if (pos >= 0 && pos <= text.length()) {
                 // cursor is on this line
-                int c = TextRenderRouteApi.width(fr, text.substring(0, pos)) + inputInset();
+                int c = sourceVisualWidth(text, totalPos, pos) + inputInset();
                 boolean cursorBlink = this.cursorCounter / 6 % 3 != 0;
                 if (cursorBlink) {
                     if (textField.getCursorPosition() < this.textField.getValue().length()) {
@@ -245,7 +252,14 @@ public class TextBox extends GuiComponent implements ChatInput {
                 lastTextAdvance = drawCommandLine(
                         raw, lineStart, layout, commandColors, styled, textX, yPos, color);
                 drawSpellingDecorations(line, layout, textX, yPos);
-            } else if (layout.hasInlineContent()) {
+            } else if (EnhancedChatConfigAccess.sourcePreviewEnabled()
+                    && sourceIsActive(raw, lineStart, fullText)) {
+                lastTextAdvance = drawSourceAwareLine(raw, lineStart, fullText,
+                        layout, textX, yPos, color);
+            } else if (layout.hasInlineContent() || !layout.structuredText().effects().isEmpty()) {
+                // Structured effects (including TextAnimator's typewriter) must use the
+                // same route as chat output. FancyFontRenderer only draws literal text and
+                // silently drops angle-bracket effects from the input preview.
                 TextRenderRouteApi.layout(fr, raw, color, false).draw(textX, yPos);
                 drawSpellingDecorations(line, layout, textX, yPos);
                 lastTextAdvance = layout.advance();
@@ -260,6 +274,95 @@ public class TextBox extends GuiComponent implements ChatInput {
         }
         drawCommandGhost(lastTextAdvance, lastTextX, lastTextY);
 
+    }
+
+    /** Shows source literally while the caret is editing any recognized syntax span. */
+    private boolean sourceIsActive(String line, int lineStart, String fullText) {
+        if (line == null || line.isEmpty()) return false;
+        int cursor = textField.getTextField().getCursorPosition();
+        SourceEditProjection projection = cachedSourceProjection(fullText);
+        SourceEditState state = cachedSourceState(fullText, cursor);
+        if (projection.at(state) == null) return false;
+        int lineEnd = Math.min(fullText.length(), lineStart + line.length());
+        for (neofontrender.text.edit.SourceSpan span : projection.spans()) {
+            if (span.contains(state) && span.end() > lineStart && span.start() < lineEnd) return true;
+        }
+        return false;
+    }
+
+    /** Draws only the active syntax span literally; neighboring source stays previewed. */
+    private float drawSourceAwareLine(String line, int lineStart, String fullText,
+                                      TextRenderRouteLayout layout, int textX, int textY,
+                                      int color) {
+        int cursor = textField.getTextField().getCursorPosition();
+        SourceEditProjection projection = cachedSourceProjection(fullText);
+        SourceSpan active = projection.at(cachedSourceState(fullText, cursor));
+        if (active == null) {
+            layout.draw(textX, textY);
+            return layout.advance();
+        }
+
+        int lineEnd = Math.min(fullText.length(), lineStart + line.length());
+        int rawStart = Math.max(lineStart, active.start()) - lineStart;
+        int rawEnd = Math.min(lineEnd, active.end()) - lineStart;
+        if (rawStart >= rawEnd) {
+            layout.draw(textX, textY);
+            return layout.advance();
+        }
+
+        float advance = 0.0F;
+        if (rawStart > 0) {
+            String prefix = line.substring(0, rawStart);
+            TextRenderRouteLayout prefixLayout = TextRenderRouteApi.layout(fr, prefix, color, false);
+            prefixLayout.draw(textX, textY);
+            advance += prefixLayout.advance();
+        }
+        String source = line.substring(rawStart, rawEnd);
+        advance += drawLiteralSource(source, textX + Math.round(advance), textY, color);
+        if (rawEnd < line.length()) {
+            String suffix = line.substring(rawEnd);
+            TextRenderRouteLayout suffixLayout = TextRenderRouteApi.layout(fr, suffix, color, false);
+            suffixLayout.draw(textX + Math.round(advance), textY);
+            advance += suffixLayout.advance();
+        }
+        return advance;
+    }
+
+    private SourceEditProjection cachedSourceProjection(String text) {
+        if (sourceProjection == null || !text.equals(sourceProjectionText)) {
+            sourceProjection = TextRenderRouteApi.sourceProjection(text);
+            sourceProjectionText = text;
+            sourceProjectionCursor = -1;
+            sourceProjectionState = null;
+        }
+        return sourceProjection;
+    }
+
+    private SourceEditState cachedSourceState(String text, int cursor) {
+        if (sourceProjectionState == null || sourceProjectionCursor != cursor
+                || !text.equals(sourceProjectionText)) {
+            sourceProjectionState = SourceEditState.of(text, cursor);
+            sourceProjectionCursor = cursor;
+        }
+        return sourceProjectionState;
+    }
+
+    private float drawLiteralSource(String source, int x, int y, int color) {
+        float advance = 0.0F;
+        for (int index = 0; index < source.length();) {
+            int codePoint = source.codePointAt(index);
+            String character = new String(Character.toChars(codePoint));
+            if (ModernTextApi.isAvailable()) {
+                ModernTextApi.draw(character, x + advance, y,
+                        NeofontrenderConfig.fontSize(), color);
+                advance += TextRenderRouteApi.width(fr, character);
+            } else {
+                fr.drawString(character, x + Math.round(advance), y, color, false);
+                advance += fr.getStringWidth(character);
+            }
+            index += Character.charCount(codePoint);
+        }
+        return advance;
     }
 
     private float drawCommandLine(String source, int lineStart, TextRenderRouteLayout layout,
@@ -443,8 +546,22 @@ public class TextBox extends GuiComponent implements ChatInput {
 
     @Override
     public List<String> getWrappedLines() {
+        if (!EnhancedChatConfigAccess.sourcePreviewEnabled()) {
+            return fr.listFormattedStringToWidth(textField.getValue(),
+                    Math.max(8, getBounds().width - inputInset()));
+        }
+        if (sourceEditingActive(textField.getTextField().getText())) {
+            return TextRenderRouteApi.wrapEditable(fr, textField.getValue(),
+                    Math.max(8, getBounds().width - inputInset()));
+        }
         return TextRenderRouteApi.wrap(fr, textField.getValue(),
                 Math.max(8, getBounds().width - inputInset()));
+    }
+
+    private boolean sourceEditingActive(String text) {
+        if (text == null || text.isEmpty()) return false;
+        return cachedSourceProjection(text).at(cachedSourceState(text,
+                textField.getTextField().getCursorPosition())) != null;
     }
 
     private List<ITextComponent> getFormattedLines(List<String> lines) {
@@ -535,14 +652,81 @@ public class TextBox extends GuiComponent implements ChatInput {
         int index = 0;
         for (int i = 0; i < row; i++) {
             index += lines.get(i).length();
-            // listFormattedStringToWidth trims the wrapping space from the visual line.
-            if (index < getText().length() && getText().charAt(index) == ' ') index++;
         }
-        index += TextRenderRouteApi.layout(fr, lines.get(row)).sourceIndexAt(
-                Math.max(0, x - 3 - inputInset()));
+        String line = lines.get(row);
+        int localX = Math.max(0, x - 3 - inputInset());
+        index += sourceIndexAt(line, index, localX);
         index = Math.max(0, Math.min(index, getText().length()));
         if (extendSelection) textField.getTextField().setSelectionPos(index);
         else textField.getTextField().setCursorPosition(index);
+    }
+
+    private int sourceIndexAt(String line, int lineStart, int x) {
+        if (!EnhancedChatConfigAccess.sourcePreviewEnabled()) {
+            return TextRenderRouteApi.layout(fr, line).sourceIndexAt(x);
+        }
+        String fullText = textField.getTextField().getText();
+        SourceSpan active = cachedSourceProjection(fullText)
+                .at(cachedSourceState(fullText, textField.getTextField().getCursorPosition()));
+        if (active == null || active.end() <= lineStart || active.start() >= lineStart + line.length()) {
+            return TextRenderRouteApi.layout(fr, line).sourceIndexAt(x);
+        }
+        int rawStart = Math.max(lineStart, active.start()) - lineStart;
+        int rawEnd = Math.min(lineStart + line.length(), active.end()) - lineStart;
+        float prefixWidth = rawStart == 0 ? 0 : TextRenderRouteApi.width(fr, line.substring(0, rawStart));
+        if (x < prefixWidth) return TextRenderRouteApi.layout(fr, line.substring(0, rawStart)).sourceIndexAt(x);
+        float rawWidth = literalWidth(line.substring(rawStart, rawEnd));
+        if (x <= prefixWidth + rawWidth) {
+            int offset = literalIndexAt(line.substring(rawStart, rawEnd),
+                    Math.max(0, Math.round(x - prefixWidth)));
+            return rawStart + offset;
+        }
+        int suffix = rawEnd + TextRenderRouteApi.layout(fr, line.substring(rawEnd))
+                .sourceIndexAt(Math.max(0, Math.round(x - prefixWidth - rawWidth)));
+        return suffix;
+    }
+
+    private int sourceVisualWidth(String line, int lineStart, int sourceOffset) {
+        int local = Math.max(0, Math.min(line.length(), sourceOffset));
+        if (!EnhancedChatConfigAccess.sourcePreviewEnabled()) return TextRenderRouteApi.width(fr, line.substring(0, local));
+        String full = textField.getTextField().getText();
+        SourceSpan active = cachedSourceProjection(full).at(cachedSourceState(full,
+                textField.getTextField().getCursorPosition()));
+        if (active == null || active.end() <= lineStart || active.start() >= lineStart + line.length()) {
+            return TextRenderRouteApi.width(fr, line.substring(0, local));
+        }
+        int rawStart = Math.max(lineStart, active.start()) - lineStart;
+        int rawEnd = Math.min(lineStart + line.length(), active.end()) - lineStart;
+        if (local <= rawStart) return TextRenderRouteApi.width(fr, line.substring(0, local));
+        int prefix = TextRenderRouteApi.width(fr, line.substring(0, rawStart));
+        if (local <= rawEnd) return prefix + Math.round(literalWidth(line.substring(rawStart, local)));
+        return prefix + Math.round(literalWidth(line.substring(rawStart, rawEnd)))
+                + TextRenderRouteApi.width(fr, line.substring(rawEnd, local));
+    }
+
+    private float literalWidth(String source) {
+        float width = 0;
+        for (int i = 0; i < source.length();) {
+            int cp = source.codePointAt(i);
+            String s = new String(Character.toChars(cp));
+            width += ModernTextApi.isAvailable() ? TextRenderRouteApi.width(fr, s) : fr.getStringWidth(s);
+            i += Character.charCount(cp);
+        }
+        return width;
+    }
+
+    private int literalIndexAt(String source, int x) {
+        int offset = 0;
+        float advance = 0;
+        while (offset < source.length()) {
+            int cp = source.codePointAt(offset);
+            String s = new String(Character.toChars(cp));
+            float next = advance + (ModernTextApi.isAvailable() ? TextRenderRouteApi.width(fr, s) : fr.getStringWidth(s));
+            if (x < (advance + next) / 2.0F) return offset;
+            advance = next;
+            offset += Character.charCount(cp);
+        }
+        return source.length();
     }
 
     private int contentHeight(List<String> lines) {
