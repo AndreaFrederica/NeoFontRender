@@ -2,7 +2,7 @@ package neofontrender.core.font.cosmic;
 
 /** JNI surface kept deliberately coarse-grained: one call shapes/rasterizes one complete run. */
 final class CosmicNative {
-    static final int ABI_VERSION = 11;
+    static final int ABI_VERSION = 12;
 
     static final int RASTER_MODEL_MASK = 1;
     static final int RASTER_MODEL_FLAT_COLOR = 2;
@@ -29,6 +29,9 @@ final class CosmicNative {
 
     static native byte[] renderSized(long engine, String text, int argb, int styleFlags,
                                      float fontSize, float rasterScale);
+
+    /** Flat UTF-16 start/end pairs emitted by cosmic-text's shaped LayoutGlyph clusters. */
+    static native int[] clusterRangesSized(long engine, String text, int styleFlags, float fontSize);
 
     static native void destroyEngine(long engine);
 

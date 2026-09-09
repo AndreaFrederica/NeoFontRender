@@ -33,6 +33,10 @@ import neofontrender.core.font.backend.CompositeTextRenderResult;
 import neofontrender.text.StyledSpan;
 import neofontrender.text.TextStyle;
 import neofontrender.text.animation.TextAnimationFrame;
+import neofontrender.text.animation.TextAnimationEngine;
+import neofontrender.text.animation.TextAnimationPlan;
+import neofontrender.text.animation.TextAnimationRenderMode;
+import neofontrender.text.animation.TextAnimationSampler;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL13;
@@ -340,16 +344,165 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         }
         List<PositionedResult> results = new ArrayList<>();
         float x = 0.0F;
+        TextAnimationPlan animationPlan = TextAnimationPlan.forText(text,
+                TextAnimationRenderMode.AUTO, true);
+        TextAnimationEngine.GlyphAnimationFrame animationFrame = animationPlan.usesGlyphs()
+                ? new TextAnimationEngine().frame(text, TextAnimationFrame.currentTimeMillis()) : null;
+        int plainOffset = 0;
         for (FormattedRun run : structuredRuns(text, baseArgb, shadow,
                 ShadowRenderSpec.fromConfig())) {
-            TextRenderResult rendered = run.obfuscated
+            boolean animatedRun = animationPlan.usesGlyphs() && !run.obfuscated
+                    && hasGlyphEffectInRange(text, plainOffset, plainOffset + run.text.length());
+            float shadowOffset = shadow ? NeofontrenderConfig.shadowLength() : 0.0F;
+            TextRenderResult rendered = animatedRun
+                    ? renderAnimatedRun(run, fontSize, scale, animationFrame, plainOffset, shadow,
+                    shadowOffset, shadowOffset)
+                    : run.obfuscated
                     ? new AnimatedObfuscatedResult(run, fontSize, scale)
                     : renderAtScale(run.text, run.argb, run.bold, run.italic,
                     run.underline, run.strikethrough, fontSize, scale);
             results.add(new PositionedResult(x, rendered));
             x += rendered.advance();
+            plainOffset += run.text.length();
         }
         return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
+    }
+
+    private static boolean hasGlyphEffectInRange(StructuredText text, int start, int end) {
+        for (neofontrender.text.StructuredEffectSpan effect : text.effects()) {
+            if (effect.animationRenderMode() == TextAnimationRenderMode.GLYPH
+                    && effect.end() > start && effect.start() < end) return true;
+        }
+        return false;
+    }
+
+    private TextRenderResult renderAnimatedRun(FormattedRun run, float fontSize, float scale,
+                                               TextAnimationEngine.GlyphAnimationFrame frame,
+                                               int plainOffset, boolean shadowPass,
+                                               float shadowOffsetX, float shadowOffsetY) {
+        List<PositionedResult> glyphs = new ArrayList<>();
+        TextAnimationSampler sampler = new TextAnimationSampler();
+        float x = 0.0F;
+        List<ClusterRange> clusters = shapedClusters(run.text, run.bold, run.italic, fontSize);
+        for (int clusterIndex = 0; clusterIndex < clusters.size();) {
+            ClusterRange cluster = clusters.get(clusterIndex);
+            int index = cluster.start;
+            int next = cluster.end;
+            TextAnimationEngine.GlyphAnimation clusterAnimation =
+                    clusterAnimation(frame, plainOffset, cluster);
+            boolean animated = clusterAnimation != null;
+            if (!animated) {
+                int segmentEnd = next;
+                int nextCluster = clusterIndex + 1;
+                while (nextCluster < clusters.size()
+                        && clusterAnimation(frame, plainOffset, clusters.get(nextCluster)) == null) {
+                    segmentEnd = clusters.get(nextCluster).end;
+                    nextCluster++;
+                }
+                String segment = run.text.substring(index, segmentEnd);
+                TextRenderResult rendered = renderAtScale(segment, run.argb, run.bold, run.italic,
+                        run.underline, run.strikethrough, fontSize, scale);
+                glyphs.add(new PositionedResult(x, rendered));
+                x += rendered.advance();
+                clusterIndex = nextCluster;
+                continue;
+            }
+            String value = run.text.substring(index, next);
+            TextAnimationSampler.Sample sample = new TextAnimationSampler.Sample();
+            if (clusterAnimation != null) {
+                sample = sampler.sample(clusterAnimation, frame.timeMillis(), shadowPass,
+                        shadowOffsetX, shadowOffsetY, run.argb);
+            }
+            float advance = measureAtSize(value, run.bold, run.italic, fontSize);
+            if (sample.visible && (!value.trim().isEmpty()
+                    || run.underline || run.strikethrough)) {
+                List<AnimatedLayer> layers = new ArrayList<>();
+                for (TextAnimationSampler.Sample layer : sample.layers()) {
+                    if (!layer.visible || layer.alpha == 0.0F) continue;
+                    TextRenderResult glyph = renderAtScale(value, layer.argb, run.bold, run.italic,
+                            run.underline, run.strikethrough, fontSize, scale);
+                    layers.add(new AnimatedLayer(glyph, layer));
+                }
+                if (!layers.isEmpty()) {
+                    glyphs.add(new PositionedResult(x, new AnimatedGlyphResult(layers, sample,
+                            fontSize, advance)));
+                }
+            }
+            x += advance;
+            clusterIndex++;
+        }
+        // Invisible typewriter glyphs still advance exactly like visible glyphs.
+        return new CompositeResult(glyphs, x);
+    }
+
+    private TextAnimationEngine.GlyphAnimation clusterAnimation(
+            TextAnimationEngine.GlyphAnimationFrame frame, int plainOffset, ClusterRange cluster) {
+        if (frame == null) return null;
+        int from = Math.max(0, plainOffset + cluster.start);
+        int to = Math.min(frame.glyphs().size(), plainOffset + cluster.end);
+        for (int index = from; index < to; index++) {
+            if (frame.glyphs().get(index).animated()) return frame.glyphs().get(index);
+        }
+        return null;
+    }
+
+    private List<ClusterRange> shapedClusters(String value, boolean bold, boolean italic,
+                                              float fontSize) {
+        List<ClusterRange> ranges = new ArrayList<>();
+        try {
+            int[] encoded = CosmicNative.clusterRangesSized(engine, value,
+                    effectiveFlags(bold, italic), fontSize);
+            if (encoded != null) {
+                for (int index = 0; index + 1 < encoded.length; index += 2) {
+                    int start = Math.max(0, Math.min(value.length(), encoded[index]));
+                    int end = Math.max(start, Math.min(value.length(), encoded[index + 1]));
+                    if (end > start && (ranges.isEmpty()
+                            || ranges.get(ranges.size() - 1).start != start
+                            || ranges.get(ranges.size() - 1).end != end)) {
+                        ranges.add(new ClusterRange(start, end));
+                    }
+                }
+            }
+        } catch (LinkageError | RuntimeException error) {
+            NeoFontRender.LOGGER.debug("Cosmic cluster query failed; using Unicode fallback", error);
+        }
+        if (ranges.isEmpty()) return fallbackClusters(value);
+        ranges.sort((left, right) -> Integer.compare(left.start, right.start));
+        List<ClusterRange> normalized = new ArrayList<>();
+        for (ClusterRange range : ranges) {
+            if (!normalized.isEmpty() && range.start < normalized.get(normalized.size() - 1).end) {
+                ClusterRange previous = normalized.remove(normalized.size() - 1);
+                normalized.add(new ClusterRange(previous.start, Math.max(previous.end, range.end)));
+            } else {
+                normalized.add(range);
+            }
+        }
+        List<ClusterRange> complete = new ArrayList<>();
+        int cursor = 0;
+        for (ClusterRange range : normalized) {
+            if (range.start > cursor) complete.addAll(fallbackClusters(value.substring(cursor, range.start), cursor));
+            if (range.end > cursor) {
+                complete.add(new ClusterRange(Math.max(cursor, range.start), range.end));
+                cursor = range.end;
+            }
+        }
+        if (cursor < value.length()) complete.addAll(fallbackClusters(value.substring(cursor), cursor));
+        return complete;
+    }
+
+    private static List<ClusterRange> fallbackClusters(String value) {
+        return fallbackClusters(value, 0);
+    }
+
+    private static List<ClusterRange> fallbackClusters(String value, int offset) {
+        List<ClusterRange> result = new ArrayList<>();
+        java.text.BreakIterator iterator = java.text.BreakIterator.getCharacterInstance(Locale.ROOT);
+        iterator.setText(value);
+        for (int start = iterator.first(), end = iterator.next(); end != java.text.BreakIterator.DONE;
+             start = end, end = iterator.next()) {
+            result.add(new ClusterRange(offset + start, offset + end));
+        }
+        return result;
     }
 
     @Override
@@ -365,14 +518,26 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         }
         List<PositionedResult> results = new ArrayList<>();
         float x = 0.0F;
+        TextAnimationPlan animationPlan = TextAnimationPlan.forText(text,
+                TextAnimationRenderMode.AUTO, true);
+        TextAnimationEngine.GlyphAnimationFrame animationFrame = animationPlan.usesGlyphs()
+                ? new TextAnimationEngine().frame(text, TextAnimationFrame.currentTimeMillis()) : null;
+        int plainOffset = 0;
         for (FormattedRun run : structuredRuns(text, baseArgb, true,
                 spec == null ? ShadowRenderSpec.fromConfig() : spec)) {
-            TextRenderResult rendered = run.obfuscated
+            ShadowRenderSpec effectiveSpec = spec == null ? ShadowRenderSpec.fromConfig() : spec;
+            boolean animatedRun = animationPlan.usesGlyphs() && !run.obfuscated
+                    && hasGlyphEffectInRange(text, plainOffset, plainOffset + run.text.length());
+            TextRenderResult rendered = animatedRun
+                    ? renderAnimatedRun(run, fontSize, scale, animationFrame, plainOffset, true,
+                    effectiveSpec.offsetX, effectiveSpec.offsetY)
+                    : run.obfuscated
                     ? new AnimatedObfuscatedResult(run, fontSize, scale)
                     : renderAtScale(run.text, run.argb, run.bold, run.italic,
                     run.underline, run.strikethrough, fontSize, scale);
             results.add(new PositionedResult(x, rendered));
             x += rendered.advance();
+            plainOffset += run.text.length();
         }
         return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
     }
@@ -383,7 +548,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         if (text == null || text.plainText().isEmpty()) return TextRenderResult.EMPTY;
         // Inline rasters and animated obfuscated glyphs need independently changing draw results;
         // keep those on the post-processor's generic composition path.
-        if (!text.inlineSpans().isEmpty()) return null;
+        if (!canUseNativeModernShadow(text)) return null;
         float fontSize = Math.max(1.0F, requestedFontSize);
         float scale = Math.max(1.0F,
                 FontRenderTuning.rasterScale(NeofontrenderConfig.fontOversample()));
@@ -400,6 +565,10 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             x += rendered.advance();
         }
         return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
+    }
+
+    static boolean canUseNativeModernShadow(StructuredText text) {
+        return text != null && text.inlineSpans().isEmpty() && !text.animated();
     }
 
     private TextRenderResult renderAtScaleWithModernShadow(
@@ -485,13 +654,26 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                                                       ShadowRenderSpec spec) {
         List<PositionedResult> results = new ArrayList<>();
         float x = 0.0F;
+        TextAnimationPlan animationPlan = TextAnimationPlan.forText(text,
+                TextAnimationRenderMode.AUTO, true);
+        TextAnimationEngine.GlyphAnimationFrame animationFrame = animationPlan.usesGlyphs()
+                ? new TextAnimationEngine().frame(text, TextAnimationFrame.currentTimeMillis())
+                : null;
+        int plainOffset = 0;
         for (FormattedRun run : structuredRuns(text, baseArgb, shadow, spec)) {
-            TextRenderResult rendered = run.obfuscated
+            boolean animatedRun = animationPlan.usesGlyphs() && !run.obfuscated
+                    && hasGlyphEffectInRange(text, plainOffset,
+                    plainOffset + run.text.length());
+            TextRenderResult rendered = animatedRun
+                    ? renderAnimatedRun(run, fontSize, scale, animationFrame, plainOffset, shadow,
+                    shadow ? spec.offsetX : 0.0F, shadow ? spec.offsetY : 0.0F)
+                    : run.obfuscated
                     ? new AnimatedObfuscatedResult(run, fontSize, scale)
                     : renderAtScale(run.text, run.argb, run.bold, run.italic,
                     run.underline, run.strikethrough, fontSize, scale);
             results.add(new PositionedResult(x, rendered));
             x += rendered.advance();
+            plainOffset += run.text.length();
         }
         return results.isEmpty() ? TextRenderResult.EMPTY : new CompositeResult(results, x);
     }
@@ -1047,6 +1229,36 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             }
         }
 
+        private void drawClipped(float x, float y, float alpha,
+                                 float maskTop, float maskBottom) {
+            if (sdf || closed.get() || location == null || texture == null
+                    || width <= 0.0F || height <= 0.0F) {
+                draw(x, y, alpha);
+                return;
+            }
+            float topFraction = Math.max(0.0F, Math.min(1.0F, maskTop));
+            float bottomFraction = Math.max(0.0F, Math.min(1.0F, maskBottom));
+            float visible = 1.0F - topFraction - bottomFraction;
+            if (visible <= 0.0F) return;
+            float tint = premultipliedOpacity(alpha);
+            float left = FontRenderTuning.alignToPixel(x + offsetX);
+            float top = FontRenderTuning.alignToPixel(y + offsetY + height * topFraction);
+            try (PremultipliedBlendState ignored = new PremultipliedBlendState()) {
+                Minecraft.getMinecraft().getTextureManager().bindTexture(location);
+                FontRenderTuning.applyBoundTextureFilter(scale, false);
+                GlStateManager.color(tint, tint, tint, tint);
+                Tessellator tessellator = Tessellator.getInstance();
+                BufferBuilder buffer = tessellator.getBuffer();
+                float bottom = top + height * visible;
+                buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
+                buffer.pos(left, top, 0).tex(0, topFraction).color(tint, tint, tint, tint).endVertex();
+                buffer.pos(left, bottom, 0).tex(0, 1.0F - bottomFraction).color(tint, tint, tint, tint).endVertex();
+                buffer.pos(left + width, bottom, 0).tex(1, 1.0F - bottomFraction).color(tint, tint, tint, tint).endVertex();
+                buffer.pos(left + width, top, 0).tex(1, topFraction).color(tint, tint, tint, tint).endVertex();
+                tessellator.draw();
+            }
+        }
+
         private void drawShadowOnly(float x, float y, float tint) {
             if (shadowTexture == null || shadowLocation == null
                     || shadowWidth <= 0.0F || shadowHeight <= 0.0F) return;
@@ -1356,6 +1568,118 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             String[] result = candidates.isEmpty() ? new String[]{"?"} : candidates.toArray(new String[0]);
             obfuscatedCandidateCache.put(key, result);
             return result;
+        }
+    }
+
+    private static final class ClusterRange {
+        final int start;
+        final int end;
+
+        ClusterRange(int start, int end) {
+            this.start = start;
+            this.end = end;
+        }
+    }
+
+    private static final class AnimatedLayer {
+        final TextRenderResult delegate;
+        final TextAnimationSampler.Sample sample;
+
+        AnimatedLayer(TextRenderResult delegate, TextAnimationSampler.Sample sample) {
+            this.delegate = delegate;
+            this.sample = sample;
+        }
+    }
+
+    /** Applies sampled per-cluster layers without changing layout advance. */
+    private static final class AnimatedGlyphResult implements TextRenderResult {
+        private final List<AnimatedLayer> layers;
+        private final TextAnimationSampler.Sample root;
+        private final float lineHeight;
+        private final float advance;
+
+        private AnimatedGlyphResult(List<AnimatedLayer> layers, TextAnimationSampler.Sample root,
+                                    float lineHeight, float advance) {
+            this.layers = layers;
+            this.root = root;
+            this.lineHeight = lineHeight;
+            this.advance = advance;
+        }
+
+        @Override public float advance() { return advance; }
+        @Override public float visualLeft() { return visualBound(true, true); }
+        @Override public float visualRight() { return visualBound(true, false); }
+        @Override public float visualTop() { return visualBound(false, true); }
+        @Override public float visualBottom() { return visualBound(false, false); }
+
+        private float visualBound(boolean horizontal, boolean minimum) {
+            float result = minimum ? Float.POSITIVE_INFINITY : Float.NEGATIVE_INFINITY;
+            for (AnimatedLayer layer : layers) {
+                float value;
+                if (horizontal) {
+                    value = (minimum ? layer.delegate.visualLeft() : layer.delegate.visualRight())
+                            + (float) layer.sample.x;
+                } else {
+                    value = (minimum ? layer.delegate.visualTop() : layer.delegate.visualBottom())
+                            + (float) layer.sample.y;
+                }
+                result = minimum ? Math.min(result, value) : Math.max(result, value);
+            }
+            return Float.isFinite(result) ? result : 0.0F;
+        }
+
+        @Override
+        public void draw(float x, float y, float alpha) {
+            for (AnimatedLayer layer : layers) {
+                TextAnimationSampler.Sample sample = layer.sample;
+                drawTransformed(layer, x, y, alpha * sample.alpha,
+                        sample.maskTop, sample.maskBottom);
+                if (!TextAnimationFrame.neonOverdrawSuppressed()) {
+                    for (TextAnimationSampler.Glow glow : root.glows()) {
+                        if (glow.passes <= 0 || glow.alphaMultiplier <= 0.0F) continue;
+                        for (int pass = 0; pass < glow.passes; pass++) {
+                            double angle = Math.PI * 2.0 * pass / glow.passes;
+                            drawTransformed(layer,
+                                    x + (float) Math.cos(angle) * glow.radius,
+                                    y + (float) Math.sin(angle) * glow.radius,
+                                    alpha * sample.alpha * glow.alphaMultiplier, 0.0F, 0.0F);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void drawTransformed(AnimatedLayer layer, float x, float y, float alpha,
+                                     float maskTop, float maskBottom) {
+            TextAnimationSampler.Sample sample = layer.sample;
+            TextRenderResult delegate = layer.delegate;
+            GlStateManager.pushMatrix();
+            try {
+                double radians = sample.rotation != 0.0
+                        ? sample.rotation : sample.pendulumRotation;
+                float pivotX = delegate.advance() * 0.5F;
+                float pivotY = sample.rotation != 0.0 ? lineHeight * 0.5F : 0.0F;
+                GlStateManager.translate(x + (float) sample.x + pivotX,
+                        y + (float) sample.y + pivotY, 0.0F);
+                if (radians != 0.0) {
+                    GlStateManager.rotate((float) Math.toDegrees(radians), 0.0F, 0.0F, 1.0F);
+                }
+                if (sample.scale != 1.0F) {
+                    GlStateManager.scale(sample.scale, sample.scale, 1.0F);
+                }
+                boolean fractional = sample.x != 0.0 || sample.y != 0.0;
+                try (FontRenderTuning.FractionalPositionScope fractionalScope = fractional
+                        ? FontRenderTuning.allowFractionalPosition() : null) {
+                    if (delegate instanceof CosmicRenderedText && (maskTop > 0.0F || maskBottom > 0.0F)) {
+                        ((CosmicRenderedText) delegate).drawClipped(-pivotX, -pivotY, alpha,
+                                maskTop, maskBottom);
+                    } else {
+                        delegate.draw(-pivotX, -pivotY, alpha);
+                    }
+                }
+            } finally {
+                GlStateManager.popMatrix();
+            }
         }
     }
 

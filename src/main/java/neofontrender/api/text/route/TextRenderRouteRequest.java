@@ -2,6 +2,11 @@ package neofontrender.api.text.route;
 
 import net.minecraft.client.gui.FontRenderer;
 import neofontrender.text.StructuredText;
+import neofontrender.text.animation.TextAnimationEngine;
+import neofontrender.text.animation.TextAnimationFrame;
+import neofontrender.text.animation.TextAnimationPlan;
+import neofontrender.text.animation.TextAnimationRenderMode;
+import neofontrender.core.font.pipeline.StructuredTextRuntime;
 
 import java.util.Objects;
 
@@ -30,6 +35,22 @@ public final class TextRenderRouteRequest {
     public FontRenderer font() { return font; }
     public String source() { return source; }
     public StructuredText structuredText() { return structuredText; }
+
+    /** Per-cluster animation state for effects that explicitly request glyph rendering. */
+    public TextAnimationEngine.GlyphAnimationFrame animationFrame() {
+        return new TextAnimationEngine().frame(structuredText,
+                TextAnimationFrame.currentTimeMillis());
+    }
+
+    public TextAnimationPlan animationPlan(TextAnimationRenderMode mode) {
+        TextAnimationRenderMode requested = mode == null ? TextAnimationRenderMode.AUTO : mode;
+        if (requested == TextAnimationRenderMode.AUTO
+                && StructuredTextRuntime.animationMode(structuredText)
+                != TextAnimationRenderMode.GLYPH) {
+            requested = TextAnimationRenderMode.WHOLE_RUN;
+        }
+        return TextAnimationPlan.forText(structuredText, requested);
+    }
     public float fontSize() { return fontSize; }
     public int argb() { return argb; }
     public boolean shadow() { return shadow; }

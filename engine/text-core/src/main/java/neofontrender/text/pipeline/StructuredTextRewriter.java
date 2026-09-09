@@ -99,7 +99,7 @@ public final class StructuredTextRewriter {
             int from = mapped(oldToNew, effect.start());
             int to = mapped(oldToNew, effect.end());
             if (to > from) effects.add(new StructuredEffectSpan(from, to, effect.effectId(),
-                    effect.parameters(), effect.lineWide()));
+                    effect.parameters(), effect.lineWide(), effect.animationRenderMode()));
         }
 
         LinkedHashSet<String> applied = new LinkedHashSet<>(input.appliedMiddlewareIds());

@@ -3,6 +3,7 @@ package neofontrender.text.syntax;
 import neofontrender.text.StructuredEffectSpan;
 import neofontrender.text.StructuredText;
 import neofontrender.text.StyledSpan;
+import neofontrender.text.edit.SourceEditProjection;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -13,6 +14,21 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class TextSyntaxEngineTest {
     private final TextSyntaxEngine engine = StandardSyntaxEngines.minecraftWithBrilliantDefaults();
+
+    @org.junit.jupiter.api.Test
+    void disabledProviderLeavesSourceAndDoesNotAdvertiseIt() {
+        TextSyntaxEngine disabled = TextSyntaxEngine.builder()
+                .register(new BrilliantSyntaxProvider(BrilliantSyntaxProvider.defaults().codes().stream()
+                        .collect(java.util.stream.Collectors.toMap(c -> c, c -> java.util.Collections.emptyMap())), false, false))
+                .register(new MinecraftLegacySyntaxProvider(
+                        new int[16], false))
+                .build();
+        StructuredText parsed = disabled.parse("\u00A7vraw");
+        org.junit.jupiter.api.Assertions.assertEquals("§vraw", parsed.plainText());
+        org.junit.jupiter.api.Assertions.assertFalse(disabled.providerIds().contains("brilliant_text:format_codes"));
+        assertTrue(SourceEditProjection.of(parsed).spans().stream()
+                .noneMatch(span -> "unresolved".equals(span.kind())));
+    }
 
     @Test
     void parsesEveryMinecraftStyleIntoStructuredSpans() {
@@ -83,6 +99,135 @@ class TextSyntaxEngineTest {
     }
 
     @Test
+    void parsesTextAnimatorNestedTagsAndParameters() {
+        TextSyntaxEngine value = TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider(true, true)).build();
+        StructuredText text = value.parse("<wave a=1 f=1.0>Hi <rainb>there</rainb></wave>");
+        assertEquals("Hi there", text.plainText());
+        assertEquals(2, text.effects().size());
+        assertEquals("textanimator:rainb", text.effects().get(0).effectId());
+        assertEquals("textanimator:wave", text.effects().get(1).effectId());
+        assertEquals("1.0", text.effects().get(1).parameters().get("f"));
+    }
+
+    @Test
+    void textAnimatorAllowsSameEffectNesting() {
+        TextSyntaxEngine value = TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider(true, true)).build();
+        StructuredText text = value.parse("<wave a=1>A<wave a=2>B</wave>C</wave>");
+        assertEquals("ABC", text.plainText());
+        assertEquals(2, text.effects().size());
+        assertEquals(1, text.effects().get(0).start());
+        assertEquals(2, text.effects().get(0).end());
+        assertEquals("2", text.effects().get(0).parameters().get("a"));
+        assertEquals(0, text.effects().get(1).start());
+        assertEquals(3, text.effects().get(1).end());
+    }
+
+    @Test
+    void textAnimatorDoesNotAnimateWhitespaceBeforeAnInlineTag() {
+        TextSyntaxEngine value = TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider(true, true)).build();
+        StructuredText text = value.parse("  <wave>X</wave>");
+        assertEquals("  X", text.plainText());
+        assertEquals(2, text.effects().get(0).start());
+    }
+
+    @Test
+    void textAnimatorLeavesMismatchedClosingTagLiteral() {
+        TextSyntaxEngine value = TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider(true, true)).build();
+        StructuredText text = value.parse("<wave><rainb>X</wave>Y</rainb>");
+        assertEquals("X</wave>Y", text.plainText());
+        assertEquals(2, text.effects().size());
+        assertEquals("textanimator:rainb", text.effects().get(0).effectId());
+        assertEquals("textanimator:wave", text.effects().get(1).effectId());
+    }
+
+    @Test
+    void disabledTextAnimatorLeavesTagsLiteral() {
+        TextSyntaxEngine value = TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider(false, true)).build();
+        assertEquals("<wave>raw</wave>", value.parse("<wave>raw</wave>").plainText());
+    }
+
+    @Test
+    void textAnimatorEffectFilterParsesDisabledTagsWithoutAnimatingThem() {
+        TextSyntaxEngine value = TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider(true, true, "no_rainbow"))
+                .build();
+        StructuredText text = value.parse("<rainb>raw</rainb> <wave>moving</wave>");
+        assertEquals("raw moving", text.plainText());
+        assertEquals(2, text.effects().size());
+        assertEquals(neofontrender.text.animation.TextAnimationRenderMode.WHOLE_RUN,
+                text.effects().get(0).animationRenderMode());
+        assertEquals(neofontrender.text.animation.TextAnimationRenderMode.GLYPH,
+                text.effects().get(1).animationRenderMode());
+    }
+
+    @Test
+    void textAnimatorNoneStillConsumesEverySupportedTag() {
+        TextSyntaxEngine value = TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider(true, true, "none"))
+                .build();
+        StructuredText text = value.parse("<wave>A</wave><grad>B</grad><neon>C</neon>");
+        assertEquals("ABC", text.plainText());
+        assertFalse(text.animated());
+        assertTrue(text.effects().stream().allMatch(effect -> effect.animationRenderMode()
+                == neofontrender.text.animation.TextAnimationRenderMode.WHOLE_RUN));
+    }
+
+    @Test
+    void noRainbowDisablesGradientAsWellAsRainbow() {
+        TextSyntaxEngine value = TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider(true, true, "no_rainbow"))
+                .build();
+        StructuredText text = value.parse("<rainb>A</rainb><grad>B</grad><wave>C</wave>");
+        assertEquals(neofontrender.text.animation.TextAnimationRenderMode.WHOLE_RUN,
+                text.effects().get(0).animationRenderMode());
+        assertEquals(neofontrender.text.animation.TextAnimationRenderMode.WHOLE_RUN,
+                text.effects().get(1).animationRenderMode());
+        assertEquals(neofontrender.text.animation.TextAnimationRenderMode.GLYPH,
+                text.effects().get(2).animationRenderMode());
+    }
+
+    @Test
+    void brilliantEffectsRemainWholeRunPostProcesses() {
+        StructuredText text = engine.parse("\u00A7gGold");
+        assertEquals(neofontrender.text.animation.TextAnimationRenderMode.WHOLE_RUN,
+                text.effects().get(0).animationRenderMode());
+    }
+
+    @Test
+    void typewriterProviderInjectsConfiguredModeAndSpeed() {
+        TextSyntaxEngine value = TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider(true, true, "all", 4, "by_word"))
+                .build();
+        StructuredText text = value.parse("<typewriter>one two</typewriter>");
+        assertEquals("4", text.effects().get(0).parameters().get("speed"));
+        assertEquals("by_word", text.effects().get(0).parameters().get("mode"));
+    }
+
+    @Test
+    void textAnimatorAnyPositionAllowsTypewriterAfterChatPrefix() {
+        TextSyntaxEngine value = TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider(true, true)).build();
+        StructuredText text = value.parse("<Player> <typewriter>Hello</typewriter>");
+        assertEquals("<Player> Hello", text.plainText());
+        assertEquals(1, text.effects().size());
+        assertEquals("textanimator:typewriter", text.effects().get(0).effectId());
+    }
+
+    @Test
+    void textAnimatorLeadingOnlyLeavesInlineTypewriterLiteral() {
+        TextSyntaxEngine value = TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider(true, false)).build();
+        StructuredText text = value.parse("<Player> <typewriter>Hello</typewriter>");
+        assertEquals("<Player> <typewriter>Hello</typewriter>", text.plainText());
+        assertTrue(text.effects().isEmpty());
+    }
+
+    @Test
     void sourceMapIncludesConsumedLeadingControls() {
         StructuredText text = engine.parse("\u00A7gHello\u00A7rWorld");
 
@@ -124,6 +269,8 @@ class TextSyntaxEngineTest {
         assertEquals(1, slice.effects().size());
         assertEquals(0, slice.effects().get(0).start());
         assertEquals(3, slice.effects().get(0).end());
+        assertEquals(neofontrender.text.animation.TextAnimationRenderMode.WHOLE_RUN,
+                slice.effects().get(0).animationRenderMode());
         assertEquals(0, slice.sourceMap().sourceStart(0));
         assertEquals(slice.sourceText().length(), slice.sourceMap().sourceEnd(5));
     }

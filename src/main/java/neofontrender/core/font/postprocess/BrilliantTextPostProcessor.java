@@ -28,8 +28,17 @@ public final class BrilliantTextPostProcessor implements TextPostProcessor {
 
     @Override
     public boolean supports(TextPostProcessContext context) {
-        if (!neofontrender.core.config.NeofontrenderConfig.brilliantTextEnabled()
-                || context.effects().isEmpty()) return false;
+        if (context.effects().isEmpty()) return false;
+        boolean eligible = neofontrender.core.config.NeofontrenderConfig.brilliantTextEnabled();
+        if (!eligible) {
+            for (StructuredEffectSpan effect : context.effects()) {
+                if ("textanimator:neon".equals(effect.effectId())) {
+                    eligible = true;
+                    break;
+                }
+            }
+        }
+        if (!eligible) return false;
         FontRenderTuning.DrawContext draw = FontRenderTuning.currentDrawContext();
         return draw.orthographic() && !draw.rotation() && TextGlComponentApi.active() != null;
     }
@@ -77,9 +86,12 @@ public final class BrilliantTextPostProcessor implements TextPostProcessor {
             parameters.put("right", Float.toString(right));
             parameters.put("top", Float.toString(-1.0F));
             parameters.put("bottom", Float.toString(context.fontSize() + 2.0F));
+            int baseArgb = context.baseArgb();
+            if ((baseArgb & 0xFC000000) == 0) baseArgb |= 0xFF000000;
+            parameters.putIfAbsent("textColor", Integer.toHexString(baseArgb));
             StructuredEffectSpan prepared = new StructuredEffectSpan(effect.start(), effect.end(),
                     effect.effectId(), parameters,
-                    effect.lineWide());
+                    effect.lineWide(), effect.animationRenderMode());
             TextEffectDefinition definition = TextEffectRegistry.get(effect.effectId());
             result.add(definition == null ? prepared : definition.prepare(prepared));
         }

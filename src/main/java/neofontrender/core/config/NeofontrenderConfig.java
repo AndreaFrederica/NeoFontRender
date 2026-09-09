@@ -540,6 +540,33 @@ public final class NeofontrenderConfig {
     }
     public static boolean laboratoryBrilliantAnyPosition() { return cached.laboratoryBrilliantAnyPosition; }
 
+    /** Allow TextAnimator tags, including typewriter, to start after a chat prefix. */
+    public static boolean laboratoryTextAnimatorAnyPosition() {
+        return cached.laboratoryTextAnimatorAnyPosition;
+    }
+
+    /** Enables the standalone TextAnimator compatibility provider. */
+    public static boolean laboratoryTextAnimatorEnabled() { return cached.laboratoryTextAnimatorEnabled; }
+
+    /** TextAnimator effect filter: all, none, or no_rainbow. */
+    public static String laboratoryTextAnimatorEffects() { return cached.laboratoryTextAnimatorEffects; }
+
+    /** Typewriter characters per second, clamped to the original 1..9 option range. */
+    public static int laboratoryTextAnimatorTypewriterSpeed() { return cached.laboratoryTextAnimatorTypewriterSpeed; }
+
+    /** Typewriter progression mode: by_char or by_word. */
+    public static String laboratoryTextAnimatorTypewriterMode() { return cached.laboratoryTextAnimatorTypewriterMode; }
+
+    /** Default minimum pulse brightness used when a pulse tag omits base/a or min/max. */
+    public static float laboratoryTextAnimatorPulseMinimum() {
+        return cached.laboratoryTextAnimatorPulseMinimum;
+    }
+
+    /** Default maximum pulse brightness used when a pulse tag omits base/a or min/max. */
+    public static float laboratoryTextAnimatorPulseMaximum() {
+        return cached.laboratoryTextAnimatorPulseMaximum;
+    }
+
     public static boolean compatModernSplash() {
         return cached.compatModernSplash;
     }
@@ -762,6 +789,43 @@ public final class NeofontrenderConfig {
     }
     public static void setLaboratoryBrilliantAnyPosition(boolean value) {
         setValue("laboratory.brilliantAnyPosition", value);
+    }
+
+    public static void setLaboratoryTextAnimatorAnyPosition(boolean value) {
+        setValue("laboratory.textAnimator.anyPosition", value);
+    }
+
+    public static void setLaboratoryTextAnimatorEnabled(boolean value) {
+        setValue("laboratory.textAnimator.enabled", value);
+    }
+
+    public static void setLaboratoryTextAnimatorEffects(String value) {
+        String normalized = value == null ? "all" : value.trim().toLowerCase(Locale.ROOT);
+        if (!"none".equals(normalized) && !"no_rainbow".equals(normalized)) normalized = "all";
+        setValue("laboratory.textAnimator.effects", normalized);
+    }
+
+    public static void setLaboratoryTextAnimatorTypewriterSpeed(int value) {
+        setValue("laboratory.textAnimator.typewriterSpeed", Math.max(1, Math.min(9, value)));
+    }
+
+    public static void setLaboratoryTextAnimatorTypewriterMode(String value) {
+        String normalized = value == null ? "by_char" : value.trim().toLowerCase(Locale.ROOT);
+        if (!"by_word".equals(normalized)) normalized = "by_char";
+        setValue("laboratory.textAnimator.typewriterMode", normalized);
+    }
+
+    public static void setLaboratoryTextAnimatorPulseMinimum(float value) {
+        setValue("laboratory.textAnimator.pulseMinimum", clampBrightness(value, 0.0F, 1.0F));
+    }
+
+    public static void setLaboratoryTextAnimatorPulseMaximum(float value) {
+        setValue("laboratory.textAnimator.pulseMaximum", clampBrightness(value, 0.0F, 1.0F));
+    }
+
+    private static float clampBrightness(float value, float minimum, float maximum) {
+        if (!Float.isFinite(value)) return minimum;
+        return Math.max(minimum, Math.min(maximum, value));
     }
 
     public static void setCompatModernSplash(boolean value) {
@@ -1213,6 +1277,14 @@ public final class NeofontrenderConfig {
             w.write("hexChat = false\n");
             w.write("hexChatResetStyles = true\n");
             w.write("textUndoRedo = false\n");
+            w.write("[laboratory.textAnimator]\n");
+            w.write("enabled = true\n");
+            w.write("anyPosition = true\n");
+            w.write("effects = \"all\"\n");
+            w.write("typewriterSpeed = 5\n");
+            w.write("typewriterMode = \"by_char\"\n");
+            w.write("pulseMinimum = 0.6\n");
+            w.write("pulseMaximum = 1.0\n");
             w.write("\n");
             w.write("[compat]\n");
             w.write("modernsplash.enabled = true\n");
@@ -1283,6 +1355,14 @@ public final class NeofontrenderConfig {
         config.setComment("laboratory.hexChat", "Experimental #RRGGBB chat rendering for the Cosmic text backend.");
         config.setComment("laboratory.hexChatResetStyles", "Match RGB Chat Vintage by clearing bold/italic/etc. when a #RGB marker starts a new color run.");
         config.setComment("laboratory.brilliantAnyPosition", "Allow Brilliant Text format codes to start in the middle of a line.");
+        config.setComment("laboratory.textAnimator", "TextAnimator compatibility settings.");
+        config.setComment("laboratory.textAnimator.enabled", "Enable the independent TextAnimator compatibility provider.");
+        config.setComment("laboratory.textAnimator.anyPosition", "Allow TextAnimator tags to start in the middle of a line, such as after a chat sender prefix.");
+        config.setComment("laboratory.textAnimator.effects", "TextAnimator effect filter: all, none, or no_rainbow.");
+        config.setComment("laboratory.textAnimator.typewriterSpeed", "Typewriter speed option from the original mod (1-9).");
+        config.setComment("laboratory.textAnimator.typewriterMode", "Typewriter progression mode: by_char or by_word.");
+        config.setComment("laboratory.textAnimator.pulseMinimum", "Default minimum brightness for pulse tags without explicit parameters (0.0-1.0).");
+        config.setComment("laboratory.textAnimator.pulseMaximum", "Default maximum brightness for pulse tags without explicit parameters (0.0-1.0).");
         config.setComment("compat", "Compatibility options for third-party mods.");
         config.setComment("compat.modernsplash.enabled", "Allow the loading-screen font override to patch ModernSplash when it is installed. Requires splash.enabled and a restart.");
         config.setComment("compat.tinkersantique.enabled", "Handle Tinkers' Construct / TinkersAntique custom PUA color markers (\\uE700-\\uE7FF) as invisible color-change characters instead of rendering them as glyphs.");
@@ -1387,6 +1467,13 @@ public final class NeofontrenderConfig {
         private final boolean laboratoryHexChatResetStyles;
         private final boolean laboratoryTextUndoRedo;
         private final boolean laboratoryBrilliantAnyPosition;
+        private final boolean laboratoryTextAnimatorEnabled;
+        private final boolean laboratoryTextAnimatorAnyPosition;
+        private final String laboratoryTextAnimatorEffects;
+        private final int laboratoryTextAnimatorTypewriterSpeed;
+        private final String laboratoryTextAnimatorTypewriterMode;
+        private final float laboratoryTextAnimatorPulseMinimum;
+        private final float laboratoryTextAnimatorPulseMaximum;
         private final boolean compatModernSplash;
         private final boolean compatTinkersAntique;
         private final boolean compatThaumcraftTooltip;
@@ -1478,6 +1565,13 @@ public final class NeofontrenderConfig {
             laboratoryHexChatResetStyles = true;
             laboratoryTextUndoRedo = false;
             laboratoryBrilliantAnyPosition = false;
+            laboratoryTextAnimatorEnabled = true;
+            laboratoryTextAnimatorAnyPosition = true;
+            laboratoryTextAnimatorEffects = "all";
+            laboratoryTextAnimatorTypewriterSpeed = 5;
+            laboratoryTextAnimatorTypewriterMode = "by_char";
+            laboratoryTextAnimatorPulseMinimum = 0.6F;
+            laboratoryTextAnimatorPulseMaximum = 1.0F;
             compatModernSplash = true;
             compatTinkersAntique = true;
             compatThaumcraftTooltip = true;
@@ -1570,6 +1664,18 @@ public final class NeofontrenderConfig {
             laboratoryHexChatResetStyles = config.getOrElse("laboratory.hexChatResetStyles", true);
             laboratoryTextUndoRedo = config.getOrElse("laboratory.textUndoRedo", false);
             laboratoryBrilliantAnyPosition = config.getOrElse("laboratory.brilliantAnyPosition", false);
+            laboratoryTextAnimatorEnabled = config.getOrElse("laboratory.textAnimator.enabled", true);
+            laboratoryTextAnimatorAnyPosition = config.getOrElse("laboratory.textAnimator.anyPosition", true);
+            laboratoryTextAnimatorEffects = normalizeTextAnimatorEffects(
+                    config.getOrElse("laboratory.textAnimator.effects", "all"));
+            laboratoryTextAnimatorTypewriterSpeed = Math.max(1, Math.min(9,
+                    getInt(config, "laboratory.textAnimator.typewriterSpeed", 5)));
+            laboratoryTextAnimatorTypewriterMode = normalizeTextAnimatorTypewriterMode(
+                    config.getOrElse("laboratory.textAnimator.typewriterMode", "by_char"));
+            laboratoryTextAnimatorPulseMinimum = getFloat(config,
+                    "laboratory.textAnimator.pulseMinimum", 0.6F);
+            laboratoryTextAnimatorPulseMaximum = Math.max(laboratoryTextAnimatorPulseMinimum,
+                    getFloat(config, "laboratory.textAnimator.pulseMaximum", 1.0F));
             compatModernSplash = config.getOrElse("compat.modernsplash.enabled", true);
             compatTinkersAntique = config.getOrElse("compat.tinkersantique.enabled", true);
             compatThaumcraftTooltip = config.getOrElse("compat.thaumcraft.tooltip.enabled", true);
@@ -1863,6 +1969,16 @@ public final class NeofontrenderConfig {
 
     private static String normalizeShadowColorMode(String value) {
         return ShadowColorPolicy.normalizeMode(value);
+    }
+
+    private static String normalizeTextAnimatorEffects(String value) {
+        String mode = value == null ? "all" : value.trim().toLowerCase(Locale.ROOT);
+        return "none".equals(mode) || "no_rainbow".equals(mode) ? mode : "all";
+    }
+
+    private static String normalizeTextAnimatorTypewriterMode(String value) {
+        return "by_word".equals(value == null ? "" : value.trim().toLowerCase(Locale.ROOT))
+                ? "by_word" : "by_char";
     }
 
     public static void reload() {

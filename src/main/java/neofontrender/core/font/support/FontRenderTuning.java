@@ -26,6 +26,8 @@ public final class FontRenderTuning {
     private static final float[] MODELVIEW = new float[16];
     private static final float[] PROJECTION = new float[16];
     private static volatile DrawContext currentContext;
+    private static final ThreadLocal<Integer> FRACTIONAL_POSITION_DEPTH =
+            ThreadLocal.withInitial(() -> 0);
 
     private FontRenderTuning() {
     }
@@ -221,6 +223,7 @@ public final class FontRenderTuning {
     }
 
     public static float alignToPixel(float value) {
+        if (FRACTIONAL_POSITION_DEPTH.get() > 0) return value;
         DrawContext context = currentDrawContext();
         if (NeofontrenderConfig.adaptiveRasterScale() && (!context.orthographic() || context.rotation())) {
             return value;
@@ -230,6 +233,27 @@ public final class FontRenderTuning {
             return value;
         }
         return Math.round(value * scale) / scale;
+    }
+
+    /** Keeps animated glyph translations sub-pixel precise during their draw call. */
+    public static FractionalPositionScope allowFractionalPosition() {
+        FRACTIONAL_POSITION_DEPTH.set(FRACTIONAL_POSITION_DEPTH.get() + 1);
+        return new FractionalPositionScope();
+    }
+
+    public static final class FractionalPositionScope implements AutoCloseable {
+        private boolean closed;
+
+        private FractionalPositionScope() {}
+
+        @Override
+        public void close() {
+            if (closed) return;
+            closed = true;
+            int depth = FRACTIONAL_POSITION_DEPTH.get() - 1;
+            if (depth <= 0) FRACTIONAL_POSITION_DEPTH.remove();
+            else FRACTIONAL_POSITION_DEPTH.set(depth);
+        }
     }
 
     private static void applyLodBias() {

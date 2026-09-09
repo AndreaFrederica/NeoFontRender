@@ -122,8 +122,23 @@ public final class CosmicSmokeTest {
                 throw new IllegalStateException("cosmic-text emoji color path failed: fallback="
                         + fallbackChromatic + ", primary=" + primaryChromatic);
             }
+            assertSingleNativeCluster(engine, "\uD840\uDC00", "supplementary CJK");
+            assertSingleNativeCluster(engine, "e\u0301", "combining sequence");
+            assertSingleNativeCluster(engine,
+                    "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66",
+                    "emoji ZWJ sequence");
+            assertSingleNativeCluster(engine, "ffi", "Latin ligature");
         } finally {
             CosmicNative.destroyEngine(engine);
+        }
+    }
+
+    private static void assertSingleNativeCluster(long engine, String value, String label) {
+        int[] ranges = CosmicNative.clusterRangesSized(engine, value, 0, 9.0F);
+        if (ranges == null || ranges.length != 2 || ranges[0] != 0
+                || ranges[1] != value.length()) {
+            throw new IllegalStateException(label + " was split across native animation objects: "
+                    + java.util.Arrays.toString(ranges));
         }
     }
 

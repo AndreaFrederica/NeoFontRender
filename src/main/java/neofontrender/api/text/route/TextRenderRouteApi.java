@@ -5,6 +5,7 @@ import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.pipeline.StructuredTextRuntime;
 import neofontrender.core.font.route.TextRenderRoutes;
 import neofontrender.core.font.support.ScopedFontRenderBypass;
+import neofontrender.text.edit.SourceEditProjection;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -122,6 +123,21 @@ public final class TextRenderRouteApi {
         return (int) Math.ceil(layout(font, source).height());
     }
 
+    /** Source ranges recognized by the same parser used by structured rendering. */
+    public static SourceEditProjection sourceProjection(String source) {
+        neofontrender.text.StructuredText parsed =
+                StructuredTextRuntime.parse(source == null ? "" : source);
+        // A disabled provider must make its syntax literal and must not leave an
+        // unresolved span that can activate Tabby's source editor. Other route
+        // protocols remain eligible when they have their own recognized spans.
+        if (parsed.appliedSyntaxProviderIds().isEmpty()
+                && parsed.inlineSpans().isEmpty()
+                && parsed.effects().isEmpty()) {
+            return SourceEditProjection.empty();
+        }
+        return SourceEditProjection.of(parsed);
+    }
+
     /** Wraps at route-owned atomic boundaries and carries vanilla formatting into continuation lines. */
     public static List<String> wrap(FontRenderer font, String source, int maximumWidth) {
         String remaining = source == null ? "" : source;
@@ -150,6 +166,39 @@ public final class TextRenderRouteApi {
             remaining = remaining.substring(next);
         }
         if (!remaining.isEmpty()) lines.add(carriedFormat + remaining);
+        return Collections.unmodifiableList(lines);
+    }
+
+    /**
+     * Editing wrap: preserves source coordinates and allows a structured token to
+     * split while the user is editing it. Preview layout may keep tokens atomic,
+     * but an editor must never make caret positions unreachable.
+     */
+    public static List<String> wrapEditable(FontRenderer font, String source, int maximumWidth) {
+        String text = source == null ? "" : source;
+        if (text.isEmpty()) return Collections.singletonList("");
+        int width = Math.max(1, maximumWidth);
+        List<String> lines = new ArrayList<>();
+        int start = 0;
+        while (start < text.length()) {
+            int end = start;
+            int lastBreak = -1;
+            while (end < text.length()) {
+                int next = end + Character.charCount(text.codePointAt(end));
+                if (text.charAt(end) == '\n') { end = next; break; }
+                String candidate = text.substring(start, next);
+                if (ScopedFontRenderBypass.call(() -> font.getStringWidth(candidate)) > width
+                        && end > start) break;
+                if (Character.isWhitespace(text.charAt(end))) lastBreak = next;
+                end = next;
+            }
+            if (end == start) end += Character.charCount(text.codePointAt(start));
+            int cut = lastBreak > start && end < text.length() ? lastBreak : end;
+            lines.add(text.substring(start, cut));
+            // Keep every source character in the visual line mapping. Skipping
+            // wrapping spaces makes caret and hit-test offsets drift.
+            start = cut;
+        }
         return Collections.unmodifiableList(lines);
     }
 

@@ -5,6 +5,7 @@ import neofontrender.api.text.StructuredTextRegistration;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.text.SourceMap;
 import neofontrender.text.StructuredEffectSpan;
+import neofontrender.text.animation.TextAnimationRenderMode;
 import neofontrender.text.StructuredText;
 import neofontrender.text.StyledSpan;
 import neofontrender.text.TextStyle;
@@ -95,6 +96,11 @@ public final class StructuredTextRuntime {
                 }
             }
         };
+    }
+
+    /** Returns the animation split mode declared by the providers that parsed this text. */
+    public static TextAnimationRenderMode animationMode(StructuredText text) {
+        return currentEngine().animationMode(text);
     }
 
     /** Registers a game-independent plugin directly into the modern structured pipeline. */
@@ -262,7 +268,7 @@ public final class StructuredTextRuntime {
             for (StructuredEffectSpan effect : parsed.effects()) {
                 effects.add(new StructuredEffectSpan(plainOffset + effect.start(),
                         plainOffset + effect.end(), effect.effectId(), effect.parameters(),
-                        effect.lineWide()));
+                        effect.lineWide(), effect.animationRenderMode()));
             }
             for (neofontrender.text.UnresolvedSyntax value : parsed.unresolvedSyntax()) {
                 unresolved.add(new neofontrender.text.UnresolvedSyntax(
@@ -368,6 +374,13 @@ public final class StructuredTextRuntime {
                 + (NeofontrenderConfig.brilliantTextEnabled() ? bindings.hashCode() : 0)
                 + Boolean.hashCode(NeofontrenderConfig.vanillaFormattingCompatibility())
                 + Boolean.hashCode(NeofontrenderConfig.laboratoryBrilliantAnyPosition())
+                + Boolean.hashCode(NeofontrenderConfig.laboratoryTextAnimatorEnabled())
+                + Boolean.hashCode(NeofontrenderConfig.laboratoryTextAnimatorAnyPosition())
+                + NeofontrenderConfig.laboratoryTextAnimatorEffects().hashCode()
+                + NeofontrenderConfig.laboratoryTextAnimatorTypewriterSpeed()
+                + NeofontrenderConfig.laboratoryTextAnimatorTypewriterMode().hashCode()
+                + Float.floatToIntBits(NeofontrenderConfig.laboratoryTextAnimatorPulseMinimum())
+                + Float.floatToIntBits(NeofontrenderConfig.laboratoryTextAnimatorPulseMaximum())
                 + Long.hashCode(externalRevision);
         TextSyntaxEngine current = engine;
         if (current != null && signature == nextSignature) return current;
@@ -386,6 +399,17 @@ public final class StructuredTextRuntime {
 
     private static TextSyntaxEngine buildEngine(List<String> bindings, boolean brilliantEnabled) {
         TextSyntaxEngine.Builder builder = TextSyntaxEngine.builder();
+        // TextAnimator remains an independent provider. When disabled its tags stay literal,
+        // which also prevents SourceEditProjection from exposing stale source controls.
+        if (NeofontrenderConfig.laboratoryTextAnimatorEnabled()) {
+            builder.register(new neofontrender.text.syntax.TextAnimatorCompatibilityProvider(true,
+                    NeofontrenderConfig.laboratoryTextAnimatorAnyPosition(),
+                    NeofontrenderConfig.laboratoryTextAnimatorEffects(),
+                    NeofontrenderConfig.laboratoryTextAnimatorTypewriterSpeed(),
+                    NeofontrenderConfig.laboratoryTextAnimatorTypewriterMode(),
+                    NeofontrenderConfig.laboratoryTextAnimatorPulseMinimum(),
+                    NeofontrenderConfig.laboratoryTextAnimatorPulseMaximum()));
+        }
         if (brilliantEnabled) {
             builder.register(createBrilliantProvider(parseBindings(bindings),
                     NeofontrenderConfig.laboratoryBrilliantAnyPosition()));

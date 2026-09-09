@@ -6,6 +6,7 @@ import neofontrender.text.StructuredText;
 import neofontrender.text.StyledSpan;
 import neofontrender.text.TextStyle;
 import neofontrender.text.UnresolvedSyntax;
+import neofontrender.text.animation.TextAnimationRenderMode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -13,7 +14,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,6 +46,7 @@ public final class TextSyntaxEngine {
             boolean acceptedTrigger = false;
             SyntaxCursor cursor = parser.cursor();
             for (TextSyntaxProvider provider : providers) {
+                if (!provider.isEnabled()) continue;
                 if (provider.isFallback()) continue;
                 if (!provider.acceptsTrigger(current)) continue;
                 acceptedTrigger = true;
@@ -58,6 +59,7 @@ public final class TextSyntaxEngine {
             }
             if (selected == null) {
                 for (TextSyntaxProvider provider : providers) {
+                    if (!provider.isEnabled()) continue;
                     if (!provider.isFallback() || !provider.acceptsTrigger(current)) continue;
                     acceptedTrigger = true;
                     SyntaxMatch candidate = provider.match(cursor);
@@ -80,8 +82,18 @@ public final class TextSyntaxEngine {
 
     public List<String> providerIds() {
         List<String> ids = new ArrayList<>(providers.size());
-        for (TextSyntaxProvider provider : providers) ids.add(provider.id());
+        for (TextSyntaxProvider provider : providers) if (provider.isEnabled()) ids.add(provider.id());
         return Collections.unmodifiableList(ids);
+    }
+
+    public TextAnimationRenderMode animationMode(StructuredText text) {
+        if (text == null) return TextAnimationRenderMode.WHOLE_RUN;
+        for (StructuredEffectSpan effect : text.effects()) {
+            if (effect.animationRenderMode() == TextAnimationRenderMode.GLYPH) {
+                return TextAnimationRenderMode.GLYPH;
+            }
+        }
+        return TextAnimationRenderMode.WHOLE_RUN;
     }
 
     public static final class Builder {
@@ -124,7 +136,7 @@ public final class TextSyntaxEngine {
         final List<StructuredEffectSpan> effects = new ArrayList<>();
         final List<UnresolvedSyntax> unresolved = new ArrayList<>();
         final Set<String> appliedProviders = new java.util.LinkedHashSet<>();
-        final Map<String, ActiveEffect> activeEffects = new LinkedHashMap<>();
+        final List<ActiveEffect> activeEffects = new ArrayList<>();
         TextStyle style = TextStyle.DEFAULT;
         int styleStart;
         int sourceIndex;
@@ -138,8 +150,12 @@ public final class TextSyntaxEngine {
         }
 
         SyntaxCursor cursor() {
+            Set<String> groups = new HashSet<>();
+            for (ActiveEffect active : activeEffects) groups.add(active.descriptor.groupId());
+            String top = activeEffects.isEmpty() ? null
+                    : activeEffects.get(activeEffects.size() - 1).descriptor.groupId();
             return new SyntaxCursor(source, sourceIndex, plain.length(), lineStartPlainIndex,
-                    lineLeading, new HashSet<>(activeEffects.keySet()));
+                    lineLeading, groups, top);
         }
 
         void recordUnresolved() {
@@ -189,27 +205,35 @@ public final class TextSyntaxEngine {
         }
 
         void closeEffectsFor(SyntaxEvent event) {
-            List<String> closing = new ArrayList<>();
-            for (Map.Entry<String, ActiveEffect> entry : activeEffects.entrySet()) {
-                if (entry.getValue().descriptor.terminationEvents().contains(event)) {
-                    closing.add(entry.getKey());
+            for (int index = activeEffects.size() - 1; index >= 0; index--) {
+                if (activeEffects.get(index).descriptor.terminationEvents().contains(event)) {
+                    closeEffectAt(index, plain.length());
                 }
             }
-            for (String group : closing) closeEffect(group, plain.length());
         }
 
         void beginEffect(EffectDescriptor descriptor) {
-            closeEffect(descriptor.groupId(), plain.length());
-            int start = lineLeading ? lineStartPlainIndex : plain.length();
-            activeEffects.put(descriptor.groupId(), new ActiveEffect(descriptor, start));
+            if (!descriptor.stackable()) closeEffect(descriptor.groupId(), plain.length());
+            int start = descriptor.lineWide() && lineLeading
+                    ? lineStartPlainIndex : plain.length();
+            activeEffects.add(new ActiveEffect(descriptor, start));
         }
 
         void closeEffect(String groupId, int end) {
-            ActiveEffect active = activeEffects.remove(groupId);
+            for (int index = activeEffects.size() - 1; index >= 0; index--) {
+                if (activeEffects.get(index).descriptor.groupId().equals(groupId)) {
+                    closeEffectAt(index, end);
+                    return;
+                }
+            }
+        }
+
+        void closeEffectAt(int index, int end) {
+            ActiveEffect active = activeEffects.remove(index);
             if (active != null && end > active.start) {
                 effects.add(new StructuredEffectSpan(active.start, end,
                         active.descriptor.effectId(), active.descriptor.parameters(),
-                        active.descriptor.lineWide()));
+                        active.descriptor.lineWide(), active.descriptor.animationRenderMode()));
             }
         }
 
@@ -237,8 +261,8 @@ public final class TextSyntaxEngine {
 
         StructuredText finish() {
             closeStyle(plain.length());
-            for (String group : new ArrayList<>(activeEffects.keySet())) {
-                closeEffect(group, plain.length());
+            while (!activeEffects.isEmpty()) {
+                closeEffectAt(activeEffects.size() - 1, plain.length());
             }
             int[] startMap = starts.stream().mapToInt(Integer::intValue).toArray();
             int[] endMap = ends.stream().mapToInt(Integer::intValue).toArray();

@@ -4,7 +4,7 @@ use cosmic_text::{
     Renderer, Shaping, Style, SwashCache, SwashContent, UnderlineStyle, Weight,
 };
 use jni::objects::{JByteArray, JClass, JObjectArray, JString};
-use jni::sys::{jboolean, jbyteArray, jfloat, jint, jlong, jstring};
+use jni::sys::{jboolean, jbyteArray, jfloat, jint, jintArray, jlong, jstring};
 use jni::JNIEnv;
 use skrifa::prelude::*;
 use skrifa::string::StringId;
@@ -13,7 +13,7 @@ use std::ptr;
 use std::sync::Mutex;
 use unicode_script::Script;
 
-const ABI_VERSION: jint = 11;
+const ABI_VERSION: jint = 12;
 const STYLE_BOLD: jint = 1;
 const STYLE_ITALIC: jint = 2;
 const STYLE_UNDERLINE: jint = 4;
@@ -987,7 +987,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_measure(
         style_flags,
         font_size,
         1.0,
-        |buffer, _, _| {
+        |buffer, _, _, _| {
             Ok(buffer
                 .layout_runs()
                 .map(|run| run.line_w)
@@ -1024,7 +1024,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_render(
         style_flags,
         font_size,
         raster_scale.max(1.0),
-        |buffer, engine, scale| {
+        |buffer, engine, scale, _| {
             rasterize(buffer, engine, argb as u32, scale, style_flags, font_size)
         },
     );
@@ -1047,7 +1047,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_measureS
         style_flags,
         font_size.max(1.0),
         1.0,
-        |buffer, _, _| {
+        |buffer, _, _, _| {
             Ok(buffer
                 .layout_runs()
                 .map(|run| run.line_w)
@@ -1080,7 +1080,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_renderSi
         style_flags,
         font_size.max(1.0),
         raster_scale.max(1.0),
-        |buffer, engine, scale| {
+        |buffer, engine, scale, _| {
             rasterize(
                 buffer,
                 engine,
@@ -1110,6 +1110,71 @@ fn encode_render_result(env: &mut JNIEnv, result: Result<Vec<u8>, String>) -> jb
     }
 }
 
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_clusterRangesSized(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    text: JString,
+    style_flags: jint,
+    font_size: jfloat,
+) -> jintArray {
+    let result = with_text(
+        &mut env,
+        handle,
+        text,
+        style_flags,
+        font_size.max(1.0),
+        1.0,
+        |buffer, _, _, value| {
+            let mut ranges = Vec::<(usize, usize)>::new();
+            for run in buffer.layout_runs() {
+                for glyph in run.glyphs {
+                    if glyph.end > glyph.start {
+                        ranges.push((glyph.start, glyph.end));
+                    }
+                }
+            }
+            ranges.sort_unstable();
+            ranges.dedup();
+            let mut encoded = Vec::<jint>::with_capacity(ranges.len() * 2);
+            for (start, end) in ranges {
+                if start <= value.len() && end <= value.len()
+                    && value.is_char_boundary(start) && value.is_char_boundary(end)
+                {
+                    encoded.push(utf16_offset(value, start));
+                    encoded.push(utf16_offset(value, end));
+                }
+            }
+            Ok(encoded)
+        },
+    );
+    match result {
+        Ok(values) => match env.new_int_array(values.len() as i32) {
+            Ok(array) => {
+                if let Err(error) = env.set_int_array_region(&array, 0, &values) {
+                    throw(&mut env, &error.to_string());
+                    ptr::null_mut()
+                } else {
+                    array.into_raw()
+                }
+            }
+            Err(error) => {
+                throw(&mut env, &error.to_string());
+                ptr::null_mut()
+            }
+        },
+        Err(message) => {
+            throw(&mut env, &message);
+            ptr::null_mut()
+        }
+    }
+}
+
+fn utf16_offset(value: &str, byte_offset: usize) -> jint {
+    value[..byte_offset].encode_utf16().count() as jint
+}
+
 fn with_text<T, F>(
     env: &mut JNIEnv,
     handle: jlong,
@@ -1120,7 +1185,7 @@ fn with_text<T, F>(
     operation: F,
 ) -> Result<T, String>
 where
-    F: FnOnce(&mut Buffer, &Engine, f32) -> Result<T, String>,
+    F: FnOnce(&mut Buffer, &Engine, f32, &str) -> Result<T, String>,
 {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         if handle == 0 {
@@ -1145,7 +1210,7 @@ where
         buffer.set_text(&value, &attrs, Shaping::Advanced, None);
         buffer.shape_until_scroll(&mut font_system, false);
         drop(font_system);
-        operation(&mut buffer, engine, scale)
+        operation(&mut buffer, engine, scale, &value)
     }))
     .map_err(|_| "panic in cosmic-text operation".to_string())?
 }
@@ -1402,6 +1467,16 @@ mod tests {
     fn normalizes_face_names_without_style_punctuation() {
         assert_eq!(normalize_font_name("MiSans Demi-Bold"), "misansdemibold");
         assert_eq!(normalize_font_name("  Noto Sans SC  "), "notosanssc");
+    }
+
+    #[test]
+    fn converts_native_utf8_cluster_offsets_to_java_utf16_indices() {
+        let value = "a😀中b";
+        assert_eq!(utf16_offset(value, 0), 0);
+        assert_eq!(utf16_offset(value, 1), 1);
+        assert_eq!(utf16_offset(value, 5), 3);
+        assert_eq!(utf16_offset(value, 8), 4);
+        assert_eq!(utf16_offset(value, value.len()), 5);
     }
 
     #[test]

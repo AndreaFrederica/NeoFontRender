@@ -13,10 +13,14 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.NeoFontRender;
+import neofontrender.build.BuildFeatures;
+import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.api.text.gl.TextGlComponent;
 import neofontrender.text.StructuredEffectSpan;
 import neofontrender.api.text.effect.TextEffectDefinition;
 import neofontrender.api.text.effect.TextEffectRegistry;
+import neofontrender.api.text.effect.TextEffectParticleMode;
+import neofontrender.text.animation.TextAnimationFrame;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.ARBShaderObjects;
 import org.lwjgl.opengl.GL11;
@@ -46,6 +50,7 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
     private static final Map<String, Integer> PROGRAMS = new HashMap<>();
     private static int activeProgram;
     private static final List<Particle> PARTICLES = new ArrayList<>();
+    private static final int MAX_PARTICLES = 512;
     private static long lastParticleTick = Long.MIN_VALUE;
     private static volatile String lastFailure = "";
     private static long captureCount;
@@ -139,35 +144,53 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
              CallerMatrices ignored = CallerMatrices.capture()) {
             Minecraft mc = Minecraft.getMinecraft();
             if (mc == null || mc.displayWidth <= 0 || mc.displayHeight <= 0) return false;
+            // GL error probing can synchronize the driver. Keep it for the explicit diagnostics
+            // build only; normal gameplay still falls back on Java/GL exceptions and shader/FBO
+            // validation failures without paying for a per-draw glGetError round-trip.
+            boolean probeGlErrors = BuildFeatures.RENDER_STATS
+                    && NeofontrenderConfig.debugRenderStats();
+            if (probeGlErrors) clearGlErrors();
+            ScaledResolution resolution = new ScaledResolution(mc);
+            // Keep the physical-pixel target used by the original renderer.  Minecraft's GUI
+            // projection maps logical coordinates into this viewport, so modern AWT/Cosmic
+            // glyphs retain their intended raster scale.
             ensureTarget(mc.displayWidth, mc.displayHeight);
             if (target == null) return false;
+            CaptureTransform transform = CaptureTransform.capture(resolution.getScaleFactor());
             target.bind();
-            boolean scissorEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
-            if (scissorEnabled) GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            // TabbyChat clips its panel with a screen-space scissor.  The off-screen capture
+            // uses a full GUI-sized target, so carrying that scissor into the FBO would clip
+            // the source before it can be composited.  Keep it disabled through both passes;
+            // CallerGlState restores the caller's exact enable/box state on exit.
+            if (GL11.glIsEnabled(GL11.GL_SCISSOR_TEST)) GL11.glDisable(GL11.GL_SCISSOR_TEST);
             GlStateManager.colorMask(true, true, true, true);
             GL11.glColorMask(true, true, true, true);
             GlStateManager.clearColor(0, 0, 0, 0);
             GlStateManager.clear(GL11.GL_COLOR_BUFFER_BIT);
-            if (scissorEnabled) GL11.glEnable(GL11.GL_SCISSOR_TEST);
-            delegate.draw(x, y, alpha);
+            // Neon is normally implemented as repeated glyph draws. During capture it must
+            // contribute only the base alpha mask; the post-process shader creates the glow.
+            try (TextAnimationFrame.NeonSuppression ignoredNeon =
+                         TextAnimationFrame.suppressNeonOverdraw()) {
+                delegate.draw(x, y, alpha);
+            }
             captureCount++;
 
             callerState.restoreFramebufferAndViewport();
-            drawPass(mc, x, y, delegate, effects);
+            if (!drawPass(mc, x, y, delegate, effects, transform, probeGlErrors)) return false;
             compositeCount++;
             lastFailure = "";
             return true;
         } catch (RuntimeException | LinkageError error) {
-            lastFailure = error.getClass().getSimpleName();
+            lastFailure = "capture-" + error.getClass().getSimpleName();
             NeoFontRender.LOGGER.warn("Brilliant Text GL capture failed; using direct text draw", error);
             return false;
         }
     }
 
-    private static void drawPass(Minecraft mc, float x, float y, TextRenderResult result,
-                                 java.util.List<StructuredEffectSpan> effects) {
-        ScaledResolution res = new ScaledResolution(mc);
-        float scale = res.getScaleFactor();
+    private static boolean drawPass(Minecraft mc, float x, float y, TextRenderResult result,
+                                 java.util.List<StructuredEffectSpan> effects,
+                                 CaptureTransform transform, boolean probeGlErrors) {
+        float scale = transform.averageScale();
         GlStateManager.matrixMode(GL11.GL_PROJECTION);
         GlStateManager.pushMatrix();
         GlStateManager.matrixMode(GL11.GL_MODELVIEW);
@@ -175,7 +198,7 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
         try {
             GlStateManager.matrixMode(GL11.GL_PROJECTION);
             GlStateManager.loadIdentity();
-            GL11.glOrtho(0, mc.displayWidth, mc.displayHeight, 0, -1, 1);
+            GL11.glOrtho(0, target.width, target.height, 0, -1, 1);
             GlStateManager.matrixMode(GL11.GL_MODELVIEW);
             GlStateManager.loadIdentity();
             GlStateManager.disableAlpha();
@@ -198,34 +221,49 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
             selectTextureUnit(GL13.GL_TEXTURE0);
             GlStateManager.bindTexture(target.texture);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, target.texture);
-            List<EffectRegion> regions = effectRegions(effects, x, y, result, scale);
+            List<EffectRegion> regions = effectRegions(effects, x, y, result, transform);
             setCompositeBlend(true);
-            drawPassthroughRegions(mc, x, y, result, scale, regions);
+            drawPassthroughRegions(mc, x, y, result, transform, regions);
             if (!regions.isEmpty()) {
                 setCompositeBlend(false);
                 for (EffectRegion region : regions) {
                     StructuredEffectSpan effect = region.effect;
                     TextEffectDefinition definition = TextEffectRegistry.getOrDefault(effect.effectId());
                     int effectProgram = ensureProgram(definition);
-                    if (effectProgram == 0) continue;
+                    if (effectProgram == 0) {
+                        if (lastFailure.isEmpty()) lastFailure = "shader-unavailable-"
+                                + region.effect.effectId();
+                        return false;
+                    }
                     activeProgram = effectProgram;
                     ARBShaderObjects.glUseProgramObjectARB(effectProgram);
                     int sampler = ARBShaderObjects.glGetUniformLocationARB(effectProgram, "u_texture");
                     if (sampler >= 0) ARBShaderObjects.glUniform1iARB(sampler, 0);
-                    setUniform2f("u_textureSize", mc.displayWidth, mc.displayHeight);
-                    setUniform2f("u_sampleSize", mc.displayWidth, mc.displayHeight);
+                    setUniform2f("u_textureSize", target.width, target.height);
+                    setUniform2f("u_sampleSize", target.width, target.height);
                     setUniform4f("u_effectBounds", region.left, region.top,
                             region.right, region.bottom);
                     setUniform4f("u_textColor", color(effect, "textColor", 0xFFFFFFFF));
                     setUniform4f("u_outlineColor", color(effect, "outlineColor", 0));
                     setUniform4f("u_glowColor", color(effect, "glowColor", 0));
+                    setUniform1f("u_glowRadius", parameter(effect, "r", 2.0F) * scale);
+                    setUniform1f("u_glowPasses", parameter(effect, "p", 8.0F));
+                    setUniform1f("u_glowAlpha", parameter(effect, "a", 0.15F));
                     setUniform1f("u_effectType", effectType(effect));
                     setUniform1f("u_time", (System.currentTimeMillis() % 1000000L) / 1000.0F);
-                    drawRegion(mc, region.left, region.top, region.right, region.bottom);
-                    spawnParticle(mc, effect, x, y, result);
+                    drawRegion(region.left, region.top, region.right, region.bottom);
+                    spawnParticle(mc, effect, x, y, result, transform);
                 }
             }
             ARBShaderObjects.glUseProgramObjectARB(0);
+            if (probeGlErrors) {
+                int error = GL11.glGetError();
+                if (error != GL11.GL_NO_ERROR) {
+                    lastFailure = "composite-gl-" + Integer.toHexString(error);
+                    return false;
+                }
+            }
+            return true;
         } finally {
             GlStateManager.matrixMode(GL11.GL_PROJECTION);
             GlStateManager.popMatrix();
@@ -235,14 +273,16 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
     }
 
     private static List<EffectRegion> effectRegions(List<StructuredEffectSpan> effects, float x, float y,
-                                                    TextRenderResult result, float scale) {
+                                                    TextRenderResult result, CaptureTransform transform) {
         List<EffectRegion> regions = new ArrayList<>();
         if (effects == null) return regions;
         for (StructuredEffectSpan effect : effects) {
-            float left = (x + parameter(effect, "left", result.visualLeft())) * scale - 1.0F;
-            float top = (y + parameter(effect, "top", result.visualTop())) * scale - 1.0F;
-            float right = (x + parameter(effect, "right", result.visualRight())) * scale + 1.0F;
-            float bottom = (y + parameter(effect, "bottom", result.visualBottom())) * scale + 1.0F;
+            float expansion = "textanimator:neon".equals(effect.effectId())
+                    ? Math.max(1.0F, parameter(effect, "r", 2.0F)) * transform.averageScale() : 1.0F;
+            float left = transform.x(x + parameter(effect, "left", result.visualLeft())) - expansion;
+            float top = transform.y(y + parameter(effect, "top", result.visualTop())) - expansion;
+            float right = transform.x(x + parameter(effect, "right", result.visualRight())) + expansion;
+            float bottom = transform.y(y + parameter(effect, "bottom", result.visualBottom())) + expansion;
             if (right > left && bottom > top) regions.add(new EffectRegion(effect, left, top, right, bottom));
         }
         regions.sort(Comparator.comparingDouble(region -> region.left));
@@ -250,28 +290,28 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
     }
 
     private static void drawPassthroughRegions(Minecraft mc, float x, float y,
-                                               TextRenderResult result, float scale,
+                                               TextRenderResult result, CaptureTransform transform,
                                                List<EffectRegion> effects) {
-        float left = (x + result.visualLeft()) * scale;
-        float top = (y + result.visualTop()) * scale;
-        float right = (x + result.visualRight()) * scale;
-        float bottom = (y + result.visualBottom()) * scale;
+        float left = transform.x(x + result.visualLeft());
+        float top = transform.y(y + result.visualTop());
+        float right = transform.x(x + result.visualRight());
+        float bottom = transform.y(y + result.visualBottom());
         float cursor = left;
         ARBShaderObjects.glUseProgramObjectARB(0);
         for (EffectRegion effect : effects) {
             float effectLeft = Math.max(left, effect.left + 1.0F);
-            if (effectLeft > cursor) drawRegion(mc, cursor, top, effectLeft, bottom);
+            if (effectLeft > cursor) drawRegion(cursor, top, effectLeft, bottom);
             cursor = Math.max(cursor, Math.min(right, effect.right - 1.0F));
         }
-        if (cursor < right) drawRegion(mc, cursor, top, right, bottom);
+        if (cursor < right) drawRegion(cursor, top, right, bottom);
     }
 
-    private static void drawRegion(Minecraft mc, float left, float top, float right, float bottom) {
+    private static void drawRegion(float left, float top, float right, float bottom) {
         if (right <= left || bottom <= top) return;
-        float u0 = left / mc.displayWidth;
-        float u1 = right / mc.displayWidth;
-        float v0 = 1.0F - top / mc.displayHeight;
-        float v1 = 1.0F - bottom / mc.displayHeight;
+        float u0 = left / target.width;
+        float u1 = right / target.width;
+        float v0 = 1.0F - top / target.height;
+        float v1 = 1.0F - bottom / target.height;
         BufferBuilder buffer = Tessellator.getInstance().getBuffer();
         buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
         buffer.pos(left, top, 0).tex(u0, v0).endVertex();
@@ -302,6 +342,52 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
         }
     }
 
+    /**
+     * The caller's orthographic model-view transform at the FontRenderer call site.  TabbyChat
+     * draws its ChatArea through one or more translated/scaled GuiPanels; the FBO composite must
+     * use the same screen-space origin as the captured glyphs.  Brilliant is only selected for
+     * orthographic, non-rotated draws, so the axis-aligned components are sufficient here.
+     */
+    private static final class CaptureTransform {
+        final float translateX;
+        final float translateY;
+        final float scaleX;
+        final float scaleY;
+        final float guiScale;
+
+        private CaptureTransform(float translateX, float translateY, float scaleX, float scaleY,
+                                 float guiScale) {
+            this.translateX = translateX;
+            this.translateY = translateY;
+            this.scaleX = scaleX;
+            this.scaleY = scaleY;
+            this.guiScale = guiScale;
+        }
+
+        static CaptureTransform capture(float guiScale) {
+            FloatBuffer matrix = BufferUtils.createFloatBuffer(16);
+            GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, matrix);
+            float sx = finitePositive(matrix.get(0), 1.0F);
+            float sy = finitePositive(matrix.get(5), 1.0F);
+            return new CaptureTransform(matrix.get(12), matrix.get(13), sx, sy,
+                    Math.max(1.0F, guiScale));
+        }
+
+        float x(float local) { return (translateX + local * scaleX) * guiScale; }
+        float y(float local) { return (translateY + local * scaleY) * guiScale; }
+        float logicalX(float local) { return translateX + local * scaleX; }
+        float logicalY(float local) { return translateY + local * scaleY; }
+        float averageScale() {
+            return ((Math.abs(scaleX) + Math.abs(scaleY)) * 0.5F) * guiScale;
+        }
+
+        float particleScale() { return (Math.abs(scaleX) + Math.abs(scaleY)) * 0.5F; }
+
+        private static float finitePositive(float value, float fallback) {
+            return Float.isFinite(value) && Math.abs(value) > 0.0001F ? value : fallback;
+        }
+    }
+
     private static float parameter(StructuredEffectSpan effect, String key, float fallback) {
         try { return Float.parseFloat(effect.parameters().get(key)); }
         catch (RuntimeException ignored) { return fallback; }
@@ -321,11 +407,20 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
     }
 
     private static void spawnParticle(Minecraft mc, StructuredEffectSpan effect, float x, float y,
-                                      TextRenderResult result) {
-        if (effectType(effect) > 2.5F) {
-            spawnFlameParticle(effect, x, y, result);
+                                      TextRenderResult result, CaptureTransform transform) {
+        TextEffectDefinition definition = TextEffectRegistry.getOrDefault(effect.effectId());
+        TextEffectParticleMode mode = definition.particleMode();
+        if (mode == TextEffectParticleMode.NONE) return;
+        if (mode == TextEffectParticleMode.FLAME) {
+            spawnFlameParticle(effect, x, y, result, transform);
             return;
         }
+        spawnConfiguredParticle(effect, x, y, result, transform);
+    }
+
+    private static void spawnConfiguredParticle(StructuredEffectSpan effect, float x, float y,
+                                                TextRenderResult result, CaptureTransform transform) {
+        if (PARTICLES.size() >= MAX_PARTICLES) return;
         String texture = effect.parameters().get("particleTexture");
         int rarity = integer(effect, "particleRarity", 100);
         int lifetime = integer(effect, "particleLifetime", 200);
@@ -341,16 +436,25 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
         int size = dimensions[0] + (int) (Math.random() * Math.max(1, dimensions[1] - dimensions[0] + 1));
         float angle = rotation[0] + (float) Math.random() * Math.max(0, rotation[1] - rotation[0]);
         float speed = spin[0] + (float) Math.random() * Math.max(0, spin[1] - spin[0]);
-        PARTICLES.add(new Particle(x + left + (float) Math.random() * Math.max(1, right - left),
-                y + top + (float) Math.random() * Math.max(1, bottom - top),
-                lifetime, size, angle, speed, parseHex(effect.parameters().get("particleColor"), 0xFFFFFFFF),
+        float localX = x + left + (float) Math.random() * Math.max(1, right - left);
+        float localY = y + top + (float) Math.random() * Math.max(1, bottom - top);
+        // Particle quads are rendered later in GUI logical coordinates.  Do not include the
+        // Minecraft framebuffer scale here; that scale is already represented by the particle
+        // projection and would make gold/silver particles several times too large.
+        float particleScale = transform.particleScale();
+        PARTICLES.add(new Particle(transform.logicalX(localX), transform.logicalY(localY),
+                lifetime, Math.max(1, Math.round(size * particleScale)), angle, speed,
+                parseHex(effect.parameters().get("particleColor"), 0xFFFFFFFF),
                 new ResourceLocation(texture)));
     }
 
     /** Matches the original Brilliant Text flame particle rather than the configurable sprite particle. */
     private static void spawnFlameParticle(StructuredEffectSpan effect, float x, float y,
-                                           TextRenderResult result) {
+                                           TextRenderResult result, CaptureTransform transform) {
+        // Match Brilliant Text's FlameTextShader: one particle on roughly one out of twenty
+        // render passes. The cap protects HUDs that draw the same effect many times per frame.
         Random random = new Random();
+        if (PARTICLES.size() >= MAX_PARTICLES || random.nextInt(20) != 0) return;
         float left = parameter(effect, "left", result.visualLeft());
         float right = parameter(effect, "right", result.visualRight());
         float top = parameter(effect, "top", result.visualTop());
@@ -358,9 +462,10 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
         int lifetime = 100 + random.nextInt(100);
         int color = random.nextBoolean() ? 0xFFFF4433 : 0xFFCC5500;
         int reducedLifetime = random.nextInt(100);
+        float localX = x + left + (float) random.nextDouble() * Math.max(1, right - left);
+        float localY = y + top + (float) random.nextDouble() * Math.max(1, bottom - top);
         PARTICLES.add(Particle.flame(
-                x + left + (float) random.nextDouble() * Math.max(1, right - left),
-                y + top + (float) random.nextDouble() * Math.max(1, bottom - top),
+                transform.logicalX(localX), transform.logicalY(localY),
                 lifetime, color, reducedLifetime,
                 (random.nextFloat() - 0.5F) * 0.1F));
     }
@@ -495,14 +600,14 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
                     ARBShaderObjects.GL_OBJECT_LINK_STATUS_ARB) == 0) {
                 String log = GL20.glGetProgramInfoLog(effectProgram, 8192);
                 NeoFontRender.LOGGER.error("Brilliant Text shader link failed: {}", log);
-                lastFailure = "shader-link";
+                lastFailure = "shader-link-" + definition.id();
                 ARBShaderObjects.glDeleteObjectARB(effectProgram);
                 return 0;
             }
             PROGRAMS.put(key, effectProgram);
             return effectProgram;
         } catch (Exception | LinkageError error) {
-            lastFailure = "shader-init";
+            lastFailure = "shader-init-" + definition.id();
             NeoFontRender.LOGGER.error("Brilliant Text shader initialization failed", error);
             return 0;
         }
@@ -512,7 +617,14 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
         ResourceLocation location = path.indexOf(':') >= 0
                 ? new ResourceLocation(path)
                 : new ResourceLocation("neofontrender", path);
-        InputStream stream = Minecraft.getMinecraft().getResourceManager().getResource(location).getInputStream();
+        InputStream stream;
+        try {
+            stream = Minecraft.getMinecraft().getResourceManager().getResource(location).getInputStream();
+        } catch (Exception error) {
+            lastFailure = "shader-resource-" + path.replace(':', '_');
+            NeoFontRender.LOGGER.error("Brilliant Text shader resource '{}' is unavailable", path, error);
+            return 0;
+        }
         byte[] data;
         try (InputStream input = stream) { data = input.readAllBytes(); }
         int shader = ARBShaderObjects.glCreateShaderObjectARB(type);
@@ -522,7 +634,7 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
                 ARBShaderObjects.GL_OBJECT_COMPILE_STATUS_ARB) != 0) return shader;
         String log = GL20.glGetShaderInfoLog(shader, 8192);
         NeoFontRender.LOGGER.error("Brilliant Text shader '{}' failed to compile: {}", path, log);
-        lastFailure = "shader-compile";
+        lastFailure = "shader-compile-" + path.replace(':', '_');
         ARBShaderObjects.glDeleteObjectARB(shader);
         return 0;
     }
@@ -544,6 +656,12 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
 
     private static void setUniform4f(String name, float[] value) {
         setUniform4f(name, value[0], value[1], value[2], value[3]);
+    }
+
+    private static void clearGlErrors() {
+        while (GL11.glGetError() != GL11.GL_NO_ERROR) {
+            // Drain all pending errors before starting a capture transaction.
+        }
     }
 
     private static int[] readViewport() {
@@ -766,14 +884,18 @@ final class BrilliantCaptureRenderer implements TextGlComponent {
                 GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
                 GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
                 GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
                 GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, width, height, 0,
                         GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
                 GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, framebuffer);
                 GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0,
                         GL11.GL_TEXTURE_2D, texture, 0);
-                if (GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER)
-                        != GL30.GL_FRAMEBUFFER_COMPLETE) {
-                    throw new IllegalStateException("Brilliant text framebuffer is incomplete");
+                int status = GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER);
+                if (status != GL30.GL_FRAMEBUFFER_COMPLETE) {
+                    lastFailure = "fbo-" + Integer.toHexString(status);
+                    throw new IllegalStateException("Brilliant text framebuffer is incomplete: 0x"
+                            + Integer.toHexString(status));
                 }
             } finally {
                 GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, previousDraw);

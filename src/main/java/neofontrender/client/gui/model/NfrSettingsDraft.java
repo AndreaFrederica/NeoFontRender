@@ -86,6 +86,15 @@ public final class NfrSettingsDraft {
     public final boolean originalLaboratoryHexChatResetStyles = NeofontrenderConfig.laboratoryHexChatResetStyles();
     public final boolean originalLaboratoryTextUndoRedo = NeofontrenderConfig.laboratoryTextUndoRedo();
     public final boolean originalLaboratoryBrilliantAnyPosition = NeofontrenderConfig.laboratoryBrilliantAnyPosition();
+    public final boolean originalLaboratoryTextAnimatorEnabled = NeofontrenderConfig.laboratoryTextAnimatorEnabled();
+    public final boolean originalLaboratoryTextAnimatorAnyPosition = NeofontrenderConfig.laboratoryTextAnimatorAnyPosition();
+    public final String originalLaboratoryTextAnimatorEffects = NeofontrenderConfig.laboratoryTextAnimatorEffects();
+    public final String originalLaboratoryTextAnimatorTypewriterSpeed = Integer.toString(NeofontrenderConfig.laboratoryTextAnimatorTypewriterSpeed());
+    public final String originalLaboratoryTextAnimatorTypewriterMode = NeofontrenderConfig.laboratoryTextAnimatorTypewriterMode();
+    public final String originalLaboratoryTextAnimatorPulseMinimum = Float.toString(
+            NeofontrenderConfig.laboratoryTextAnimatorPulseMinimum());
+    public final String originalLaboratoryTextAnimatorPulseMaximum = Float.toString(
+            NeofontrenderConfig.laboratoryTextAnimatorPulseMaximum());
     public final boolean originalCompatModernSplash = NeofontrenderConfig.compatModernSplash();
     public final boolean originalCompatTinkersAntique = NeofontrenderConfig.compatTinkersAntique();
     public final boolean originalCompatThaumcraftTooltip = NeofontrenderConfig.compatThaumcraftTooltip();
@@ -144,6 +153,13 @@ public final class NfrSettingsDraft {
     public boolean laboratoryHexChatResetStyles = originalLaboratoryHexChatResetStyles;
     public boolean laboratoryTextUndoRedo = originalLaboratoryTextUndoRedo;
     public boolean laboratoryBrilliantAnyPosition = originalLaboratoryBrilliantAnyPosition;
+    public boolean laboratoryTextAnimatorEnabled = originalLaboratoryTextAnimatorEnabled;
+    public boolean laboratoryTextAnimatorAnyPosition = originalLaboratoryTextAnimatorAnyPosition;
+    public String laboratoryTextAnimatorEffects = originalLaboratoryTextAnimatorEffects;
+    public String laboratoryTextAnimatorTypewriterSpeed = originalLaboratoryTextAnimatorTypewriterSpeed;
+    public String laboratoryTextAnimatorTypewriterMode = originalLaboratoryTextAnimatorTypewriterMode;
+    public String laboratoryTextAnimatorPulseMinimum = originalLaboratoryTextAnimatorPulseMinimum;
+    public String laboratoryTextAnimatorPulseMaximum = originalLaboratoryTextAnimatorPulseMaximum;
     public boolean compatModernSplash = originalCompatModernSplash;
     public boolean compatTinkersAntique = originalCompatTinkersAntique;
     public boolean compatThaumcraftTooltip = originalCompatThaumcraftTooltip;
@@ -312,6 +328,15 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryHexChatResetStyles(laboratoryHexChatResetStyles);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(laboratoryTextUndoRedo);
         NeofontrenderConfig.setLaboratoryBrilliantAnyPosition(laboratoryBrilliantAnyPosition);
+        NeofontrenderConfig.setLaboratoryTextAnimatorEnabled(laboratoryTextAnimatorEnabled);
+        NeofontrenderConfig.setLaboratoryTextAnimatorAnyPosition(laboratoryTextAnimatorAnyPosition);
+        NeofontrenderConfig.setLaboratoryTextAnimatorEffects(laboratoryTextAnimatorEffects);
+        NeofontrenderConfig.setLaboratoryTextAnimatorTypewriterSpeed(parseInt(laboratoryTextAnimatorTypewriterSpeed, 5, 1, 9));
+        NeofontrenderConfig.setLaboratoryTextAnimatorTypewriterMode(laboratoryTextAnimatorTypewriterMode);
+        float pulseMinimum = parseFloat(laboratoryTextAnimatorPulseMinimum, 0.6F, 0.0F, 1.0F);
+        float pulseMaximum = parseFloat(laboratoryTextAnimatorPulseMaximum, 1.0F, pulseMinimum, 1.0F);
+        NeofontrenderConfig.setLaboratoryTextAnimatorPulseMinimum(pulseMinimum);
+        NeofontrenderConfig.setLaboratoryTextAnimatorPulseMaximum(pulseMaximum);
         NeofontrenderConfig.setCompatModernSplash(compatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(compatTinkersAntique);
         NeofontrenderConfig.setCompatThaumcraftTooltip(compatThaumcraftTooltip);
@@ -392,6 +417,15 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryHexChatResetStyles(originalLaboratoryHexChatResetStyles);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(originalLaboratoryTextUndoRedo);
         NeofontrenderConfig.setLaboratoryBrilliantAnyPosition(originalLaboratoryBrilliantAnyPosition);
+        NeofontrenderConfig.setLaboratoryTextAnimatorEnabled(originalLaboratoryTextAnimatorEnabled);
+        NeofontrenderConfig.setLaboratoryTextAnimatorEffects(originalLaboratoryTextAnimatorEffects);
+        NeofontrenderConfig.setLaboratoryTextAnimatorTypewriterSpeed(parseInt(originalLaboratoryTextAnimatorTypewriterSpeed, 5, 1, 9));
+        NeofontrenderConfig.setLaboratoryTextAnimatorTypewriterMode(originalLaboratoryTextAnimatorTypewriterMode);
+        NeofontrenderConfig.setLaboratoryTextAnimatorPulseMinimum(
+                parseFloat(originalLaboratoryTextAnimatorPulseMinimum, 0.6F, 0.0F, 1.0F));
+        NeofontrenderConfig.setLaboratoryTextAnimatorPulseMaximum(
+                parseFloat(originalLaboratoryTextAnimatorPulseMaximum, 1.0F,
+                        parseFloat(originalLaboratoryTextAnimatorPulseMinimum, 0.6F, 0.0F, 1.0F), 1.0F));
         NeofontrenderConfig.setCompatModernSplash(originalCompatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(originalCompatTinkersAntique);
         NeofontrenderConfig.setCompatThaumcraftTooltip(originalCompatThaumcraftTooltip);

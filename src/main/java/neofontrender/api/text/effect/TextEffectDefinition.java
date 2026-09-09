@@ -10,6 +10,12 @@ public interface TextEffectDefinition {
     /** Shader family used by the built-in post-process renderer. */
     default float shaderType() { return 0.0F; }
 
+    /**
+     * Particle side effect emitted after the shader pass. This is deliberately independent of
+     * {@link #shaderType()} so shader family values cannot accidentally enable particles.
+     */
+    default TextEffectParticleMode particleMode() { return TextEffectParticleMode.NONE; }
+
     /** Classpath-relative shader resource paths. */
     default String vertexShader() { return "shaders/post/modern.vert"; }
 

@@ -83,9 +83,17 @@ public final class ModernTextApi {
         TextPostProcessPipeline.initialize();
         TextRenderBackend backend = FontManager.INSTANCE.getModernTextBackend();
         if (backend == null || !backend.isReady()) return ModernTextLayout.EMPTY;
-        return TextPostProcessPipeline.renderStructured(backend, structured, argb,
-                sanitizeSize(fontSize), shadow,
-                spec == null ? ShadowRenderSpec.fromConfig() : spec);
+        float logicalSize = sanitizeSize(fontSize);
+        ShadowRenderSpec effectiveSpec = spec == null ? ShadowRenderSpec.fromConfig() : spec;
+        ModernTextLayout initial = TextPostProcessPipeline.renderStructured(
+                backend, structured, argb, logicalSize, shadow, effectiveSpec);
+        if (!structured.animated()) return initial;
+        // Public layouts may be retained by callers (unlike the immediate-mode route). Rebuild
+        // the post-processed result for every draw so pulse, shake, and other time effects keep
+        // advancing instead of freezing at layout creation time.
+        return ModernTextLayout.withDynamicResult(initial, () ->
+                TextPostProcessPipeline.renderStructured(backend, structured, argb,
+                        logicalSize, shadow, effectiveSpec).resultForPostProcess());
     }
 
     public static ModernTextLayout layout(String text, float fontSize, int argb) {

@@ -16,4 +16,13 @@ public final class StandardSyntaxEngines {
                 .register(MinecraftLegacySyntaxProvider.INSTANCE)
                 .build();
     }
+
+    /** Standard client syntax with both independent animation compatibility providers. */
+    public static TextSyntaxEngine minecraftWithAnimationCompatibility() {
+        return TextSyntaxEngine.builder()
+                .register(new TextAnimatorCompatibilityProvider())
+                .register(BrilliantSyntaxProvider.defaults())
+                .register(MinecraftLegacySyntaxProvider.INSTANCE)
+                .build();
+    }
 }

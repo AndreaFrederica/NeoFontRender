@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import neofontrender.text.animation.TextAnimationRenderMode;
 
 /** Configurable Brilliant Text controls with optional any-position startup. */
 public final class BrilliantSyntaxProvider implements FixedCodeSyntaxProvider {
@@ -14,13 +15,20 @@ public final class BrilliantSyntaxProvider implements FixedCodeSyntaxProvider {
     private final Map<Character, EffectDescriptor> effects;
     private final Set<Character> codes;
     private final boolean anyPosition;
+    private final boolean enabled;
 
     public BrilliantSyntaxProvider(Map<Character, Map<String, String>> bindings) {
         this(bindings, false);
     }
 
     public BrilliantSyntaxProvider(Map<Character, Map<String, String>> bindings, boolean anyPosition) {
+        this(bindings, anyPosition, true);
+    }
+
+    public BrilliantSyntaxProvider(Map<Character, Map<String, String>> bindings, boolean anyPosition,
+                                   boolean enabled) {
         this.anyPosition = anyPosition;
+        this.enabled = enabled;
         LinkedHashMap<Character, EffectDescriptor> values = new LinkedHashMap<>();
         if (bindings != null) {
             for (Map.Entry<Character, Map<String, String>> entry : bindings.entrySet()) {
@@ -28,7 +36,8 @@ public final class BrilliantSyntaxProvider implements FixedCodeSyntaxProvider {
                 if ("0123456789abcdefklmnor".indexOf(code) >= 0) continue;
                 String effectId = code == 'v' ? "brilliant_text:flame" : "brilliant_text:" + code;
                 values.put(code, new EffectDescriptor(GROUP_ID, effectId, entry.getValue(),
-                        EnumSet.of(SyntaxEvent.COLOR_CHANGE, SyntaxEvent.RESET), true));
+                        EnumSet.of(SyntaxEvent.COLOR_CHANGE, SyntaxEvent.RESET), true,
+                        TextAnimationRenderMode.WHOLE_RUN));
             }
         }
         effects = Collections.unmodifiableMap(values);
@@ -39,7 +48,7 @@ public final class BrilliantSyntaxProvider implements FixedCodeSyntaxProvider {
     @Override public int priority() { return 100; }
     @Override public char trigger() { return MinecraftLegacySyntaxProvider.PREFIX; }
     @Override public Set<Character> codes() { return codes; }
-
+    @Override public boolean isEnabled() { return enabled; }
     @Override
     public SyntaxMatch match(SyntaxCursor cursor) {
         if (cursor.remaining() < 2 || cursor.charAt(0) != trigger()) return null;

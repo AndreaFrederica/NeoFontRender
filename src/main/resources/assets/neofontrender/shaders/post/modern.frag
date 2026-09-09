@@ -9,6 +9,9 @@ uniform vec4 u_outlineColor;
 uniform vec4 u_glowColor;
 uniform float u_effectType;
 uniform float u_time;
+uniform float u_glowRadius;
+uniform float u_glowPasses;
+uniform float u_glowAlpha;
 
 float hash(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
@@ -66,7 +69,45 @@ void main() {
     vec4 source = texture2D(u_texture, uv);
     if (!inside(pixel)) discard;
 
-    if (u_effectType > 2.5) {
+    // TextAnimator Neon: the captured glyph is an alpha mask. Generate a soft radial halo
+    // directly from neighboring texels instead of redrawing the glyph repeatedly on the CPU.
+    if (u_effectType > 3.5 && u_effectType < 4.5) {
+        if (source.a > 0.0) {
+            gl_FragColor = vec4(u_textColor.rgb, u_textColor.a * source.a);
+            return;
+        }
+        float radius = max(1.0, u_glowRadius);
+        float passes = clamp(u_glowPasses, 4.0, 32.0);
+        float glow = 0.0;
+        for (int i = 0; i < 32; i++) {
+            if (float(i) >= passes) break;
+            float angle = 6.2831853 * (float(i) + 0.5) / passes;
+            vec2 direction = vec2(cos(angle), sin(angle));
+            float nearAlpha = texture2D(u_texture,
+                    uv + direction * (radius * 0.35) / u_sampleSize).a;
+            float midAlpha = texture2D(u_texture,
+                    uv + direction * (radius * 0.70) / u_sampleSize).a;
+            float farAlpha = texture2D(u_texture,
+                    uv + direction * radius / u_sampleSize).a;
+            glow = max(glow, nearAlpha * 0.85);
+            glow = max(glow, midAlpha * 0.55);
+            glow = max(glow, farAlpha * 0.25);
+        }
+        if (glow > 0.0 && u_glowAlpha > 0.0) {
+            gl_FragColor = vec4(u_textColor.rgb, min(0.9, glow * u_glowAlpha));
+            return;
+        }
+        discard;
+    }
+
+    if (u_effectType > 2.5 && u_effectType < 3.5) {
+        // Preserve the captured glyph whenever the animated UV displacement lands on a
+        // transparent texel. Without this base-mask fallback the particle pass still runs,
+        // leaving only floating flame particles while the text itself disappears.
+        if (source.a > 0.0) {
+            gl_FragColor = vec4(fireColor(uv), source.a);
+            return;
+        }
         vec2 warpedUv = flameUv(uv);
         vec4 warpedSource = texture2D(u_texture, warpedUv);
         if (warpedSource.a > 0.0) {

@@ -9,6 +9,7 @@ import neofontrender.core.font.postprocess.TextPostProcessPipeline;
 import neofontrender.core.font.support.ShadowRenderSpec;
 import neofontrender.text.InlineSpan;
 import neofontrender.text.StructuredText;
+import neofontrender.text.animation.TextAnimationFrame;
 
 /** Draw/measure implementation for the configured modern backend. */
 final class ModernStructuredRouteLayout extends AbstractStructuredRouteLayout {
@@ -42,22 +43,25 @@ final class ModernStructuredRouteLayout extends AbstractStructuredRouteLayout {
 
     @Override
     public void draw(float x, float y) {
-        boolean shadowEnabled = request.shadow()
-                && !"none".equals(NeofontrenderConfig.shadowMode())
-                && NeofontrenderConfig.shadowOpacity() > 0.0F
-                && backend.shouldRenderShadow(request.structuredText().plainText());
-        boolean modernShadow = shadowEnabled && NeofontrenderConfig.modernShadowEnabled();
-        if (shadowEnabled && !modernShadow) {
-            TextRenderResult shadow = backend.renderStructuredAtSize(request.structuredText(),
-                    request.argb(), true, request.fontSize());
-            float offset = NeofontrenderConfig.shadowLength();
-            shadow.draw(x + offset, y + drawOffset + offset,
-                    NeofontrenderConfig.shadowOpacity());
+        try (TextAnimationFrame.Scope ignored = TextAnimationFrame.openAutomatic(
+                request.source(), x, y + drawOffset)) {
+            boolean shadowEnabled = request.shadow()
+                    && !"none".equals(NeofontrenderConfig.shadowMode())
+                    && NeofontrenderConfig.shadowOpacity() > 0.0F
+                    && backend.shouldRenderShadow(request.structuredText().plainText());
+            boolean modernShadow = shadowEnabled && NeofontrenderConfig.modernShadowEnabled();
+            if (shadowEnabled && !modernShadow) {
+                TextRenderResult shadow = backend.renderStructuredAtSize(request.structuredText(),
+                        request.argb(), true, request.fontSize());
+                float offset = NeofontrenderConfig.shadowLength();
+                shadow.draw(x + offset, y + drawOffset + offset,
+                        NeofontrenderConfig.shadowOpacity());
+            }
+            TextPostProcessPipeline.initialize();
+            ModernTextLayout layout = TextPostProcessPipeline.renderStructured(backend,
+                    request.structuredText(), request.argb(), request.fontSize(), modernShadow,
+                    ShadowRenderSpec.fromConfig());
+            layout.draw(x, y + drawOffset);
         }
-        TextPostProcessPipeline.initialize();
-        ModernTextLayout layout = TextPostProcessPipeline.renderStructured(backend,
-                request.structuredText(), request.argb(), request.fontSize(), modernShadow,
-                ShadowRenderSpec.fromConfig());
-        layout.draw(x, y + drawOffset);
     }
 }

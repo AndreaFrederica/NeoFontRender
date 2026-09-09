@@ -10,11 +10,13 @@ public final class TextEffectRegistry {
     private static final Map<String, TextEffectDefinition> DEFINITIONS = new LinkedHashMap<>();
 
     static {
-        register(new Builtin("brilliant_text:g", 0.0F));
-        register(new Builtin("brilliant_text:s", 1.0F));
-        register(new Builtin("brilliant_text:q", 2.0F));
-        register(new Builtin("brilliant_text:v", 3.0F));
-        register(new Builtin("brilliant_text:flame", 3.0F));
+        register(new Builtin("brilliant_text:g", 0.0F, TextEffectParticleMode.CONFIGURED));
+        register(new Builtin("brilliant_text:s", 1.0F, TextEffectParticleMode.CONFIGURED));
+        register(new Builtin("brilliant_text:q", 2.0F, TextEffectParticleMode.CONFIGURED));
+        register(new Builtin("brilliant_text:v", 3.0F, TextEffectParticleMode.FLAME));
+        register(new Builtin("brilliant_text:flame", 3.0F, TextEffectParticleMode.FLAME));
+        // TextAnimator Neon is an independent provider, but shares the generic shader pipeline.
+        register(new Builtin("textanimator:neon", 4.0F, TextEffectParticleMode.NONE));
     }
 
     private TextEffectRegistry() {}
@@ -34,7 +36,8 @@ public final class TextEffectRegistry {
 
     public static synchronized TextEffectDefinition getOrDefault(String id) {
         TextEffectDefinition definition = DEFINITIONS.get(id);
-        return definition != null ? definition : new Builtin(id, 0.0F);
+        return definition != null ? definition
+                : new Builtin(id, 0.0F, TextEffectParticleMode.NONE);
     }
 
     public static synchronized Map<String, TextEffectDefinition> snapshot() {
@@ -44,13 +47,16 @@ public final class TextEffectRegistry {
     private static final class Builtin implements TextEffectDefinition {
         private final String id;
         private final float shaderType;
+        private final TextEffectParticleMode particleMode;
 
-        private Builtin(String id, float shaderType) {
+        private Builtin(String id, float shaderType, TextEffectParticleMode particleMode) {
             this.id = id;
             this.shaderType = shaderType;
+            this.particleMode = particleMode == null ? TextEffectParticleMode.NONE : particleMode;
         }
 
         @Override public String id() { return id; }
         @Override public float shaderType() { return shaderType; }
+        @Override public TextEffectParticleMode particleMode() { return particleMode; }
     }
 }

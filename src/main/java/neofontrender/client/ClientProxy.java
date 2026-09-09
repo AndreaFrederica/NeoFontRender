@@ -17,21 +17,12 @@ import neofontrender.core.font.pipeline.builtin.HexChatStructuredMiddleware;
 import neofontrender.core.font.pipeline.builtin.TinkersAntiqueSyntaxProvider;
 import neofontrender.text.pipeline.TextPipelinePlugin;
 
-import java.io.File;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.jar.JarFile;
 
 public class ClientProxy extends CommonProxy {
 
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         NeoFontRender.LOGGER.info("ClientProxy preInit");
-        synchronizeStandaloneTextCore(event);
         StructuredTextApi.register(TinkersAntiqueSyntaxProvider.INSTANCE);
         StructuredTextApi.register(new TextPipelinePlugin() {
             @Override public String id() { return "neofontrender:builtins"; }
@@ -43,42 +34,6 @@ public class ClientProxy extends CommonProxy {
             }
         });
         super.preInit(event);
-    }
-
-    /**
-     * Older development deployments may leave text-core.jar in mods/1.12.2.
-     * Keep that optional standalone copy synchronized with the version embedded
-     * in the NFR distribution, otherwise its classes can shadow the embedded jar.
-     */
-    private static void synchronizeStandaloneTextCore(FMLPreInitializationEvent event) {
-        File sourceFile = event.getSourceFile();
-        if (sourceFile == null || !sourceFile.isFile()) return;
-        File gameDir = event.getModConfigurationDirectory().getParentFile();
-        if (gameDir == null) return;
-        Path target = gameDir.toPath().resolve("mods").resolve("1.12.2").resolve("text-core.jar");
-        try (JarFile jar = new JarFile(sourceFile)) {
-            java.util.jar.JarEntry entry = jar.getJarEntry("text-core.jar");
-            if (entry == null) return;
-            Files.createDirectories(target.getParent());
-            Path staged = Files.createTempFile(target.getParent(), "text-core", ".jar.tmp");
-            try (InputStream input = jar.getInputStream(entry)) {
-                Files.copy(input, staged, StandardCopyOption.REPLACE_EXISTING);
-            }
-            if (Files.exists(target) && Files.mismatch(target, staged) < 0) {
-                Files.deleteIfExists(staged);
-                return;
-            }
-            if (Files.exists(target)) {
-                String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-                Path backup = target.resolveSibling("text-core.jar.bak-nfr-" + stamp);
-                Files.move(target, backup, StandardCopyOption.REPLACE_EXISTING);
-                NeoFontRender.LOGGER.warn("Updated stale standalone text-core.jar; old copy backed up as {}", backup.getFileName());
-            }
-            Files.move(staged, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            NeoFontRender.LOGGER.info("Synchronized standalone text-core.jar from NeoFontRender");
-        } catch (Exception error) {
-            NeoFontRender.LOGGER.warn("Could not synchronize standalone text-core.jar; embedded text core will remain available", error);
-        }
     }
 
     @Override

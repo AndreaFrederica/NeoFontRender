@@ -11,15 +11,18 @@ public final class SyntaxCursor {
     private final int lineStartPlainIndex;
     private final boolean lineLeading;
     private final Set<String> activeEffectGroups;
+    private final String topActiveEffectGroup;
 
     SyntaxCursor(String source, int sourceIndex, int plainIndex, int lineStartPlainIndex,
-                 boolean lineLeading, Set<String> activeEffectGroups) {
+                 boolean lineLeading, Set<String> activeEffectGroups,
+                 String topActiveEffectGroup) {
         this.source = source;
         this.sourceIndex = sourceIndex;
         this.plainIndex = plainIndex;
         this.lineStartPlainIndex = lineStartPlainIndex;
         this.lineLeading = lineLeading;
         this.activeEffectGroups = Collections.unmodifiableSet(activeEffectGroups);
+        this.topActiveEffectGroup = topActiveEffectGroup;
     }
 
     public String source() { return source; }
@@ -28,6 +31,8 @@ public final class SyntaxCursor {
     public int lineStartPlainIndex() { return lineStartPlainIndex; }
     public boolean lineLeading() { return lineLeading; }
     public boolean hasActiveEffectGroup(String groupId) { return activeEffectGroups.contains(groupId); }
+    public String topActiveEffectGroup() { return topActiveEffectGroup; }
     public int remaining() { return source.length() - sourceIndex; }
+    public String remainingText() { return source.substring(sourceIndex); }
     public char charAt(int relativeIndex) { return source.charAt(sourceIndex + relativeIndex); }
 }

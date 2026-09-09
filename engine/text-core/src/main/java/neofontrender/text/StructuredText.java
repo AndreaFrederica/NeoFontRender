@@ -64,6 +64,10 @@ public final class StructuredText {
     public SourceMap sourceMap() { return sourceMap; }
     public boolean animated() {
         for (StyledSpan span : styles) if (span.style().obfuscated()) return true;
+        for (StructuredEffectSpan span : effects) {
+            if (span.animationRenderMode()
+                    == neofontrender.text.animation.TextAnimationRenderMode.GLYPH) return true;
+        }
         return false;
     }
 
@@ -98,7 +102,8 @@ public final class StructuredText {
             int to = Math.min(end, effect.end());
             if (to > from) {
                 slicedEffects.add(new StructuredEffectSpan(from - start, to - start,
-                        effect.effectId(), effect.parameters(), effect.lineWide()));
+                        effect.effectId(), effect.parameters(), effect.lineWide(),
+                        effect.animationRenderMode()));
             }
         }
         List<InlineSpan> slicedInline = new ArrayList<>();
