@@ -10,16 +10,6 @@ base { archivesName = 'neofontrender-typst-renderer' }
 
 java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
 
-def hostOs = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
-def hostArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
-def nativeArch = (hostArch == 'amd64' || hostArch == 'x86_64') ? 'x86_64' :
-        (hostArch == 'aarch64' || hostArch == 'arm64') ? 'aarch64' : null
-def nativePlatform = nativeArch == null ? null :
-        (hostOs.contains('win') ? "windows-${nativeArch}" :
-                (hostOs.contains('mac') ? "macos-${nativeArch}" :
-                        (hostOs.contains('linux') ? "linux-${nativeArch}-gnu" : null)))
-def nativeLibraryName = hostOs.contains('win') ? 'neofontrender_typst.dll' :
-        (hostOs.contains('mac') ? 'libneofontrender_typst.dylib' : 'libneofontrender_typst.so')
 evaluationDependsOn(':engine:typst-render')
 def typstEngine = project(':engine:typst-render')
 
@@ -84,15 +74,17 @@ test {
 tasks.register('verifyBundledTypstNative') {
     group = 'verification'
     description = 'Verifies that the addon JAR contains the isolated Typst JNI module.'
-    dependsOn tasks.named('jar')
+    dependsOn tasks.named('remapJar')
     doLast {
-        def archive = tasks.named('jar').get().archiveFile.get().asFile
-        def expected = "assets/neofontrender/typst-native/${nativePlatform}/${nativeLibraryName}"
+        def archive = tasks.named('remapJar').get().archiveFile.get().asFile
         def file = new java.util.jar.JarFile(archive)
         try {
-            def entry = file.getJarEntry(expected)
-            if (entry == null || entry.size <= 0) {
-                throw new GradleException("Typst addon JAR is missing ${expected}")
+            typstEngine.typstNativeEntries.each { relative ->
+                def expected = "assets/neofontrender/typst-native/${relative}"
+                def entry = file.getJarEntry(expected)
+                if (entry == null || entry.size <= 0) {
+                    throw new GradleException("Typst addon JAR is missing ${expected}")
+                }
             }
             if (file.getJarEntry('neofontrender/typst/TypstEngine.class') == null) {
                 throw new GradleException('Typst addon JAR is missing the isolated Java engine')
@@ -101,6 +93,14 @@ tasks.register('verifyBundledTypstNative') {
             file.close()
         }
     }
+}
+
+tasks.register('stageTypstRendererRelease', Sync) {
+    group = 'build'
+    description = 'Stages the verified installable Typst addon (not the development JAR).'
+    dependsOn tasks.named('check')
+    from(tasks.named('remapJar').flatMap { it.archiveFile })
+    into rootProject.layout.buildDirectory.dir('release/typst-renderer')
 }
 
 tasks.named('check') {

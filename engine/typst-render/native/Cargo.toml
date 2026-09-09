@@ -9,6 +9,10 @@ rust-version = "1.92"
 name = "neofontrender_typst"
 crate-type = ["cdylib"]
 
+[features]
+# Release Linux binaries include OpenSSL, avoiding a host libssl ABI dependency.
+vendored-tls = ["typst-kit/vendor-openssl"]
+
 [dependencies]
 typst = { path = "../../../addons/typst-renderer/vendor/typst/crates/typst" }
 typst-layout = { path = "../../../addons/typst-renderer/vendor/typst/crates/typst-layout" }

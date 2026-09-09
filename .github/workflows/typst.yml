@@ -1,0 +1,150 @@
+name: Build Typst desktop bundle
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['typst/[0-9]+.[0-9]+.[0-9]+']
+  pull_request:
+    paths:
+      - '.github/workflows/typst.yml'
+      - 'engine/typst-render/**'
+      - 'addons/typst-renderer/**'
+      - 'addons/inline-content-showcase/**'
+      - 'gradle.properties'
+      - '.gitmodules'
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: Typst ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            platform: windows-x86_64
+            library: neofontrender_typst.dll
+            java-arch: x64
+          - runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            platform: windows-aarch64
+            library: neofontrender_typst.dll
+            java-arch: aarch64
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            platform: linux-x86_64-gnu
+            library: libneofontrender_typst.so
+            java-arch: x64
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            platform: linux-aarch64-gnu
+            library: libneofontrender_typst.so
+            java-arch: aarch64
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            platform: macos-x86_64
+            library: libneofontrender_typst.dylib
+            java-arch: x64
+          - runner: macos-14
+            target: aarch64-apple-darwin
+            platform: macos-aarch64
+            library: libneofontrender_typst.dylib
+            java-arch: aarch64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@1.92.0
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine/typst-render/native
+          key: ${{ matrix.target }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '25'
+          architecture: ${{ matrix.java-arch }}
+      - name: Build Typst JNI
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: '2'
+        run: |
+          set -euo pipefail
+          cargo build --manifest-path engine/typst-render/native/Cargo.toml --release --locked \
+            --features vendored-tls --target '${{ matrix.target }}'
+          mkdir -p 'dist/${{ matrix.platform }}'
+          cp 'engine/typst-render/native/target/${{ matrix.target }}/release/${{ matrix.library }}' \
+            'dist/${{ matrix.platform }}/${{ matrix.library }}'
+      - name: Verify Linux dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          library='dist/${{ matrix.platform }}/${{ matrix.library }}'
+          readelf -d "$library"
+          if readelf -d "$library" | grep -Eq 'NEEDED.*lib(ssl|crypto)\.'; then
+            echo 'Typst release must not depend on host OpenSSL shared libraries.' >&2
+            exit 1
+          fi
+          if ldd "$library" | grep -q 'not found'; then exit 1; fi
+      - name: Run real JNI and package smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p probe/classes/assets/neofontrender/typst-native
+          cp -R dist/* probe/classes/assets/neofontrender/typst-native/
+          javac -encoding UTF-8 -d probe/classes \
+            engine/typst-render/src/main/java/neofontrender/typst/*.java \
+            engine/typst-render/src/main/java/neofontrender/typst/internal/*.java \
+            engine/typst-render/src/test/java/neofontrender/typst/TypstNativeSmoke.java
+          java --enable-native-access=ALL-UNNAMED -cp probe/classes neofontrender.typst.TypstNativeSmoke \
+            probe/packages addons/inline-content-showcase/src/main/resources/assets/neofontrender_inline_content_showcase/typst/periodic-table.typ
+      - uses: actions/upload-artifact@v4
+        with:
+          name: typst-native-${{ matrix.platform }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 7
+
+  package:
+    name: Package Typst addon with all desktop natives
+    needs: native
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Make Gradle wrapper executable
+        run: |
+          sed -i 's/\r$//' gradlew
+          chmod +x gradlew
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: ./.github/actions/prepare-modularui
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '25'
+      # Addon tests also load the main mod, whose test resources build the host Cosmic JNI.
+      # Typst itself is packaged exclusively from the downloaded bundle.
+      - uses: dtolnay/rust-toolchain@1.92.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: typst-native-*
+          path: typst-natives
+          merge-multiple: true
+      - name: Verify, test and stage the complete addon
+        run: >-
+          ./gradlew :engine:typst-render:test :addons:typst-renderer:stageTypstRendererRelease
+          -PtypstNativeBundleDir="${{ github.workspace }}/typst-natives" --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neofontrender-typst-renderer-desktop
+          path: build/release/typst-renderer/*.jar
+          if-no-files-found: error
+          retention-days: 14

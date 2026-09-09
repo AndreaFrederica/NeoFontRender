@@ -62,7 +62,49 @@ HUD polling never waits for the native compiler or downloader. Cache operations
 are serialized with rendering, and the original render failure is retained in the
 inline content's `error` attribute.
 
-Each built addon JAR targets its build host's operating system and architecture.
+Local builds package their host's operating system and architecture.
 Only the JNI raster engine is bundled; unused Typst CLI features, file watchers,
 exporters, and an HTTP server are not shipped. The package loader and HTTPS
 downloader are the only optional `typst-kit` capabilities enabled.
+
+## Cross-platform desktop packaging
+
+Like the main mod's `cosmicNativeBundleDir`, `typstNativeBundleDir` switches from
+building a local native to packaging prebuilt natives. Paths are relative to
+the repository root (absolute paths also work):
+
+```text
+gradlew :engine:typst-render:test :addons:typst-renderer:stageTypstRendererRelease -PtypstNativeBundleDir=/path/to/typst-natives
+```
+
+The bundle must contain all six desktop variants:
+
+```text
+windows-x86_64/neofontrender_typst.dll
+windows-aarch64/neofontrender_typst.dll
+linux-x86_64-gnu/libneofontrender_typst.so
+linux-aarch64-gnu/libneofontrender_typst.so
+macos-x86_64/libneofontrender_typst.dylib
+macos-aarch64/libneofontrender_typst.dylib
+```
+
+Bundle mode never invokes Cargo for Typst (the main mod's test dependencies can
+still build the host Cosmic library). Gradle checks every required file before
+packaging and checks the **remapped installable addon JAR** afterwards.
+`stageTypstRendererRelease` writes the result to `build/release/typst-renderer`.
+The engine Java classes and all selected natives remain inside this single
+addon JAR. Native extraction at runtime is still required by `System.load`;
+no standalone Java engine JAR is installed in the mods directory.
+
+`.github/workflows/typst.yml` builds on six matching native runners using the
+pinned Rust 1.92 toolchain. Each runner loads its JNI library, renders a formula
+and the periodic table, and downloads/renders a chemformula example. A final
+job merges the artifacts and runs the Java engine tests before staging the
+addon. Trigger it manually, by a `typst/X.Y.Z` tag, or a relevant pull request.
+It uploads workflow artifacts; it does not publish a release automatically.
+
+Linux releases use `--features vendored-tls` to include OpenSSL and verify that
+there is no runtime `libssl`/`libcrypto` dependency. They still require glibc:
+the CI baselines are Ubuntu 22.04 (x86_64) and Ubuntu 24.04 (aarch64).
+Alpine/musl, Android and LoongArch are not part of this Typst desktop matrix.
+They must not be confused with the main mod's broader Cosmic platform matrix.

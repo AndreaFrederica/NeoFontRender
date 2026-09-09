@@ -57,17 +57,22 @@ final class TypstNativeRuntime {
     }
 
     private static Platform detectPlatform() {
-        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+        return detectPlatform(System.getProperty("os.name", ""), System.getProperty("os.arch", ""));
+    }
+
+    static Platform detectPlatform(String osName, String architecture) {
+        String os = osName.toLowerCase(Locale.ROOT);
+        String arch = architecture.toLowerCase(Locale.ROOT);
         String normalizedArch;
         if (arch.equals("amd64") || arch.equals("x86_64")) normalizedArch = "x86_64";
         else if (arch.equals("aarch64") || arch.equals("arm64")) normalizedArch = "aarch64";
         else return null;
-        if (os.contains("win")) {
-            return new Platform("windows-" + normalizedArch, "neofontrender_typst.dll");
-        }
+        // Darwin contains "win", so macOS must be resolved first.
         if (os.contains("mac") || os.contains("darwin")) {
             return new Platform("macos-" + normalizedArch, "libneofontrender_typst.dylib");
+        }
+        if (os.contains("win")) {
+            return new Platform("windows-" + normalizedArch, "neofontrender_typst.dll");
         }
         if (os.contains("linux")) {
             return new Platform("linux-" + normalizedArch + "-gnu", "libneofontrender_typst.so");
@@ -95,7 +100,7 @@ final class TypstNativeRuntime {
         return result.toString();
     }
 
-    private static final class Platform {
+    static final class Platform {
         final String directory;
         final String libraryName;
 

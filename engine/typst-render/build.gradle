@@ -13,12 +13,41 @@ def hostArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
 def nativeArch = (hostArch == 'amd64' || hostArch == 'x86_64') ? 'x86_64' :
         (hostArch == 'aarch64' || hostArch == 'arm64') ? 'aarch64' : null
 def nativePlatform = nativeArch == null ? null :
-        (hostOs.contains('win') ? "windows-${nativeArch}" :
-                (hostOs.contains('mac') ? "macos-${nativeArch}" :
+        ((hostOs.contains('mac') || hostOs.contains('darwin')) ? "macos-${nativeArch}" :
+                (hostOs.contains('win') ? "windows-${nativeArch}" :
                         (hostOs.contains('linux') ? "linux-${nativeArch}-gnu" : null)))
-def nativeLibraryName = hostOs.contains('win') ? 'neofontrender_typst.dll' :
-        (hostOs.contains('mac') ? 'libneofontrender_typst.dylib' : 'libneofontrender_typst.so')
+def nativeLibraryName = (hostOs.contains('mac') || hostOs.contains('darwin')) ? 'libneofontrender_typst.dylib' :
+        (hostOs.contains('win') ? 'neofontrender_typst.dll' : 'libneofontrender_typst.so')
 def nativeLibrary = layout.projectDirectory.file("native/target/release/${nativeLibraryName}")
+def nativeBundle = providers.gradleProperty('typstNativeBundleDir')
+def supportedNatives = [
+        'windows-x86_64': 'neofontrender_typst.dll',
+        'windows-aarch64': 'neofontrender_typst.dll',
+        'macos-x86_64': 'libneofontrender_typst.dylib',
+        'macos-aarch64': 'libneofontrender_typst.dylib',
+        'linux-x86_64-gnu': 'libneofontrender_typst.so',
+        'linux-aarch64-gnu': 'libneofontrender_typst.so'
+]
+// Both the engine and the remapped addon verify exactly the same resource paths.
+ext.typstNativeEntries = nativeBundle.isPresent()
+        ? supportedNatives.collect { platform, library -> "${platform}/${library}".toString() }
+        : ["${nativePlatform}/${nativeLibraryName}".toString()]
+
+tasks.register('verifyTypstNativeBundle') {
+    group = 'verification'
+    description = 'Checks that a supplied Typst bundle contains all six supported desktop natives.'
+    onlyIf { nativeBundle.isPresent() }
+    if (nativeBundle.isPresent()) inputs.dir(rootProject.file(nativeBundle.get()))
+    doLast {
+        def bundle = rootProject.file(nativeBundle.get())
+        typstNativeEntries.each { relative ->
+            def library = new File(bundle, relative)
+            if (!library.isFile() || library.length() == 0) {
+                throw new GradleException("Typst native bundle is missing ${relative} in ${bundle}")
+            }
+        }
+    }
+}
 
 def buildTypstNative = tasks.register('buildTypstNative', Exec) {
     group = 'build'
@@ -26,7 +55,11 @@ def buildTypstNative = tasks.register('buildTypstNative', Exec) {
     workingDir project.projectDir
     inputs.files('native/Cargo.toml', 'native/Cargo.lock')
     inputs.dir('native/src')
+    inputs.files(rootProject.fileTree('addons/typst-renderer/vendor/typst') {
+        include 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/build.rs'
+    })
     outputs.file(nativeLibrary)
+    onlyIf { !nativeBundle.isPresent() }
     doFirst {
         if (nativePlatform == null) {
             throw new GradleException("Unsupported Typst native platform: ${hostOs}/${hostArch}")
@@ -45,9 +78,26 @@ dependencies {
 }
 
 processResources {
-    dependsOn buildTypstNative
-    from(nativeLibrary) {
-        into "assets/neofontrender/typst-native/${nativePlatform}"
+    // Sync this generated tree so changing bundle/host mode cannot leave stale platform files.
+    dependsOn 'stageTypstNativeResources'
+    doFirst {
+        // processResources is a Copy task: remove only its previous generated native subtree.
+        delete new File(destinationDir, 'assets/neofontrender/typst-native')
+    }
+    from(layout.buildDirectory.dir('generated/typstNativeResources'))
+}
+
+tasks.register('stageTypstNativeResources', Sync) {
+    into layout.buildDirectory.dir('generated/typstNativeResources')
+    if (nativeBundle.isPresent()) {
+        dependsOn tasks.named('verifyTypstNativeBundle')
+        from(rootProject.file(nativeBundle.get())) {
+            include typstNativeEntries
+            into 'assets/neofontrender/typst-native'
+        }
+    } else {
+        dependsOn buildTypstNative
+        from(nativeLibrary) { into "assets/neofontrender/typst-native/${nativePlatform}" }
     }
 }
 
