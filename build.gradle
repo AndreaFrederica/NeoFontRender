@@ -159,10 +159,6 @@ compileJava {
 def configureModManifest = { archiveTask ->
     archiveTask.doFirst {
         def manifestAttributes = ['ModType': 'CRL']
-        if (project.configurations.contain.size() > 0) {
-            manifestAttributes['ContainedDeps'] = project.configurations.contain.collect { it.name }.join(' ')
-            manifestAttributes['NonModDeps'] = true
-        }
         if (is_coremod.toBoolean()) {
             manifestAttributes['FMLCorePlugin'] = coremod_plugin_class_name
             if (coremod_includes_mod.toBoolean()) manifestAttributes['FMLCorePluginContainsFMLMod'] = true
@@ -173,18 +169,22 @@ def configureModManifest = { archiveTask ->
 }
 
 jar {
+    dependsOn ':engine:text-core:jar'
     archiveClassifier = 'dev'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    if (configurations.contain.size() > 0) from(configurations.contain) { into '/' }
+    if (configurations.contain.size() > 0) {
+        from { configurations.contain.collect { zipTree(it) } }
+    }
     finalizedBy tasks.named(remapTaskName)
 }
 
 shadowJar {
+    dependsOn ':engine:text-core:jar'
     configurations = [project.configurations.relocate]
     archiveClassifier = 'shadow'
     relocate 'com.electronwill.nightconfig', 'neofontrender.internal.nightconfig'
     if (project.configurations.contain.size() > 0) {
-        from(project.configurations.contain) { into '/' }
+        from { project.configurations.contain.collect { zipTree(it) } }
     }
 }
 configureModManifest(tasks.named('jar').get())

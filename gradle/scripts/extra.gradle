@@ -26,15 +26,16 @@ tasks.named('processResources') {
 }
 
 def packagedJar = tasks.named(remapTaskName)
-def coreContainedJars = providers.provider {
-    configurations.contain.files.collect { it.name }.sort()
-}
 tasks.register('fullJar', Zip) {
     group = 'build'; description = 'Packages the complete mod distribution.'
     dependsOn packagedJar
     archiveBaseName = mod_id; archiveVersion = mod_version; archiveClassifier = 'full'; archiveExtension = 'jar'
     destinationDirectory = layout.buildDirectory.dir('libs')
     from { zipTree(packagedJar.get().archiveFile.get().asFile) }
+    // Cleanroom's launcher does not consistently expose nested ContainedDeps
+    // to the game classloader. Flatten game-independent engine classes into
+    // the distributable jar so addon APIs are always loadable at runtime.
+    from { configurations.contain.collect { zipTree(it) } }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 tasks.register('coreJar', Jar) {
@@ -50,7 +51,6 @@ tasks.register('coreJar', Jar) {
         expand(mod_id: mod_id, mod_name: mod_name, mod_version: mod_version, mod_description: mod_description, mod_authors: mod_authors, mod_credits: mod_credits, mod_url: mod_url, mod_update_json: mod_update_json, mod_issue_tracker: mod_issue_tracker, mod_logo_path: mod_logo_path, modularui_version: modularui_version)
     }
     doFirst {
-        def contained = coreContainedJars.get()
         def attributes = [
                 'ModType': 'CRL',
                 'FMLCorePlugin': coremod_plugin_class_name,
@@ -58,10 +58,6 @@ tasks.register('coreJar', Jar) {
                 'FMLAT': access_transformer_locations,
                 'Fabric-Loom-Mixin-Remap-Type': 'mixin'
         ]
-        if (!contained.isEmpty()) {
-            attributes['ContainedDeps'] = contained.join(' ')
-            attributes['NonModDeps'] = true
-        }
         manifest.attributes(attributes)
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -127,6 +123,12 @@ tasks.register('verifyPackageVariants') {
                 }
                 if (!entries.contains('mixins.neofontrender.json')) {
                     throw new GradleException("${archive.name} is missing mixins.neofontrender.json")
+                }
+                if (entries.contains('text-core.jar')) {
+                    throw new GradleException("${archive.name} still contains an external text-core.jar")
+                }
+                if (manifest?.getValue('ContainedDeps') != null) {
+                    throw new GradleException("${archive.name} still declares external contained dependencies")
                 }
                 def declared = (jar.manifest.mainAttributes.getValue('ContainedDeps') ?: '')
                         .split('\\s+').findAll { !it.isEmpty() }
