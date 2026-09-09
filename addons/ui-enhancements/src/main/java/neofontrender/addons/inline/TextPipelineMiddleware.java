@@ -29,7 +29,8 @@ public final class TextPipelineMiddleware {
                         TextPipelineMiddleware::latexFontSelectors,
                         EmbeddedContentConfig::rasterCacheEntries,
                         EmbeddedContentConfig::rasterCacheMegapixels,
-                        neofontrender.api.text.route.TextRenderRouteApi::invalidate)));
+                        neofontrender.api.text.route.TextRenderRouteApi::invalidate,
+                        TextPipelineMiddleware::minecraftGuiScale)));
         StructuredTextApi.register(UiEInlineContentResolver.INSTANCE);
         LocalImageCatalog.INSTANCE.initialize();
         NfrUiEnhancements.LOGGER.info(
@@ -45,6 +46,16 @@ public final class TextPipelineMiddleware {
         selectors.add(EmbeddedContentFonts.FIRA_MATH_LOCATION);
         selectors.addAll(neofontrender.core.config.NeofontrenderConfig.fontFamily());
         return selectors;
+    }
+
+    private static double minecraftGuiScale() {
+        try {
+            net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getMinecraft();
+            return minecraft == null ? 1.0D
+                    : Math.max(1, new net.minecraft.client.gui.ScaledResolution(minecraft).getScaleFactor());
+        } catch (RuntimeException ignored) {
+            return 1.0D;
+        }
     }
 
     public static java.util.List<String> emojiSuggestions(String prefix, int maximum) {

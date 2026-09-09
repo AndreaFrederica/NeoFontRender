@@ -20,7 +20,7 @@ final class TypstMiddleware {
         TypstPipelinePlugin created = new TypstPipelinePlugin(new TypstPipelinePlugin.Config(
                 () -> TypstConfig.libraryDirectory().toPath(), TypstConfig::enabled,
                 () -> TypstConfig.oversample(), TypstConfig::maxToken,
-                StructuredTextApi::invalidate));
+                StructuredTextApi::invalidate, TypstMiddleware::minecraftGuiScale));
         try {
             registration = StructuredTextApi.register(created);
             plugin = created;
@@ -44,5 +44,15 @@ final class TypstMiddleware {
         if (plugin != null) plugin.close();
         plugin = null;
         initialized = false;
+    }
+
+    private static double minecraftGuiScale() {
+        try {
+            net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getMinecraft();
+            return minecraft == null ? 1.0D
+                    : Math.max(1, new net.minecraft.client.gui.ScaledResolution(minecraft).getScaleFactor());
+        } catch (RuntimeException ignored) {
+            return 1.0D;
+        }
     }
 }

@@ -21,16 +21,21 @@ final class TypstI18n {
     static String tr(String key, Object... args) {
         String translated = I18n.hasKey(key) ? I18n.format(key, args) : null;
         if (translated != null && !translated.equals(key)) return translated;
-        String language = Minecraft.getMinecraft().gameSettings.language;
+        String language = normalize(Minecraft.getMinecraft().gameSettings.language);
         if (!language.equals(loadedLanguage)) load(language);
         String value = fallback.getProperty(key, key);
         return args.length == 0 ? value : String.format(Locale.ROOT, value, args);
     }
 
+    private static String normalize(String language) {
+        if (language == null || language.isEmpty()) return "en_us";
+        return language.replace('-', '_').toLowerCase(Locale.ROOT);
+    }
+
     private static synchronized void load(String language) {
         Properties values = new Properties();
         read(values, "en_us");
-        if (!"en_us".equals(language)) read(values, language);
+        if (!"en_us".equals(language)) read(values, normalize(language));
         fallback = values;
         loadedLanguage = language;
     }

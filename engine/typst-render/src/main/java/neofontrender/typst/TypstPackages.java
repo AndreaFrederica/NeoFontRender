@@ -24,12 +24,20 @@ public final class TypstPackages {
     private static Path packagePath(Path library, String value) throws IOException {
         String spec = validate(value);
         Path root = library.toAbsolutePath().normalize();
+        Path packageRoot = root.resolve("packages").normalize();
         String[] parts = spec.substring(1).split("[/ :]");
-        Path path = root.resolve("packages").resolve(parts[0]).resolve(parts[1]).resolve(parts[2]);
-        for (Path cursor = path; cursor != null; cursor = cursor.getParent()) {
-            if (Files.isSymbolicLink(cursor) || (Files.exists(cursor, LinkOption.NOFOLLOW_LINKS)
-                    && !cursor.toRealPath().equals(cursor.toRealPath(LinkOption.NOFOLLOW_LINKS)))) {
-                throw new IOException("Linked package paths are not supported: " + cursor);
+        Path path = packageRoot.resolve(parts[0]).resolve(parts[1]).resolve(parts[2]).normalize();
+        if (!path.startsWith(packageRoot)) {
+            throw new IOException("Package path escapes the package cache: " + value);
+        }
+        // Ancestor junctions (for example PrismLauncher's AppData junction) are valid.
+        // If the package already exists, only reject a reparse path that resolves outside
+        // the package cache itself.
+        if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+            Path realRoot = packageRoot.toRealPath();
+            Path realPath = path.toRealPath();
+            if (!realPath.startsWith(realRoot)) {
+                throw new IOException("Package path escapes the package cache: " + path);
             }
         }
         return path;
@@ -47,7 +55,7 @@ public final class TypstPackages {
                         String spec = "@preview/" + name.getFileName() + ":" + version.getFileName();
                         Path path;
                         try { path = packagePath(library, spec); }
-                        catch (IllegalArgumentException ignored) { continue; }
+                        catch (IllegalArgumentException | IOException ignored) { continue; }
                         if (!Files.isRegularFile(path.resolve("typst.toml"), LinkOption.NOFOLLOW_LINKS)) continue;
                         long[] size = {0};
                         Files.walkFileTree(path, new SimpleFileVisitor<>() {

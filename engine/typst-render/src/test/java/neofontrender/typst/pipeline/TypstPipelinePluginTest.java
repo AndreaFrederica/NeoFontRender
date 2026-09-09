@@ -91,4 +91,57 @@ class TypstPipelinePluginTest {
             assertSame(content.raster(), cached.inlineSpans().get(0).content().raster());
         }
     }
+
+    @Test
+    void includesGuiScaleInTypstRasterDensity() throws Exception {
+        try (TypstPipelinePlugin plugin = new TypstPipelinePlugin(
+                new TypstPipelinePlugin.Config(() -> temporaryDirectory, () -> true,
+                        () -> 2.0D, () -> 4096, () -> {}, () -> 2.0D))) {
+            StructuredTextPipeline pipeline = new StructuredTextPipeline(
+                    TextSyntaxEngine.builder().build(), plugin.structuredMiddlewares());
+            String source = "<typst:$x^2$>";
+            InlineContent content;
+            long deadline = System.nanoTime() + 10_000_000_000L;
+            do {
+                content = pipeline.parse(source).inlineSpans().getFirst().content();
+                if ("ready".equals(content.attributes().get("status"))) break;
+                Thread.sleep(10L);
+            } while (System.nanoTime() < deadline);
+            assertEquals("4.0", content.attributes().get("supersample"));
+            assertTrue(content.resolved(), content.attributes().toString());
+        }
+    }
+
+    @Test
+    void adaptsGutterToKeepScriptGlyphsInsideRaster() throws Exception {
+        try (TypstPipelinePlugin plugin = new TypstPipelinePlugin(
+                new TypstPipelinePlugin.Config(() -> temporaryDirectory, () -> true,
+                        () -> 2.0D, () -> 4096, () -> {}))) {
+            StructuredTextPipeline pipeline = new StructuredTextPipeline(
+                    TextSyntaxEngine.builder().build(), plugin.structuredMiddlewares());
+            String source = "<typst:$x_2$>";
+            InlineContent content;
+            long deadline = System.nanoTime() + 10_000_000_000L;
+            do {
+                content = pipeline.parse(source).inlineSpans().getFirst().content();
+                if ("ready".equals(content.attributes().get("status"))) break;
+                Thread.sleep(10L);
+            } while (System.nanoTime() < deadline);
+            assertTrue(content.resolved(), content.attributes().toString());
+            int width = content.raster().width();
+            int height = content.raster().height();
+            int[] argb = content.raster().argb();
+            int minX = width, minY = height, maxX = -1, maxY = -1;
+            for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) {
+                if ((argb[y * width + x] >>> 24) == 0) continue;
+                minX = Math.min(minX, x); minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+            }
+            assertTrue(minX >= 2 && minY >= 2 && width - 1 - maxX >= 2
+                    && height - 1 - maxY >= 2,
+                    "adaptive gutter must leave two transparent texels: "
+                            + minX + "," + minY + ".." + maxX + "," + maxY
+                            + " in " + width + "x" + height);
+        }
+    }
 }

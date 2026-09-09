@@ -7,6 +7,7 @@ import neofontrender.text.InlineContent;
 import neofontrender.text.InlineLayout;
 import neofontrender.text.InlineRaster;
 import neofontrender.text.InlineRenderOptions;
+import neofontrender.text.InlineRenderDefaults;
 import neofontrender.text.StructuredText;
 import neofontrender.text.TextStyle;
 import neofontrender.text.pipeline.StructuredTextMiddleware;
@@ -35,9 +36,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BooleanSupplier;
-import java.util.function.DoubleSupplier;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
+import java.util.function.DoubleSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -102,6 +103,8 @@ public final class UiEnhancementsTextPlugin implements TextPipelinePlugin, AutoC
         public final Runnable invalidation;
         public final Path galleryDirectory;
         public final float latexOversample;
+        /** Current Minecraft GUI scale; used to bake enough pixels for the active UI. */
+        public final DoubleSupplier guiScale;
         public final boolean fullSvg;
 
         public Config(BooleanSupplier markdownEnabled, BooleanSupplier latexEnabled,
@@ -111,7 +114,7 @@ public final class UiEnhancementsTextPlugin implements TextPipelinePlugin, AutoC
             this(markdownEnabled, latexEnabled, svgEnabled, localImagesEnabled,
                     externalImagesEnabled, goslingEnabled, galleryDirectory, latexOversample,
                     fullSvg, () -> true, Config::defaultLatexFontSelectors,
-                    () -> 192, () -> 24.0D, () -> {});
+                    () -> 192, () -> 24.0D, () -> {}, () -> 1.0D);
         }
 
         public Config(BooleanSupplier markdownEnabled, BooleanSupplier latexEnabled,
@@ -122,7 +125,7 @@ public final class UiEnhancementsTextPlugin implements TextPipelinePlugin, AutoC
             this(markdownEnabled, latexEnabled, svgEnabled, localImagesEnabled,
                     externalImagesEnabled, goslingEnabled, galleryDirectory, latexOversample,
                     fullSvg, latexMatchLineHeight, Config::defaultLatexFontSelectors,
-                    () -> 192, () -> 24.0D, () -> {});
+                    () -> 192, () -> 24.0D, () -> {}, () -> 1.0D);
         }
 
         public Config(BooleanSupplier markdownEnabled, BooleanSupplier latexEnabled,
@@ -134,7 +137,7 @@ public final class UiEnhancementsTextPlugin implements TextPipelinePlugin, AutoC
             this(markdownEnabled, latexEnabled, svgEnabled, localImagesEnabled,
                     externalImagesEnabled, goslingEnabled, galleryDirectory, latexOversample,
                     fullSvg, latexMatchLineHeight, latexFontSelectors,
-                    () -> 192, () -> 24.0D, () -> {});
+                    () -> 192, () -> 24.0D, () -> {}, () -> 1.0D);
         }
 
         public Config(BooleanSupplier markdownEnabled, BooleanSupplier latexEnabled,
@@ -146,6 +149,21 @@ public final class UiEnhancementsTextPlugin implements TextPipelinePlugin, AutoC
                       IntSupplier rasterCacheEntries,
                       DoubleSupplier rasterCacheMegapixels,
                       Runnable invalidation) {
+            this(markdownEnabled, latexEnabled, svgEnabled, localImagesEnabled,
+                    externalImagesEnabled, goslingEnabled, galleryDirectory, latexOversample,
+                    fullSvg, latexMatchLineHeight, latexFontSelectors, rasterCacheEntries,
+                    rasterCacheMegapixels, invalidation, () -> 1.0D);
+        }
+
+        public Config(BooleanSupplier markdownEnabled, BooleanSupplier latexEnabled,
+                      BooleanSupplier svgEnabled, BooleanSupplier localImagesEnabled,
+                      BooleanSupplier externalImagesEnabled, BooleanSupplier goslingEnabled,
+                      Path galleryDirectory, float latexOversample, boolean fullSvg,
+                      BooleanSupplier latexMatchLineHeight,
+                      Supplier<List<String>> latexFontSelectors,
+                      IntSupplier rasterCacheEntries,
+                      DoubleSupplier rasterCacheMegapixels,
+                      Runnable invalidation, DoubleSupplier guiScale) {
             this.markdownEnabled = value(markdownEnabled);
             this.latexEnabled = value(latexEnabled);
             this.svgEnabled = value(svgEnabled);
@@ -159,6 +177,7 @@ public final class UiEnhancementsTextPlugin implements TextPipelinePlugin, AutoC
             this.rasterCacheMegapixels = rasterCacheMegapixels == null
                     ? () -> 24.0D : rasterCacheMegapixels;
             this.invalidation = invalidation == null ? () -> {} : invalidation;
+            this.guiScale = guiScale == null ? () -> 1.0D : guiScale;
             this.galleryDirectory = galleryDirectory;
             this.latexOversample = Math.max(1.0F, Math.min(8.0F, latexOversample));
             this.fullSvg = fullSvg;
@@ -286,10 +305,10 @@ public final class UiEnhancementsTextPlugin implements TextPipelinePlugin, AutoC
                         : (delimiter == 2 ? 21.0F : 14.0F) / 18.0F;
                 InlineRenderOptions options = InlineRenderOptions.parse(text, end,
                         new InlineLayout(rows, Float.NaN, Float.NaN,
-                                InlineLayout.Alignment.BASELINE), config.latexOversample);
+                                InlineLayout.Alignment.BASELINE), InlineRenderDefaults.rasterOversample());
                 end = options.end();
                 List<String> selectors = safeList(config.latexFontSelectors.get());
-                float supersample = options.supersample();
+                float supersample = effectiveSupersample(options.supersample());
                 RasterKey key = new RasterKey("latex", formula,
                         Float.floatToIntBits(supersample) + "\u0000" + selectors, 0L, 0L);
                 Map<String, String> attributes = Map.of(
@@ -302,6 +321,13 @@ public final class UiEnhancementsTextPlugin implements TextPipelinePlugin, AutoC
             } catch (RuntimeException error) {
                 return null;
             }
+        }
+
+        private float effectiveSupersample(float requested) {
+            double gui = config.guiScale.getAsDouble();
+            if (!Double.isFinite(gui)) gui = 1.0D;
+            gui = Math.max(1.0D, Math.min(8.0D, gui));
+            return Math.max(1.0F, Math.min(8.0F, requested * (float) gui));
         }
     }
 

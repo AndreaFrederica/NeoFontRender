@@ -1,7 +1,6 @@
 package neofontrender.addons.typst;
 
 import com.cleanroommc.modularui.api.widget.IWidget;
-import net.minecraft.client.resources.I18n;
 import neofontrender.api.client.settings.NfrSettingsPageContext;
 import neofontrender.api.client.settings.NfrSettingsSection;
 import neofontrender.api.client.settings.NfrSettingsSectionContribution;
@@ -32,8 +31,8 @@ final class TypstLaboratorySettings {
         @Override
         public List<IWidget> createControls(NfrSettingsPageContext context) {
             return Collections.singletonList(context.controls().toggleText(
-                    () -> I18n.format("neofontrender_typst_renderer.gui.laboratory.enabled"),
-                    () -> I18n.format("neofontrender_typst_renderer.tooltip.laboratory.enabled"),
+                    () -> TypstI18n.tr("neofontrender_typst_renderer.gui.laboratory.enabled"),
+                    () -> TypstI18n.tr("neofontrender_typst_renderer.tooltip.laboratory.enabled"),
                     TypstConfig::enabled, TypstConfig::setEnabled, TypstLaboratorySettings::invalidate));
         }
 

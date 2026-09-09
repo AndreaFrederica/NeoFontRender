@@ -108,6 +108,7 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
         private final Supplier<Path> libraryDirectory;
         private final BooleanSupplier enabled;
         private final DoubleSupplier oversample;
+        private final DoubleSupplier guiScale;
         private final IntSupplier maximumTokenLength;
         private final Runnable invalidation;
 
@@ -120,6 +121,19 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
             this.maximumTokenLength = Objects.requireNonNull(
                     maximumTokenLength, "maximumTokenLength");
             this.invalidation = Objects.requireNonNull(invalidation, "invalidation");
+            this.guiScale = () -> 1.0D;
+        }
+
+        public Config(Supplier<Path> libraryDirectory, BooleanSupplier enabled,
+                      DoubleSupplier oversample, IntSupplier maximumTokenLength,
+                      Runnable invalidation, DoubleSupplier guiScale) {
+            this.libraryDirectory = Objects.requireNonNull(libraryDirectory, "libraryDirectory");
+            this.enabled = Objects.requireNonNull(enabled, "enabled");
+            this.oversample = Objects.requireNonNull(oversample, "oversample");
+            this.maximumTokenLength = Objects.requireNonNull(maximumTokenLength,
+                    "maximumTokenLength");
+            this.invalidation = Objects.requireNonNull(invalidation, "invalidation");
+            this.guiScale = guiScale == null ? () -> 1.0D : guiScale;
         }
     }
 
@@ -146,7 +160,7 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
                 }
                 InlineRenderOptions options = InlineRenderOptions.parse(source, token.end,
                         InlineLayout.oneLine(), defaultSupersample);
-                float supersample = options.supersample();
+                float supersample = effectiveSupersample(options.supersample());
                 Path libraryDirectory = config.libraryDirectory.get().toAbsolutePath().normalize();
                 String key = "typst\u0000" + supersample + "\u0000" + libraryDirectory
                         + "\u0000" + token.source;
@@ -158,18 +172,57 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
             }
             return StructuredTextRewriter.rewrite(input, replacements, id());
         }
+
+        private float effectiveSupersample(float requested) {
+            double gui = config.guiScale.getAsDouble();
+            if (!Double.isFinite(gui)) gui = 1.0D;
+            gui = Math.max(1.0D, Math.min(8.0D, gui));
+            return Math.max(1.0F, Math.min(16.0F, requested * (float) gui));
+        }
     }
 
     private InlineRaster render(String source, float scale, Path libraryDirectory) throws Exception {
-        String document = "#set page(width: auto, height: auto, margin: 0pt, fill: none)\n"
-                + "#set text(fill: white)\n" + source;
         try {
-            TypstRaster raster = session.render(document, scale, libraryDirectory);
+            // Different Typst packages and fonts have different ascender/descender extents.
+            // Start cheaply, then grow the page gutter only when the actual alpha bounds still
+            // touch the texture edge. This avoids both clipping and a fixed oversized margin.
+            int[] margins = {1, 2, 4, 8, 16};
+            TypstRaster raster = null;
+            for (int margin : margins) {
+                String document = "#set page(width: auto, height: auto, margin: " + margin
+                        + "pt, fill: none)\n#set text(fill: white)\n" + source;
+                raster = session.render(document, scale, libraryDirectory);
+                if (hasGutter(raster, 2)) break;
+            }
+            if (raster == null) throw new IllegalStateException("Typst returned no raster");
             return new InlineRaster(raster.width(), raster.height(), raster.argb());
         } catch (Exception | LinkageError error) {
             failures.add(new TypstEvent("compile_failed", "", 0, -1, error.toString()));
             throw error;
         }
+    }
+
+    /** Returns true when at least {@code pixels} transparent texels surround visible content. */
+    private static boolean hasGutter(TypstRaster raster, int pixels) {
+        int required = Math.max(1, pixels);
+        int width = raster.width();
+        int height = raster.height();
+        int minX = width;
+        int minY = height;
+        int maxX = -1;
+        int maxY = -1;
+        int[] argb = raster.argb();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if ((argb[y * width + x] >>> 24) == 0) continue;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+        return maxX < 0 || (minX >= required && minY >= required
+                && width - 1 - maxX >= required && height - 1 - maxY >= required);
     }
 
     private static final class EngineSession implements AutoCloseable {

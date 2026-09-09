@@ -2,6 +2,7 @@ package neofontrender.addons.inline;
 
 import neofontrender.addons.ui.UiEnhancementsConfig;
 import neofontrender.api.config.NfrConfigFile;
+import neofontrender.text.InlineRenderDefaults;
 
 /** Experimental formula and vector-content switches hosted in NFR's Laboratory page. */
 public final class EmbeddedContentConfig {
@@ -49,6 +50,7 @@ public final class EmbeddedContentConfig {
         latexFontFamily = file.getString("embeddedContent.latexFontFamily", "").trim();
         latexOversample = clampOversample(file.getDouble("embeddedContent.latexOversample", 2.0D,
                 1.0D, 8.0D));
+        InlineRenderDefaults.setRasterOversample(latexOversample);
         rasterCacheEntries = clampCacheEntries(file.getInt("embeddedContent.rasterCacheEntries", 192,
                 16, 1024));
         rasterCacheMegapixels = clampCacheMegapixels(file.getDouble(
@@ -69,6 +71,7 @@ public final class EmbeddedContentConfig {
                 .set("embeddedContent.rasterCacheEntries", rasterCacheEntries)
                 .set("embeddedContent.rasterCacheMegapixels", rasterCacheMegapixels)
                 .save();
+        InlineRenderDefaults.setRasterOversample(latexOversample);
     }
 
     public static boolean latexEnabled() { return latexEnabled; }

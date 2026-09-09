@@ -32,6 +32,7 @@ public final class InlineContentShowcaseScreen extends GuiScreen {
         buttonList.add(new GuiButton(1, center - 104, height - 28, 104, 20, "Chemistry SVG"));
         buttonList.add(new GuiButton(2, center + 4, height - 28, 92, 20, "Markdown"));
         buttonList.add(new GuiButton(3, center + 100, height - 28, 104, 20, "Give test item"));
+        buttonList.add(new GuiButton(4, center + 208, height - 28, 116, 20, "Give Typst item"));
         updateButtons();
     }
 
@@ -43,6 +44,9 @@ public final class InlineContentShowcaseScreen extends GuiScreen {
             updateButtons();
         } else if (button.id == 3 && mc.player != null) {
             ItemStack stack = new ItemStack(ShowcaseItems.AMINOBENZO_CROWN_ETHER_SOLUTION);
+            if (!mc.player.inventory.addItemStackToInventory(stack)) mc.player.dropItem(stack, false);
+        } else if (button.id == 4 && mc.player != null) {
+            ItemStack stack = new ItemStack(ShowcaseItems.TYPST_CHEMISTRY_DEMONSTRATOR);
             if (!mc.player.inventory.addItemStackToInventory(stack)) mc.player.dropItem(stack, false);
         }
     }
