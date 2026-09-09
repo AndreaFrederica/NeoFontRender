@@ -3,6 +3,7 @@ package neofontrender.addons.typst;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import neofontrender.addons.hud.compositor.HudWindowCompositor;
 
 /** Optional Typst inline-rendering addon. */
 @Mod(modid = TypstRendererMod.MOD_ID, name = TypstRendererMod.MOD_NAME,
@@ -20,6 +21,8 @@ public final class TypstRendererMod {
         TypstConfig.load();
         TypstLaboratorySettings.register();
         TypstMiddleware.initialize();
+        neofontrender.api.client.settings.NfrSettingsPageRegistry.register(new TypstPackagesSettings());
+        HudWindowCompositor.INSTANCE.register(TypstStatus.INSTANCE);
     }
 
     @Mod.EventHandler

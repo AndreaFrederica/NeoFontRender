@@ -13,6 +13,8 @@ final class TypstMiddleware {
 
     private TypstMiddleware() {}
 
+    static TypstPipelinePlugin plugin() { return plugin; }
+
     static synchronized void initialize() {
         if (initialized) return;
         TypstPipelinePlugin created = new TypstPipelinePlugin(new TypstPipelinePlugin.Config(

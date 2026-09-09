@@ -15,7 +15,7 @@ public final class TypstEngine implements AutoCloseable {
     private static final int HEADER_BYTES = 12;
     private static final int MAX_DIMENSION = 4096;
     private static final long MAX_PIXELS = 8L * 1024L * 1024L;
-    private long handle;
+    private volatile long handle;
 
     private TypstEngine(long handle) {
         this.handle = handle;
@@ -36,6 +36,18 @@ public final class TypstEngine implements AutoCloseable {
         if (source == null) throw new IllegalArgumentException("source must not be null");
         if (!Float.isFinite(scale)) throw new IllegalArgumentException("scale must be finite");
         return decode(TypstNative.render(handle, source, scale));
+    }
+
+    public synchronized void installPackage(String spec) {
+        if (handle == 0L) throw new IllegalStateException("Typst engine is closed");
+        TypstNative.installPackage(handle, spec);
+    }
+
+    /** Does not acquire the compiler lock, so UI polling remains nonblocking. */
+    public java.util.List<TypstEvent> pollEvents() {
+        long current = handle;
+        if (current == 0L) return java.util.List.of();
+        return TypstEvent.decode(TypstNative.pollEvents(current));
     }
 
     private static TypstRaster decode(byte[] encoded) {

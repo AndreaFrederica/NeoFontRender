@@ -45,6 +45,23 @@ packages under `gameDir/neofontrender/typst/packages`. It does not use the
 user-wide Typst cache. The directory is bound to the native engine when it is
 created.
 
+## Package management and status
+
+NFR settings includes a **Typst Packages** page. It lists cached package versions
+and total disk usage, installs an exact `@preview/name:version`, deletes a selected
+version after confirmation, and retries failed renders/downloads. Package operations
+take effect immediately; Apply/Cancel controls the HUD preference. Imports can
+download a deleted version again when rendered.
+
+The default-enabled **Download status HUD** works in GUI screens and in-game. It
+reports connection, downloaded bytes (and a percentage when the server supplies a
+size), extraction, installation, and rendering success/failure. Successful notices
+expire after eight seconds. Failures remain until dismissed or superseded by a
+retry; details are retained on the package page, can be copied, and are logged.
+HUD polling never waits for the native compiler or downloader. Cache operations
+are serialized with rendering, and the original render failure is retained in the
+inline content's `error` attribute.
+
 Each built addon JAR targets its build host's operating system and architecture.
 Only the JNI raster engine is bundled; unused Typst CLI features, file watchers,
 exporters, and an HTTP server are not shipped. The package loader and HTTPS

@@ -10,6 +10,8 @@ import neofontrender.text.pipeline.StructuredTextRewriter;
 import neofontrender.text.pipeline.TextPipelinePlugin;
 import neofontrender.typst.TypstEngine;
 import neofontrender.typst.TypstRaster;
+import neofontrender.typst.TypstEvent;
+import neofontrender.typst.TypstPackages;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -34,6 +36,7 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
     private final EngineSession session;
     private final RasterCache cache;
     private final StructuredTextMiddleware middleware = new Middleware();
+    private final java.util.Queue<TypstEvent> failures = new java.util.concurrent.ConcurrentLinkedQueue<>();
 
     /** ServiceLoader constructor used by the standalone rendering laboratory. */
     public TypstPipelinePlugin() {
@@ -52,6 +55,47 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
     @Override
     public Collection<? extends StructuredTextMiddleware> structuredMiddlewares() {
         return Collections.singletonList(middleware);
+    }
+
+    public java.util.List<TypstEvent> pollEvents() {
+        ArrayList<TypstEvent> result = new ArrayList<>(session.pollEvents());
+        for (TypstEvent event; (event = failures.poll()) != null;) result.add(event);
+        return result;
+    }
+
+    public java.util.concurrent.CompletableFuture<java.util.List<TypstPackages.Entry>> packages() {
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try { return TypstPackages.list(config.libraryDirectory.get()); }
+            catch (Exception error) { throw new java.util.concurrent.CompletionException(error); }
+        }, cache.workers);
+    }
+
+    public java.util.concurrent.CompletableFuture<Void> managePackage(String value, boolean delete) {
+        String spec = TypstPackages.validate(value);
+        return java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                Path directory = config.libraryDirectory.get().toAbsolutePath().normalize();
+                if (delete) {
+                    failures.addAll(session.pollEvents());
+                    session.close();
+                    TypstPackages.delete(directory, spec);
+                } else {
+                    session.open(directory).installPackage(spec);
+                }
+                failures.add(new TypstEvent(delete ? "deleted" : "installed", spec, 0, -1, ""));
+                cache.handles.clear();
+                config.invalidation.run();
+            } catch (Exception error) {
+                failures.add(new TypstEvent(delete ? "delete_failed" : "download_failed", spec, 0, -1,
+                        error.toString()));
+                throw new java.util.concurrent.CompletionException(error);
+            }
+        }, cache.workers);
+    }
+
+    public void retryFailed() {
+        cache.handles.entrySet().removeIf(entry -> entry.getValue().failed);
+        config.invalidation.run();
     }
 
     @Override
@@ -119,16 +163,25 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
     private InlineRaster render(String source, float scale, Path libraryDirectory) throws Exception {
         String document = "#set page(width: auto, height: auto, margin: 0pt, fill: none)\n"
                 + "#set text(fill: white)\n" + source;
-        TypstRaster raster = session.render(document, scale, libraryDirectory);
-        return new InlineRaster(raster.width(), raster.height(), raster.argb());
+        try {
+            TypstRaster raster = session.render(document, scale, libraryDirectory);
+            return new InlineRaster(raster.width(), raster.height(), raster.argb());
+        } catch (Exception | LinkageError error) {
+            failures.add(new TypstEvent("compile_failed", "", 0, -1, error.toString()));
+            throw error;
+        }
     }
 
     private static final class EngineSession implements AutoCloseable {
-        private TypstEngine engine;
+        private volatile TypstEngine engine;
         private Path activeDirectory;
         private long retryAfterNanos;
 
         synchronized TypstRaster render(String source, float scale, Path requested) throws Exception {
+            return open(requested).render(source, scale);
+        }
+
+        synchronized TypstEngine open(Path requested) throws Exception {
             if (engine == null || !requested.equals(activeDirectory)) {
                 close();
                 long now = System.nanoTime();
@@ -143,7 +196,12 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
                     throw failure;
                 }
             }
-            return engine.render(source, scale);
+            return engine;
+        }
+
+        java.util.List<TypstEvent> pollEvents() {
+            TypstEngine current = engine;
+            return current == null ? java.util.List.of() : current.pollEvents();
         }
 
         @Override
@@ -158,7 +216,7 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
         private static final int MAX_ENTRIES = 256;
         private static final long MAX_PIXELS = 32L * 1024L * 1024L;
         private final Runnable invalidation;
-        private final ExecutorService workers = Executors.newFixedThreadPool(2, runnable -> {
+        private final ExecutorService workers = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "NFR Typst Rasterizer");
             thread.setDaemon(true);
             return thread;
@@ -181,6 +239,7 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
             InlineRaster raster = handle.raster;
             Map<String, String> attributes = new java.util.LinkedHashMap<>();
             attributes.put("status", raster != null ? "ready" : handle.failed ? "failed" : "loading");
+            if (handle.error != null) attributes.put("error", handle.error);
             attributes.put("supersample", Float.toString(supersample));
             return new InlineContent("typst", key, description, tint, raster, attributes, layout);
         }
@@ -192,6 +251,7 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
                 handle.raster = raster;
                 trim(MAX_ENTRIES, MAX_PIXELS);
             } catch (Throwable failure) {
+                handle.error = failure.toString();
                 handle.failed = true;
             } finally {
                 try {
@@ -236,6 +296,7 @@ public final class TypstPipelinePlugin implements TextPipelinePlugin, AutoClosea
     private static final class Handle {
         volatile InlineRaster raster;
         volatile boolean failed;
+        volatile String error;
         volatile long lastAccess = System.nanoTime();
     }
 }

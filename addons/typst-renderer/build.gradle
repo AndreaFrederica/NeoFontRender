@@ -39,6 +39,7 @@ unimined.minecraft {
 
 dependencies {
     compileOnly project(':')
+    compileOnly project(':addons:ui-enhancements')
     compileOnly project(':engine:text-core')
     compileOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
     implementation typstEngine

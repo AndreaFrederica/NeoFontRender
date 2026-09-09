@@ -10,6 +10,7 @@ import java.io.File;
 final class TypstConfig {
     private static NfrConfigFile file;
     private static boolean enabled;
+    private static volatile boolean downloadHud = true;
     private static float oversample = 2.0F;
     private static int maxToken = 4096;
 
@@ -22,15 +23,19 @@ final class TypstConfig {
                     .fileName("neofontrender-typst-renderer.toml").open();
         }
         file.define("enabled", false, "Recognize <typst:...> inline documents.")
+                .define("downloadHud", true, "Show Typst package download and rendering status.")
                 .define("oversample", 2.0D, "Typst raster scale in pixels per point (0.25-16).")
                 .define("maxToken", 4096, "Maximum UTF-16 source length accepted by one token.");
         enabled = file.getBoolean("enabled", false);
+        downloadHud = file.getBoolean("downloadHud", true);
         oversample = (float) file.getDouble("oversample", 2.0D, 0.25D, 16.0D);
         maxToken = file.getInt("maxToken", 4096, 128, 32768);
         file.save();
     }
 
     static boolean enabled() { return enabled; }
+    static boolean downloadHud() { return downloadHud; }
+    static void setDownloadHud(boolean value) { downloadHud = value; }
     static void setEnabled(boolean value) { enabled = value; }
     static float oversample() { return oversample; }
     static int maxToken() { return maxToken; }
@@ -38,6 +43,7 @@ final class TypstConfig {
     static synchronized void save() {
         if (file == null) load();
         file.set("enabled", enabled);
+        file.set("downloadHud", downloadHud);
         file.set("oversample", (double) oversample);
         file.set("maxToken", maxToken);
         file.save();
