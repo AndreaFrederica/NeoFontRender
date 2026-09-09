@@ -2,7 +2,6 @@ package neofontrender.addons.inlinecontent;
 
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
-import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import neofontrender.addons.inlinecontent.client.InlineContentShowcaseClient;
 
 @Mod(
@@ -17,11 +16,6 @@ public final class InlineContentShowcaseMod {
     public static final String MOD_ID = "neofontrender_inline_content_showcase";
     public static final String MOD_NAME = "NFR Inline Content Showcase";
     public static final String VERSION = "0.1.0";
-
-    @Mod.EventHandler
-    public void preInit(FMLPreInitializationEvent event) {
-        InlineContentShowcaseClient.preInit();
-    }
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {

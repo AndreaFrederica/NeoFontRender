@@ -1,0 +1,189 @@
+import java.awt.Color
+import java.awt.image.BufferedImage
+import javax.imageio.ImageIO
+
+// Original, reproducible 32px pixel art. This runs at build time, never in Minecraft.
+def catalog = file('src/main/resources/assets/neofontrender_inline_content_showcase/chemistry.tsv')
+def elementsFile = file('src/main/resources/assets/neofontrender_inline_content_showcase/elements.tsv')
+def sourceLang = file('src/main/resources/assets/neofontrender_inline_content_showcase/lang')
+def generated = layout.buildDirectory.dir('generated/showcaseResources')
+def icons = tasks.register('generateShowcaseAssets') {
+    inputs.files(catalog, elementsFile)
+    inputs.dir(sourceLang)
+    inputs.file('gradle/icons.gradle')
+    outputs.dir(generated)
+    doLast {
+        def entries = [
+                ['aminobenzo_18_crown_6_solution', 'flask', 'B78AE4'],
+                ['typst_chemistry_demonstrator', 'atom', '59CEBF'],
+                ['periodic_table', 'table', '76BDEB']
+        ]
+        // Neutral templates use the exact same painter as their colored specimens.
+        // New catalog rows select one base and a color; no in-game compositing is needed.
+        ['gas', 'liquid', 'solid', 'powder', 'metal', 'element', 'flask', 'crystal', 'tablet'].each { kind ->
+            entries.add(['base/' + kind, kind, 'ACC9D7', kind == 'element' ? 'X' : null,
+                    kind == 'element' ? 'Z' : null])
+        }
+        catalog.readLines('UTF-8').findAll { it && !it.startsWith('#') }.each {
+            def fields = it.split('\\|')
+            entries.add([fields[0], fields[2], fields[3]])
+        }
+        def colors = ['ef9b8b','efcc85','8ccac8','afbee8','c6b2de','9fd49b','e2d493','84cce9','e8acd0','d0b39a']
+        def elements = elementsFile.readLines('UTF-8').findAll { it && !it.startsWith('#') }.collect { it.split('\\|') }
+        elements.each { fields ->
+            entries.add(['element_' + fields[2], fields[6], colors[Integer.parseInt(fields[5])], fields[1], fields[0]])
+        }
+        def assetRoot = new File(generated.get().asFile, 'assets/neofontrender_inline_content_showcase')
+        def textures = new File(assetRoot, 'textures/items')
+        def models = new File(assetRoot, 'models/item')
+        textures.mkdirs()
+        models.mkdirs()
+        def languages = new File(assetRoot, 'lang')
+        languages.mkdirs()
+        ['en_us', 'zh_cn'].each { locale ->
+            def translated = elements.collect { fields ->
+                "item.neofontrender_inline_content_showcase.element_${fields[2]}.name=${fields[locale == 'zh_cn' ? 4 : 3]} (${fields[1]})"
+            }.join('\n')
+            new File(languages, "${locale}.lang").setText(
+                    new File(sourceLang, "${locale}.lang").getText('UTF-8').trim() + '\n' + translated + '\n', 'UTF-8')
+        }
+        entries.each { entry ->
+            def sprite = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB)
+            def g = sprite.createGraphics()
+            def ink = new Color(0x233449)
+            def glass = new Color(0xACC9D7)
+            def light = new Color(0xE7F6FF)
+            def accent = new Color(Integer.parseInt(entry[2], 16))
+            def rect = { Color color, int x, int y, int w, int h ->
+                g.color = color
+                g.fillRect(x, y, w, h)
+            }
+            def polygon = { Color color, List<Integer> xs, List<Integer> ys ->
+                g.color = color
+                g.fillPolygon(xs as int[], ys as int[], xs.size())
+            }
+            switch (entry[1]) {
+                case 'element':
+                    rect(ink, 2, 2, 28, 28); rect(accent.darker(), 4, 4, 24, 24)
+                    rect(accent, 4, 4, 22, 22); rect(light, 5, 4, 20, 1)
+                    g.color = ink
+                    g.font = new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, 7)
+                    g.drawString(entry[4], 6, 11)
+                    g.font = new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.BOLD, 14)
+                    int labelWidth = g.fontMetrics.stringWidth(entry[3])
+                    g.drawString(entry[3], (32 - labelWidth).intdiv(2), 24)
+                    break
+                case 'liquid':
+                case 'vial':
+                    rect(ink, 9, 3, 14, 5); rect(ink, 10, 8, 12, 19)
+                    rect(ink, 12, 27, 8, 2); rect(glass, 12, 8, 8, 18)
+                    rect(accent.darker(), 12, 15, 8, 11); rect(accent, 12, 15, 6, 9)
+                    rect(light, 12, 9, 2, 12); rect(light, 12, 4, 7, 2)
+                    rect(ink, 17, 18, 3, 1); rect(ink, 17, 22, 3, 1)
+                    break
+                case 'gas':
+                    rect(ink, 12, 2, 8, 5); rect(ink, 10, 6, 12, 3)
+                    rect(ink, 8, 8, 16, 19); rect(ink, 10, 27, 12, 2)
+                    rect(accent.darker(), 10, 9, 12, 17); rect(accent, 10, 9, 9, 17)
+                    rect(light, 11, 10, 2, 13); rect(ink, 14, 3, 4, 2)
+                    rect(light, 15, 16, 5, 5); rect(ink, 17, 17, 1, 3)
+                    break
+                case 'solid':
+                    polygon(ink, [3,7,19,27,30,25,11,3], [15,6,3,10,21,28,30,23])
+                    polygon(accent.darker(), [5,8,19,26,28,24,11,5], [16,8,5,11,21,26,28,22])
+                    polygon(accent, [8,19,25,19,9,5], [8,5,11,18,19,16])
+                    polygon(light, [8,17,10], [8,6,11])
+                    polygon(ink, [19,21,18,17], [18,20,25,22])
+                    break
+                case 'powder':
+                    // Shallow weighing dish, a granular mound and a few loose grains.
+                    polygon(ink, [2,30,27,5], [22,22,29,29])
+                    polygon(glass, [4,28,25,7], [24,24,27,27])
+                    polygon(ink, [4,8,11,16,21,25,28], [22,17,16,9,14,18,22])
+                    polygon(accent.darker(), [6,10,14,17,21,26], [22,18,16,12,17,22])
+                    polygon(accent, [7,11,15,17,20,23], [21,18,17,13,17,21])
+                    rect(light, 14, 16, 2, 1); rect(light, 10, 20, 2, 1)
+                    rect(accent.darker(), 18, 20, 2, 2); rect(light, 21, 21, 1, 1)
+                    rect(ink, 5, 12, 3, 3); rect(accent, 5, 12, 2, 2)
+                    rect(ink, 24, 9, 3, 3); rect(accent, 24, 9, 2, 2)
+                    break
+                case 'metal':
+                    // Ingot silhouette and broad specular stripe distinguish metals from rock.
+                    polygon(ink, [3,9,23,29,29,23,9,3], [14,7,7,14,24,28,28,24])
+                    polygon(accent.darker(), [5,10,22,27,27,22,10,5], [15,9,9,15,23,26,26,23])
+                    polygon(accent, [5,10,22,27,22,10], [15,9,9,15,19,19])
+                    polygon(light, [9,12,22,24,21,11], [14,11,11,13,15,15])
+                    rect(ink, 9, 21, 14, 1); rect(accent, 11, 23, 10, 1)
+                    break
+                case 'flask':
+                    polygon(ink, [11,21,21,20,20,28,28,25,7,4,4,12,12,11], [3,3,7,7,12,24,27,29,29,27,24,12,7,7])
+                    polygon(glass, [14,18,18,25,26,24,8,6,7,14], [6,6,13,24,26,27,27,26,24,13])
+                    polygon(accent.darker(), [10,22,26,24,8,6], [18,18,26,27,27,26])
+                    polygon(accent, [10,21,23,8], [18,18,25,25])
+                    rect(light, 14, 8, 2, 7); rect(light, 10, 18, 2, 4)
+                    rect(light, 14, 4, 5, 1); rect(light, 17, 21, 2, 2)
+                    break
+                case 'crystal':
+                    polygon(ink, [4,8,15,17,24,29,26,15,5], [20,9,3,12,8,21,28,30,27])
+                    polygon(accent, [7,10,14,16,13,8], [20,10,6,21,27,25])
+                    polygon(accent.darker(), [16,21,23,26,24,16], [22,13,11,21,26,27])
+                    polygon(light, [10,14,12], [11,7,21]); rect(light, 21, 16, 2, 6)
+                    break
+                case 'tablet':
+                    polygon(ink, [4,7,23,28,28,25,9,4], [12,7,7,12,22,27,27,22])
+                    polygon(accent.darker(), [6,9,23,26,26,23,9,6], [13,9,9,13,21,25,25,21])
+                    polygon(accent, [6,9,23,26,26,23,9,6], [12,9,9,12,18,22,22,18])
+                    rect(light, 9, 10, 12, 2); rect(ink, 15, 11, 2, 11)
+                    break
+                case 'atom':
+                    // Pixel ellipses with a consistent two-pixel dark outline.
+                    g.color = ink; g.stroke = new java.awt.BasicStroke(4)
+                    g.drawOval(3, 10, 25, 11); g.drawOval(10, 3, 11, 25)
+                    g.color = accent; g.stroke = new java.awt.BasicStroke(2)
+                    g.drawOval(3, 10, 25, 11); g.drawOval(10, 3, 11, 25)
+                    rect(ink, 12, 12, 8, 8); rect(accent, 14, 14, 4, 4)
+                    rect(light, 14, 14, 2, 2); rect(light, 3, 14, 3, 3)
+                    rect(light, 17, 4, 3, 3)
+                    break
+                case 'table':
+                    rect(ink, 1, 5, 30, 24); rect(glass, 3, 7, 26, 20)
+                    rect(ink, 4, 8, 24, 3)
+                    for (int y = 0; y < 3; y++) {
+                        for (int x = 0; x < 6; x++) {
+                            if (y == 0 && x > 0 && x < 5) continue
+                            rect(x < 2 ? accent : new Color(0xD4AECA), 4 + x * 4, 12 + y * 4, 3, 3)
+                        }
+                    }
+                    rect(light, 5, 8, 10, 1)
+                    break
+                default: throw new GradleException("Unknown showcase icon ${entry[1]}")
+            }
+            if (entry.size() > 3 && entry[3] != null && entry[1] != 'element') {
+                // The symbol badge is baked into the PNG, not rendered through NFR/Typst.
+                // Keep most of the shared category silhouette exposed at inventory size.
+                g.font = new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.BOLD, 10)
+                int labelWidth = g.fontMetrics.stringWidth(entry[3])
+                int badgeX = 30 - labelWidth - 4
+                rect(ink, badgeX, 21, labelWidth + 4, 10)
+                rect(light, badgeX + 1, 22, labelWidth + 2, 8)
+                g.color = ink
+                g.drawString(entry[3], badgeX + 2, 29)
+            }
+            g.dispose()
+            def textureFile = new File(textures, "${entry[0]}.png")
+            def modelFile = new File(models, "${entry[0]}.json")
+            textureFile.parentFile.mkdirs()
+            modelFile.parentFile.mkdirs()
+            ImageIO.write(sprite, 'png', textureFile)
+            modelFile.setText(groovy.json.JsonOutput.toJson([
+                    parent: 'item/generated', textures: [layer0: "neofontrender_inline_content_showcase:items/${entry[0]}"]
+            ]) + '\n', 'UTF-8')
+        }
+    }
+}
+sourceSets.main.resources.srcDir(generated)
+tasks.named('processResources') {
+    dependsOn icons
+    // The generated language files extend these base files with all 118 element names.
+    exclude { details -> details.file.parentFile == sourceLang }
+}

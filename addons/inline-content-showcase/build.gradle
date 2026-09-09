@@ -8,6 +8,8 @@ version = providers.gradleProperty('inline_content_showcase_version').get()
 
 base { archivesName = 'neofontrender-inline-content-showcase' }
 
+apply from: 'gradle/icons.gradle'
+
 java {
     toolchain { languageVersion = JavaLanguageVersion.of(25) }
 }
@@ -36,7 +38,10 @@ dependencies {
     testImplementation project(':')
     testImplementation project(':addons:ui-enhancements')
     testImplementation project(':addons:ui-enhancements-text')
+    testImplementation project(':engine:typst-render')
+    testImplementation project(':addons:electric-elytra')
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.lwjgl.lwjgl:lwjgl_util:2.9.4-nightly-20150209'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -65,10 +70,26 @@ tasks.withType(JavaCompile).configureEach {
 test {
     useJUnitPlatform()
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    dependsOn tasks.named('remapJar')
+    inputs.file(tasks.named('remapJar').flatMap { it.archiveFile })
+    systemProperty 'showcase.installableJar', tasks.named('remapJar').get().archiveFile.get().asFile.absolutePath
 }
 
 sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
 sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+tasks.register('typstShowcaseSmoke', JavaExec) {
+    group = 'verification'
+    description = 'Renders every Typst showcase token through JNI and exports visual review sheets.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'neofontrender.addons.inlinecontent.TypstShowcaseSmoke'
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    systemProperty 'java.awt.headless', 'true'
+    args layout.buildDirectory.dir('reports/typst-showcase').get().asFile.absolutePath,
+            providers.gradleProperty('showcaseTypstLibrary').getOrElse(
+                    layout.buildDirectory.dir('typst-library').get().asFile.absolutePath)
+}
 
 tasks.register('prepareCombinedClientRun', Copy) {
     dependsOn tasks.named('jar')

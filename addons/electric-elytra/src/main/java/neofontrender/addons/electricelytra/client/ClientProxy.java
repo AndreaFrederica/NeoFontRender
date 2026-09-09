@@ -9,7 +9,9 @@ import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.model.ModelLoader;
-import net.minecraft.client.renderer.block.model.ModelBakery;
+import net.minecraftforge.client.event.ModelRegistryEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.FMLCommonHandler;
@@ -34,6 +36,7 @@ import neofontrender.addons.electricelytra.ItemElectricElytra;
 import neofontrender.addons.electricelytra.network.ElectricElytraNetwork;
 import org.lwjgl.input.Keyboard;
 
+@Mod.EventBusSubscriber(modid = ElectricElytraMod.MOD_ID, value = Side.CLIENT)
 public final class ClientProxy extends CommonProxy {
     private static final KeyBinding TOGGLE_ENGINE = new KeyBinding(
             "key.neofontrender_electric_elytra.toggle_engine", Keyboard.KEY_G,
@@ -69,6 +72,11 @@ public final class ClientProxy extends CommonProxy {
 
     @Override public void preInit() {
         ElectricElytraNetwork.initializeClient();
+    }
+
+    @SubscribeEvent
+    public static void registerModels(ModelRegistryEvent event) {
+        // Item registration assigns stable delegate keys before this event. preInit is too early.
         registerVanillaElytraModel(ElectricElytraItems.VANILLA_ELECTRIC_ELYTRA,
                 "vanilla_electric_elytra");
         registerVanillaElytraModel(ElectricElytraItems.CREATIVE_VANILLA_ELECTRIC_ELYTRA,
@@ -84,7 +92,6 @@ public final class ClientProxy extends CommonProxy {
 
     private static void registerVanillaElytraModel(ItemElectricElytra item, String name) {
         ResourceLocation location = new ResourceLocation(ElectricElytraMod.MOD_ID, name);
-        ModelBakery.registerItemVariants(item, location);
         ModelLoader.setCustomModelResourceLocation(item, 0,
                 new ModelResourceLocation(location, "inventory"));
     }

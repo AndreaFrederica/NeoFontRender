@@ -7,13 +7,16 @@ import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.client.renderer.block.model.ModelBakery;
 import neofontrender.addons.inlinecontent.InlineContentShowcaseMod;
 import neofontrender.addons.inlinecontent.ShowcaseItems;
 import org.lwjgl.input.Keyboard;
 
+@Mod.EventBusSubscriber(modid = InlineContentShowcaseMod.MOD_ID, value = Side.CLIENT)
 public final class InlineContentShowcaseClient {
     private static final InlineContentShowcaseClient INSTANCE = new InlineContentShowcaseClient();
     private static final KeyBinding OPEN = new KeyBinding(
@@ -22,17 +25,14 @@ public final class InlineContentShowcaseClient {
 
     private InlineContentShowcaseClient() {}
 
-    public static void preInit() {
-        ResourceLocation location = new ResourceLocation(InlineContentShowcaseMod.MOD_ID,
-                "aminobenzo_18_crown_6_solution");
-        ModelBakery.registerItemVariants(ShowcaseItems.AMINOBENZO_CROWN_ETHER_SOLUTION, location);
-        ModelLoader.setCustomModelResourceLocation(ShowcaseItems.AMINOBENZO_CROWN_ETHER_SOLUTION,
-                0, new ModelResourceLocation(location, "inventory"));
-        ResourceLocation typst = new ResourceLocation(InlineContentShowcaseMod.MOD_ID,
-                "typst_chemistry_demonstrator");
-        ModelBakery.registerItemVariants(ShowcaseItems.TYPST_CHEMISTRY_DEMONSTRATOR, typst);
-        ModelLoader.setCustomModelResourceLocation(ShowcaseItems.TYPST_CHEMISTRY_DEMONSTRATOR,
-                0, new ModelResourceLocation(typst, "inventory"));
+    @SubscribeEvent
+    public static void registerModels(ModelRegistryEvent event) {
+        // Forge keys model maps by Item.delegate. Its name (and hash) is assigned only by
+        // item registration, after preInit. Binding earlier aliases all unnamed delegates.
+        for (var item : ShowcaseItems.ALL) {
+            ResourceLocation location = item.getRegistryName();
+            ModelLoader.setCustomModelResourceLocation(item, 0, new ModelResourceLocation(location, "inventory"));
+        }
     }
 
     public static void init() {

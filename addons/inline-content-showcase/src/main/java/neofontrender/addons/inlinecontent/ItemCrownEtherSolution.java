@@ -3,7 +3,6 @@ package neofontrender.addons.inlinecontent;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
@@ -16,7 +15,7 @@ public final class ItemCrownEtherSolution extends Item {
     ItemCrownEtherSolution(String name) {
         setRegistryName(InlineContentShowcaseMod.MOD_ID, name);
         setTranslationKey(InlineContentShowcaseMod.MOD_ID + "." + name);
-        setCreativeTab(CreativeTabs.MISC);
+        setCreativeTab(ShowcaseItems.TAB);
         setMaxStackSize(1);
     }
 
