@@ -41,9 +41,9 @@ public final class NfrTabbySettingsBridge {
         g.antiSpamPrejudice.set(f.getDouble("chat.tabby.general.antiSpamPrejudice", 0D, 0D, 1D));
         g.unreadFlashing.set(f.getBoolean("chat.tabby.general.unreadFlashing", true));
         g.checkUpdates.set(false);
-        a.chatX.set(f.getInt("chat.tabby.layout.x", 5, -8192, 8192));
-        a.chatY.set(f.getInt("chat.tabby.layout.y", 17, -8192, 8192));
-        a.chatW.set(f.getInt("chat.tabby.layout.width", 300, 40, 8192));
+        a.chatX.set(f.getInt("chat.tabby.layout.x", 2, -8192, 8192));
+        a.chatY.set(f.getInt("chat.tabby.layout.y", -1, -8192, 8192));
+        a.chatW.set(f.getInt("chat.tabby.layout.width", 320, 40, 8192));
         a.chatH.set(f.getInt("chat.tabby.layout.height", 160, 20, 8192));
         a.unfocHeight.set((float) f.getDouble("chat.tabby.layout.unfocusedHeight", 0.5D, 0.0D, 1.0D));
         a.fadeTime.set(f.getInt("chat.tabby.layout.fadeTime", 200, 0, 36000));
@@ -128,9 +128,9 @@ public final class NfrTabbySettingsBridge {
                 .define("chat.tabby.general.antiSpamPrejudice", 0D, "Anti-spam comparison tolerance.")
                 .define("chat.tabby.general.unreadFlashing", true, "Flash tabs with unread messages.")
                 .define("chat.tabby.general.spelling", true, "Enable spelling assistance.")
-                .define("chat.tabby.layout.x", 5, "Chat panel X position.")
-                .define("chat.tabby.layout.y", 17, "Chat panel Y position.")
-                .define("chat.tabby.layout.width", 300, "Chat panel width.")
+                .define("chat.tabby.layout.x", 2, "Chat panel X position; vanilla default is 2.")
+                .define("chat.tabby.layout.y", -1, "Chat panel Y position; -1 follows vanilla bottom anchoring.")
+                .define("chat.tabby.layout.width", 320, "Chat panel width; vanilla default is 320.")
                 .define("chat.tabby.layout.height", 160, "Chat panel height.")
                 .define("chat.tabby.layout.unfocusedHeight", 0.5D, "Unfocused chat height ratio.")
                 .define("chat.tabby.layout.fadeTime", 200, "Chat fade time in ticks.")

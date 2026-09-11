@@ -72,6 +72,8 @@ public class ChatManager implements Chat {
         int width = settings.chatW.get();
         int height = settings.chatH.get();
 
+        // Match vanilla GuiNewChat's default anchor: x=2 and 40 px above the bottom.
+        if (y < 0) y = Math.max(0, Minecraft.getMinecraft().displayHeight - 40 - height);
         this.chatbox = new ChatBox(new Location(x, y, width, height));
 
         if (!this.channels.contains(ChatChannel.DEFAULT_CHANNEL)) {
