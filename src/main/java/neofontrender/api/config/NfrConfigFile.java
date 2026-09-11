@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /** A typed, comment-preserving TOML store for NFR integrations. */
 public final class NfrConfigFile implements AutoCloseable {
@@ -124,7 +125,9 @@ public final class NfrConfigFile implements AutoCloseable {
     public synchronized void promoteUserToPack() {
         if (storage != NfrConfigStorage.LAYERED || packaged == null)
             throw new IllegalStateException("Configuration is not layered");
-        for (String key : independent.entrySet()) packaged.set(key, independent.get(key));
+        for (Map.Entry<String, Object> entry : independent.valueMap().entrySet()) {
+            packaged.set(entry.getKey(), entry.getValue());
+        }
         packaged.save();
     }
 
@@ -153,12 +156,12 @@ public final class NfrConfigFile implements AutoCloseable {
     }
 
     private void put(String fullKey, Object value) {
-        if (storage == NfrConfigStorage.INDEPENDENT) independent.set(fullKey, value);
+        if (storage == NfrConfigStorage.INDEPENDENT || storage == NfrConfigStorage.LAYERED) independent.set(fullKey, value);
         else NeofontrenderConfig.setExtensionValue(fullKey, value);
     }
 
     private void setComment(String fullKey, String comment) {
-        if (storage == NfrConfigStorage.INDEPENDENT) independent.setComment(fullKey, comment);
+        if (storage == NfrConfigStorage.INDEPENDENT || storage == NfrConfigStorage.LAYERED) independent.setComment(fullKey, comment);
         else NeofontrenderConfig.setExtensionComment(fullKey, comment);
     }
 
