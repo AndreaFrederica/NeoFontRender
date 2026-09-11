@@ -1,6 +1,7 @@
 package neofontrender.addons.mixin;
 
 import neofontrender.addons.compat.ModCompatRegistry;
+import neofontrender.api.config.NfrMixinConfig;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 import org.objectweb.asm.tree.ClassNode;
@@ -22,7 +23,8 @@ public final class UiEnhancementsMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        return ModCompatRegistry.shouldApplyMixin(mixinClassName);
+        return NfrMixinConfig.enabled(mixinClassName)
+                && ModCompatRegistry.shouldApplyMixin(mixinClassName);
     }
 
     @Override
