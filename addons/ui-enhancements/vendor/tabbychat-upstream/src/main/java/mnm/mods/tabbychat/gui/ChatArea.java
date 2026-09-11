@@ -58,6 +58,8 @@ import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.IdentityHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -85,6 +87,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     private int nfrUi$fontHeight = -1;
     private Object nfrUi$fontRenderer;
     private long nfrUi$layoutGeneration = -1L;
+    /** Source-message identity snapshot used to avoid rewrapping unchanged history. */
+    private List<Message> nfrUi$sourceSnapshot = Collections.emptyList();
 
     public ChatArea() {
         this.setMinimumSize(new Dimension(300, 160));
@@ -199,8 +203,14 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
             yPos -= rowHeight(line);
             drawChatLine(line, xPos, yPos);
         }
-        SelectionHit hovered = nfrUi$selectionHit(mouseX, mouseY, false);
-        GlyphHover glyphHover = nfrUi$glyphAt(mouseX, mouseY);
+        // Hit testing is only needed for an enabled interaction surface. Keep one row hit
+        // for all hover consumers so a frame never repeats the same layout/position work.
+        SelectionHit hovered = (EnhancedChatFeatures.playerHeads()
+                || EnhancedChatFeatures.copySelection()
+                || EnhancedChatFeatures.inlineGlyphs())
+                ? nfrUi$selectionHit(mouseX, mouseY, false) : null;
+        GlyphHover glyphHover = EnhancedChatFeatures.inlineGlyphs()
+                ? nfrUi$glyphAt(mouseX, mouseY, hovered) : null;
         String hoveredPlayer = nfrUi$playerAt(hovered);
         if (hovered != null && hovered.head && hoveredPlayer != null) {
             ILocation actual = getActualLocation();
@@ -402,11 +412,37 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
             this.dirty = false;
             this.nfrUi$splitWidth = width;
             this.nfrUi$splitPrivate = privateView;
-            this.messages = ChatTextUtils.split(channel.getMessages(), width, privateView);
+            List<Message> source = channel.getMessages();
+            List<Message> incremental = nfrUi$incrementalSplit(source, width, privateView);
+            this.messages = incremental != null
+                    ? incremental : ChatTextUtils.split(source, width, privateView);
+            this.nfrUi$sourceSnapshot = new ArrayList<>(source);
             this.nfrUi$layoutDirty = true;
         }
         ensureLayoutCache();
         return this.messages;
+    }
+
+    /** Returns a wrapped-list update when the source history only gained a prefix. */
+    private List<Message> nfrUi$incrementalSplit(List<Message> source, int width,
+                                                   boolean privateView) {
+        if (nfrUi$sourceSnapshot.isEmpty() || source.size() < nfrUi$sourceSnapshot.size()) return null;
+        int added = source.size() - nfrUi$sourceSnapshot.size();
+        for (int index = 0; index < nfrUi$sourceSnapshot.size(); index++) {
+            if (source.get(index + added) != nfrUi$sourceSnapshot.get(index)) return null;
+        }
+        // A dirty flag with no source growth can represent settings or timestamp changes.
+        if (added == 0) return null;
+        List<Message> prefix = ChatTextUtils.split(
+                new ArrayList<>(source.subList(0, added)), width, privateView);
+        if (prefix.isEmpty()) return this.messages;
+        List<Message> result = new ArrayList<>(prefix.size() + this.messages.size());
+        result.addAll(prefix);
+        result.addAll(this.messages);
+        if (result.size() > 4096) {
+            return new ArrayList<>(result.subList(0, 4096));
+        }
+        return result;
     }
 
     private int chatTextWidth(boolean privateView) {
@@ -507,9 +543,11 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     @Subscribe
     public void nfrUi$copySelection(GuiMouseEvent event) {
         if (!ChatHudWindowController.isChatExpanded()) return;
-        SelectionHit interactionHit = nfrUi$selectionHit(
-                event.getMouseX(), event.getMouseY(), false);
-        GlyphHover imageHit = nfrUi$glyphAt(event.getMouseX(), event.getMouseY());
+        SelectionHit interactionHit = (EnhancedChatFeatures.playerHeads()
+                || EnhancedChatFeatures.copySelection() || EnhancedChatFeatures.inlineGlyphs())
+                ? nfrUi$selectionHit(event.getMouseX(), event.getMouseY(), false) : null;
+        GlyphHover imageHit = EnhancedChatFeatures.inlineGlyphs()
+                ? nfrUi$glyphAt(event.getMouseX(), event.getMouseY(), interactionHit) : null;
         if (event.getType() == MouseEvent.CLICK && event.getButton() == 1 && imageHit != null) {
             ILocation actual = getActualLocation();
             float scale = getActualScale();
@@ -636,7 +674,7 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     private void drawCopySelection(List<Message> visible, int xPos, int initialY) {
         if (!EnhancedChatFeatures.copySelection() || !nfrUi$selection.hasSelection()) return;
         Map<Message, ChatSelectionModel.Range> ranges =
-                nfrUi$selection.ranges(getChat(), ChatArea::messageText);
+                nfrUi$selection.visibleRanges(getChat(), visible, ChatArea::messageText);
         int y = initialY;
         for (Message line : visible) {
             int height = rowHeight(line);
@@ -668,12 +706,11 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
                 && layout.structuredText().effects().isEmpty();
     }
 
-    private GlyphHover nfrUi$glyphAt(int mouseX, int mouseY) {
+    private GlyphHover nfrUi$glyphAt(int mouseX, int mouseY, SelectionHit rowHit) {
         if (!EnhancedChatFeatures.inlineGlyphs()) return null;
         // Reuse the exact row hit used by the proven player-name/avatar hover path. Only the
         // horizontal run lookup is image-specific, so both hover systems share scroll, animation,
         // component offsets and chat scaling behavior.
-        SelectionHit rowHit = nfrUi$selectionHit(mouseX, mouseY, false);
         if (rowHit == null) return null;
         Message line = rowHit.line;
         int textX = textX(line, 3);
