@@ -42,6 +42,14 @@ public final class AudioModule implements UiEnhancementModule, IResourceManagerR
     public void preInit() {
         library = new AudioLibrary(Minecraft.getMinecraft().gameDir.toPath().resolve("config/revo-ui-audio"));
         library.load();
+        // Local albums are derived from file tags, never user-authored data.
+        // Drop stale pre-tagging results immediately so the UI cannot expose
+        // legacy one-track albums named after folders (for example "music").
+        library.albums.clear();
+        library.indexMetadataAlbums().whenComplete((count, error) -> {
+            if (error != null) LOG.warn("Cannot index local music metadata", error);
+            else Minecraft.getMinecraft().addScheduledTask(AudioModule::refreshLocalAlbums);
+        });
         var config = UiEnhancementsConfig.file();
         config.define("audio.sceneMode", false, "Use Minecraft scene scheduling for independent music.")
               .define("audio.exclusive", true, "Pause vanilla BGM while independent music is active.")
@@ -127,6 +135,11 @@ public final class AudioModule implements UiEnhancementModule, IResourceManagerR
         for (String id : albums.keySet()) names.add(albumPlaylistId(id));
         return names;
     }
+    static void refreshLocalAlbums() {
+        for (String id : new ArrayList<>(albums.keySet())) if (id.startsWith("local/")) albums.remove(id);
+        for (Map.Entry<String, AudioLibrary.Album> entry : library.albums.entrySet())
+            albums.put("local/" + entry.getKey(), entry.getValue());
+    }
     static List<String> playlistEntries(String playlist) {
         if (!playlist.startsWith("@album/")) return library.playlists.getOrDefault(playlist, Collections.emptyList());
         AudioLibrary.Album album = albums.get(playlist.substring(7));
@@ -136,11 +149,17 @@ public final class AudioModule implements UiEnhancementModule, IResourceManagerR
         return result;
     }
     static String playlistDisplay(String playlist) {
-        if (!playlist.startsWith("@album/")) return playlist;
+        if (!playlist.startsWith("@album/")) return "DIR  " + playlist;
         AudioLibrary.Album album = albums.get(playlist.substring(7));
-        return album == null || album.title.isEmpty() ? playlist.substring(7) : album.title;
+        return "ALBUM  " + (album == null || album.title.isEmpty() ? playlist.substring(7) : album.title);
     }
     static boolean readOnlyPlaylist(String playlist) { return playlist.startsWith("@album/"); }
+    /** True for local files that are visibly unusable (currently empty/truncated files). */
+    static boolean isBrokenEntry(String entry) {
+        if (entry == null || entry.startsWith("res:")) return false;
+        try { return Files.isRegularFile(Paths.get(entry)) && Files.size(Paths.get(entry)) == 0; }
+        catch (Exception ignored) { return false; }
+    }
     private static String albumPlaylistId(String id) { return "@album/" + id; }
     static String albumTrackDisplay(String source) {
         String result = null;

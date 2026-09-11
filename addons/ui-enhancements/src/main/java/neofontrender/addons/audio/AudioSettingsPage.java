@@ -92,10 +92,19 @@ final class AudioSettingsPage implements NfrSettingsPage {
                     try {
                         if (AudioModule.readOnlyPlaylist(list)) { AudioModule.status = tr("album_read_only"); return; }
                         AudioModule.status = tr("importing");
-                        AudioModule.library.importFile(Paths.get(path)).whenComplete((file, error) -> Minecraft.getMinecraft().addScheduledTask(() -> {
+                        Path selectedPath = Paths.get(path);
+                        AudioModule.library.importPath(selectedPath).whenComplete((files, error) -> Minecraft.getMinecraft().addScheduledTask(() -> {
                             if (error != null) AudioModule.status = error.toString();
                             else {
-                                AudioModule.library.playlists.get(list).add(file.toString());
+                                List<String> target = AudioModule.library.playlists.computeIfAbsent(list, k -> new ArrayList<>());
+                                if (Files.isDirectory(selectedPath)) {
+                                    AudioModule.library.indexMetadataAlbums().whenComplete((count, scanError) -> Minecraft.getMinecraft().addScheduledTask(() -> {
+                                        if (scanError != null) AudioModule.status = scanError.toString();
+                                        else { AudioModule.refreshLocalAlbums(); AudioModule.status = tr("imported"); context.refresh(); }
+                                    }));
+                                } else {
+                                    for (Path file : files) target.add(file.toString());
+                                }
                                 AudioModule.library.save();
                                 AudioModule.status = tr("imported");
                                 context.refresh();

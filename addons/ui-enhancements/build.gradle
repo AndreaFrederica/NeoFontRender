@@ -84,6 +84,8 @@ dependencies {
     // JLaTeXMath is linked through its GPLv2 Classpath Exception and remains unmodified.
     contain 'org.scilab.forge:jlatexmath:1.0.7'
     contain 'com.google.code.gson:gson:2.12.1'
+    // Audio file tag reader used by the local album indexer.
+    contain('net.jthink:jaudiotagger:3.0.1') { transitive = false }
     // Chinese segmentation and dictionary used by TabbyChat spell checking.
     // Cleanroom already supplies a compatible commons-lang3, so avoid embedding 3.3.1.
     contain('com.huaban:jieba-analysis:1.0.2') { transitive = false }

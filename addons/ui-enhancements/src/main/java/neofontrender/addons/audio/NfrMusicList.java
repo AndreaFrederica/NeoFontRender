@@ -47,7 +47,7 @@ final class NfrMusicList extends ListWidget<IWidget, NfrMusicList> implements Nf
         if (all == null) all = Collections.emptyList();
         for (int i = 0; i < all.size(); i++) {
             String name = MusicNames.display(all.get(i));
-            if (visible.test(name)) child(row(i, name));
+            if (visible.test(name)) child(row(i, name, AudioModule.isBrokenEntry(all.get(i))));
         }
         if (isValid()) {
             getScrollData().scrollTo(getScrollArea(), 0);
@@ -55,12 +55,12 @@ final class NfrMusicList extends ListWidget<IWidget, NfrMusicList> implements Nf
         }
     }
 
-    private ButtonWidget<?> row(int index, String name) {
+    private ButtonWidget<?> row(int index, String name, boolean broken) {
         ButtonWidget<?> button = new ButtonWidget<>();
         TextWidget label = new TextWidget(IKey.dynamic(() ->
                 (index == playing.getAsInt() ? ">> " : index == selected.getAsInt() ? "> " : "") + name));
         label.alignment(Alignment.CenterLeft);
-        label.color(0xFFFFFF);
+        label.color(broken ? 0xFFFF4D5A : 0xFFFFFF);
         label.paddingLeft(6);
         button.child(label);
         button.onMousePressed(mouseButton -> { pick.accept(index); return true; });
