@@ -13,30 +13,55 @@ public final class NfrMixinConfig {
     private static void open() {
         synchronized (LOCK) {
             if (file != null) return;
-            Path path = configPath();
-            try {
-                Files.createDirectories(path.getParent());
-            } catch (Exception exception) {
-                throw new IllegalStateException("Cannot create NeoFontRender config directory: " + path.getParent(), exception);
-            }
-            file = CommentedFileConfig.builder(path, TomlFormat.instance()).preserveInsertionOrder().build();
-            file.load();
+            file = load(configPath());
+        }
+    }
+
+    static CommentedFileConfig load(Path path) {
+        try {
+            Files.createDirectories(path.toAbsolutePath().getParent());
+        } catch (Exception exception) {
+            throw new IllegalStateException("Cannot create NeoFontRender config directory: " + path.getParent(), exception);
+        }
+        // Defaults must reach disk even if a later mixin fails during startup.
+        CommentedFileConfig config = CommentedFileConfig.builder(path, TomlFormat.instance())
+                .preserveInsertionOrder().sync().build();
+        try {
+            config.load();
+            return config;
+        } catch (RuntimeException exception) {
+            config.close();
+            throw exception;
         }
     }
     /** Key is a mixin simple name or fully qualified class name. */
     public static boolean enabled(String mixinClassName) {
         open();
-        String simple = mixinClassName.substring(mixinClassName.lastIndexOf('.') + 1);
         synchronized (LOCK) {
-            Object value = valueAt("mixins." + mixinClassName);
-            if (value == null) value = valueAt("mixins." + simple);
-            if (value == null) value = Boolean.TRUE;
-            return !(value instanceof Boolean) || (Boolean) value;
+            return enabled(file, mixinClassName);
         }
     }
 
-    private static Object valueAt(String key) {
-        return file.contains(key) ? file.get(key) : null;
+    static boolean enabled(CommentedFileConfig config, String mixinClassName) {
+        String simple = mixinClassName.substring(mixinClassName.lastIndexOf('.') + 1);
+        String simpleKey = "mixins." + simple;
+        Object value = config.get("mixins." + mixinClassName);
+        if (value == null) value = config.get(simpleKey);
+        if (value == null) {
+            // Populate only switches actually queried by a plugin, including newly added
+            // mixins on upgrades. Keep existing short-name and full-name overrides intact.
+            value = Boolean.TRUE;
+            config.set(simpleKey, value);
+            config.setComment(simpleKey, " " + mixinClassName);
+            if (config.getComment("mixins") == null) {
+                config.setComment("mixins", " Boot-time Mixin switches; restart required.\n"
+                        + " true = allow, false = disable. Compatibility checks still apply.\n"
+                        + " Defaults are added for mixins checked by participating plugins.\n"
+                        + " Fully qualified class names take precedence over simple names.");
+            }
+            config.save();
+        }
+        return !(value instanceof Boolean) || (Boolean) value;
     }
     public static Path path() { open(); return configPath(); }
 
