@@ -22,7 +22,7 @@ repositories {
 unimined.minecraft {
     version '1.12.2'
     mappings { mcp('stable', '39-1.12') }
-    cleanroom { loader '0.6.12'; runs.off = true }
+    cleanroom { loader '0.6.12-alpha'; runs.off = true }
     defaultRemapJar = false
     remap(tasks.named('jar').get())
 }

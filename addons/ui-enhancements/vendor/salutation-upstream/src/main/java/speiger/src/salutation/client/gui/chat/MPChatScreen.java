@@ -32,7 +32,7 @@ public class MPChatScreen extends GuiSleepMP implements ISaluationChat {
 		completer.render(mouseX, mouseY, fontRenderer);
 	}
 	
-	public void handleMouseInput() {
+	public void handleMouseInput() throws IOException {
 		int mouseX = Mouse.getEventX() * this.width / this.mc.displayWidth;
 		int mouseY = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
 		int scroll = Mouse.getDWheel() / 120;
@@ -48,7 +48,7 @@ public class MPChatScreen extends GuiSleepMP implements ISaluationChat {
 	}
 	
 	@Override
-	protected void mouseClicked(int mouseX, int mouseY, int mouseButton) {
+	protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
 		if(completer.onClick(mouseX, mouseY)) return;
 		super.mouseClicked(mouseX, mouseY, mouseButton);
 	}

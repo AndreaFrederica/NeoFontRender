@@ -77,7 +77,7 @@ unimined.minecraft {
         if (use_access_transformer.toBoolean()) {
             accessTransformer "${rootProject.projectDir}/src/main/resources/$access_transformer_locations"
         }
-        loader '0.6.12'
+        loader '0.6.12-alpha'
         runs.preLaunch('client', ':addons:ui-enhancements:prepareCombinedClientRun')
         runs.preLaunch('client', ':addons:ui-enhancements-controller:prepareCombinedClientRun')
         runs.preLaunch('client', ':addons:electric-elytra:prepareCombinedClientRun')

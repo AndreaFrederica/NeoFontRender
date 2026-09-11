@@ -38,7 +38,7 @@ unimined.minecraft {
     version '1.12.2'
     mappings { mcp('stable', '39-1.12') }
     cleanroom {
-        loader '0.6.12'
+        loader '0.6.12-alpha'
         runs.off = true
     }
     defaultRemapJar = false
