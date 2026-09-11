@@ -254,6 +254,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.release-meta.outputs.ref }}
+          submodules: recursive
 
       - name: Grant execute permission for Gradle wrapper
         run: |
