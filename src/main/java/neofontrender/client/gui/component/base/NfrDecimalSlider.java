@@ -94,7 +94,10 @@ public final class NfrDecimalSlider extends SliderWidget implements IFocusedWidg
 
     @Override
     public @NotNull Interactable.Result onMousePressed(int mouseButton) {
-        if (mouseButton == 0 && getContext().getMouseX() >= valueAreaLeft(displayValue.get())) {
+        int textY = textBaseline();
+        boolean inTextRow = getContext().getMouseY() >= textY - 2
+                && getContext().getMouseY() <= textY + Minecraft.getMinecraft().fontRenderer.FONT_HEIGHT + 2;
+        if (mouseButton == 0 && inTextRow && getContext().getMouseX() >= valueAreaLeft(displayValue.get())) {
             beginEdit();
             getContext().focus(this);
             return Interactable.Result.SUCCESS;
@@ -239,6 +242,11 @@ public final class NfrDecimalSlider extends SliderWidget implements IFocusedWidg
         int textWidth = Minecraft.getMinecraft().fontRenderer.getStringWidth(value == null ? "" : value);
         int areaWidth = Math.max(VALUE_MIN_WIDTH, textWidth + 12);
         return Math.max(getArea().w() / 2, getArea().w() - areaWidth);
+    }
+
+    private int textBaseline() {
+        Minecraft mc = Minecraft.getMinecraft();
+        return Math.max(0, (getArea().h() - mc.fontRenderer.FONT_HEIGHT) / 2 - 2);
     }
 
     private static boolean isNumberCharacter(char character) {
