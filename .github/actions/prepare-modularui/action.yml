@@ -1,5 +1,5 @@
 name: Prepare custom ModularUI
-description: Builds the pinned ModularUI fork, installs its development artifact, and stages its distributable JAR.
+description: Builds the ModularUI submodule, installs its development artifact, and stages its distributable JAR.
 
 outputs:
   version:
@@ -9,7 +9,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Read pinned ModularUI coordinates
+    - name: Read ModularUI version
       id: coordinates
       shell: bash
       run: |
@@ -18,22 +18,9 @@ runs:
           sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" gradle.properties | tr -d '\r' | xargs
         }
 
-        repository="$(read_property modularui_repository)"
-        ref="$(read_property modularui_ref)"
         version="$(read_property modularui_version)"
-        test -n "$repository"
-        test -n "$ref"
         test -n "$version"
-        echo "repository=$repository" >> "$GITHUB_OUTPUT"
-        echo "ref=$ref" >> "$GITHUB_OUTPUT"
         echo "version=$version" >> "$GITHUB_OUTPUT"
-
-    - name: Checkout pinned ModularUI fork
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ steps.coordinates.outputs.repository }}
-        ref: ${{ steps.coordinates.outputs.ref }}
-        path: .dependencies/modularui
 
     - name: Setup Java 21 for ModularUI
       uses: actions/setup-java@v4
@@ -41,14 +28,15 @@ runs:
         distribution: zulu
         java-version: '21'
 
-    - name: Build and install ModularUI
+    - name: Build and install ModularUI submodule
       shell: bash
       run: |
         set -euo pipefail
-        sed -i 's/\r$//' .dependencies/modularui/gradlew
-        chmod +x .dependencies/modularui/gradlew
-        .dependencies/modularui/gradlew \
-          -p .dependencies/modularui \
+        test -f external/ModularUI/gradlew
+        sed -i 's/\r$//' external/ModularUI/gradlew
+        chmod +x external/ModularUI/gradlew
+        external/ModularUI/gradlew \
+          -p external/ModularUI \
           build publishToMavenLocal \
           --no-daemon
 
@@ -58,7 +46,7 @@ runs:
         VERSION: ${{ steps.coordinates.outputs.version }}
       run: |
         set -euo pipefail
-        installable=".dependencies/modularui/build/libs/modularui-${VERSION}.jar"
+        installable="external/ModularUI/build/libs/modularui-${VERSION}.jar"
         local_pom="$HOME/.m2/repository/com/cleanroommc/modularui/${VERSION}/modularui-${VERSION}.pom"
         local_development="$HOME/.m2/repository/com/cleanroommc/modularui/${VERSION}/modularui-${VERSION}-dev.jar"
         test -s "$installable"
