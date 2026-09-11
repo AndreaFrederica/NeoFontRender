@@ -9,7 +9,6 @@ final class ModernTooltipHandler {
     private static final String MODULAR_UI_PRE_EVENT =
             "com.cleanroommc.modularui.screen.RichTooltipEvent$Pre";
     private final ModernTooltipRenderer renderer = new ModernTooltipRenderer();
-    private boolean warnedLegendary;
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onTooltip(RenderTooltipEvent.Pre event) {
@@ -24,13 +23,6 @@ final class ModernTooltipHandler {
         // rendered after the event. Cancelling here would replace the text and silently lose the
         // grid, so let HEI finish the content while its dedicated mixin replaces only the panel.
         if (HeiTooltipCompat.isCustomTooltipActive()) return;
-        if (TooltipConfig.yieldToLegendaryTooltips && Loader.isModLoaded("legendarytooltips")) {
-            if (!warnedLegendary) {
-                warnedLegendary = true;
-                TooltipModule.LOGGER.info("LegendaryTooltips detected; the modern tooltip module will not intercept tooltips");
-            }
-            return;
-        }
         if (renderer.draw(event, compactLines,
                 compactLines == null ? "vanilla" : "thaumcraft", thaumcraftContext,
                 preservesCallerState(event.getClass().getName()))) {

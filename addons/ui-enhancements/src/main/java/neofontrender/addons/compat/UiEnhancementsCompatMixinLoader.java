@@ -13,6 +13,8 @@ import java.util.List;
  */
 public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
     static final String HEI_CONFIG = "mixins.neofontrender_ui_enhancements_hei.json";
+    static final String LEGENDARY_TOOLTIPS_CONFIG =
+            "mixins.neofontrender_ui_enhancements_legendary_tooltips.json";
     static final String OBSCURE_TOOLTIPS_CONFIG =
             "mixins.neofontrender_ui_enhancements_obscure_tooltips.json";
     static final String SALUTATION_CONFIG =
@@ -34,7 +36,7 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
 
     @Override
     public List<String> getMixinConfigs() {
-        return Arrays.asList(HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG,
+        return Arrays.asList(HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, LEGENDARY_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG,
                 SHOULDER_SURFING_CONFIG, SHOULDER_SURFING_TCONSTRUCT_CONFIG,
                 SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG, BETTER_COMBAT_CONFIG,
                 THAUMCRAFT_CONFIG, CLEANROOM_COMMAND_SUGGESTIONS_CONFIG);
@@ -43,6 +45,10 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
     @Override
     public boolean shouldMixinConfigQueue(Context context) {
         String config = context.mixinConfig();
+        if (LEGENDARY_TOOLTIPS_CONFIG.equals(config)) {
+            return context.isModPresent("legendarytooltips")
+                    && classResourcePresent("com/anthonyhilyard/legendarytooltips/render/TooltipDecor.class");
+        }
         if (HEI_CONFIG.equals(config)) {
             return context.isModPresent("jei")
                     && classResourcePresent("mezz/jei/gui/TooltipRenderer.class")

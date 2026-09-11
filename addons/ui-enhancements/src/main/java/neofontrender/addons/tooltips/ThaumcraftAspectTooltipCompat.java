@@ -61,9 +61,7 @@ public final class ThaumcraftAspectTooltipCompat {
 
     private static boolean ownsModernTooltip() {
         return ThaumcraftTooltipCompat.isEnabled()
-                && !HeiTooltipCompat.isCustomTooltipActive()
-                && !(TooltipConfig.yieldToLegendaryTooltips
-                && Loader.isModLoaded("legendarytooltips"));
+                && !HeiTooltipCompat.isCustomTooltipActive();
     }
 
     private static boolean aspectDisplayRequested() {

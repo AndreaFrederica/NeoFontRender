@@ -30,6 +30,10 @@ class UiEnhancementsMixinConfigTest {
     void optionalCompatMixinsAreLateAndNonRequired() {
         String hei = config("mixins.neofontrender_ui_enhancements_hei.json");
         String obscure = config("mixins.neofontrender_ui_enhancements_obscure_tooltips.json");
+        String legendary = config("mixins.neofontrender_ui_enhancements_legendary_tooltips.json");
+        assertTrue(legendary.contains("\"required\": false"));
+        assertTrue(legendary.contains("\"compat.MixinLegendaryTooltipEvents\""));
+        assertTrue(legendary.contains("\"compat.MixinLegendaryTooltipDecor\""));
         String salutation = config("mixins.neofontrender_ui_enhancements_salutation.json");
         String quark = config("mixins.neofontrender_ui_enhancements_quark.json");
         String shoulderSurfing = config(
@@ -52,6 +56,9 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(obscure.contains("\"required\": false"));
         assertTrue(obscure.contains("\"compat.MixinObscureHeaderComponent\""));
         assertTrue(obscure.contains("\"compat.MixinObscureTooltipState\""));
+        assertTrue(obscure.contains("\"compat.MixinObscureTextComponent\""));
+        assertTrue(obscure.contains("\"compat.MixinObscureTooltipHelper\""));
+        assertTrue(obscure.contains("\"compat.MixinObscureTooltipEventHandler\""));
         assertTrue(salutation.contains("\"required\": false"));
         assertTrue(salutation.contains("\"compat.MixinSalutationAdvancedTabCompleter\""));
         assertTrue(quark.contains("\"required\": false"));

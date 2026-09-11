@@ -18,9 +18,9 @@ public abstract class MixinObscureTooltipState {
 
     @Inject(method = "renderPanel", at = @At("HEAD"), cancellable = true, require = 0, remap = false)
     private void nfrUi$modernPanel(@Coerce Object graphics, int x, int y, int width, int height, CallbackInfo ci) {
-        if (!ObscureTooltipCompat.shouldReplacePanel()) return;
-        ObscureTooltipCompat.drawPanel(x, y, width, height, stack);
-        ci.cancel();
+        if (!ObscureTooltipCompat.shouldLayout()) return;
+        ObscureTooltipCompat.preparePanel(x, y, width, height, stack);
+        if (ObscureTooltipCompat.shouldReplacePanel()) ci.cancel();
     }
 
     @Inject(method = "renderFrame", at = @At("HEAD"), cancellable = true, require = 0, remap = false)

@@ -170,8 +170,8 @@ final class TooltipConfig {
                         "Use alternate Mica capture and compositing for better legibility in low-brightness scenes.")
                 .define("tooltip.micaSampleUi", false,
                         "Capture already-rendered GUI content behind Mica tooltips; false samples only the world and HUD.")
-                .define("tooltip.yieldToLegendaryTooltips", true, "Yield when LegendaryTooltips is installed.")
-                .define("tooltip.yieldToObscureTooltips", false, "Let Obscure Tooltips draw its own panel and frame instead of combining its effects with NFR's modern panel.")
+                .define("tooltip.yieldToLegendaryTooltips", true, "Prefer LegendaryTooltips panel colors and decorations while keeping NFR text layout. Takes priority over Obscure's panel.")
+                .define("tooltip.yieldToObscureTooltips", false, "Prefer Obscure's panel and frame while keeping NFR text layout, unless LegendaryTooltips has priority.")
                 .define("tooltip.heiCustomTooltips", true, "Apply NFR's panel and frame to HEI tooltips that contain custom-rendered ingredient grids.")
                 .define("tooltip.quarkModernMapTooltip", false, "Replace Quark's parchment map preview with a compact NFR modern panel.")
                 .define("tooltip.modName.enabled", true, "Append the owning mod's display name to item tooltips.")

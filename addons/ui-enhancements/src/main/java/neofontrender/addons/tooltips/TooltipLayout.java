@@ -321,7 +321,7 @@ final class TooltipLayout {
      * Keep inline middleware tokens atomic while deciding tooltip line breaks. Calling the
      * vanilla wrapper here would split a long SVG/LaTeX token before the text pipeline sees it.
      */
-    private static List<String> wrapLine(FontRenderer font, String line, int width) {
+    static List<String> wrapLine(FontRenderer font, String line, int width) {
         if (!hasInlineContent(font, line)) {
             List<String> tiqian = CjkTypographyRenderer.wrap(
                     font, line, width, TooltipConfig.lineHeight);

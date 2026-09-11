@@ -127,9 +127,7 @@ public final class QuarkTooltipVisuals {
 
     private static boolean ownsModernTooltip() {
         return TooltipConfig.enabled && Arc3DRuntimeSupport.isAvailable()
-                && !HeiTooltipCompat.isCustomTooltipActive()
-                && !(TooltipConfig.yieldToLegendaryTooltips
-                && Loader.isModLoaded("legendarytooltips"));
+                && !HeiTooltipCompat.isCustomTooltipActive();
     }
 
     private static Capture capture(ItemStack stack) {

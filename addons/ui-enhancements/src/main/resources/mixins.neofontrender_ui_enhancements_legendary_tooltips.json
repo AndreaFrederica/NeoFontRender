@@ -7,11 +7,5 @@
   "target": "@env(DEFAULT)",
   "mixins": [],
   "server": [],
-  "client": [
-    "compat.MixinObscureTextComponent",
-    "compat.MixinObscureTooltipHelper",
-    "compat.MixinObscureTooltipEventHandler",
-    "compat.MixinObscureHeaderComponent",
-    "compat.MixinObscureTooltipState"
-  ]
+  "client": ["compat.MixinLegendaryTooltipEvents", "compat.MixinLegendaryTooltipDecor"]
 }

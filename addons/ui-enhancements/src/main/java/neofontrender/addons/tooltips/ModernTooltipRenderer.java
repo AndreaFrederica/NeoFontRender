@@ -81,9 +81,19 @@ final class ModernTooltipRenderer {
             border[2] = border[3] = colorEvent.getBorderEnd();
         }
 
-        drawBackground(layout, fill, border, spectrum);
+        int panelLeft = layout.x - TooltipConfig.horizontalPadding;
+        int panelTop = layout.y + layout.visualTop - TooltipConfig.verticalPadding;
+        int panelRight = layout.x + layout.width + TooltipConfig.horizontalPadding;
+        int panelBottom = layout.y + layout.visualBottom + TooltipConfig.verticalPadding;
+        if (LegendaryTooltipCompat.prefersPanel()) {
+            LegendaryTooltipCompat.drawPanel(panelLeft, panelTop, panelRight, panelBottom,
+                    fill[0], border[0], border[2]);
+        } else {
+            drawBackground(layout, fill, border, spectrum);
+        }
         beginTooltipExtensions();
-        try {
+        try (LegendaryTooltipCompat.Scope ignored = LegendaryTooltipCompat.begin(
+                panelLeft, panelTop, panelRight, panelBottom)) {
             MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostBackground(
                     event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
                     layout.width, layout.height));
