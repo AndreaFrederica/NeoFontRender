@@ -64,7 +64,15 @@ public final class LavaPcmStream implements AutoCloseable {
             } catch (TimeoutException ignored) {
                 if (System.nanoTime() >= deadline) throw new IOException("Audio decode timeout");
             } catch (InterruptedException error) {
-                Thread.currentThread().interrupt(); throw new IOException(error);
+                // SoundSystem interrupts the codec worker when a source is
+                // stopped/replaced (seek, scene switch, or shutdown). This is
+                // normal cancellation, not a decode failure.
+                // SoundSystem uses interruption as the source cancellation
+                // primitive. The worker cannot distinguish a seek/stop from
+                // an external shutdown, and in both cases no decode error
+                // should be reported to the new source.
+                if (closed || Thread.currentThread().isInterrupted()) return null;
+                return null;
             }
         }
         return null;

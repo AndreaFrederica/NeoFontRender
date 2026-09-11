@@ -30,6 +30,10 @@ public final class VanillaMusic {
     public boolean ordered() { return ordered; }
     public void ordered(boolean value) { ordered = value; cursors.clear(); }
     public ISound current() { return ticker == null ? null : ticker.uie$current(); }
+    public String state() {
+        if (current() == null) return "STOPPED";
+        return paused || !enabled || !focus.isEmpty() ? "PAUSED" : "PLAYING";
+    }
     /** Concrete file selected by this controller; null for an unmodified vanilla-random choice. */
     public Sound selectedTrack() { return current() == null ? null : selectedTrack; }
     public AutoCloseable focus() {
@@ -63,7 +67,10 @@ public final class VanillaMusic {
         ticker = value;
         if (current() == null) selectedTrack = null;
         boolean blocked = !enabled || paused || !focus.isEmpty();
-        if (current() != null) GameAudioBackend.pause(current(), blocked);
+        if (current() != null) {
+            AudioModule.LOG.debug("Vanilla BGM tick: sound={}, blocked={}, paused={}, enabled={}, focus={}", current().getSoundLocation(), blocked, paused, enabled, focus.size());
+            GameAudioBackend.pause(current(), blocked);
+        }
         return blocked;
     }
     public boolean play(Ticker value, MusicTicker.MusicType scene) {
@@ -99,6 +106,7 @@ public final class VanillaMusic {
             }
         };
         selectedTrack = selected;
+        AudioModule.LOG.info("Vanilla BGM play: scene={}, sound={}, event={}, weight={}", scene, selected.getSoundLocation(), event, selected.getWeight());
         value.uie$current(record); value.uie$delay(Integer.MAX_VALUE);
         Minecraft.getMinecraft().getSoundHandler().playSound(record);
     }

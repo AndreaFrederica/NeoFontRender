@@ -133,7 +133,12 @@ final class AudioSettingsPage implements NfrSettingsPage {
                         if (index >= 0 && index < tracks.size()) { AudioModule.sceneMode = false; AudioModule.play(tracks, index); }
                     }
                 }));
-                grid.add(controls.toggleText(() -> tr("paused"), () -> "", () -> player.state() == MusicPlayer.State.PAUSED, player::pause));
+                // Keep this as a command button: toggle controls do not expose
+                // a clear pause/resume action in the compact audio page.
+                grid.add(controls.action(() -> player.state() == MusicPlayer.State.PAUSED ? tr("resume") : tr("pause"), 260, 24, () -> {
+                    if (player.state() == MusicPlayer.State.PLAYING || player.state() == MusicPlayer.State.LOADING) player.pause(true);
+                    else if (player.state() == MusicPlayer.State.PAUSED) player.pause(false);
+                }));
                 grid.add(controls.action(() -> tr("stop"), 260, 24, () -> { AudioModule.sceneMode = false; player.stop(); }));
                 grid.add(controls.action(() -> tr("previous"), 260, 24, player::previous));
                 grid.add(controls.action(() -> tr("next"), 260, 24, player::next));
@@ -160,8 +165,8 @@ final class AudioSettingsPage implements NfrSettingsPage {
                         v -> { AudioModule.library.scenes.put(scene, v); AudioModule.library.save(); },
                         AudioModule.playlistNames(), AudioModule::playlistDisplay).size(260, 24));
             }
-            grid.add(controls.action(() -> AudioModule.status.isEmpty() ? tr("status") + ": " + UieAudio.independent().state() : AudioModule.status, 260, 24, () -> {}));
-            grid.add(controls.action(() -> UieAudio.independent().error(), 260, 24, () -> {}));
+            grid.add(controls.action(() -> AudioModule.status.isEmpty() ? tr("status") + ": " + (vanilla ? UieAudio.vanillaMusic().state() : UieAudio.independent().state()) : AudioModule.status, 260, 24, () -> {}));
+            grid.add(controls.action(() -> vanilla ? "" : UieAudio.independent().error(), 260, 24, () -> {}));
             return new View(grid);
         }
         private int parseSelected() {

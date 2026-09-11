@@ -18,6 +18,7 @@ public final class LavaStreamingCodec implements ICodec {
         final Path file;
         final long offset;
         volatile boolean opened, eof;
+        volatile boolean cancelled;
         volatile long duration;
         volatile String error = "";
         Request(Path file, long offset) { this.file = file; this.offset = offset; }
@@ -35,7 +36,7 @@ public final class LavaStreamingCodec implements ICodec {
             decoder = new LavaPcmStream(request.file, request.offset);
             request.duration = decoder.durationMillis(); request.opened = true;
             return true;
-        } catch (Exception e) { request.error = e.toString(); ended = true; return false; }
+        } catch (Exception e) { if (!request.cancelled) AudioModule.LOG.error("Codec initialization failed for {}", request.file, e); request.error = e.toString(); ended = true; return false; }
     }
     public boolean initialized() { return decoder != null; }
     public SoundBuffer read() {
@@ -56,7 +57,17 @@ public final class LavaStreamingCodec implements ICodec {
                 byte b = pcm[i]; pcm[i] = pcm[i + 1]; pcm[i + 1] = b;
             }
             return new SoundBuffer(pcm, getAudioFormat());
-        } catch (Exception error) { request.error = error.toString(); ended = true; return null; }
+        } catch (Exception error) {
+            // Replacing/seeking a track intentionally interrupts the decoder.
+            // Do not surface that shutdown interruption as a playback failure.
+            if (!request.cancelled && !interrupted(error)) { AudioModule.LOG.error("Codec read failed for {}", request.file, error); request.error = error.toString(); }
+            ended = true; return null;
+        }
+    }
+    private static boolean interrupted(Throwable error) {
+        for (Throwable current = error; current != null; current = current.getCause())
+            if (current instanceof InterruptedException) return true;
+        return false;
     }
     public SoundBuffer readAll() { throw new UnsupportedOperationException("Music requires streaming"); }
     public boolean endOfStream() { return ended; }
