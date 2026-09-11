@@ -55,6 +55,8 @@ unimined.minecraft {
 }
 
 dependencies {
+    implementation project(':engine:audio')
+    contain(project(path: ':engine:audio', configuration: 'shadow')) { transitive = false }
     compileOnly project(':')
     implementation uiTextProject
     uiTextEmbed uiTextProject

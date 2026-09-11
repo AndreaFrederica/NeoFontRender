@@ -1,0 +1,23 @@
+plugins { id 'java-library'; id 'com.gradleup.shadow' }
+
+repositories { mavenCentral() }
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+tasks.withType(JavaCompile).configureEach { options.release = 11 }
+tasks.named('compileTestJava') { options.release = 25 }
+dependencies {
+    implementation 'dev.arbjerg:lavaplayer:2.2.7'
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:6.0.3'
+}
+test { useJUnitPlatform() }
+
+shadowJar {
+    archiveClassifier = 'bundled'
+    mergeServiceFiles()
+    // JNI entry-point packages and native resource paths must remain unchanged.
+    ['org.apache.http', 'org.apache.commons', 'com.fasterxml.jackson', 'org.slf4j',
+     'org.mozilla', 'org.jsoup', 'org.json', 'net.iharder'].each {
+        relocate it, 'neofontrender.audio.internal.' + it
+    }
+    exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class'
+}

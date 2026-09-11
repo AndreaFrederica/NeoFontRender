@@ -58,6 +58,7 @@ public final class NfrUiEnhancements {
 
     private static final List<UiEnhancementModule> MODULES = Arrays.asList(
             new UiNavigationModule(),
+            new neofontrender.addons.audio.AudioModule(),
             new SmoothScrollingModule(),
             new CjkTypographyModule(),
             new TextInputModule(),

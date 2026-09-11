@@ -16,6 +16,8 @@
   ],
   "server": [],
   "client": [
+    "MixinMusicTickerControl",
+    "AccessorAudioChannels",
     "AccessorShaderGroup",
     "AccessorEntityRendererCameraDistance",
     "AccessorGuiChatFeatures",
