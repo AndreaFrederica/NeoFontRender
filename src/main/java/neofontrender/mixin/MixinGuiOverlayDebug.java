@@ -62,12 +62,23 @@ public class MixinGuiOverlayDebug {
                 lines.add("NFR Cosmic: renderer unavailable");
             } else {
                 CosmicTextRenderer.DebugState state = renderer.debugState();
+                java.util.Collections.addAll(lines, renderer.asyncDebugLines());
                 lines.add("NFR Cosmic tex: " + state.renderCacheSize + "/" + state.renderCacheMax
                         + " h/m/e=" + state.renderHits + "/" + state.renderMisses + "/" + state.renderEvictions
                         + " native=" + state.nativeRasterCount);
                 lines.add("NFR Cosmic measure: " + state.measureCacheSize + "/" + state.measureCacheMax
                         + " h/m/e=" + state.measureHits + "/" + state.measureMisses + "/" + state.measureEvictions
                         + " font=" + state.primaryFamily);
+                lines.add("NFR char cache: " + (state.characterCacheEnabled ? "on" : "off")
+                        + " tex=" + state.characterTextures + "/" + state.characterMax
+                        + " measure=" + state.characterMeasurements + "/" + state.characterMax);
+                lines.add("NFR char tex h/m/e: " + state.characterHits + "/"
+                        + state.characterMisses + "/" + state.characterEvictions);
+                lines.add(String.format(Locale.ROOT,
+                        "NFR char probe%s: %.0f/s %.2fms/s defer=%.0f/s merged=%.0f/s",
+                        NeofontrenderConfig.asyncFontRendering() ? " enqueue" : "",
+                        state.characterProbeRate, state.characterProbeMillis,
+                        state.characterDeferredRate, state.characterMergedRate));
                 if (BuildFeatures.RENDER_STATS && NeofontrenderConfig.debugRenderStats()) {
                     BackendTextSegmenter.DebugState segments = BackendTextSegmenter.debugState();
                     lines.add("NFR seg: " + (segments.enabled() ? "on" : "off")

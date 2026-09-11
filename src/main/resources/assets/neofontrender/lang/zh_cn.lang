@@ -260,3 +260,10 @@ neofontrender.gui.about.license=项目许可证
 neofontrender.gui.about.contributors=贡献者
 neofontrender.gui.licenses.title=使用的主要开源项目
 neofontrender.gui.licenses.notice=完整许可证文本随对应依赖和字体资源分发。
+
+neofontrender.gui.cache.monospace_characters=等宽字符单字缓存
+neofontrender.tooltip.monospace_characters=复用等宽 ASCII、CJK 字符和等宽数字的单字纹理，减少动态数字的纹理重建。自动检查连字与字距，不安全时保留整词。
+neofontrender.gui.cache.character_max=单字缓存最大数量（每类）
+
+neofontrender.gui.cache.async_font=异步字体渲染（实验性）
+neofontrender.tooltip.async_font=后台排版、光栅化、阴影/SDF 和连字探测，减轻冷缓存卡顿。等待时临时显示原版字体，保持准确宽度；独立字体引擎会增加内存使用。默认关闭，仅 Cosmic 生效。

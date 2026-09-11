@@ -6,9 +6,60 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.ToDoubleFunction;
 
-/** Splits oversized shaped-text runs without cutting Java/Unicode character boundaries. */
+/** Reusable word composition and oversized-raster splitting at Unicode boundaries. */
 final class CosmicTextSegmenter {
     private CosmicTextSegmenter() {
+    }
+
+    /**
+     * Split plain style-resolved text at reusable word boundaries, independently of UI,
+     * numeric content or structured syntax. Keep spaces with the preceding word and
+     * punctuation inside Western tokens to preserve kerning/ligatures within a token.
+     * Bidi paragraphs and control characters require whole-run layout.
+     */
+    static List<String> splitReusableWords(String text) {
+        if (text == null || text.isEmpty()) return List.of();
+        boolean ascii = true;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isISOControl(c) || c == '\u2028' || c == '\u2029') return List.of(text);
+            ascii &= c <= '~';
+        }
+        List<String> result = new ArrayList<>();
+        int start = 0;
+        if (ascii) {
+            // The common HUD/chat path needs no Unicode iterators or char[] allocation.
+            for (int i = 1; i < text.length(); i++) {
+                if (text.charAt(i - 1) == ' ' && text.charAt(i) != ' ') {
+                    result.add(text.substring(start, i));
+                    start = i;
+                }
+            }
+        } else {
+            char[] chars = text.toCharArray();
+            if (java.text.Bidi.requiresBidi(chars, 0, chars.length)) return List.of(text);
+            BreakIterator words = BreakIterator.getWordInstance(Locale.ROOT);
+            BreakIterator characters = BreakIterator.getCharacterInstance(Locale.ROOT);
+            words.setText(text);
+            characters.setText(text);
+            for (int end = words.first(); end != BreakIterator.DONE; end = words.next()) {
+                if (end <= start || end == text.length() || !characters.isBoundary(end)) continue;
+                int before = text.codePointBefore(end);
+                int after = text.codePointAt(end);
+                boolean spaceBoundary = Character.isWhitespace(before)
+                        && !Character.isWhitespace(after);
+                boolean ideographicBoundary = !Character.isWhitespace(before)
+                        && !Character.isWhitespace(after)
+                        && (Character.isIdeographic(before) || Character.isIdeographic(after));
+                if (spaceBoundary || ideographicBoundary) {
+                    result.add(text.substring(start, end));
+                    start = end;
+                }
+            }
+        }
+        if (start == 0) return List.of(text);
+        result.add(text.substring(start));
+        return List.copyOf(result);
     }
 
     static List<String> split(String text, double maxWidth, ToDoubleFunction<String> measure) {

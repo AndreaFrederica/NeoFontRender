@@ -13,7 +13,9 @@ use std::ptr;
 use std::sync::Mutex;
 use unicode_script::Script;
 
-const ABI_VERSION: jint = 12;
+mod composition;
+
+const ABI_VERSION: jint = 13;
 const STYLE_BOLD: jint = 1;
 const STYLE_ITALIC: jint = 2;
 const STYLE_UNDERLINE: jint = 4;
@@ -39,6 +41,7 @@ struct Engine {
     faces: [ResolvedFace; 4],
     resolution_warnings: String,
     font_size: f32,
+    composition_profiles: Mutex<composition::ProfileCache<std::sync::Arc<composition::CharacterProfile>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -386,6 +389,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
             let engine = Box::new(Engine {
                 font_system: Mutex::new(font_system),
                 swash_cache: Mutex::new(SwashCache::new()),
+                composition_profiles: Mutex::new(composition::ProfileCache::new(128)),
                 primary_family,
                 faces,
                 resolution_warnings: warnings.join("\n"),
@@ -1168,6 +1172,55 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_clusterR
             throw(&mut env, &message);
             ptr::null_mut()
         }
+    }
+}
+
+/// Safe fixed-width character split endpoints; empty means preserve the original run. Both logical and
+/// raster sizes are checked because shaping can depend on size (e.g. optical-size fonts).
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_monospaceSplitPointsSized(
+    mut env: JNIEnv, _class: JClass, handle: jlong, text: JString,
+    style_flags: jint, font_size: jfloat, raster_scale: jfloat,
+) -> jintArray {
+    let result = with_text(&mut env, handle, text, style_flags, font_size.max(1.0), 1.0,
+        |buffer, engine, _, value| {
+            let Some(full) = composition::snapshot(buffer) else { return Ok(vec![]); };
+            let mut fonts = engine.font_system.lock().map_err(|_| "font system lock poisoned")?;
+            let mut profiles = engine.composition_profiles.lock().map_err(|_| "composition lock poisoned")?;
+            let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
+            let attrs = attrs_for_style(face, style_flags);
+            let size = font_size.max(1.0);
+            // Profiles belong to this engine/face selection and are bounded across sizes/styles.
+            let profile = profiles.get_or_insert_with((style_flags, size.to_bits()), ||
+                std::sync::Arc::new(composition::CharacterProfile::new(&mut fonts, &attrs, size)));
+            let points = profile.boundaries(&mut fonts, &attrs, size, value);
+            if points.is_empty() { return Ok(vec![]); }
+            let mut points = composition::refine(&mut fonts, &attrs, size, value, &full, &profile, points);
+            if points.is_empty() { return Ok(vec![]); }
+            let scaled_size = size * raster_scale.max(1.0);
+            if scaled_size != size {
+                let scaled = profiles.get_or_insert_with((style_flags, scaled_size.to_bits()), ||
+                    std::sync::Arc::new(composition::CharacterProfile::new(&mut fonts, &attrs, scaled_size)));
+                let allowed = scaled.boundaries(&mut fonts, &attrs, scaled_size, value);
+                if !points.iter().all(|p| allowed.contains(p)) { return Ok(vec![]); }
+                points = composition::refine_scaled(&mut fonts, &attrs, scaled_size, value, &scaled, points);
+                if points.is_empty() || !composition::matches(&mut fonts, &attrs, size, value,
+                        &full, &profile, &points) { return Ok(vec![]); }
+            }
+            // Java substring offsets use UTF-16, including supplementary-plane Han characters.
+            Ok(points.into_iter().skip(1).map(|p| utf16_offset(value, p)).collect::<Vec<_>>())
+        });
+    match result {
+        Ok(values) => match env.new_int_array(values.len() as i32) {
+            Ok(array) => {
+                if let Err(error) = env.set_int_array_region(&array, 0, &values) {
+                    throw(&mut env, &error.to_string());
+                    ptr::null_mut()
+                } else { array.into_raw() }
+            }
+            Err(error) => { throw(&mut env, &error.to_string()); ptr::null_mut() }
+        },
+        Err(message) => { throw(&mut env, &message); ptr::null_mut() }
     }
 }
 

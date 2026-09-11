@@ -108,6 +108,9 @@ public final class NfrSettingsDraft {
     public final String originalTextCacheMin = Integer.toString(NeofontrenderConfig.textCacheMinEntries());
     public final String originalTextCacheMax = Integer.toString(NeofontrenderConfig.textCacheMaxEntries());
     public final String originalTextCacheTtl = Float.toString(NeofontrenderConfig.textCacheTtlSeconds());
+    public final String originalMonospaceCharacterCacheMax = Integer.toString(NeofontrenderConfig.monospaceCharacterCacheMaxEntries());
+    public final boolean originalAsyncFontRendering = NeofontrenderConfig.asyncFontRendering();
+    public final boolean originalMonospaceCharacterCache = NeofontrenderConfig.monospaceCharacterCache();
     public final String originalMeasureCacheMax = Integer.toString(NeofontrenderConfig.measureCacheMaxEntries());
 
     public boolean enabled = originalEnabled;
@@ -193,6 +196,9 @@ public final class NfrSettingsDraft {
     public String textCacheMin = originalTextCacheMin;
     public String textCacheMax = originalTextCacheMax;
     public String textCacheTtl = originalTextCacheTtl;
+    public String monospaceCharacterCacheMax = originalMonospaceCharacterCacheMax;
+    public boolean asyncFontRendering = originalAsyncFontRendering;
+    public boolean monospaceCharacterCache = originalMonospaceCharacterCache;
     public String measureCacheMax = originalMeasureCacheMax;
 
     public String selectedFont() {
@@ -367,6 +373,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setTextCacheMinEntries(parseInt(textCacheMin, 256, 0, 65536));
         NeofontrenderConfig.setTextCacheMaxEntries(parseInt(textCacheMax, 2048, 1, 131072));
         NeofontrenderConfig.setTextCacheTtlSeconds(parseFloat(textCacheTtl, 300.0F, 0.0F, 86400.0F));
+        NeofontrenderConfig.setMonospaceCharacterCacheMaxEntries(parseInt(monospaceCharacterCacheMax, 16384, 1, 262144));
+        NeofontrenderConfig.setAsyncFontRendering(asyncFontRendering);
+        NeofontrenderConfig.setMonospaceCharacterCache(monospaceCharacterCache);
         NeofontrenderConfig.setMeasureCacheMaxEntries(parseInt(measureCacheMax, 4096, 1, 262144));
         if (save) {
             NeofontrenderConfig.save();
@@ -456,6 +465,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setTextCacheMinEntries(parseInt(originalTextCacheMin, 256, 0, 65536));
         NeofontrenderConfig.setTextCacheMaxEntries(parseInt(originalTextCacheMax, 2048, 1, 131072));
         NeofontrenderConfig.setTextCacheTtlSeconds(parseFloat(originalTextCacheTtl, 300.0F, 0.0F, 86400.0F));
+        NeofontrenderConfig.setMonospaceCharacterCacheMaxEntries(parseInt(originalMonospaceCharacterCacheMax, 16384, 1, 262144));
+        NeofontrenderConfig.setAsyncFontRendering(originalAsyncFontRendering);
+        NeofontrenderConfig.setMonospaceCharacterCache(originalMonospaceCharacterCache);
         NeofontrenderConfig.setMeasureCacheMaxEntries(parseInt(originalMeasureCacheMax, 4096, 1, 262144));
     }
 

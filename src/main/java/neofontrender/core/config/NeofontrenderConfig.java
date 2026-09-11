@@ -494,6 +494,18 @@ public final class NeofontrenderConfig {
         return cached.textCacheTtlSeconds;
     }
 
+    public static int monospaceCharacterCacheMaxEntries() {
+        return cached.monospaceCharacterCacheMaxEntries;
+    }
+
+    public static boolean asyncFontRendering() {
+        return cached.asyncFontRendering;
+    }
+
+    public static boolean monospaceCharacterCache() {
+        return cached.monospaceCharacterCache;
+    }
+
     public static int measureCacheMaxEntries() {
         return cached.measureCacheMaxEntries;
     }
@@ -1025,6 +1037,18 @@ public final class NeofontrenderConfig {
         setValue("performance.textCacheTtlSeconds", value);
     }
 
+    public static void setMonospaceCharacterCacheMaxEntries(int value) {
+        setValue("performance.monospaceCharacterCacheMaxEntries", Math.max(1, Math.min(262144, value)));
+    }
+
+    public static void setAsyncFontRendering(boolean value) {
+        setValue("performance.asyncFontRendering", value);
+    }
+
+    public static void setMonospaceCharacterCache(boolean value) {
+        setValue("performance.monospaceCharacterCache", value);
+    }
+
     public static void setMeasureCacheMaxEntries(int value) {
         setValue("performance.measureCacheMaxEntries", value);
     }
@@ -1263,6 +1287,9 @@ public final class NeofontrenderConfig {
             w.write("textCacheMinEntries = 256\n");
             w.write("textCacheMaxEntries = 2048\n");
             w.write("textCacheTtlSeconds = 300.0\n");
+            w.write("asyncFontRendering = false\n");
+            w.write("monospaceCharacterCache = false\n");
+            w.write("monospaceCharacterCacheMaxEntries = 16384\n");
             w.write("measureCacheMaxEntries = 4096\n");
             w.write("\n");
             w.write("[input]\n");
@@ -1417,6 +1444,9 @@ public final class NeofontrenderConfig {
         config.setComment("performance.textCacheMinEntries", "Minimum number of rendered Cosmic text textures kept when TTL cleanup runs.");
         config.setComment("performance.textCacheMaxEntries", "Maximum number of rendered Cosmic text textures kept in the LRU cache.");
         config.setComment("performance.textCacheTtlSeconds", "Seconds before an unused Cosmic text texture can be evicted. 0 disables TTL cleanup.");
+        config.setComment("performance.monospaceCharacterCacheMaxEntries", "Separate LRU limit for character textures and character measurements (each). Allocated on demand; font/style/color/size variants count separately. Larger limits can use substantial GPU memory at high oversampling.");
+        config.setComment("performance.asyncFontRendering", "Opt-in Cosmic background shaping, rasterization, shadows/SDF and character probes. Exact width measurement and GL uploads remain on the render thread. Pending text uses the vanilla font; a separate native engine uses extra memory. Queue: 128 jobs, ready data: 32 MiB.");
+        config.setComment("performance.monospaceCharacterCache", "Opt-in Cosmic character caching for fixed-width ASCII, CJK or tabular digits. Validates actual shaping to preserve ligatures and kerning; other text keeps word caching.");
         config.setComment("performance.measureCacheMaxEntries", "Maximum number of Cosmic text measurements kept in memory.");
         config.setComment("input", "Input behavior tweaks.");
         config.setComment("input.allowSignPaste", "Allow Ctrl+V paste in the vanilla sign editor. This is intentionally config-file only.");
@@ -1551,6 +1581,9 @@ public final class NeofontrenderConfig {
         private final int textCacheMinEntries;
         private final int textCacheMaxEntries;
         private final float textCacheTtlSeconds;
+        private final int monospaceCharacterCacheMaxEntries;
+        private final boolean asyncFontRendering;
+        private final boolean monospaceCharacterCache;
         private final int measureCacheMaxEntries;
 
         private Snapshot() {
@@ -1649,6 +1682,9 @@ public final class NeofontrenderConfig {
             textCacheMinEntries = 256;
             textCacheMaxEntries = 2048;
             textCacheTtlSeconds = 300.0F;
+            monospaceCharacterCacheMaxEntries = 16384;
+            asyncFontRendering = false;
+            monospaceCharacterCache = false;
             measureCacheMaxEntries = 4096;
         }
 
@@ -1758,6 +1794,9 @@ public final class NeofontrenderConfig {
             textCacheMinEntries = Math.max(0, getInt(config, "performance.textCacheMinEntries", 256));
             textCacheMaxEntries = Math.max(1, getInt(config, "performance.textCacheMaxEntries", 2048));
             textCacheTtlSeconds = Math.max(0.0F, getFloat(config, "performance.textCacheTtlSeconds", 300.0F));
+            monospaceCharacterCacheMaxEntries = Math.max(1, Math.min(262144, getInt(config, "performance.monospaceCharacterCacheMaxEntries", 16384)));
+            asyncFontRendering = config.getOrElse("performance.asyncFontRendering", false);
+            monospaceCharacterCache = config.getOrElse("performance.monospaceCharacterCache", false);
             measureCacheMaxEntries = Math.max(1, getInt(config, "performance.measureCacheMaxEntries", 4096));
         }
 

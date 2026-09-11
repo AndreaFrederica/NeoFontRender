@@ -2,7 +2,7 @@ package neofontrender.core.font.cosmic;
 
 /** JNI ABI shared with NeoFontRender's production Cosmic backend. */
 public final class CosmicNative {
-    public static final int ABI_VERSION = 12;
+    public static final int ABI_VERSION = 13;
 
     private CosmicNative() {}
 

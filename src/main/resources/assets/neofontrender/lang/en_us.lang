@@ -260,3 +260,10 @@ neofontrender.gui.about.license=License
 neofontrender.gui.about.contributors=Contributors
 neofontrender.gui.licenses.title=Primary open source projects
 neofontrender.gui.licenses.notice=Full license texts are distributed with their dependencies and font resources.
+
+neofontrender.gui.cache.monospace_characters=Monospaced character cache
+neofontrender.tooltip.monospace_characters=Reuse character textures for monospaced ASCII, CJK and tabular digits. Checks ligatures and positioning; unsafe text keeps word caching.
+neofontrender.gui.cache.character_max=Character cache maximum (per cache)
+
+neofontrender.gui.cache.async_font=Async font rendering (experimental)
+neofontrender.tooltip.async_font=Background shaping, rasterization, shadows/SDF and ligature probes. Pending text uses vanilla glyphs with exact Cosmic advance. Extra font-engine memory; off by default, Cosmic only.
