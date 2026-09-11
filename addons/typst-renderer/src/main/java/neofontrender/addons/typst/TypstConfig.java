@@ -19,7 +19,7 @@ final class TypstConfig {
     static synchronized void load() {
         if (file == null) {
             file = NfrConfigApi.builder(TypstRendererMod.MOD_ID)
-                    .storage(neofontrender.api.config.NfrConfigStorage.INDEPENDENT)
+                    .storage(neofontrender.api.config.NfrConfigStorage.LAYERED)
                     .fileName("neofontrender-typst-renderer.toml").open();
         }
         file.define("enabled", false, "Recognize <typst:...> inline documents.")

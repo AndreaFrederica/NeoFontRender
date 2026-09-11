@@ -24,7 +24,7 @@ import java.util.List;
 
 /** Client diagnostics and font-management command. */
 public final class NeofontrenderCommand extends CommandBase {
-    private static final List<String> SUBCOMMANDS = Arrays.asList("fonts", "info", "reload", "test", "gui");
+    private static final List<String> SUBCOMMANDS = Arrays.asList("fonts", "info", "reload", "test", "gui", "config");
 
     @Override
     public String getName() { return "neofontrender"; }
@@ -47,8 +47,19 @@ public final class NeofontrenderCommand extends CommandBase {
             case "reload": reload(sender); break;
             case "test": test(sender); break;
             case "gui": gui(sender); break;
+            case "config": config(sender, args); break;
             default: message(sender, TextFormatting.RED, "Unknown subcommand: " + args[0]);
         }
+    }
+    private static void config(ICommandSender sender, String[] args) {
+        if (args.length < 2 || !"promote".equalsIgnoreCase(args[1])) {
+            message(sender, TextFormatting.YELLOW, "/neofontrender config promote"); return;
+        }
+        try {
+            Class<?> c = Class.forName("neofontrender.addons.ui.UiEnhancementsConfig");
+            c.getMethod("promoteUserToPack").invoke(null);
+            message(sender, TextFormatting.GREEN, "User settings copied to the integration-pack configuration layer.");
+        } catch (Exception e) { message(sender, TextFormatting.RED, "Cannot promote config: " + e.getCause()); }
     }
 
     private static void fonts(ICommandSender sender) {

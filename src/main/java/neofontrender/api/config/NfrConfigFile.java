@@ -20,11 +20,12 @@ public final class NfrConfigFile implements AutoCloseable {
     private final Path path;
     private final String prefix;
     private CommentedFileConfig independent;
+    private CommentedFileConfig packaged;
 
     NfrConfigFile(String ownerId, NfrConfigStorage storage, String fileName) {
         this.ownerId = ownerId;
         this.storage = storage;
-        if (storage == NfrConfigStorage.INDEPENDENT) {
+        if (storage == NfrConfigStorage.INDEPENDENT || storage == NfrConfigStorage.LAYERED) {
             this.path = Loader.instance().getConfigDir().toPath().resolve(validateFileName(fileName));
             this.prefix = "";
             try {
@@ -36,6 +37,11 @@ public final class NfrConfigFile implements AutoCloseable {
             this.independent = CommentedFileConfig.builder(path, TomlFormat.instance())
                     .preserveInsertionOrder().build();
             this.independent.load();
+            if (storage == NfrConfigStorage.LAYERED) {
+                Path pack = path.getParent().resolve("pack-" + ownerId + ".toml");
+                packaged = CommentedFileConfig.builder(pack, TomlFormat.instance()).preserveInsertionOrder().build();
+                if (Files.exists(pack)) packaged.load();
+            }
         } else {
             this.path = Loader.instance().getConfigDir().toPath().resolve("neofontrender.toml");
             this.prefix = "extensions." + ownerId + ".";
@@ -80,7 +86,7 @@ public final class NfrConfigFile implements AutoCloseable {
     public synchronized Object remove(String key) {
         checkKey(key);
         String fullKey = fullKey(key);
-        if (storage == NfrConfigStorage.INDEPENDENT) return independent.remove(fullKey);
+        if (storage == NfrConfigStorage.INDEPENDENT || storage == NfrConfigStorage.LAYERED) return independent.remove(fullKey);
         return NeofontrenderConfig.removeExtensionValue(fullKey);
     }
 
@@ -110,8 +116,16 @@ public final class NfrConfigFile implements AutoCloseable {
     }
 
     public synchronized void save() {
-        if (storage == NfrConfigStorage.INDEPENDENT) independent.save();
+        if (storage == NfrConfigStorage.INDEPENDENT || storage == NfrConfigStorage.LAYERED) independent.save();
         else NeofontrenderConfig.saveExtensionValues();
+    }
+
+    /** Copies the current user layer to the integration-pack layer. Intended for pack authors. */
+    public synchronized void promoteUserToPack() {
+        if (storage != NfrConfigStorage.LAYERED || packaged == null)
+            throw new IllegalStateException("Configuration is not layered");
+        for (String key : independent.entrySet()) packaged.set(key, independent.get(key));
+        packaged.save();
     }
 
     @Override public synchronized void close() {
@@ -119,17 +133,22 @@ public final class NfrConfigFile implements AutoCloseable {
             independent.close();
             independent = null;
         }
+        if (packaged != null) { packaged.close(); packaged = null; }
     }
 
     private Object get(String key, Object defaultValue) {
         checkKey(key);
         String fullKey = fullKey(key);
-        if (storage == NfrConfigStorage.INDEPENDENT) return independent.getOrElse(fullKey, defaultValue);
+        if (storage == NfrConfigStorage.INDEPENDENT || storage == NfrConfigStorage.LAYERED) {
+            if (independent.contains(fullKey)) return independent.get(fullKey);
+            return packaged == null ? defaultValue : packaged.getOrElse(fullKey, defaultValue);
+        }
         return NeofontrenderConfig.getExtensionValue(fullKey, defaultValue);
     }
 
     private boolean containsFullKey(String fullKey) {
-        if (storage == NfrConfigStorage.INDEPENDENT) return independent.contains(fullKey);
+        if (storage == NfrConfigStorage.INDEPENDENT || storage == NfrConfigStorage.LAYERED)
+            return independent.contains(fullKey) || (packaged != null && packaged.contains(fullKey));
         return NeofontrenderConfig.hasExtensionValue(fullKey);
     }
 
