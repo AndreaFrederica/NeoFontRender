@@ -1,6 +1,8 @@
 package neofontrender.addons.camera;
 
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.client.event.MouseEvent;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.network.FMLNetworkEvent;
@@ -64,6 +66,14 @@ public final class CameraModule implements UiEnhancementModule {
         MinecraftForge.EVENT_BUS.register(PlayerMovementInputBridge.INSTANCE);
         MinecraftForge.EVENT_BUS.register(CameraRenderBridge.INSTANCE);
         MinecraftForge.EVENT_BUS.register(this);
+    }
+
+    /** Avoid owning Minecraft's hotbar redirect so inventory mods can compose with this gate. */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void blockDroneHotbarScroll(MouseEvent event) {
+        if (event.getDwheel() != 0 && InputApi.isBlocked(InputAction.PLAYER_HOTBAR)) {
+            event.setCanceled(true);
+        }
     }
 
     @SubscribeEvent
