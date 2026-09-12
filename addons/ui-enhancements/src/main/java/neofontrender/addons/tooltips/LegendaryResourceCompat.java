@@ -22,11 +22,13 @@ public final class LegendaryResourceCompat implements IResourceManagerReloadList
     private static final ResourceLocation FLIPBOOKS = new ResourceLocation("minecraft", "textures/flipbook_textures.json");
     private volatile List<Frame> frames = Collections.emptyList();
     private volatile List<Flipbook> flipbooks = Collections.emptyList();
+    private volatile List<Animation> animations = Collections.emptyList();
 
     private LegendaryResourceCompat() { }
 
     public List<Frame> frames() { return frames; }
     public List<Flipbook> flipbooks() { return flipbooks; }
+    public List<Animation> animations() { return animations; }
 
     @Override public synchronized void onResourceManagerReload(IResourceManager manager) {
         List<Frame> nextFrames = new ArrayList<>();
@@ -49,6 +51,33 @@ public final class LegendaryResourceCompat implements IResourceManagerReloadList
         } catch (Exception ignored) { }
         frames = Collections.unmodifiableList(nextFrames);
         flipbooks = Collections.unmodifiableList(readFlipbooks(manager));
+        animations = Collections.unmodifiableList(readAnimations(manager));
+    }
+
+    private static List<Animation> readAnimations(IResourceManager manager) {
+        List<Animation> result = new ArrayList<>();
+        for (Flipbook flipbook : INSTANCE.flipbooks) {
+            ResourceLocation id = new ResourceLocation(flipbook.texture());
+            String[] parts = id.toString().split(":", 2);
+            ResourceLocation meta = new ResourceLocation(parts[0], parts[1] + ".png.mcmeta");
+            try {
+                IResource resource = manager.getResource(meta);
+                try (InputStreamReader reader = new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8)) {
+                    JsonElement root = new JsonParser().parse(reader);
+                    JsonObject animation = root.isJsonObject() && root.getAsJsonObject().has("animation")
+                            ? root.getAsJsonObject().getAsJsonObject("animation") : null;
+                    if (animation != null) result.add(animation(id, animation));
+                }
+            } catch (Exception ignored) { }
+        }
+        return result;
+    }
+
+    private static Animation animation(ResourceLocation id, JsonObject o) {
+        List<Integer> frames = integers(o.get("frames"));
+        int time = integer(o, "frametime", 1);
+        boolean interpolate = o.has("interpolate") && o.get("interpolate").getAsBoolean();
+        return new Animation(id, time, frames, interpolate);
     }
 
     private static List<Flipbook> readFlipbooks(IResourceManager manager) {
@@ -79,4 +108,5 @@ public final class LegendaryResourceCompat implements IResourceManagerReloadList
 
     public record Frame(ResourceLocation image, int index, int priority, List<String> selectors) { }
     public record Flipbook(String texture, int ticksPerFrame, List<Integer> frames, boolean blendFrames) { }
+    public record Animation(ResourceLocation texture, int frameTime, List<Integer> frames, boolean interpolate) { }
 }
