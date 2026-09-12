@@ -81,6 +81,10 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             value -> TooltipConfig.micaSampleUi = value))
                     .add(c.toggleText(() -> tr("gui.legendary"), () -> tr("tooltip.legendary"),
                             () -> TooltipConfig.yieldToLegendaryTooltips, value -> TooltipConfig.yieldToLegendaryTooltips = value))
+                    .add(c.dropdownText("tooltip_legendary_ownership", () -> tr("gui.legendary_ownership"),
+                            () -> TooltipConfig.legendaryOwnership,
+                            value -> TooltipConfig.legendaryOwnership = TooltipConfig.normalizeOwnership(value),
+                            Arrays.asList("auto", "uie", "legendary", "resource-pack"), value -> value).size(260, 24))
                     .add(c.toggleText(() -> tr("gui.obscure_yield"), () -> tr("tooltip.obscure_yield"),
                             () -> TooltipConfig.yieldToObscureTooltips,
                             value -> TooltipConfig.yieldToObscureTooltips = value,
