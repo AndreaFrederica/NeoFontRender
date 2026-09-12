@@ -19,6 +19,7 @@ final class TooltipConfig {
     static boolean lowBrightnessMicaEnhancement = false;
     static boolean micaSampleUi = false;
     static boolean yieldToLegendaryTooltips = true;
+    static String legendaryOwnership = "auto";
     static boolean yieldToObscureTooltips = false;
     static boolean heiCustomTooltips = true;
     static boolean quarkModernMapTooltip = false;
@@ -82,6 +83,7 @@ final class TooltipConfig {
                 "tooltip.lowBrightnessMicaEnhancement", false);
         micaSampleUi = config.getBoolean("tooltip.micaSampleUi", false);
         yieldToLegendaryTooltips = config.getBoolean("tooltip.yieldToLegendaryTooltips", true);
+        legendaryOwnership = normalizeOwnership(config.getString("tooltip.legendaryOwnership", "auto"));
         yieldToObscureTooltips = config.getBoolean("tooltip.yieldToObscureTooltips", false);
         heiCustomTooltips = config.getBoolean("tooltip.heiCustomTooltips", true);
         quarkModernMapTooltip = config.getBoolean("tooltip.quarkModernMapTooltip", false);
@@ -145,6 +147,7 @@ final class TooltipConfig {
                 .set("tooltip.lowBrightnessMicaEnhancement", lowBrightnessMicaEnhancement)
                 .set("tooltip.micaSampleUi", micaSampleUi)
                 .set("tooltip.yieldToLegendaryTooltips", yieldToLegendaryTooltips)
+                .set("tooltip.legendaryOwnership", legendaryOwnership)
                 .set("tooltip.yieldToObscureTooltips", yieldToObscureTooltips)
                 .set("tooltip.heiCustomTooltips", heiCustomTooltips)
                 .set("tooltip.quarkModernMapTooltip", quarkModernMapTooltip)
@@ -210,6 +213,7 @@ final class TooltipConfig {
                 .define("tooltip.micaSampleUi", false,
                         "Capture already-rendered GUI content behind Mica tooltips; false samples only the world and HUD.")
                 .define("tooltip.yieldToLegendaryTooltips", true, "Prefer LegendaryTooltips panel colors and decorations while keeping NFR text layout. Takes priority over Obscure's panel.")
+                .define("tooltip.legendaryOwnership", "auto", "Legendary resource ownership: auto, uie, legendary, or resource-pack.")
                 .define("tooltip.yieldToObscureTooltips", false, "Prefer Obscure's panel and frame while keeping NFR text layout, unless LegendaryTooltips has priority.")
                 .define("tooltip.heiCustomTooltips", true, "Apply NFR's panel and frame to HEI tooltips that contain custom-rendered ingredient grids.")
                 .define("tooltip.quarkModernMapTooltip", false, "Replace Quark's parchment map preview with a compact NFR modern panel.")
@@ -432,5 +436,10 @@ final class TooltipConfig {
             for (String id : PROFILE_IDS) copy.put(id, profile(id).copy());
             return copy;
         }
+    }
+
+    static String normalizeOwnership(String value) {
+        String normalized = value == null ? "auto" : value.trim().toLowerCase(Locale.ROOT);
+        return Arrays.asList("auto", "uie", "legendary", "resource-pack").contains(normalized) ? normalized : "auto";
     }
 }
