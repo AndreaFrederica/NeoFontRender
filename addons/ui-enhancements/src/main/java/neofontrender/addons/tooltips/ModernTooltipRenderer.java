@@ -90,7 +90,7 @@ final class ModernTooltipRenderer {
         int panelTop = layout.y + layout.visualTop - TooltipConfig.verticalPadding;
         int panelRight = layout.x + layout.width + TooltipConfig.horizontalPadding;
         int panelBottom = layout.y + layout.visualBottom + TooltipConfig.verticalPadding;
-        if (LegendaryTooltipCompat.prefersPanel()) {
+        if (LegendaryTooltipCompat.prefersPanel(event.getStack())) {
             LegendaryTooltipCompat.drawPanel(panelLeft, panelTop, panelRight, panelBottom,
                     fill[0], border[0], border[2]);
         } else {

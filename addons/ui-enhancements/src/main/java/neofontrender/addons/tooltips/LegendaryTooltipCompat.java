@@ -5,6 +5,7 @@ import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.item.ItemStack;
 
 /** Shares final geometry with Legendary's PostText decorations without replacing its effects. */
 public final class LegendaryTooltipCompat {
@@ -13,8 +14,17 @@ public final class LegendaryTooltipCompat {
     private LegendaryTooltipCompat() {}
 
     public static boolean prefersPanel() {
+        boolean resourceFrame = LegendaryResourceCompat.INSTANCE.frames().stream().findFirst().isPresent();
         return TooltipConfig.enabled && TooltipPanelOwner.choose(Loader.isModLoaded("legendarytooltips"),
-                false, TooltipConfig.yieldToLegendaryTooltips, false) == TooltipPanelOwner.LEGENDARY;
+                resourceFrame, false, TooltipConfig.legendaryOwnership,
+                TooltipConfig.yieldToLegendaryTooltips, false) == TooltipPanelOwner.LEGENDARY;
+    }
+
+    public static boolean prefersPanel(ItemStack stack) {
+        boolean resourceFrame = LegendaryResourceCompat.INSTANCE.match(stack) != null;
+        return TooltipConfig.enabled && TooltipPanelOwner.choose(Loader.isModLoaded("legendarytooltips"),
+                resourceFrame, false, TooltipConfig.legendaryOwnership,
+                TooltipConfig.yieldToLegendaryTooltips, false) == TooltipPanelOwner.LEGENDARY;
     }
 
     public static boolean hasLayout() { return ACTIVE.get() != null; }

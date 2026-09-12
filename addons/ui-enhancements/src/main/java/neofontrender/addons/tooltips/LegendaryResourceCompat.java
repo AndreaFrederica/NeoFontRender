@@ -9,6 +9,7 @@ import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.client.resources.IResourceManagerReloadListener;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.oredict.OreDictionary;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -40,12 +41,22 @@ public final class LegendaryResourceCompat implements IResourceManagerReloadList
             boolean negate = selector.startsWith("!");
             String value = negate ? selector.substring(1) : selector;
             boolean hit = id.equals(value) || id.endsWith(":" + value) ||
+                    (value.startsWith("%") && oreMatch(stack, value.substring(1))) ||
+                    (value.startsWith("@") && id.startsWith(value.substring(1) + ":")) ||
                     ("epic".equalsIgnoreCase(value) && "EPIC".equals(stack.getRarity().name())) ||
                     ("rare".equalsIgnoreCase(value) && "RARE".equals(stack.getRarity().name()));
             if (negate) hit = !hit;
             if (hit && (best == null || frame.priority() > best.priority())) best = frame;
         }
         return best;
+    }
+
+    private static boolean oreMatch(ItemStack stack, String name) {
+        for (ItemStack candidate : OreDictionary.getOres(name)) {
+            if (candidate != null && candidate.getItem() == stack.getItem() &&
+                    (candidate.getItemDamage() == OreDictionary.WILDCARD_VALUE || candidate.getItemDamage() == stack.getItemDamage())) return true;
+        }
+        return false;
     }
 
     @Override public synchronized void onResourceManagerReload(IResourceManager manager) {
@@ -74,8 +85,10 @@ public final class LegendaryResourceCompat implements IResourceManagerReloadList
 
     private static List<Animation> readAnimations(IResourceManager manager) {
         List<Animation> result = new ArrayList<>();
-        for (Flipbook flipbook : INSTANCE.flipbooks) {
-            ResourceLocation id = new ResourceLocation(flipbook.texture());
+        List<ResourceLocation> textures = new ArrayList<>();
+        for (Flipbook flipbook : INSTANCE.flipbooks) textures.add(new ResourceLocation(flipbook.texture()));
+        for (Frame frame : INSTANCE.frames) if (!textures.contains(frame.image())) textures.add(frame.image());
+        for (ResourceLocation id : textures) {
             String[] parts = id.toString().split(":", 2);
             ResourceLocation meta = new ResourceLocation(parts[0], parts[1] + ".png.mcmeta");
             try {
@@ -127,4 +140,11 @@ public final class LegendaryResourceCompat implements IResourceManagerReloadList
     public record Frame(ResourceLocation image, int index, int priority, List<String> selectors) { }
     public record Flipbook(String texture, int ticksPerFrame, List<Integer> frames, boolean blendFrames) { }
     public record Animation(ResourceLocation texture, int frameTime, List<Integer> frames, boolean interpolate) { }
+
+    public int animationFrame(Animation animation, long ticks) {
+        if (animation == null) return 0;
+        List<Integer> sequence = animation.frames().isEmpty() ? Collections.singletonList(0) : animation.frames();
+        int duration = Math.max(1, animation.frameTime());
+        return sequence.get((int) ((ticks / duration) % sequence.size()));
+    }
 }
