@@ -47,6 +47,8 @@ public final class CameraRuntime {
     private static CameraFrame lastFrame = new CameraFrame(0L, 0.0F,
             CameraAttitude.IDENTITY, CameraAttitude.IDENTITY,
             new CameraVector(0.0D, 0.0D, 0.0D), new CameraVector(0.0D, 0.0D, 0.0D), true);
+    /** Private origin marker; CameraFrame's public pass-through flag is not a Flight identity. */
+    private static boolean lastFrameFlightAuthoritative;
     private static CameraSession activeSession;
     private static DroneInputGuard droneInput;
     private static FreeLookInputGuard freeLookInput;
@@ -107,14 +109,13 @@ public final class CameraRuntime {
     }
 
     /**
-     * Player-anchored rigs provide their own quaternion-relative orbit displacement, while a
-     * detached rig already stores the final origin in its adapter. Neither may also receive
-     * vanilla's four-block third-person displacement.
+     * Player-anchored rigs and full-quaternion Flight frames provide their own orbit
+     * displacement, while a detached rig already stores the final origin in its adapter. None
+     * may also receive vanilla's four-block third-person displacement.
      */
     public static synchronized boolean suppressesVanillaThirdPersonDisplacement() {
-        return usesDetachedThirdPersonPresentation()
-                || ((isShoulderActive() || isLookCameraActive())
-                && MC.gameSettings.thirdPersonView > 0);
+        return CameraPresentationPolicy.suppressesVanillaThirdPersonDistance(
+                usesDetachedThirdPersonPresentation(), isPlayerAnchoredCameraActive());
     }
 
     /** RenderPlayer normally suppresses the local user when a detached proxy is the view entity. */
@@ -123,18 +124,23 @@ public final class CameraRuntime {
     }
 
     /**
-     * Whether a player-anchored custom rig owns the presentation while the player remains the
-     * Minecraft render-view entity. Only RenderPlayer's local-user shortcut is bypassed here;
+     * Whether a player-anchored rig or Flight frame owns presentation while the player remains
+     * the Minecraft render-view entity. Only RenderPlayer's local-user shortcut is bypassed;
      * the render-view identity remains the player for movement, picking, and other consumers.
      */
     public static synchronized boolean isPlayerAnchoredCameraActive() {
-        return (isShoulderActive() || isLookCameraActive())
-                && MC.getRenderViewEntity() == MC.player;
+        return CameraPresentationPolicy.ownsPlayerAnchoredThirdPersonPresentation(
+                MC.getRenderViewEntity() == MC.player, isShoulderActive(), isLookCameraActive(),
+                isFlightQuaternionPresentationActive(), MC.gameSettings.thirdPersonView);
     }
 
     /** Camera-local GL translation for rigs whose render-view entity remains the player. */
     static synchronized CameraVector anchoredViewTranslation(CameraFrame frame) {
-        if (frame == null || (!isShoulderActive() && !isLookCameraActive())) return null;
+        if (frame == null || !CameraPresentationPolicy.ownsPlayerAnchoredThirdPersonPresentation(
+                MC.getRenderViewEntity() == MC.player, isShoulderActive(), isLookCameraActive(),
+                isFlightQuaternionPresentationFrame(frame), MC.gameSettings.thirdPersonView)) {
+            return null;
+        }
         return CameraPresentationTransform.translation(frame.viewAttitude(),
                 frame.bodyPosition(), frame.position());
     }
@@ -231,6 +237,7 @@ public final class CameraRuntime {
                 bodyPosition, position, targetPosition, velocity, kinematics.angular,
                 !isDroneActive() && !isLookCameraActive() && !isShoulderActive()
                         && !bodySample.flightAuthoritative);
+        lastFrameFlightAuthoritative = bodySample.flightAuthoritative;
         samplePartialTicks = value;
         sampleValid = true;
         return lastFrame;
@@ -636,9 +643,55 @@ public final class CameraRuntime {
         if (isDroneActive() || isLookCameraActive()) return true;
         if (isShoulderActive()) return CameraExternalCompat.internalCameraAllowed();
         EntityPlayerSP player = MC.player;
-        return player != null && !lastFrame.isVanillaPassThrough()
-                && FlightApi.queryCameraTracking(player, MC.getRenderPartialTicks()) != null
+        if (player == null) return false;
+        CameraFrame frame = sampleValid ? lastFrame : frame(MC.getRenderPartialTicks());
+        return isFlightAuthoritativeFrame(frame)
                 && CameraExternalCompat.internalCameraAllowed();
+    }
+
+    /**
+     * Decides presentation from the immutable render sample that is about to be drawn. The
+     * private Flight-origin marker was captured with the same sample, so no consumer may
+     * re-query that provider or confuse a generic provider's public pass-through flag with
+     * FlightCameraTracking.
+     */
+    public static synchronized boolean usesQuaternionView(CameraFrame frame) {
+        return frame != null && frame.sampleId() == lastFrame.sampleId()
+                && CameraPresentationPolicy.usesQuaternionView(isShoulderActive(),
+                isLookCameraActive(), isDroneActive(), isFlightAuthoritativeFrame(frame));
+    }
+
+    /**
+     * Returns the Flight attitude captured into this exact runtime sample, or {@code null} when
+     * the frame came from vanilla or another camera provider. Rendering code must use this rather
+     * than issue a second FlightApi query after CameraApi sampled the frame.
+     */
+    public static synchronized FlightAttitude flightAttitude(CameraFrame frame) {
+        if (!isFlightAuthoritativeFrame(frame)) return null;
+        CameraAttitude attitude = frame.bodyAttitude();
+        return new FlightAttitude(attitude.x, attitude.y, attitude.z, attitude.w);
+    }
+
+    /** Normalizes only vanilla orientCamera's duplicate front-view branch. */
+    public static synchronized int vanillaOrientationPerspective(int thirdPersonView) {
+        return CameraPresentationPolicy.vanillaOrientationPerspective(thirdPersonView,
+                isFlightQuaternionPresentationActive());
+    }
+
+    private static boolean isFlightAuthoritativeFrame(CameraFrame frame) {
+        return sampleValid && lastFrameFlightAuthoritative && frame != null
+                && frame.sampleId() == lastFrame.sampleId();
+    }
+
+    private static boolean isFlightQuaternionPresentationFrame(CameraFrame frame) {
+        return isFlightAuthoritativeFrame(frame) && !isShoulderActive()
+                && !isLookCameraActive() && !isDroneActive()
+                && CameraExternalCompat.internalCameraAllowed();
+    }
+
+    private static boolean isFlightQuaternionPresentationActive() {
+        CameraFrame frame = sampleValid ? lastFrame : frame(MC.getRenderPartialTicks());
+        return isFlightQuaternionPresentationFrame(frame);
     }
 
     public static synchronized void setDronePose(CameraVector position, CameraAttitude attitude) {

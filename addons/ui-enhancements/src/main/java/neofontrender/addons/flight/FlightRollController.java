@@ -15,6 +15,7 @@ import neofontrender.addons.api.input.CameraMouseInputEvent;
 import neofontrender.addons.api.input.InputAction;
 import neofontrender.addons.api.input.InputApi;
 import neofontrender.addons.api.camera.CameraApi;
+import neofontrender.addons.api.camera.CameraFrame;
 import neofontrender.addons.camera.CameraRuntime;
 import neofontrender.addons.compat.CameraExternalCompat;
 import neofontrender.addons.api.flight.FlightApi;
@@ -257,10 +258,8 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
         }
         EntityPlayerSP player = mc.player;
         boolean active = active(player);
-        trackCamera(player);
-        boolean quaternionTracking = player != null
-                && FlightApi.queryCameraTracking(player, 1.0F) != null;
-        if (quaternionTracking) {
+        FlightCameraTracking quaternionTracking = trackCamera(player);
+        if (quaternionTracking != null) {
             barrelProgress = 1.0F;
             previousBarrel = barrel = 0.0F;
             barrelDirection = 0;
@@ -293,15 +292,15 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
     @SubscribeEvent
     public void cameraSetup(EntityViewRenderEvent.CameraSetup event) {
         if (CameraExternalCompat.omnilookPresent()) return;
-        // CameraRuntime already sampled FlightCameraTracking for this render frame. Its LOWEST
-        // bridge applies that exact quaternion after event compatibility listeners have run.
-        // Shoulder and free-look cameras do NOT use a quaternion — they rely on vanilla's
-        // event-post rotations to apply the player's orientation. So we must still set the
-        // flight roll in the event for these modes.
-        // Drone mode uses a full quaternion, so we skip for drone only.
+        CameraFrame frame = CameraApi.getFrame((float) event.getRenderPartialTicks());
+        if (CameraApi.isRenderOverrideActive() && CameraRuntime.usesQuaternionView(frame)) {
+            return;
+        }
+        // CameraRuntime already sampled FlightCameraTracking for this render frame. A full
+        // quaternion view returns above; remaining Euler-compatible paths still need event roll.
         if (CameraApi.isRenderOverrideActive() && CameraApi.isDroneActive()) return;
         FlightRenderPose pose = resolveRenderPose(mc.player,
-                (float) event.getRenderPartialTicks());
+                (float) event.getRenderPartialTicks(), frame);
         if (pose != null) {
             FlightEulerAngles angles = pose.getCameraAngles();
             // FlightCameraTracking is active: trackCamera() already syncs player.rotationYaw/Pitch
@@ -315,12 +314,12 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
         event.setRoll(event.getRoll() + renderedRoll((float) event.getRenderPartialTicks()));
     }
 
-    private void trackCamera(EntityPlayerSP player) {
-        if (player == null) return;
+    private FlightCameraTracking trackCamera(EntityPlayerSP player) {
+        if (player == null) return null;
         FlightCameraTracking tracking = FlightApi.queryCameraTracking(player, 1.0F);
         if (tracking == null) {
             trackedCameraRoll = renderedRoll(1.0F);
-            return;
+            return null;
         }
         FlightEulerAngles target = tracking.getAttitude().toMinecraftEuler(
                 player.rotationPitch, player.rotationYaw, trackedCameraRoll);
@@ -332,7 +331,7 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
             player.rotationYaw += yawError;
             player.rotationPitch = targetPitch;
             trackedCameraRoll = target.rollDegrees;
-            return;
+            return tracking;
         }
         float response = tracking.getResponsePerSecond();
         float fraction = 1.0F - (float) Math.exp(-response / 20.0F);
@@ -340,6 +339,7 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
         player.rotationYaw += trackingStep(yawError, fraction, maximumStep);
         player.rotationPitch += trackingStep(pitchError, fraction, maximumStep);
         trackedCameraRoll += trackingStep(rollError, fraction, maximumStep);
+        return tracking;
     }
 
     static float trackingStep(float error, float fraction, float maximumStep) {
@@ -347,17 +347,22 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
         return Math.max(-maximumStep, Math.min(maximumStep, correction));
     }
 
-    private FlightRenderPose resolveRenderPose(EntityPlayerSP player, float partialTicks) {
-        if (player == null) { cachedRenderPose = null; return null; }
-        FlightCameraTracking tracking = FlightApi.queryCameraTracking(player, partialTicks);
-        if (tracking == null) {
+    /**
+     * Converts the exact CameraApi sample already selected for this frame. This render boundary
+     * deliberately never re-queries FlightCameraTracking: its attitude was captured by
+     * CameraRuntime before providers, modifiers, picking, and presentation consume the frame.
+     */
+    private FlightRenderPose resolveRenderPose(EntityPlayerSP player, float partialTicks,
+                                               CameraFrame frame) {
+        FlightAttitude attitude = player == null || player != mc.player
+                ? null : CameraRuntime.flightAttitude(frame);
+        if (attitude == null) {
             cachedRenderPose = null;
-            renderReferencePitch = player.rotationPitch;
-            renderReferenceYaw = player.rotationYaw;
+            renderReferencePitch = player == null ? 0.0F : player.rotationPitch;
+            renderReferenceYaw = player == null ? 0.0F : player.rotationYaw;
             renderReferenceRoll = renderedRoll(partialTicks);
             return null;
         }
-        FlightAttitude attitude = tracking.getAttitude();
         float amount = Math.max(0.0F, Math.min(1.0F, partialTicks));
         if (cachedRenderPose != null
                 && Math.abs(cachedRenderPose.getPartialTicks() - amount) < 1.0E-6F
@@ -583,7 +588,8 @@ final class FlightRollController implements FlightRollNetwork.ClientListener, Fl
     }
 
     @Override public FlightRenderPose renderPose(EntityPlayerSP player, float partialTicks) {
-        return resolveRenderPose(player, partialTicks);
+        CameraFrame frame = CameraApi.getFrame(partialTicks);
+        return resolveRenderPose(player, partialTicks, frame);
     }
 
     @Override public void setRoll(float degrees) { roll = degrees; }

@@ -38,6 +38,45 @@ class CameraPresentationPolicyTest {
     }
 
     @Test
+    void authoritativeFlightTrackingUsesTheSampledQuaternionWithoutASeparateRig() {
+        assertTrue(CameraPresentationPolicy.usesQuaternionView(false, false, false, true));
+        assertFalse(CameraPresentationPolicy.usesQuaternionView(true, false, false, true));
+        assertFalse(CameraPresentationPolicy.usesQuaternionView(false, false, false, false));
+    }
+
+    @Test
+    void playerAnchoredThirdPersonPresentationOwnsFlightAndRigDistance() {
+        assertFalse(CameraPresentationPolicy.ownsPlayerAnchoredThirdPersonPresentation(
+                true, false, false, false, 1));
+        assertFalse(CameraPresentationPolicy.ownsPlayerAnchoredThirdPersonPresentation(
+                true, false, false, false, 2));
+        assertTrue(CameraPresentationPolicy.ownsPlayerAnchoredThirdPersonPresentation(
+                true, false, false, true, 1));
+        assertTrue(CameraPresentationPolicy.ownsPlayerAnchoredThirdPersonPresentation(
+                true, false, false, true, 2));
+        assertTrue(CameraPresentationPolicy.ownsPlayerAnchoredThirdPersonPresentation(
+                true, true, false, false, 1));
+        assertFalse(CameraPresentationPolicy.ownsPlayerAnchoredThirdPersonPresentation(
+                true, true, false, true, 0));
+        assertFalse(CameraPresentationPolicy.ownsPlayerAnchoredThirdPersonPresentation(
+                false, false, false, true, 1));
+    }
+
+    @Test
+    void onlyFlightQuaternionFrontViewIsNormalizedForVanillaOrientation() {
+        assertEquals(1, CameraPresentationPolicy.vanillaOrientationPerspective(1, true));
+        assertEquals(1, CameraPresentationPolicy.vanillaOrientationPerspective(2, true));
+        assertEquals(2, CameraPresentationPolicy.vanillaOrientationPerspective(2, false));
+    }
+
+    @Test
+    void playerAnchoredThirdPersonDisablesVanillaDistanceWithoutChangingDetachedBehavior() {
+        assertFalse(CameraPresentationPolicy.suppressesVanillaThirdPersonDistance(false, false));
+        assertTrue(CameraPresentationPolicy.suppressesVanillaThirdPersonDistance(true, false));
+        assertTrue(CameraPresentationPolicy.suppressesVanillaThirdPersonDistance(false, true));
+    }
+
+    @Test
     void f5CycleAdvancesEveryVanillaAndBuiltInModeInOrder() {
         List<String> modes = Arrays.asList("first", "third", "shoulder", "free", "drone", "front");
         String active = "first";

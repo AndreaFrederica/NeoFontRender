@@ -20,7 +20,40 @@ final class CameraPresentationPolicy {
     /** Detached look rigs render from their frame instead of vanilla player yaw/pitch. */
     static boolean usesQuaternionView(boolean shoulderActive, boolean lookCameraActive,
                                       boolean droneActive) {
-        return !shoulderActive && (lookCameraActive || droneActive);
+        return usesQuaternionView(shoulderActive, lookCameraActive, droneActive, false);
+    }
+
+    /**
+     * A FlightCameraTracking attitude is already represented by the sampled CameraFrame.
+     * Present that same frame directly instead of mixing its roll with tick-owned Euler angles.
+     */
+    static boolean usesQuaternionView(boolean shoulderActive, boolean lookCameraActive,
+                                      boolean droneActive, boolean flightAuthoritativeFrame) {
+        return !shoulderActive && (lookCameraActive || droneActive || flightAuthoritativeFrame);
+    }
+
+    /**
+     * A player-anchored rig owns third-person orbit translation. This includes an authoritative
+     * Flight frame even when no built-in camera mode is active.
+     */
+    static boolean ownsPlayerAnchoredThirdPersonPresentation(boolean playerViewEntity,
+                                                              boolean shoulderActive,
+                                                              boolean lookCameraActive,
+                                                              boolean flightAuthoritativeFrame,
+                                                              int thirdPersonView) {
+        return playerViewEntity && thirdPersonView > 0
+                && (shoulderActive || lookCameraActive || flightAuthoritativeFrame);
+    }
+
+    static boolean suppressesVanillaThirdPersonDistance(boolean detachedPresentation,
+                                                        boolean playerAnchoredPresentation) {
+        return detachedPresentation || playerAnchoredPresentation;
+    }
+
+    /** A Flight frame already contains its local front-view turn; vanilla must not apply it again. */
+    static int vanillaOrientationPerspective(int thirdPersonView,
+                                             boolean flightQuaternionPresentation) {
+        return flightQuaternionPresentation && thirdPersonView == 2 ? 1 : thirdPersonView;
     }
 
     static int currentIndex(List<?> modes, Object activeMode) {
