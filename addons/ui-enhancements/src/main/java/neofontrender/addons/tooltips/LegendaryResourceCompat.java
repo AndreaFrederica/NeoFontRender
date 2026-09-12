@@ -90,7 +90,10 @@ public final class LegendaryResourceCompat implements IResourceManagerReloadList
         for (Frame frame : INSTANCE.frames) if (!textures.contains(frame.image())) textures.add(frame.image());
         for (ResourceLocation id : textures) {
             String[] parts = id.toString().split(":", 2);
-            ResourceLocation meta = new ResourceLocation(parts[0], parts[1] + ".png.mcmeta");
+            String path = parts[1];
+            if (path.endsWith(".png")) path += ".mcmeta";
+            else path += ".png.mcmeta";
+            ResourceLocation meta = new ResourceLocation(parts[0], path);
             try {
                 IResource resource = manager.getResource(meta);
                 try (InputStreamReader reader = new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8)) {
