@@ -150,4 +150,9 @@ public final class LegendaryResourceCompat implements IResourceManagerReloadList
         int duration = Math.max(1, animation.frameTime());
         return sequence.get((int) ((ticks / duration) % sequence.size()));
     }
+
+    public int animationFrame(ResourceLocation texture, long ticks) {
+        for (Animation animation : animations) if (animation.texture().equals(texture)) return animationFrame(animation, ticks);
+        return 0;
+    }
 }

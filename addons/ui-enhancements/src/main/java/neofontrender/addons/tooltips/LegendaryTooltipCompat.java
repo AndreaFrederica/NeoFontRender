@@ -70,12 +70,25 @@ public final class LegendaryTooltipCompat {
         int index = Math.max(0, frame.index());
         int u = (index % 8) * 64;
         int v = (index * 16) % 128;
+        int animation = LegendaryResourceCompat.INSTANCE.animationFrame(frame.image(), Minecraft.getSystemTime() / 50L);
+        v += animation * 128;
+        int textureHeight = 128 * Math.max(1, animation + 1);
         int size = Math.min(8, Math.min(right - left, bottom - top) / 2);
         if (size <= 0) return;
-        Gui.drawModalRectWithCustomSizedTexture(left, top, u, v, size, size, 128, 128);
-        Gui.drawModalRectWithCustomSizedTexture(right - size, top, u + 56, v, size, size, 128, 128);
-        Gui.drawModalRectWithCustomSizedTexture(left, bottom - size, u, v + 8, size, size, 128, 128);
-        Gui.drawModalRectWithCustomSizedTexture(right - size, bottom - size, u + 56, v + 8, size, size, 128, 128);
+        Gui.drawModalRectWithCustomSizedTexture(left, top, u, v, size, size, 128, textureHeight);
+        Gui.drawModalRectWithCustomSizedTexture(right - size, top, u + 56, v, size, size, 128, textureHeight);
+        Gui.drawModalRectWithCustomSizedTexture(left, bottom - size, u, v + 8, size, size, 128, textureHeight);
+        Gui.drawModalRectWithCustomSizedTexture(right - size, bottom - size, u + 56, v + 8, size, size, 128, textureHeight);
+        int span = Math.max(0, right - left - size * 2);
+        int vertical = Math.max(0, bottom - top - size * 2);
+        if (span > 0) {
+            Gui.drawModalRectWithCustomSizedTexture(left + size, top, u + size, v, span, size, 128, textureHeight);
+            Gui.drawModalRectWithCustomSizedTexture(left + size, bottom - size, u + size, v + 8, span, size, 128, textureHeight);
+        }
+        if (vertical > 0) {
+            Gui.drawModalRectWithCustomSizedTexture(left, top + size, u, v + size, size, vertical, 128, textureHeight);
+            Gui.drawModalRectWithCustomSizedTexture(right - size, top + size, u + 56, v + size, size, vertical, 128, textureHeight);
+        }
     }
 
     static final class Bounds {
