@@ -6,6 +6,8 @@ import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.IReloadableResourceManager;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.addons.ui.UiEnhancementModule;
 import neofontrender.api.client.settings.NfrSettingsPageRegistry;
@@ -23,6 +25,8 @@ public final class TooltipModule implements UiEnhancementModule {
 
     @Override
     public void init() {
+        ((IReloadableResourceManager) Minecraft.getMinecraft().getResourceManager())
+                .registerReloadListener(LegendaryResourceCompat.INSTANCE);
         NfrSettingsPageRegistry.register(new ModernTooltipSettingsPage());
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new ModNameTooltipHandler());
