@@ -6,6 +6,8 @@ import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 
 /** Shares final geometry with Legendary's PostText decorations without replacing its effects. */
 public final class LegendaryTooltipCompat {
@@ -60,6 +62,20 @@ public final class LegendaryTooltipCompat {
             GlStateManager.enableLighting();
             RenderHelper.enableGUIStandardItemLighting();
         }
+    }
+
+    static void drawResourceFrame(int left, int top, int right, int bottom, LegendaryResourceCompat.Frame frame) {
+        if (frame == null || right <= left || bottom <= top) return;
+        Minecraft.getMinecraft().getTextureManager().bindTexture(frame.image());
+        int index = Math.max(0, frame.index());
+        int u = (index % 8) * 64;
+        int v = (index * 16) % 128;
+        int size = Math.min(8, Math.min(right - left, bottom - top) / 2);
+        if (size <= 0) return;
+        Gui.drawModalRectWithCustomSizedTexture(left, top, u, v, size, size, 128, 128);
+        Gui.drawModalRectWithCustomSizedTexture(right - size, top, u + 56, v, size, size, 128, 128);
+        Gui.drawModalRectWithCustomSizedTexture(left, bottom - size, u, v + 8, size, size, 128, 128);
+        Gui.drawModalRectWithCustomSizedTexture(right - size, bottom - size, u + 56, v + 8, size, size, 128, 128);
     }
 
     static final class Bounds {

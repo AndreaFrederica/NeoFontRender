@@ -93,6 +93,8 @@ final class ModernTooltipRenderer {
         if (LegendaryTooltipCompat.prefersPanel(event.getStack())) {
             LegendaryTooltipCompat.drawPanel(panelLeft, panelTop, panelRight, panelBottom,
                     fill[0], border[0], border[2]);
+            LegendaryTooltipCompat.drawResourceFrame(panelLeft, panelTop, panelRight, panelBottom,
+                    LegendaryResourceCompat.INSTANCE.match(event.getStack()));
         } else {
             drawBackground(layout, fill, border, spectrum);
         }
