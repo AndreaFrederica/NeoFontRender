@@ -8,6 +8,7 @@ import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.client.resources.IResourceManagerReloadListener;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.item.ItemStack;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +30,23 @@ public final class LegendaryResourceCompat implements IResourceManagerReloadList
     public List<Frame> frames() { return frames; }
     public List<Flipbook> flipbooks() { return flipbooks; }
     public List<Animation> animations() { return animations; }
+
+    /** Returns the highest-priority resource frame whose simple selector matches the item. */
+    public Frame match(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return null;
+        String id = stack.getItem().getRegistryName() == null ? "" : stack.getItem().getRegistryName().toString();
+        Frame best = null;
+        for (Frame frame : frames) for (String selector : frame.selectors()) {
+            boolean negate = selector.startsWith("!");
+            String value = negate ? selector.substring(1) : selector;
+            boolean hit = id.equals(value) || id.endsWith(":" + value) ||
+                    ("epic".equalsIgnoreCase(value) && "EPIC".equals(stack.getRarity().name())) ||
+                    ("rare".equalsIgnoreCase(value) && "RARE".equals(stack.getRarity().name()));
+            if (negate) hit = !hit;
+            if (hit && (best == null || frame.priority() > best.priority())) best = frame;
+        }
+        return best;
+    }
 
     @Override public synchronized void onResourceManagerReload(IResourceManager manager) {
         List<Frame> nextFrames = new ArrayList<>();

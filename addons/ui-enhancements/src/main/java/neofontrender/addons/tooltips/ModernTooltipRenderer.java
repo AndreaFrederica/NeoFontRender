@@ -57,14 +57,19 @@ final class ModernTooltipRenderer {
         int[] fill = TooltipConfig.fillColors.clone();
         int[] border = TooltipConfig.borderColors.clone();
         boolean spectrum = false;
+        // Resource-pack frame definitions take precedence over adaptive rarity coloring.
+        // The texture region is still rendered by UIE's panel path, so no foreign asset is bundled.
+        LegendaryResourceCompat.Frame resourceFrame = LegendaryResourceCompat.INSTANCE.match(event.getStack());
         if (TooltipConfig.adaptiveBorder) {
             // Match ModernUI: inspect the stack's hover/display name itself. Forge 1.12 prefixes
             // the rendered first line with WHITE even for COMMON items, which would otherwise
             // make every ordinary item produce an artificial white adaptive palette.
             String title = event.getStack().isEmpty() ? "" : event.getStack().getDisplayName();
-            AdaptiveBorderColors.Result adaptive = AdaptiveBorderColors.compute(event.getStack(), title, border);
-            border = adaptive.colors;
-            spectrum = adaptive.spectrum;
+            if (resourceFrame == null) {
+                AdaptiveBorderColors.Result adaptive = AdaptiveBorderColors.compute(event.getStack(), title, border);
+                border = adaptive.colors;
+                spectrum = adaptive.spectrum;
+            }
         }
         spectrum |= "spectrum".equals(TooltipConfig.borderShading);
         applyBorderShading(border, TooltipConfig.borderShading);
