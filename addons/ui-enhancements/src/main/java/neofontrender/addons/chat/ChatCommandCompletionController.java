@@ -50,13 +50,28 @@ public final class ChatCommandCompletionController {
         INSTANCE.acceptCompletions(field, values);
     }
 
+    private State state(GuiTextField field, boolean create) {
+        State state = create ? states.computeIfAbsent(field, State::new) : states.get(field);
+        if (state != null) state.refreshPreferences();
+        return state;
+    }
+
     private boolean handle(GuiTextField field, int keyCode) {
-        State state = states.get(field);
-        if (!enabled(field) || state == null || state.values.isEmpty()) return false;
+        State state = state(field, false);
+        if (!enabled(field) || !field.isFocused()) return false;
+        if (state == null || state.values.isEmpty()) {
+            // A Tab while awaiting candidates must not start vanilla's untracked second request.
+            if (keyCode == Keyboard.KEY_TAB && field.getCursorPosition() > 0 && field.getText().startsWith("/")) {
+                request(field);
+                return true;
+            }
+            return false;
+        }
         if (keyCode == Keyboard.KEY_ESCAPE) {
             state.dismiss();
             return true;
         }
+        if (CommandCompletionOptions.HIDDEN.equals(state.display) && keyCode != Keyboard.KEY_TAB) return false;
         if (keyCode == Keyboard.KEY_TAB) {
             state.commit(state.selected < 0 ? 0 : state.selected);
             request(field);
@@ -99,7 +114,7 @@ public final class ChatCommandCompletionController {
             close(field);
             return;
         }
-        State state = states.computeIfAbsent(field, State::new);
+        State state = state(field, true);
         if (!state.shouldRequest(prefix)) return;
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft.player == null || minecraft.player.connection == null) return;
@@ -108,7 +123,11 @@ public final class ChatCommandCompletionController {
         String[] clientValues = ClientCommandCompletionApi.resolve(prefix,
                 completionPosition(target), ClientCommandHandler.instance.latestAutoComplete);
         state.beginRequest(prefix, tokenRange(text, cursor), clientValues);
-        minecraft.player.connection.sendPacket(new CPacketTabComplete(prefix, target, false));
+        if (CommandCompletionOptions.PREGEN.equals(state.engine) && state.bridge != null) {
+            state.bridge.request(field);
+        } else {
+            minecraft.player.connection.sendPacket(new CPacketTabComplete(prefix, target, false));
+        }
     }
 
     private static BlockPos targetBlock(Minecraft minecraft) {
@@ -124,24 +143,25 @@ public final class ChatCommandCompletionController {
     }
 
     private void acceptCompletions(GuiTextField field, String[] values) {
-        State state = states.get(field);
+        State state = state(field, false);
         if (state == null) return;
         String text = field.getText();
         int cursor = Math.max(0, Math.min(field.getCursorPosition(), text.length()));
         String currentPrefix = text.substring(0, cursor);
         Request accepted = state.acceptResponse(currentPrefix);
         if (accepted == null || !enabled(field)) return;
-        List<String> next = CommandCompletionCandidates.merge(
-                values, accepted.clientValues).styledValues();
+        CommandCompletionCandidates.Merge merged = CommandCompletionCandidates.merge(values, accepted.clientValues);
+        boolean pregenEngine = CommandCompletionOptions.PREGEN.equals(state.engine) && state.bridge != null;
+        List<String> next = pregenEngine ? state.bridge.candidates(field, merged) : merged.styledValues();
         CommandCompletionPresentation.rememberRootCandidates(currentPrefix, next);
         TokenRange range = tokenRange(text, cursor);
         String current = text.substring(range.start, range.end);
         boolean exactMatch = next.stream().anyMatch(value -> sameCandidate(value, current));
-        if (exactMatch && (cursor < range.end || next.size() == 1)) {
+        if (!pregenEngine && exactMatch && (cursor < range.end || next.size() == 1)) {
             state.dismiss();
             return;
         }
-        next.removeIf(value -> sameCandidate(value, current));
+        if (!pregenEngine) next.removeIf(value -> sameCandidate(value, current));
         if (state.values.equals(next)) return;
         state.values.clear();
         state.values.addAll(next);
@@ -196,7 +216,7 @@ public final class ChatCommandCompletionController {
     public void mouse(GuiScreenEvent.MouseInputEvent.Pre event) {
         if (!(event.getGui() instanceof GuiChat)) return;
         GuiTextField field = field((GuiChat) event.getGui());
-        State state = states.get(field);
+        State state = state(field, false);
         if (!enabled(field) || state == null || state.values.isEmpty()) return;
         ChatSuggestionPopup.Layout layout = state.layout;
         int wheel = Mouse.getEventDWheel();
@@ -219,11 +239,18 @@ public final class ChatCommandCompletionController {
     public void draw(GuiScreenEvent.DrawScreenEvent.Post event) {
         if (!(event.getGui() instanceof GuiChat)) return;
         GuiTextField field = field((GuiChat) event.getGui());
-        State state = states.get(field);
+        State state = state(field, false);
         if (!enabled(field) || state == null || state.values.isEmpty()) return;
-        state.layout = ChatSuggestionPopup.draw(field, state.values, state.first,
-                state.selected, ExternalChatCompat.getSalutationInput(field),
-                event.getMouseX(), event.getMouseY(), Minecraft.getMinecraft().fontRenderer);
+        if (CommandCompletionOptions.HIDDEN.equals(state.display)) {
+            state.layout = null;
+            return;
+        }
+        ExternalChatCompat.InputGeometry geometry = ExternalChatCompat.getSalutationInput(field);
+        state.layout = CommandCompletionOptions.PREGEN.equals(state.display) && state.bridge != null
+                ? state.bridge.draw(field, state.values, state.first, state.selected, geometry,
+                        event.getMouseX(), event.getMouseY(), Minecraft.getMinecraft().fontRenderer)
+                : ChatSuggestionPopup.draw(field, state.values, state.first, state.selected, geometry,
+                        event.getMouseX(), event.getMouseY(), Minecraft.getMinecraft().fontRenderer);
     }
 
     private static GuiTextField field(GuiChat chat) {
@@ -237,7 +264,7 @@ public final class ChatCommandCompletionController {
     }
 
     private void close(GuiTextField field) {
-        State state = states.get(field);
+        State state = state(field, false);
         if (state != null) state.dismiss();
     }
 
@@ -254,6 +281,10 @@ public final class ChatCommandCompletionController {
     private static final class State {
         private final List<String> values = new ArrayList<>();
         private ChatSuggestionPopup.Layout layout;
+        private String engine = CommandCompletionOptions.UIE;
+        private String display = CommandCompletionOptions.UIE;
+        private boolean active;
+        private PregenCompletionBridge bridge;
         private int selected;
         private int first;
         private int wordStart = -1;
@@ -262,6 +293,25 @@ public final class ChatCommandCompletionController {
 
         private State(GuiTextField owner) {
             this.owner = new WeakReference<>(owner);
+        }
+
+        private void refreshPreferences() {
+            String nextEngine = CommandCompletionOptions.engine();
+            String nextDisplay = CommandCompletionOptions.display();
+            boolean nextActive = enabled(owner.get());
+            if (active == nextActive && engine.equals(nextEngine) && display.equals(nextDisplay)) return;
+            // Keep the pending FIFO so old protocol responses cannot be mistaken for new requests.
+            dismiss();
+            requests.resetPrefix();
+            engine = nextEngine;
+            display = nextDisplay;
+            active = nextActive;
+            bridge = CommandCompletionOptions.PREGEN.equals(engine) || CommandCompletionOptions.PREGEN.equals(display)
+                    ? PregenCompletionBridge.create() : null;
+            if (bridge == null) {
+                engine = CommandCompletionOptions.engine(engine, false);
+                display = CommandCompletionOptions.display(display, false);
+            }
         }
 
         private boolean shouldRequest(String prefix) {
@@ -302,6 +352,11 @@ public final class ChatCommandCompletionController {
             if (index < 0 || index >= values.size()) return;
             GuiTextField field = owner.get();
             if (field == null) return;
+            if (CommandCompletionOptions.PREGEN.equals(engine) && bridge != null
+                    && bridge.commit(field, values, index)) {
+                dismiss();
+                return;
+            }
             String text = field.getText();
             int cursor = Math.max(0, Math.min(field.getCursorPosition(), text.length()));
             TokenRange range = tokenRange(text, cursor);
@@ -345,6 +400,10 @@ public final class ChatCommandCompletionController {
             if (request == null || request.id != activeRequestId
                     || !request.prefix.equals(currentPrefix)) return null;
             return request;
+        }
+
+        void resetPrefix() {
+            lastRequest = "";
         }
 
         void deactivate() {

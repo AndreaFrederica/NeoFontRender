@@ -18,6 +18,16 @@ public final class ChatSuggestionPopup {
 
     private ChatSuggestionPopup() {}
 
+    static Layout uniformLayout(int x, int y, int width, int height, int rows, int rowHeight) {
+        int[] offsets = new int[Math.max(0, rows)];
+        int[] heights = new int[offsets.length];
+        for (int i = 0; i < offsets.length; i++) {
+            offsets[i] = i * rowHeight;
+            heights[i] = rowHeight;
+        }
+        return new Layout(x, y, width, height, offsets, heights);
+    }
+
     public static Layout draw(GuiTextField input, List<String> candidates, int first, int selected,
                               ExternalChatCompat.InputGeometry tabbyGeometry,
                               int mouseX, int mouseY, FontRenderer font) {

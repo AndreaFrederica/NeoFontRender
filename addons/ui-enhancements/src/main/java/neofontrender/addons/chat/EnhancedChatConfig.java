@@ -14,6 +14,8 @@ public final class EnhancedChatConfig {
     static boolean logRestoredHistory = false;
     static boolean messageSearch = true;
     static boolean commandCompletion = true;
+    static String completionEngine = "uie";
+    static String completionDisplay = "uie";
     static boolean sourceClassification = true;
     static String playerSourcePattern = "";
     static String serverSourcePattern = "";
@@ -75,6 +77,8 @@ public final class EnhancedChatConfig {
                 .define("chat.search", true, "Search and filter the current chat history with Ctrl+F.")
                 .define("chat.commandCompletion", true,
                         "Show command completions in Salutation and embedded TabbyChat inputs.")
+                .define("chat.commandCompletionEngine", "uie", "Completion engine for integrated chat: uie or pregenerator. Missing adapters fall back to UIE.")
+                .define("chat.commandCompletionDisplay", "uie", "Independent suggestion display: uie, pregenerator, or hidden. Hidden retains Tab completion.")
                 .define("chat.sources.enabled", true, "Classify messages as player, server or private messages.")
                 .define("chat.sources.playerPattern", "", "Regex overriding messages to the player source.")
                 .define("chat.sources.serverPattern", "", "Regex overriding messages to the server source.")
@@ -128,6 +132,8 @@ public final class EnhancedChatConfig {
         logRestoredHistory = file.getBoolean("chat.logRestoredHistory", false);
         messageSearch = file.getBoolean("chat.search", true);
         commandCompletion = file.getBoolean("chat.commandCompletion", true);
+        completionEngine = file.getString("chat.commandCompletionEngine", "uie");
+        completionDisplay = file.getString("chat.commandCompletionDisplay", "uie");
         sourceClassification = file.getBoolean("chat.sources.enabled", true);
         playerSourcePattern = file.getString("chat.sources.playerPattern", "");
         serverSourcePattern = file.getString("chat.sources.serverPattern", "");
@@ -184,6 +190,8 @@ public final class EnhancedChatConfig {
                 .set("chat.logRestoredHistory", logRestoredHistory)
                 .set("chat.search", messageSearch)
                 .set("chat.commandCompletion", commandCompletion)
+                .set("chat.commandCompletionEngine", completionEngine)
+                .set("chat.commandCompletionDisplay", completionDisplay)
                 .set("chat.sources.enabled", sourceClassification)
                 .set("chat.sources.playerPattern", playerSourcePattern)
                 .set("chat.sources.serverPattern", serverSourcePattern)

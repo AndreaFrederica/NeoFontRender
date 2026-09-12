@@ -58,7 +58,7 @@ public final class CommandCompletionPresentation {
     }
 
     public static String ghostSuffix(GuiTextField field) {
-        if (!enabled(field)) return "";
+        if (!enabled(field) || CommandCompletionOptions.HIDDEN.equals(CommandCompletionOptions.display())) return "";
         Snapshot snapshot = SNAPSHOTS.get(field);
         if (snapshot == null || snapshot.candidates.isEmpty()) return "";
         return ghostSuffix(field.getText(), field.getCursorPosition(),

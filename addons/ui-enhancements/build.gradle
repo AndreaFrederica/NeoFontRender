@@ -218,6 +218,7 @@ tasks.withType(JavaCompile).configureEach {
 
 test {
     useJUnitPlatform()
+    systemProperty 'nfr.test.pregenJar', providers.gradleProperty('pregenCompatJar').getOrElse('')
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
 }
 

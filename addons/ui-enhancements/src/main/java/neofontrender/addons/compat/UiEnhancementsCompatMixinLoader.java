@@ -12,6 +12,7 @@ import java.util.List;
  * lives outside the configured Mixin package, whose classes LaunchWrapper is forbidden to load.
  */
 public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
+    static final String PREGEN_CONFIG = "mixins.neofontrender_ui_enhancements_pregenerator.json";
     static final String HEI_CONFIG = "mixins.neofontrender_ui_enhancements_hei.json";
     static final String LEGENDARY_TOOLTIPS_CONFIG =
             "mixins.neofontrender_ui_enhancements_legendary_tooltips.json";
@@ -36,7 +37,7 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
 
     @Override
     public List<String> getMixinConfigs() {
-        return Arrays.asList(HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, LEGENDARY_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG,
+        return Arrays.asList(PREGEN_CONFIG, HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, LEGENDARY_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG,
                 SHOULDER_SURFING_CONFIG, SHOULDER_SURFING_TCONSTRUCT_CONFIG,
                 SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG, BETTER_COMBAT_CONFIG,
                 THAUMCRAFT_CONFIG, CLEANROOM_COMMAND_SUGGESTIONS_CONFIG);
@@ -45,6 +46,12 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
     @Override
     public boolean shouldMixinConfigQueue(Context context) {
         String config = context.mixinConfig();
+        if (PREGEN_CONFIG.equals(config)) {
+            return context.isModPresent("chunkpregenerator")
+                    && classResourcePresent("pregenerator/impl/client/ClientHandler.class")
+                    && classResourcePresent("pregenerator/impl/client/gui/chat/ChatScreen$Completor.class")
+                    && classResourcePresent("carbonconfiglib/config/ConfigEntry$BoolValue.class");
+        }
         if (LEGENDARY_TOOLTIPS_CONFIG.equals(config)) {
             return context.isModPresent("legendarytooltips")
                     && classResourcePresent("com/anthonyhilyard/legendarytooltips/render/TooltipDecor.class");
