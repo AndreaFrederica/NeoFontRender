@@ -24,6 +24,19 @@ final class TooltipConfig {
     static boolean quarkModernMapTooltip = false;
     static boolean modNameEnabled = true;
     static String modNameFormat = "blue italic";
+    static boolean advancedEnabled = true;
+    static boolean advancedRequireCtrl = true;
+    static boolean advancedOreDictionary = true;
+    static boolean advancedRegistryName = true;
+    static boolean advancedUnlocalizedName = true;
+    static boolean advancedMeta = true;
+    static boolean advancedNbt = true;
+    static boolean advancedNbtRequireShift = true;
+    static int advancedNbtCharacterLimit = 0;
+    static boolean suppressActuallyAdditions = true;
+    static boolean suppressFtblib = true;
+    static boolean suppressImmersiveEngineering = true;
+    static boolean suppressEnderCore = true;
     static boolean rounded = true;
     static boolean centerTitle = true;
     static boolean titleBreak = true;
@@ -74,6 +87,19 @@ final class TooltipConfig {
         quarkModernMapTooltip = config.getBoolean("tooltip.quarkModernMapTooltip", false);
         modNameEnabled = config.getBoolean("tooltip.modName.enabled", true);
         modNameFormat = config.getString("tooltip.modName.format", "blue italic");
+        advancedEnabled = config.getBoolean("tooltip.advanced.enabled", true);
+        advancedRequireCtrl = config.getBoolean("tooltip.advanced.requireCtrl", true);
+        advancedOreDictionary = config.getBoolean("tooltip.advanced.oreDictionary", true);
+        advancedRegistryName = config.getBoolean("tooltip.advanced.registryName", true);
+        advancedUnlocalizedName = config.getBoolean("tooltip.advanced.unlocalizedName", true);
+        advancedMeta = config.getBoolean("tooltip.advanced.meta", true);
+        advancedNbt = config.getBoolean("tooltip.advanced.nbt", true);
+        advancedNbtRequireShift = config.getBoolean("tooltip.advanced.nbtRequireShift", true);
+        advancedNbtCharacterLimit = config.getInt("tooltip.advanced.nbtCharacterLimit", 0, 0, 100000);
+        suppressActuallyAdditions = config.getBoolean("tooltip.suppress.actuallyAdditions", true);
+        suppressFtblib = config.getBoolean("tooltip.suppress.ftblib", true);
+        suppressImmersiveEngineering = config.getBoolean("tooltip.suppress.immersiveEngineering", true);
+        suppressEnderCore = config.getBoolean("tooltip.suppress.enderCore", true);
         rounded = config.getBoolean("tooltip.rounded", true);
         centerTitle = config.getBoolean("tooltip.centerTitle", true);
         titleBreak = config.getBoolean("tooltip.titleBreak", true);
@@ -124,6 +150,19 @@ final class TooltipConfig {
                 .set("tooltip.quarkModernMapTooltip", quarkModernMapTooltip)
                 .set("tooltip.modName.enabled", modNameEnabled)
                 .set("tooltip.modName.format", modNameFormat)
+                .set("tooltip.advanced.enabled", advancedEnabled)
+                .set("tooltip.advanced.requireCtrl", advancedRequireCtrl)
+                .set("tooltip.advanced.oreDictionary", advancedOreDictionary)
+                .set("tooltip.advanced.registryName", advancedRegistryName)
+                .set("tooltip.advanced.unlocalizedName", advancedUnlocalizedName)
+                .set("tooltip.advanced.meta", advancedMeta)
+                .set("tooltip.advanced.nbt", advancedNbt)
+                .set("tooltip.advanced.nbtRequireShift", advancedNbtRequireShift)
+                .set("tooltip.advanced.nbtCharacterLimit", advancedNbtCharacterLimit)
+                .set("tooltip.suppress.actuallyAdditions", suppressActuallyAdditions)
+                .set("tooltip.suppress.ftblib", suppressFtblib)
+                .set("tooltip.suppress.immersiveEngineering", suppressImmersiveEngineering)
+                .set("tooltip.suppress.enderCore", suppressEnderCore)
                 .set("tooltip.rounded", rounded)
                 .set("tooltip.centerTitle", centerTitle)
                 .set("tooltip.titleBreak", titleBreak)
@@ -176,6 +215,19 @@ final class TooltipConfig {
                 .define("tooltip.quarkModernMapTooltip", false, "Replace Quark's parchment map preview with a compact NFR modern panel.")
                 .define("tooltip.modName.enabled", true, "Append the owning mod's display name to item tooltips.")
                 .define("tooltip.modName.format", "blue italic", "Space-separated TextFormatting friendly names; empty means unformatted.")
+                .define("tooltip.advanced.enabled", true, "Generate advanced item information in the modern tooltip.")
+                .define("tooltip.advanced.requireCtrl", true, "Require Ctrl to expand advanced information.")
+                .define("tooltip.advanced.oreDictionary", true, "Show deduplicated Forge OreDictionary names.")
+                .define("tooltip.advanced.registryName", true, "Show the registry name.")
+                .define("tooltip.advanced.unlocalizedName", true, "Show unlocalized item names.")
+                .define("tooltip.advanced.meta", true, "Show item metadata.")
+                .define("tooltip.advanced.nbt", true, "Show NBT information.")
+                .define("tooltip.advanced.nbtRequireShift", true, "Require Shift to reveal NBT contents.")
+                .define("tooltip.advanced.nbtCharacterLimit", 0, "Maximum NBT characters; zero means unlimited.")
+                .define("tooltip.suppress.actuallyAdditions", true, "Suppress Actually Additions advanced tooltip lines.")
+                .define("tooltip.suppress.ftblib", true, "Suppress FTBLib ore and NBT tooltip lines.")
+                .define("tooltip.suppress.immersiveEngineering", true, "Suppress Immersive Engineering ore tooltip lines.")
+                .define("tooltip.suppress.enderCore", true, "Suppress EnderCore ore tooltip lines.")
                 .define("tooltip.rounded", true, "Draw rounded antialiased corners.")
                 .define("tooltip.centerTitle", true, "Center the first tooltip line.")
                 .define("tooltip.titleBreak", true, "Draw a divider after the title.")

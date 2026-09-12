@@ -34,10 +34,6 @@ final class BlockOutlinesSettingsPage implements NfrSettingsPage {
             NfrOptionsGrid general = c.grid()
                     .add(toggle(c, "enabled", () -> BlockOutlineConfig.enabled,
                             value -> BlockOutlineConfig.enabled = value))
-                    .add(dropdown(c, "render_mode", () -> BlockOutlineConfig.renderMode, value -> {
-                        BlockOutlineConfig.renderMode = BlockOutlineConfig.normalizeRenderMode(value);
-                        context.refresh();
-                    }, Arrays.asList(BlockOutlineConfig.MODE_GEOMETRY, BlockOutlineConfig.MODE_NATIVE)))
                     .add(c.colorText("outline_global_color", () -> tr("global_color"),
                             () -> BlockOutlineConfig.globalColor,
                             value -> BlockOutlineConfig.globalColor = value, true).size(260, 24))

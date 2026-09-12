@@ -26,6 +26,7 @@ public final class TooltipModule implements UiEnhancementModule {
         NfrSettingsPageRegistry.register(new ModernTooltipSettingsPage());
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new ModNameTooltipHandler());
+        MinecraftForge.EVENT_BUS.register(new AdvancedTooltipHandler());
         MinecraftForge.EVENT_BUS.register(new ModernTooltipHandler());
     }
 
