@@ -591,6 +591,21 @@ public final class NeofontrenderConfig {
         return cached.compatThaumcraftTooltip;
     }
 
+    /** Allow the global nova easter egg when FancyMenu is installed (on by default). */
+    public static boolean compatFancyMenu() {
+        return cached.compatFancyMenu;
+    }
+
+    /** Whether to draw NFR's own label on vanilla and supported custom title screens. */
+    public static boolean showMainMenuBranding() {
+        return cached.showMainMenuBranding;
+    }
+
+    /** Allow the global nova easter egg when Custom Main Menu is installed (on by default). */
+    public static boolean compatCustomMainMenu() {
+        return cached.compatCustomMainMenu;
+    }
+
     /** auto, vanilla, runtime, custom, or an API-registered provider id. */
     public static String textColorPaletteProvider() {
         CommentedFileConfig current = config;
@@ -850,6 +865,18 @@ public final class NeofontrenderConfig {
 
     public static void setCompatThaumcraftTooltip(boolean value) {
         setValue("compat.thaumcraft.tooltip.enabled", value);
+    }
+
+    public static void setCompatFancyMenu(boolean value) {
+        setValue("compat.fancymenu.novaBranding", value);
+    }
+
+    public static void setShowMainMenuBranding(boolean value) {
+        setValue("ui.showMainMenuBranding", value);
+    }
+
+    public static void setCompatCustomMainMenu(boolean value) {
+        setValue("compat.custommainmenu.novaBranding", value);
     }
 
     public static void setTextColorPaletteProvider(String value) {
@@ -1313,9 +1340,13 @@ public final class NeofontrenderConfig {
             w.write("pulseMinimum = 0.6\n");
             w.write("pulseMaximum = 1.0\n");
             w.write("\n");
+            w.write("[ui]\n");
+            w.write("showMainMenuBranding = true\n\n");
             w.write("[compat]\n");
             w.write("modernsplash.enabled = true\n");
             w.write("tinkersantique.enabled = true\n");
+            w.write("custommainmenu.novaBranding = true\n");
+            w.write("fancymenu.novaBranding = true\n");
             w.write("colorPalette.provider = \"auto\"\n");
             w.write("colorPalette.custom = \"" + DEFAULT_TEXT_COLOR_PALETTE + "\"\n");
             w.write("\n");
@@ -1391,9 +1422,12 @@ public final class NeofontrenderConfig {
         config.setComment("laboratory.textAnimator.pulseMinimum", "Default minimum brightness for pulse tags without explicit parameters (0.0-1.0).");
         config.setComment("laboratory.textAnimator.pulseMaximum", "Default maximum brightness for pulse tags without explicit parameters (0.0-1.0).");
         config.setComment("compat", "Compatibility options for third-party mods.");
+        config.setComment("ui.showMainMenuBranding", "Show NFR's main-menu brand label on vanilla, CMM and FancyMenu title screens. Independent of the nova name switches; no restart required.");
         config.setComment("compat.modernsplash.enabled", "Allow the loading-screen font override to patch ModernSplash when it is installed. Requires splash.enabled and a restart.");
         config.setComment("compat.tinkersantique.enabled", "Handle Tinkers' Construct / TinkersAntique custom PUA color markers (\\uE700-\\uE7FF) as invisible color-change characters instead of rendering them as glyphs.");
         config.setComment("compat.thaumcraft.tooltip.enabled", "Use UIE's modern tooltip renderer for Thaumcraft 6 custom tooltips and decode its @@ compact lines.");
+        config.setComment("compat.custommainmenu.novaBranding", "Keep the nova brand easter egg when Custom Main Menu is installed. On by default; custom menu layout is independent of the brand name. Requires a restart for the mod-list name and keybind labels.");
+        config.setComment("compat.fancymenu.novaBranding", "Keep the nova brand easter egg when FancyMenu is installed. On by default; custom menu layout is independent of the brand name. Requires a restart for the mod-list name and keybind labels.");
         config.setComment("compat.colorPalette.provider", "Legacy text color palette: auto, vanilla, runtime, custom, or an API-registered provider id. Runtime reads the final FontRenderer.colorCode modified by other mods.");
         config.setComment("compat.colorPalette.custom", "Custom palette as 16 or 32 comma-separated RRGGBB values. Sixteen entries derive Minecraft-style shadow colors; 32 entries set them explicitly.");
         config.setComment("splash", "Forge loading-screen font replacement options.");
@@ -1507,6 +1541,9 @@ public final class NeofontrenderConfig {
         private final boolean compatModernSplash;
         private final boolean compatTinkersAntique;
         private final boolean compatThaumcraftTooltip;
+        private final boolean compatCustomMainMenu;
+        private final boolean compatFancyMenu;
+        private final boolean showMainMenuBranding;
         private final boolean splashFontOverrideEnabled;
         private final int fontStyle;
         private final int fontVariableWeight;
@@ -1608,6 +1645,9 @@ public final class NeofontrenderConfig {
             compatModernSplash = true;
             compatTinkersAntique = true;
             compatThaumcraftTooltip = true;
+            compatCustomMainMenu = true;
+            compatFancyMenu = true;
+            showMainMenuBranding = true;
             splashFontOverrideEnabled = true;
             fontStyle = 0;
             fontVariableWeight = 0;
@@ -1715,6 +1755,9 @@ public final class NeofontrenderConfig {
             compatModernSplash = config.getOrElse("compat.modernsplash.enabled", true);
             compatTinkersAntique = config.getOrElse("compat.tinkersantique.enabled", true);
             compatThaumcraftTooltip = config.getOrElse("compat.thaumcraft.tooltip.enabled", true);
+            compatCustomMainMenu = config.getOrElse("compat.custommainmenu.novaBranding", true);
+            compatFancyMenu = config.getOrElse("compat.fancymenu.novaBranding", true);
+            showMainMenuBranding = config.getOrElse("ui.showMainMenuBranding", true);
             splashFontOverrideEnabled = config.getOrElse("splash.enabled", true);
             fontStyle = config.getOrElse("font.style", 0);
             fontVariableWeight = Math.max(0, Math.min(1000, getInt(config, "font.variableWeight", 0)));

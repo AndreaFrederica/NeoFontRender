@@ -2,6 +2,7 @@ package neofontrender.addons.diagnostics;
 
 import com.cleanroommc.modularui.api.widget.IWidget;
 import neofontrender.addons.compat.CompatImpact;
+import neofontrender.addons.compat.CustomMainMenuCompat;
 import neofontrender.addons.compat.ModCompat;
 import neofontrender.addons.compat.ModCompatRegistry;
 import neofontrender.addons.tooltips.AddonI18n;
@@ -90,6 +91,12 @@ final class DiagnosticsSettingsPage implements NfrSettingsPage {
             String simpleName = impact.target.substring(impact.target.lastIndexOf('.') + 1);
             return tr("gui.diagnostics.impact.disabled_mixin")
                     .replace("{mixin}", simpleName)
+                    .replace("{reason}", AddonI18n.tr(impact.reasonKey));
+        }
+        if (CustomMainMenuCompat.KIND_SUSPENDED.equals(impact.kind)) {
+            // {feature} is a translation key; resolve it here so the impact carries no raw prose.
+            return tr("gui.diagnostics.impact.suspended_feature")
+                    .replace("{feature}", AddonI18n.tr(impact.target))
                     .replace("{reason}", AddonI18n.tr(impact.reasonKey));
         }
         return impact.target;

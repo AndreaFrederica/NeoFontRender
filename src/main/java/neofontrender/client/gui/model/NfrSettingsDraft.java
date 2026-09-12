@@ -98,6 +98,9 @@ public final class NfrSettingsDraft {
     public final boolean originalCompatModernSplash = NeofontrenderConfig.compatModernSplash();
     public final boolean originalCompatTinkersAntique = NeofontrenderConfig.compatTinkersAntique();
     public final boolean originalCompatThaumcraftTooltip = NeofontrenderConfig.compatThaumcraftTooltip();
+    public final boolean originalCompatCustomMainMenu = NeofontrenderConfig.compatCustomMainMenu();
+    public final boolean originalCompatFancyMenu = NeofontrenderConfig.compatFancyMenu();
+    public final boolean originalShowMainMenuBranding = NeofontrenderConfig.showMainMenuBranding();
     public final String originalTextColorPaletteProvider =
             NeofontrenderConfig.textColorPaletteProvider();
     public final String originalCustomTextColorPalette =
@@ -166,6 +169,9 @@ public final class NfrSettingsDraft {
     public boolean compatModernSplash = originalCompatModernSplash;
     public boolean compatTinkersAntique = originalCompatTinkersAntique;
     public boolean compatThaumcraftTooltip = originalCompatThaumcraftTooltip;
+    public boolean compatCustomMainMenu = originalCompatCustomMainMenu;
+    public boolean compatFancyMenu = originalCompatFancyMenu;
+    public boolean showMainMenuBranding = originalShowMainMenuBranding;
     public String textColorPaletteProvider = originalTextColorPaletteProvider;
     public String customTextColorPalette = originalCustomTextColorPalette;
     public String enchantmentBackend = originalEnchantmentBackend;
@@ -346,6 +352,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setCompatModernSplash(compatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(compatTinkersAntique);
         NeofontrenderConfig.setCompatThaumcraftTooltip(compatThaumcraftTooltip);
+        NeofontrenderConfig.setCompatCustomMainMenu(compatCustomMainMenu);
+        NeofontrenderConfig.setCompatFancyMenu(compatFancyMenu);
+        NeofontrenderConfig.setShowMainMenuBranding(showMainMenuBranding);
         NeofontrenderConfig.setTextColorPaletteProvider(textColorPaletteProvider);
         NeofontrenderConfig.setCustomTextColorPalette(customTextColorPalette);
         NeofontrenderConfig.setEnchantmentFontBackend(enchantmentBackend);
@@ -438,6 +447,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setCompatModernSplash(originalCompatModernSplash);
         NeofontrenderConfig.setCompatTinkersAntique(originalCompatTinkersAntique);
         NeofontrenderConfig.setCompatThaumcraftTooltip(originalCompatThaumcraftTooltip);
+        NeofontrenderConfig.setCompatCustomMainMenu(originalCompatCustomMainMenu);
+        NeofontrenderConfig.setCompatFancyMenu(originalCompatFancyMenu);
+        NeofontrenderConfig.setShowMainMenuBranding(originalShowMainMenuBranding);
         NeofontrenderConfig.setTextColorPaletteProvider(originalTextColorPaletteProvider);
         NeofontrenderConfig.setCustomTextColorPalette(originalCustomTextColorPalette);
         NeofontrenderConfig.setEnchantmentFontBackend(originalEnchantmentBackend);
