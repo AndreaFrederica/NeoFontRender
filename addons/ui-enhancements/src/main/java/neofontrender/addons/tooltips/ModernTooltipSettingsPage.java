@@ -109,6 +109,8 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             context::refresh))
                     .add(c.toggleText(() -> tr("gui.mod_name"), () -> tr("tooltip.mod_name"),
                             () -> TooltipConfig.modNameEnabled, value -> TooltipConfig.modNameEnabled = value))
+                    .add(c.toggleText(() -> tr("gui.mod_name_move_to_end"), () -> tr("tooltip.mod_name_move_to_end"),
+                            () -> TooltipConfig.modNameMoveToEnd, value -> TooltipConfig.modNameMoveToEnd = value))
                     .add(c.dropdownText("tooltip_mod_name_format", () -> tr("gui.mod_name_format"),
                             () -> TooltipConfig.modNameFormat,
                             value -> TooltipConfig.modNameFormat = value,

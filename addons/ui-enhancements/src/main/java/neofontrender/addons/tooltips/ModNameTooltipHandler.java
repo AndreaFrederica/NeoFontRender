@@ -25,10 +25,10 @@ final class ModNameTooltipHandler {
     }
 
 
-    static void moveToEnd(ItemStack stack, List<String> tooltip) {
-        if (!TooltipConfig.modNameEnabled) return;
+    static boolean moveToEnd(ItemStack stack, List<String> tooltip) {
+        if (!TooltipConfig.modNameEnabled || !TooltipConfig.modNameMoveToEnd) return false;
         String modName = getModName(stack);
-        if (modName != null) ModNameTooltipSupport.moveModNameToEnd(tooltip, modName);
+        return modName != null && ModNameTooltipSupport.moveModNameToEnd(tooltip, modName);
     }
 
     @Nullable

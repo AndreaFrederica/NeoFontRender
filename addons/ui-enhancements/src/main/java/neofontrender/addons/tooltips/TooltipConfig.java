@@ -24,6 +24,7 @@ final class TooltipConfig {
     static boolean heiCustomTooltips = true;
     static boolean quarkModernMapTooltip = false;
     static boolean modNameEnabled = true;
+    static boolean modNameMoveToEnd = true;
     static String modNameFormat = "blue italic";
     static boolean advancedEnabled = true;
     static boolean advancedRequireCtrl = true;
@@ -86,6 +87,7 @@ final class TooltipConfig {
         heiCustomTooltips = config.getBoolean("tooltip.heiCustomTooltips", true);
         quarkModernMapTooltip = config.getBoolean("tooltip.quarkModernMapTooltip", false);
         modNameEnabled = config.getBoolean("tooltip.modName.enabled", true);
+        modNameMoveToEnd = config.getBoolean("tooltip.modName.moveToEnd", true);
         modNameFormat = config.getString("tooltip.modName.format", "blue italic");
         advancedEnabled = config.getBoolean("tooltip.advanced.enabled", true);
         advancedRequireCtrl = config.getBoolean("tooltip.advanced.requireCtrl", true);
@@ -148,6 +150,7 @@ final class TooltipConfig {
                 .set("tooltip.heiCustomTooltips", heiCustomTooltips)
                 .set("tooltip.quarkModernMapTooltip", quarkModernMapTooltip)
                 .set("tooltip.modName.enabled", modNameEnabled)
+                .set("tooltip.modName.moveToEnd", modNameMoveToEnd)
                 .set("tooltip.modName.format", modNameFormat)
                 .set("tooltip.advanced.enabled", advancedEnabled)
                 .set("tooltip.advanced.requireCtrl", advancedRequireCtrl)
@@ -212,6 +215,7 @@ final class TooltipConfig {
                 .define("tooltip.heiCustomTooltips", true, "Apply NFR's panel and frame to HEI tooltips that contain custom-rendered ingredient grids.")
                 .define("tooltip.quarkModernMapTooltip", false, "Replace Quark's parchment map preview with a compact NFR modern panel.")
                 .define("tooltip.modName.enabled", true, "Append the owning mod's display name to item tooltips.")
+                .define("tooltip.modName.moveToEnd", true, "Place the owning mod's display name after all other tooltip lines.")
                 .define("tooltip.modName.format", "blue italic", "Space-separated TextFormatting friendly names; empty means unformatted.")
                 .define("tooltip.advanced.enabled", true, "Generate advanced item information in the modern tooltip.")
                 .define("tooltip.advanced.requireCtrl", true, "Require Ctrl to expand advanced information.")
@@ -365,6 +369,7 @@ final class TooltipConfig {
         private final boolean originalHeiCustomTooltips = heiCustomTooltips;
         private final boolean originalQuarkModernMapTooltip = quarkModernMapTooltip;
         private final boolean originalModNameEnabled = modNameEnabled;
+        private final boolean originalModNameMoveToEnd = modNameMoveToEnd;
         private final String originalModNameFormat = modNameFormat;
         private final boolean originalRounded = rounded;
         private final boolean originalCenterTitle = centerTitle;
@@ -405,7 +410,8 @@ final class TooltipConfig {
             yieldToObscureTooltips = originalYieldObscure;
             heiCustomTooltips = originalHeiCustomTooltips;
             quarkModernMapTooltip = originalQuarkModernMapTooltip;
-            modNameEnabled = originalModNameEnabled; modNameFormat = originalModNameFormat;
+            modNameEnabled = originalModNameEnabled; modNameMoveToEnd = originalModNameMoveToEnd;
+            modNameFormat = originalModNameFormat;
             centerTitle = originalCenterTitle; titleBreak = originalTitleBreak; adaptiveBorder = originalAdaptive;
             borderShading = originalBorderShading; borderCycleMillis = originalBorderCycleMillis;
             cornerRadius = originalCorner; borderWidth = originalBorder; shadowRadius = originalShadow;
