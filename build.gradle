@@ -109,6 +109,11 @@ unimined.minecraft {
 
 dependencies {
     contain project(':engine:text-core')
+    // Optional compile-time API for the local AE2-Supergiant compatibility renderer.
+    // The dependency is never bundled; the runtime mixin is gated on the ae2 mod id.
+    def ae2LocalLib = fileTree(dir: "${rootProject.projectDir}/../ref/Applied-Energistics-2-Supergiant/build/libs",
+            includes: ['AppliedEnergistics2-Supergiant-*.jar'])
+    if (!ae2LocalLib.isEmpty()) modCompileOnly ae2LocalLib
     if (use_asset_mover.toBoolean()) implementation "com.cleanroommc:assetmover:${asset_mover_version}"
     if (enable_junit_testing.toBoolean()) {
         testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'

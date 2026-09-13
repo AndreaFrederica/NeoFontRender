@@ -58,6 +58,9 @@ dependencies {
     implementation project(':engine:audio')
     contain(project(path: ':engine:audio', configuration: 'shadow')) { transitive = false }
     compileOnly project(':')
+    def ae2LocalLib = fileTree(dir: "${rootProject.projectDir}/../ref/Applied-Energistics-2-Supergiant/build/libs",
+            includes: ['AppliedEnergistics2-Supergiant-*.jar'])
+    if (!ae2LocalLib.isEmpty()) compileOnly ae2LocalLib
     implementation uiTextProject
     uiTextEmbed uiTextProject
     if (localModularUiPath) {

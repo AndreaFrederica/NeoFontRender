@@ -30,6 +30,7 @@ import neofontrender.api.text.paragraph.TextParagraphProvider;
 import neofontrender.api.text.route.TextInlineBounds;
 import neofontrender.api.text.route.TextRenderRouteApi;
 import neofontrender.api.text.route.TextRenderRouteLayout;
+import neofontrender.core.font.support.TooltipLayoutCompat;
 
 final class ModernTooltipRenderer {
     private static final int Z_LEVEL = 300;
@@ -109,11 +110,14 @@ final class ModernTooltipRenderer {
                     thaumcraftContext != null, layout.lineWidths, layout.lineAdvances,
                     layout.visualPlan);
             QuarkTooltipVisuals.beginModernPostText();
+            TooltipLayoutCompat.publish(event.getFontRenderer(), layout.lines, layout.x, layout.y,
+                    layout.width, layout.height);
             try {
                 MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostText(
                         event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
                         layout.width, layout.height));
             } finally {
+                TooltipLayoutCompat.clear();
                 QuarkTooltipVisuals.endModernPostText();
             }
             drawDebugLayout(layout, event.getFontRenderer(), event.getStack());

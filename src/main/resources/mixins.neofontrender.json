@@ -1,6 +1,6 @@
 {
 	"package": "neofontrender.mixin",
-	"required": true,
+	"required": false,
 	"refmap": "mixins.neofontrender.refmap.json",
 	"target": "@env(DEFAULT)",
 	"minVersion": "0.8.5",

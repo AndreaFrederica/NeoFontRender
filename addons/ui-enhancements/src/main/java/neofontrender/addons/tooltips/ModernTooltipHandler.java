@@ -4,6 +4,7 @@ import net.minecraftforge.client.event.RenderTooltipEvent;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import neofontrender.api.client.tooltip.NfrTooltipApi;
 
 final class ModernTooltipHandler {
     private static final String MODULAR_UI_PRE_EVENT =
@@ -12,6 +13,8 @@ final class ModernTooltipHandler {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onTooltip(RenderTooltipEvent.Pre event) {
+        // AE2 native backend owns this event; prevent UIE from consuming it or re-entering.
+        if (neofontrender.api.client.tooltip.NfrTooltipApi.isNativeBypass()) return;
         // ItemTooltipEvent is not the final construction stage for extensible tooltips such as
         // ModularUI RichTooltip. Reassert provenance placement after every builder has run.
         ModNameTooltipHandler.moveToEnd(event.getStack(), event.getLines());

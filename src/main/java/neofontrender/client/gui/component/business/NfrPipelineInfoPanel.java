@@ -2,6 +2,7 @@ package neofontrender.client.gui.component.business;
 
 import com.cleanroommc.modularui.api.layout.ILayoutWidget;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
+import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.utils.Platform;
 import com.cleanroommc.modularui.widget.ParentWidget;
@@ -45,6 +46,7 @@ public final class NfrPipelineInfoPanel extends ParentWidget<NfrPipelineInfoPane
         super.draw(context, widgetTheme);
         Platform.setupDrawFont();
         Snapshot state = snapshot.get();
+        updateModuleTooltip(state);
         float configured = parseFloat(state.oversample, 8.0F, 1.0F, 16.0F);
         float effective = FontRenderTuning.rasterScale(configured);
         Gui.drawRect(4, 4, Math.max(4, getArea().w() - 4), Math.max(4, getArea().h() - 4), 0x66000000);
@@ -80,23 +82,48 @@ public final class NfrPipelineInfoPanel extends ParentWidget<NfrPipelineInfoPane
                 8, infoY + line * 5, 0xD8D8D8);
     }
 
+    /** Keep the hover help live so newly registered modules appear immediately. */
+    private void updateModuleTooltip(Snapshot state) {
+        RichTooltip tip = new RichTooltip().showUpTimer(8)
+                .addLine("已注册模块 / Registered modules");
+        addModules(tip, "语法解析", state.syntaxProviderStatuses);
+        addModules(tip, "后处理", state.postProcessorStatuses);
+        addModules(tip, "GL 组件", state.glComponentStatuses);
+        addModules(tip, "渲染路由", routeStatuses());
+        tooltip(tip);
+    }
+
+    private static void addModules(RichTooltip tip, String title, List<String> values) {
+        tip.addLine(title + ":");
+        if (values == null || values.isEmpty()) { tip.addLine("  -"); return; }
+        for (String value : values) tip.addLine("  " + value);
+    }
+
     private static void drawFlowGraph(Minecraft minecraft, Snapshot state, int x, int y, int width) {
         int nodeW = Math.max(118, Math.min(170, (width - 72) / 4));
-        int nodeH = 34;
+        int nodeH = 42;
         int gapX = 18;
         int mainY = y + 62;
         int[] xs = {x, x + nodeW + gapX, x + (nodeW + gapX) * 2, x + (nodeW + gapX) * 3};
-        node(minecraft, "输入文本", "raw", xs[0], mainY, nodeW, nodeH, 0xFF344B63);
-        node(minecraft, "语法解析", join(state.syntaxProviderStatuses), xs[1], mainY, nodeW, nodeH, 0xFF566B48);
-        node(minecraft, "结构化文本", state.structuredStatus, xs[2], mainY, nodeW, nodeH, 0xFF566B48);
-        node(minecraft, "渲染路由", "Cosmic / AWT", xs[3], mainY, nodeW, nodeH, 0xFF566B48);
+        // Draw every connector before nodes.  Previously long connectors were painted over
+        // node cards, making the graph look broken at branch junctions.
         edge(minecraft, xs[0] + nodeW, mainY + nodeH / 2, xs[1], mainY + nodeH / 2);
         edge(minecraft, xs[1] + nodeW, mainY + nodeH / 2, xs[2], mainY + nodeH / 2);
         edge(minecraft, xs[2] + nodeW, mainY + nodeH / 2, xs[3], mainY + nodeH / 2);
+        edge(minecraft, xs[3] + nodeW / 2, mainY + nodeH, xs[1] + nodeW / 2, mainY + 82);
+        edge(minecraft, xs[1] + nodeW, mainY + 82 + nodeH / 2, xs[2], mainY + 82 + nodeH / 2);
+        edge(minecraft, xs[2] + nodeW, mainY + 82 + nodeH / 2, xs[3], mainY + 82 + nodeH / 2);
+        edge(minecraft, xs[2] + nodeW / 2, mainY + 82 + nodeH, xs[2] + nodeW / 2, mainY + 158);
+        edge(minecraft, xs[2] + nodeW, mainY + 158 + nodeH / 2, xs[3], mainY + 158 + nodeH / 2);
+
+        node(minecraft, "输入文本", "raw", xs[0], mainY, nodeW, nodeH, 0xFF344B63);
+        node(minecraft, "语法解析", state.syntaxProviderStatuses, xs[1], mainY, nodeW, nodeH, 0xFF566B48);
+        node(minecraft, "结构化文本", state.structuredStatus, xs[2], mainY, nodeW, nodeH, 0xFF566B48);
+        node(minecraft, "渲染路由", "Cosmic / AWT", xs[3], mainY, nodeW, nodeH, 0xFF566B48);
 
         int branchY = mainY + 82;
         node(minecraft, "布局与字形", state.engineName, xs[1], branchY, nodeW, nodeH, 0xFF566B48);
-        node(minecraft, "后处理", join(state.postProcessorStatuses), xs[2], branchY, nodeW, nodeH, 0xFF566B48);
+        node(minecraft, "后处理", state.postProcessorStatuses, xs[2], branchY, nodeW, nodeH, 0xFF566B48);
         node(minecraft, "GL / 帧缓冲", state.shader ? "shader" : "fixed", xs[3], branchY, nodeW, nodeH, 0xFF566B48);
         edge(minecraft, xs[3] + nodeW / 2, mainY + nodeH, xs[1] + nodeW / 2, branchY);
         edge(minecraft, xs[1] + nodeW, branchY + nodeH / 2, xs[2], branchY + nodeH / 2);
@@ -105,7 +132,7 @@ public final class NfrPipelineInfoPanel extends ParentWidget<NfrPipelineInfoPane
         int sideY = branchY + 76;
         node(minecraft, "阴影分支", state.shader ? "modern shadow" : "legacy shadow", xs[2], sideY, nodeW, nodeH,
                 state.shader ? 0xFF566B48 : 0xFF665A42);
-        node(minecraft, "GL 组件", join(state.glComponentStatuses), xs[3], sideY, nodeW, nodeH, 0xFF566B48);
+        node(minecraft, "GL 组件", state.glComponentStatuses, xs[3], sideY, nodeW, nodeH, 0xFF566B48);
         edge(minecraft, xs[2] + nodeW / 2, branchY + nodeH, xs[2] + nodeW / 2, sideY);
         edge(minecraft, xs[2] + nodeW, sideY + nodeH / 2, xs[3], sideY + nodeH / 2);
     }
@@ -116,6 +143,12 @@ public final class NfrPipelineInfoPanel extends ParentWidget<NfrPipelineInfoPane
         Gui.drawRect(x, y, x + width, y + 2, 0xFFB9D5E8);
         draw(minecraft, fit(title, width - 8), x + 4, y + 4, 0xFFFFFFFF);
         draw(minecraft, fit(detail, width - 8), x + 4, y + 18, 0xFFD5E2EC);
+    }
+
+    private static void node(Minecraft minecraft, String title, List<String> details, int x, int y,
+                             int width, int height, int color) {
+        node(minecraft, title, details == null || details.isEmpty() ? "-" : details.get(0), x, y, width, height, color);
+        if (details != null && details.size() > 1) draw(minecraft, "+" + (details.size() - 1) + " modules", x + 4, y + 30, 0xFFD5E2EC);
     }
 
     private static void edge(Minecraft minecraft, int x1, int y1, int x2, int y2) {

@@ -20,6 +20,7 @@ public final class TooltipModule implements UiEnhancementModule {
     @Override
     public void preInit() {
         TooltipConfig.load();
+        LOGGER.info("Tooltip module preInit; enabled={}, style={}", TooltipConfig.enabled, TooltipConfig.renderStyle);
         Arc3DRuntimeSupport.verify();
     }
 
@@ -28,6 +29,8 @@ public final class TooltipModule implements UiEnhancementModule {
         ((IReloadableResourceManager) Minecraft.getMinecraft().getResourceManager())
                 .registerReloadListener(LegendaryResourceCompat.INSTANCE);
         NfrSettingsPageRegistry.register(new ModernTooltipSettingsPage());
+        NfrAe2TooltipApi.register();
+        LOGGER.info("Registered Revo UI tooltip settings page: {}", NfrUiEnhancements.MOD_ID + ":tooltips");
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new ModNameTooltipHandler());
         MinecraftForge.EVENT_BUS.register(new AdvancedTooltipHandler());

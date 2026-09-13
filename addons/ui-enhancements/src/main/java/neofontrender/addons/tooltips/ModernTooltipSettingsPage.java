@@ -66,6 +66,16 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
             NfrOptionsGrid grid = c.grid()
                     .add(c.toggleText(() -> tr("gui.enabled"), () -> tr("tooltip.enabled"),
                             () -> TooltipConfig.enabled, value -> TooltipConfig.enabled = value))
+                    .add(c.toggleText(() -> tr("gui.advanced"), () -> tr("tooltip.advanced.enabled"),
+                            () -> TooltipConfig.advancedEnabled, value -> TooltipConfig.advancedEnabled = value))
+                    .add(c.toggleText(() -> tr("gui.advanced_ctrl"), () -> tr("tooltip.advanced.requireCtrl"),
+                            () -> TooltipConfig.advancedRequireCtrl, value -> TooltipConfig.advancedRequireCtrl = value))
+                    .add(c.toggleText(() -> tr("gui.advanced_oredict"), () -> tr("tooltip.advanced.oreDictionary"),
+                            () -> TooltipConfig.advancedOreDictionary, value -> TooltipConfig.advancedOreDictionary = value))
+                    .add(c.toggleText(() -> tr("gui.advanced_registry"), () -> tr("tooltip.advanced.registryName"),
+                            () -> TooltipConfig.advancedRegistryName, value -> TooltipConfig.advancedRegistryName = value))
+                    .add(c.toggleText(() -> tr("gui.advanced_nbt"), () -> tr("tooltip.advanced.nbt"),
+                            () -> TooltipConfig.advancedNbt, value -> TooltipConfig.advancedNbt = value))
                     .add(c.dropdownText("tooltip_style", () -> tr("gui.style"),
                             () -> TooltipConfig.renderStyle,
                             value -> TooltipConfig.renderStyle = TooltipConfig.normalizeStyle(value),

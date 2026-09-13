@@ -34,8 +34,6 @@ final class TooltipConfig {
     static boolean advancedNbt = true;
     static boolean advancedNbtRequireShift = true;
     static int advancedNbtCharacterLimit = 0;
-    static boolean suppressActuallyAdditions = true;
-    static boolean suppressFtblib = true;
     static boolean suppressImmersiveEngineering = true;
     static boolean suppressEnderCore = true;
     static boolean rounded = true;
@@ -98,8 +96,6 @@ final class TooltipConfig {
         advancedNbt = config.getBoolean("tooltip.advanced.nbt", true);
         advancedNbtRequireShift = config.getBoolean("tooltip.advanced.nbtRequireShift", true);
         advancedNbtCharacterLimit = config.getInt("tooltip.advanced.nbtCharacterLimit", 0, 0, 100000);
-        suppressActuallyAdditions = config.getBoolean("tooltip.suppress.actuallyAdditions", true);
-        suppressFtblib = config.getBoolean("tooltip.suppress.ftblib", true);
         suppressImmersiveEngineering = config.getBoolean("tooltip.suppress.immersiveEngineering", true);
         suppressEnderCore = config.getBoolean("tooltip.suppress.enderCore", true);
         rounded = config.getBoolean("tooltip.rounded", true);
@@ -162,8 +158,6 @@ final class TooltipConfig {
                 .set("tooltip.advanced.nbt", advancedNbt)
                 .set("tooltip.advanced.nbtRequireShift", advancedNbtRequireShift)
                 .set("tooltip.advanced.nbtCharacterLimit", advancedNbtCharacterLimit)
-                .set("tooltip.suppress.actuallyAdditions", suppressActuallyAdditions)
-                .set("tooltip.suppress.ftblib", suppressFtblib)
                 .set("tooltip.suppress.immersiveEngineering", suppressImmersiveEngineering)
                 .set("tooltip.suppress.enderCore", suppressEnderCore)
                 .set("tooltip.rounded", rounded)
@@ -228,8 +222,6 @@ final class TooltipConfig {
                 .define("tooltip.advanced.nbt", true, "Show NBT information.")
                 .define("tooltip.advanced.nbtRequireShift", true, "Require Shift to reveal NBT contents.")
                 .define("tooltip.advanced.nbtCharacterLimit", 0, "Maximum NBT characters; zero means unlimited.")
-                .define("tooltip.suppress.actuallyAdditions", true, "Suppress Actually Additions advanced tooltip lines.")
-                .define("tooltip.suppress.ftblib", true, "Suppress FTBLib ore and NBT tooltip lines.")
                 .define("tooltip.suppress.immersiveEngineering", true, "Suppress Immersive Engineering ore tooltip lines.")
                 .define("tooltip.suppress.enderCore", true, "Suppress EnderCore ore tooltip lines.")
                 .define("tooltip.rounded", true, "Draw rounded antialiased corners.")

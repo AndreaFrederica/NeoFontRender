@@ -11,6 +11,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
+import java.util.Iterator;
 
 /** Mod Name Tooltip-compatible item provenance line, integrated into the addon tooltip pipeline. */
 final class ModNameTooltipHandler {
@@ -22,6 +23,7 @@ final class ModNameTooltipHandler {
         if (modName == null || ModNameTooltipSupport.containsModName(event.getToolTip(), modName)) return;
         event.getToolTip().add(ModNameTooltipSupport.format(TooltipConfig.modNameFormat) + modName);
     }
+
 
     static void moveToEnd(ItemStack stack, List<String> tooltip) {
         if (!TooltipConfig.modNameEnabled) return;
