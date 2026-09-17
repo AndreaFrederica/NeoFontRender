@@ -522,16 +522,12 @@ final class ModernTooltipRenderer {
         if (visualPlan != null && sideWidth > 0) visualPlan.drawSide(x, y, font);
         int lineTitleCount = Math.max(0, Math.min(titleLines, lines.size()));
         int titleInset = TooltipHeaderLayout.titleInset(stack);
+        HeaderMetrics header = HeaderMetrics.measure(stack, lineTitleCount, lineAdvances, y);
         if (lineTitleCount > 0 && titleInset > 0) {
-            int titleAdvance = 0;
-            for (int titleIndex = 0; titleIndex < lineTitleCount
-                    && titleIndex < lineAdvances.size(); titleIndex++) {
-                titleAdvance += lineAdvances.get(titleIndex);
-            }
             TooltipHeaderLayout.drawIcon(stack, x + sideWidth,
-                    y + Math.max(0, (titleAdvance - TooltipHeaderLayout.ICON_SIZE) / 2));
+                    y + header.iconY);
         }
-        int textY = y;
+        int textY = y + header.textOffset;
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
             if (NfrTooltipAnchor.isAnchorLine(line)) {
@@ -601,7 +597,8 @@ final class ModernTooltipRenderer {
             if (i + 1 == lineTitleCount) {
                 if (TooltipConfig.titleBreak
                         && hasContentAfterTitle(lines, lineTitleCount, visualPlan)) {
-                    int dividerY = Math.round(textY + lineAdvances.get(i) - 1.5F);
+                    int dividerY = Math.round(textY + lineAdvances.get(i)
+                            - header.textOffset - 1.5F);
                     drawCompatibleDivider(x + sideWidth, dividerY, textWidth, stack);
                 }
             }
@@ -611,6 +608,9 @@ final class ModernTooltipRenderer {
                         && hasContentAfterTitle(lines, lineTitleCount, visualPlan)) {
                     textY += TooltipConfig.titleGap;
                 }
+                // The body follows the measured flow box, while the title text itself may
+                // have been vertically centered inside a taller icon slot.
+                textY -= header.textOffset;
             }
             if (visualPlan != null) {
                 for (TooltipVisualBlock block : visualPlan.after(i)) {
