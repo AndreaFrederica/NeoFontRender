@@ -5,6 +5,7 @@ import icyllis.arc3d.core.MathUtil;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.item.ItemStack;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
@@ -24,6 +25,7 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.ToIntFunction;
 import neofontrender.addons.cjk.CjkTypographyRenderer;
 import neofontrender.addons.inline.EmbeddedContentConfig;
 import neofontrender.api.text.paragraph.TextParagraphProvider;
@@ -136,6 +138,57 @@ final class ModernTooltipRenderer {
         int contentTop = layout.y + layout.visualTop;
         int contentBottom = layout.y + layout.visualBottom;
         outline(layout.x, contentTop, layout.x + layout.width, contentBottom, 0xD000FFFF);
+        List<String> debugLines = new ArrayList<>();
+        debugLines.add("tooltip " + layout.width + "x" + Math.max(1, contentBottom - contentTop));
+
+        int sideWidth = layout.visualPlan == null ? 0 : layout.visualPlan.sideWidth();
+        if (sideWidth > 0 && layout.visualPlan != null) {
+            outline(layout.x, layout.y, layout.x + sideWidth,
+                    layout.y + layout.visualPlan.sideHeight(), 0xD0FF9E4D);
+            debugLines.add("preview flow " + sideWidth + "x" + layout.visualPlan.sideHeight());
+            for (TooltipVisualPlan.SidePlacement placement : layout.visualPlan.sidePlacements()) {
+                int left = layout.x + placement.x;
+                int top = layout.y + placement.y;
+                outline(left, top, left + placement.block.width(),
+                        top + placement.block.height(), 0xE0FFCF66);
+                debugLines.add(placement.block.debugLabel() + " "
+                        + placement.block.width() + "x" + placement.block.height());
+            }
+        }
+        if (TooltipHeaderLayout.hasIcon(stack)) {
+            int iconX = layout.x + sideWidth;
+            int titleAdvance = 0;
+            for (int titleIndex = 0; titleIndex < layout.titleLines
+                    && titleIndex < layout.lineAdvances.size(); titleIndex++) {
+                titleAdvance += layout.lineAdvances.get(titleIndex);
+            }
+            int iconY = layout.y + Math.max(0,
+                    (titleAdvance - TooltipHeaderLayout.ICON_SIZE) / 2);
+            int iconInset = TooltipHeaderLayout.iconDecorationInset();
+            int iconBoxSize = TooltipHeaderLayout.iconDecorationSize();
+            outline(iconX - iconInset, iconY - iconInset,
+                    iconX - iconInset + iconBoxSize,
+                    iconY - iconInset + iconBoxSize, 0xE0FFFFFF);
+            debugLines.add(TooltipConfig.headerIconFrameEnabled
+                    ? "header icon frame 18x18"
+                    : TooltipConfig.headerIconBackgroundEnabled
+                    ? "header icon background 18x18" : "header icon 16x16");
+        }
+        if (TooltipHeaderLayout.hasRarity(stack)) {
+            int titleAdvance = 0;
+            for (int titleIndex = 0; titleIndex < layout.titleLines
+                    && titleIndex < layout.lineAdvances.size(); titleIndex++) {
+                titleAdvance += layout.lineAdvances.get(titleIndex);
+            }
+            int rarityY = layout.y + Math.max(1, titleAdvance)
+                    - TooltipHeaderLayout.RARITY_HEIGHT
+                    - TooltipHeaderLayout.RARITY_BOTTOM_GAP;
+            int rarityX = layout.x + sideWidth + TooltipHeaderLayout.titleInset(stack);
+            outline(rarityX, rarityY,
+                    rarityX + Math.max(1, font.getStringWidth(TooltipHeaderLayout.rarityLabel(stack))),
+                    rarityY + TooltipHeaderLayout.RARITY_HEIGHT, 0xE0B58CFF);
+            debugLines.add("header rarity: " + TooltipHeaderLayout.rarityLabel(stack));
+        }
 
         int rowY = layout.y;
         int titleCount = Math.max(0, Math.min(layout.titleLines, layout.lines.size()));
@@ -143,35 +196,109 @@ final class ModernTooltipRenderer {
             int advance = layout.lineAdvances.get(i);
             int rowBottom = rowY + advance;
             int color = (i & 1) == 0 ? 0xB0FF4D8D : 0xB04DFF88;
-            outline(layout.x, rowY, layout.x + layout.width, rowBottom, color);
-            drawInlineDebugBounds(layout, font, i, rowY);
+            outline(layout.x + sideWidth, rowY, layout.x + layout.width, rowBottom, color);
+            drawInlineDebugBounds(layout, font, stack, i, rowY);
 
-            String label = i + ":" + advance;
-            int labelX = layout.x + Math.max(1, layout.width - font.getStringWidth(label));
-            font.drawString(label, labelX, rowY, color | 0xFF000000, false);
+            String label = NfrTooltipAnchor.isAnchorLine(layout.lines.get(i))
+                    ? layout.lines.get(i) : "row " + i + " " + advance + "px";
+            debugLines.add(label);
 
             rowY = rowBottom;
             if (i + 1 == titleCount) {
                 if (TooltipConfig.titleBreak
                         && hasContentAfterTitle(layout.lines, titleCount, layout.visualPlan)) {
-                    Gui.drawRect(layout.x, rowY, layout.x + layout.width,
+                    Gui.drawRect(layout.x + sideWidth, rowY, layout.x + layout.width,
                             rowY + TooltipConfig.titleGap, 0x604D7DFF);
                     rowY += TooltipConfig.titleGap;
                 }
             }
-            for (TooltipVisualBlock block : layout.visualPlan.after(i)) {
-                outline(layout.x, rowY, layout.x + block.width(),
+            if (layout.visualPlan != null) for (TooltipVisualBlock block : layout.visualPlan.after(i)) {
+                outline(layout.x + sideWidth, rowY, layout.x + sideWidth + block.width(),
                         rowY + block.height(), 0xE0FFE14D);
-                String visualLabel = block.debugLabel() + ":" + block.height();
-                font.drawString(visualLabel, layout.x + 1, rowY,
-                        0xFFFFE14D, false);
+                debugLines.add(block.debugLabel() + " " + block.width() + "x" + block.height());
                 rowY += block.height();
             }
         }
+
+        int titleAdvance = 0;
+        for (int titleIndex = 0; titleIndex < titleCount
+                && titleIndex < layout.lineAdvances.size(); titleIndex++) {
+            titleAdvance += layout.lineAdvances.get(titleIndex);
+        }
+        if (titleCount > 0) {
+            int headerX = layout.x + sideWidth;
+            int headerWidth = Math.max(1, layout.width - sideWidth);
+            outline(headerX, layout.y, headerX + headerWidth,
+                    layout.y + titleAdvance, 0xE0FFFFFF);
+            debugLines.add("header " + headerWidth + "x" + titleAdvance);
+        }
+        drawDebugLegend(debugLines, font, layout, contentTop, contentBottom);
+    }
+
+    private static void drawDebugLegend(List<String> lines, FontRenderer font,
+                                        TooltipLayout layout, int contentTop, int contentBottom) {
+        if (lines.isEmpty() || font == null) return;
+        Minecraft minecraft = Minecraft.getMinecraft();
+        ScaledResolution resolution = new ScaledResolution(minecraft);
+        int lineHeight = 9;
+        int padding = 4;
+        int maxLines = Math.max(1,
+                (resolution.getScaledHeight() - padding * 2 - 4) / lineHeight);
+        if (lines.size() > maxLines) {
+            int visibleCount = Math.max(0, maxLines - 1);
+            List<String> visible = new ArrayList<>(lines.subList(0, visibleCount));
+            visible.add("+" + (lines.size() - visibleCount) + " more");
+            lines = visible;
+        }
+        int width = 0;
+        for (String line : lines) width = Math.max(width, font.getStringWidth(line));
+        width = Math.min(Math.max(86, width), 220);
+        int height = padding * 2 + lines.size() * lineHeight;
+        int panelLeft = layout.x + layout.width + 7;
+        int panelTop = contentTop;
+        if (panelLeft + width > resolution.getScaledWidth()) {
+            panelLeft = layout.x - width - 7;
+        }
+        if (panelLeft < 2) {
+            panelLeft = Math.max(2, layout.x);
+            panelTop = contentBottom + 7;
+            if (panelTop + height > resolution.getScaledHeight()) {
+                panelTop = Math.max(2, contentTop - height - 7);
+            }
+        }
+        panelTop = Math.max(2, Math.min(panelTop, resolution.getScaledHeight() - height - 2));
+        Gui.drawRect(panelLeft, panelTop, panelLeft + width, panelTop + height, 0xD8101018);
+        Gui.drawRect(panelLeft, panelTop, panelLeft + width, panelTop + 1, 0xF0FFCF66);
+        Gui.drawRect(panelLeft, panelTop + height - 1, panelLeft + width, panelTop + height,
+                0xF0FFCF66);
+        Gui.drawRect(panelLeft, panelTop, panelLeft + 1, panelTop + height, 0xF0FFCF66);
+        Gui.drawRect(panelLeft + width - 1, panelTop, panelLeft + width, panelTop + height,
+                0xF0FFCF66);
+        int y = panelTop + padding;
+        for (String line : lines) {
+            String clipped = clipDebugLabel(line, width - padding * 2, font::getStringWidth);
+            font.drawString(clipped, panelLeft + padding, y, 0xFFFFE8A8, false);
+            y += lineHeight;
+        }
+    }
+
+    static String clipDebugLabel(String value, int maxWidth, ToIntFunction<String> width) {
+        String text = value == null ? "" : value;
+        int available = Math.max(0, maxWidth);
+        if (width.applyAsInt(text) <= available) return text;
+        String suffix = "...";
+        int low = 0;
+        int high = text.length();
+        while (low < high) {
+            int mid = (low + high + 1) >>> 1;
+            if (width.applyAsInt(text.substring(0, mid) + suffix) <= available) low = mid;
+            else high = mid - 1;
+        }
+        return text.substring(0, low) + suffix;
     }
 
     private static void drawInlineDebugBounds(TooltipLayout tooltip, FontRenderer font,
-                                              int lineIndex, int rowY) {
+                                              ItemStack stack, int lineIndex, int rowY) {
         TextRenderRouteLayout line;
         try {
             line = TextRenderRouteApi.layout(font, tooltip.lines.get(lineIndex));
@@ -182,9 +309,14 @@ final class ModernTooltipRenderer {
 
         boolean compact = tooltip.compactLines.get(lineIndex);
         float scale = tooltip.profile().textScale * (compact ? 0.5F : 1.0F);
-        int lineX = tooltip.x;
+        int sideWidth = tooltip.visualPlan == null ? 0 : tooltip.visualPlan.sideWidth();
+        int lineX = tooltip.x + sideWidth;
+        int inset = lineIndex < tooltip.titleLines ? TooltipHeaderLayout.titleInset(stack) : 0;
+        lineX += inset;
         if (TooltipConfig.centerTitle && lineIndex < tooltip.titleLines) {
-            lineX += Math.max(0, (tooltip.width - tooltip.lineWidths.get(lineIndex)) / 2);
+            lineX += Math.max(0, (tooltip.width
+                    - sideWidth
+                    - inset - tooltip.lineWidths.get(lineIndex)) / 2);
         }
         float originX = lineX + tooltip.profile().offsetX;
         float originY = rowY + tooltip.profile().offsetY;
@@ -385,16 +517,45 @@ final class ModernTooltipRenderer {
                             List<Integer> lineAdvances,
                             TooltipVisualPlan visualPlan) {
         TooltipConfig.Profile activeProfile = profile == null ? TooltipConfig.profile("vanilla") : profile;
+        int sideWidth = visualPlan == null ? 0 : visualPlan.sideWidth();
+        int textWidth = Math.max(1, width - sideWidth);
+        if (visualPlan != null && sideWidth > 0) visualPlan.drawSide(x, y, font);
+        int lineTitleCount = Math.max(0, Math.min(titleLines, lines.size()));
+        int titleInset = TooltipHeaderLayout.titleInset(stack);
+        if (lineTitleCount > 0 && titleInset > 0) {
+            int titleAdvance = 0;
+            for (int titleIndex = 0; titleIndex < lineTitleCount
+                    && titleIndex < lineAdvances.size(); titleIndex++) {
+                titleAdvance += lineAdvances.get(titleIndex);
+            }
+            TooltipHeaderLayout.drawIcon(stack, x + sideWidth,
+                    y + Math.max(0, (titleAdvance - TooltipHeaderLayout.ICON_SIZE) / 2));
+        }
         int textY = y;
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
+            if (NfrTooltipAnchor.isAnchorLine(line)) {
+                // Marker lines carry the position only: anchored content owns its height.
+                textY += lineAdvances.get(i);
+                if (visualPlan != null) {
+                    for (TooltipVisualBlock block : visualPlan.after(i)) {
+                        block.draw(x + sideWidth, textY, font);
+                        textY += block.height();
+                    }
+                }
+                continue;
+            }
             boolean compact = compactLines != null && i < compactLines.size() && compactLines.get(i);
-            int lineTitleCount = Math.max(0, Math.min(titleLines, lines.size()));
-            int lineX = x;
+            int lineX = x + sideWidth;
+            int availableTitleWidth = textWidth;
+            if (i < lineTitleCount) {
+                lineX += titleInset;
+                availableTitleWidth = Math.max(1, textWidth - titleInset);
+            }
             float textScale = activeProfile.textScale * (compact ? 0.5F : 1.0F);
             int paragraphWidth = lineBreaksAlreadyApplied ? 1_000_000
-                    : Math.max(1, compact ? Math.round(width * 2.0F / activeProfile.textScale)
-                            : Math.round(width / activeProfile.textScale));
+                    : Math.max(1, compact ? Math.round(textWidth * 2.0F / activeProfile.textScale)
+                            : Math.round(textWidth / activeProfile.textScale));
             TextParagraphProvider.Layout paragraph = CjkTypographyRenderer.layout(
                     font, line, paragraphWidth,
                     compact ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT * 2 : TooltipConfig.lineHeight);
@@ -410,7 +571,7 @@ final class ModernTooltipRenderer {
                 renderedWidth = Math.max(1, Math.round(renderedWidth * activeProfile.textScale));
             }
             if (TooltipConfig.centerTitle && i < lineTitleCount) {
-                lineX += Math.max(0, (width - renderedWidth) / 2);
+                lineX += Math.max(0, (availableTitleWidth - renderedWidth) / 2);
             }
             int color = i < lineTitleCount ? TooltipConfig.titleColor : TooltipConfig.textColor;
             if (textScale != 1.0F || activeProfile.offsetX != 0.0F || activeProfile.offsetY != 0.0F) {
@@ -432,10 +593,16 @@ final class ModernTooltipRenderer {
                 else font.drawString(line, lineX, textY, color);
             }
             if (i + 1 == lineTitleCount) {
+                TooltipHeaderLayout.drawRarity(stack, font, x + sideWidth + titleInset,
+                        textY + Math.max(0, lineAdvances.get(i)
+                                - TooltipHeaderLayout.RARITY_HEIGHT
+                                - TooltipHeaderLayout.RARITY_BOTTOM_GAP));
+            }
+            if (i + 1 == lineTitleCount) {
                 if (TooltipConfig.titleBreak
                         && hasContentAfterTitle(lines, lineTitleCount, visualPlan)) {
                     int dividerY = Math.round(textY + lineAdvances.get(i) - 1.5F);
-                    drawCompatibleDivider(x, dividerY, width, stack);
+                    drawCompatibleDivider(x + sideWidth, dividerY, textWidth, stack);
                 }
             }
             textY += lineAdvances.get(i);
@@ -447,7 +614,7 @@ final class ModernTooltipRenderer {
             }
             if (visualPlan != null) {
                 for (TooltipVisualBlock block : visualPlan.after(i)) {
-                    block.draw(x, textY, font);
+                    block.draw(x + sideWidth, textY, font);
                     textY += block.height();
                 }
             }
@@ -485,8 +652,8 @@ final class ModernTooltipRenderer {
         colors[3] = withAlpha(0xFFFF55FF, alpha);
     }
 
-    private static void drawRoundedFill(float left, float top, float right, float bottom,
-                                        float radius, int[] colors) {
+    static void drawRoundedFill(float left, float top, float right, float bottom,
+                                float radius, int[] colors) {
         List<Point> points = perimeter(left, top, right, bottom, radius);
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder buffer = tessellator.getBuffer();
@@ -505,8 +672,8 @@ final class ModernTooltipRenderer {
         tessellator.draw();
     }
 
-    private static void drawRoundedBorder(float left, float top, float right, float bottom,
-                                          float radius, float width, int[] colors) {
+    static void drawRoundedBorder(float left, float top, float right, float bottom,
+                                  float radius, float width, int[] colors) {
         List<Point> outer = perimeter(left, top, right, bottom, radius);
         List<Point> inner = perimeter(left + width, top + width, right - width, bottom - width,
                 Math.max(0.01F, radius - width));
@@ -649,7 +816,7 @@ final class ModernTooltipRenderer {
      * Item lighting uses texture units 0, 1 and 2, so all three must be synchronized even though
      * only one of them is active when the tooltip event is posted.
      */
-    private static final class CallerGlState implements AutoCloseable {
+    static final class CallerGlState implements AutoCloseable {
         private final boolean lighting = GL11.glIsEnabled(GL11.GL_LIGHTING);
         private final boolean light0 = GL11.glIsEnabled(GL11.GL_LIGHT0);
         private final boolean light1 = GL11.glIsEnabled(GL11.GL_LIGHT1);

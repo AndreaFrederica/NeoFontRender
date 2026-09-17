@@ -226,6 +226,12 @@
     right: 52px;
     height: 22px;
     background: #111820;
+    slider-track-color: #44515f;
+    slider-track-height: 2px;
+    slider-track-inset: 3px;
+    slider-handle-color: #858585;
+    slider-handle-width: 6px;
+    slider-handle-height: 100%;
 }
 
 .slider-value {

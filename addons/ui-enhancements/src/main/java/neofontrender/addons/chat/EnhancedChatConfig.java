@@ -39,6 +39,10 @@ public final class EnhancedChatConfig {
     static String pinnedTabs = "";
     static boolean persistentChatHud = false;
     static boolean closeChatOnDetach = false;
+    static boolean serverHeads = true;
+    static String serverAvatar = "rack";
+    static boolean serverHeadGroupFirst = false;
+    static boolean playerHeadGroupFirst = false;
     static boolean playerHeads = true;
     static boolean headShadow = true;
     static boolean itemIcons = true;
@@ -102,6 +106,10 @@ public final class EnhancedChatConfig {
                 .define("chat.tabs.pinned", "", "Comma-separated channel names pinned to the front of the tab tray, in priority order.")
                 .define("chat.hud.persistent", false, "Keep the expanded TabbyChat window visible in the HUD.")
                 .define("chat.hud.closeOnDetach", false, "Close the current chat screen immediately after detaching it to the HUD.")
+                .define("chat.serverHeads", true, "Display server message avatars independently of player heads.")
+                .define("chat.serverAvatar", "rack", "Server avatar: rack, tower, storage, narrow.")
+                .define("chat.playerHeadGroupFirst", false, "Show only the first avatar in consecutive messages from the same player.")
+                .define("chat.serverHeadGroupFirst", false, "Show only the first avatar in consecutive server messages.")
                 .define("chat.playerHeads", true, "Display cached player heads next to chat messages.")
                 .define("chat.playerHeadShadow", true, "Draw a one-pixel shadow behind chat heads.")
                 .define("chat.itemIcons", true, "Display item icons beside SHOW_ITEM chat components.")
@@ -158,6 +166,10 @@ public final class EnhancedChatConfig {
         pinnedTabs = file.getString("chat.tabs.pinned", "");
         persistentChatHud = file.getBoolean("chat.hud.persistent", false);
         closeChatOnDetach = file.getBoolean("chat.hud.closeOnDetach", false);
+        serverHeads = file.getBoolean("chat.serverHeads", true);
+        serverAvatar = file.getString("chat.serverAvatar", "rack");
+        playerHeadGroupFirst = file.getBoolean("chat.playerHeadGroupFirst", false);
+        serverHeadGroupFirst = file.getBoolean("chat.serverHeadGroupFirst", false);
         playerHeads = file.getBoolean("chat.playerHeads", true);
         headShadow = file.getBoolean("chat.playerHeadShadow", true);
         itemIcons = file.getBoolean("chat.itemIcons", true);
@@ -215,6 +227,10 @@ public final class EnhancedChatConfig {
                 .set("chat.tabs.pinned", pinnedTabs)
                 .set("chat.hud.persistent", persistentChatHud)
                 .set("chat.hud.closeOnDetach", closeChatOnDetach)
+                .set("chat.serverHeads", serverHeads)
+                .set("chat.serverAvatar", serverAvatar)
+                .set("chat.playerHeadGroupFirst", playerHeadGroupFirst)
+                .set("chat.serverHeadGroupFirst", serverHeadGroupFirst)
                 .set("chat.playerHeads", playerHeads)
                 .set("chat.playerHeadShadow", headShadow)
                 .set("chat.itemIcons", itemIcons)

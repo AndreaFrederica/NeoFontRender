@@ -5,17 +5,16 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class LegendaryTooltipCompatTest {
     @Test
-    void panelPriorityComposesBothModsWithoutDisablingLayout() {
-        assertEquals(TooltipPanelOwner.NFR, TooltipPanelOwner.choose(false, false, true, true));
-        assertEquals(TooltipPanelOwner.LEGENDARY, TooltipPanelOwner.choose(true, false, true, false));
-        assertEquals(TooltipPanelOwner.LEGENDARY, TooltipPanelOwner.choose(true, true, true, true));
-        assertEquals(TooltipPanelOwner.OBSCURE, TooltipPanelOwner.choose(true, true, false, true));
-        assertEquals(TooltipPanelOwner.NFR, TooltipPanelOwner.choose(true, true, false, false));
-        assertEquals(TooltipPanelOwner.OBSCURE, TooltipPanelOwner.choose(false, true, true, true));
+    void panelPriorityOnlySelectsUieOrLegendary() {
+        assertEquals(TooltipPanelOwner.NFR, TooltipPanelOwner.choose(false, false, "auto", true));
+        assertEquals(TooltipPanelOwner.LEGENDARY, TooltipPanelOwner.choose(true, false, "auto", true));
+        assertEquals(TooltipPanelOwner.NFR, TooltipPanelOwner.choose(true, false, "uie", true));
+        assertEquals(TooltipPanelOwner.LEGENDARY, TooltipPanelOwner.choose(true, false, "legendary", false));
+        assertEquals(TooltipPanelOwner.LEGENDARY, TooltipPanelOwner.choose(false, true, "auto", false));
     }
 
     @Test
-    void decorationsUsePanelEdgesIncludingTheObscureHeader() {
+    void decorationsUsePanelEdges() {
         assertFalse(LegendaryTooltipCompat.hasLayout());
         try (LegendaryTooltipCompat.Scope ignored = LegendaryTooltipCompat.begin(20, 30, 220, 160)) {
             LegendaryTooltipCompat.Bounds bounds = LegendaryTooltipCompat.bounds();

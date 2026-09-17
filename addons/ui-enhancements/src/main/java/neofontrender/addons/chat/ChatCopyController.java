@@ -266,10 +266,16 @@ public final class ChatCopyController {
         int position = ChatTypographyRenderer.isPositioned(component) && !layout.hasInlineContent()
                 ? ChatTypographyRenderer.formattedIndexAt(component, textX)
                 : layout.sourceIndexAt(textX);
+        ChatHeadLineMetadata headMetadata = line instanceof ChatHeadLineMetadata ? (ChatHeadLineMetadata) line : null;
+        ChatHeadLineMetadata older = index + 1 < chatLines.size() && chatLines.get(index + 1) instanceof ChatHeadLineMetadata
+                ? (ChatHeadLineMetadata) chatLines.get(index + 1) : null;
         boolean head = EnhancedChatFeatures.playerHeads()
                 && panelX >= 0 && panelX < ChatHeadRenderer.HEAD_SIZE
                 && line instanceof ChatHeadLineMetadata
-                && ((ChatHeadLineMetadata) line).nfrUi$isFirstFragment();
+                && !ChatHeadRenderer.isServer(headMetadata.nfrUi$getSenderId(), headMetadata.nfrUi$getMessageMetadata())
+                && ChatHeadRenderer.showMessageHead(headMetadata.nfrUi$getSenderId(), headMetadata.nfrUi$getMessageMetadata(),
+                        headMetadata.nfrUi$isFirstFragment(), older == null ? null : older.nfrUi$getSenderId(),
+                        older == null ? null : older.nfrUi$getMessageMetadata(), older != null);
         return new Hit(line, Math.max(0, Math.min(value.length(), position)), head);
     }
 

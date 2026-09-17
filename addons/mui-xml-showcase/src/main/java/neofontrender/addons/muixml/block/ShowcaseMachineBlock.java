@@ -3,6 +3,7 @@ package neofontrender.addons.muixml.block;
 import com.cleanroommc.modularui.factory.GuiFactories;
 import neofontrender.addons.muixml.MuiXmlShowcaseMod;
 import neofontrender.addons.muixml.tile.ShowcaseChestTile;
+import neofontrender.addons.muixml.tile.ShowcaseChest256Tile;
 import neofontrender.addons.muixml.tile.ShowcaseFurnaceTile;
 import neofontrender.addons.muixml.tile.ShowcaseInventoryTile;
 import net.minecraft.block.Block;
@@ -23,22 +24,22 @@ import javax.annotation.Nullable;
 
 public final class ShowcaseMachineBlock extends Block implements ITileEntityProvider {
 
-    public enum Kind { CHEST, FURNACE }
+    public enum Kind { CHEST, CHEST_256, FURNACE }
 
     private final Kind kind;
 
     public ShowcaseMachineBlock(String name, Kind kind) {
-        super(kind == Kind.CHEST ? Material.WOOD : Material.ROCK);
+        super(kind == Kind.FURNACE ? Material.ROCK : Material.WOOD);
         this.kind = kind;
         setRegistryName(MuiXmlShowcaseMod.MOD_ID, name);
         setTranslationKey(MuiXmlShowcaseMod.MOD_ID + "." + name);
         setCreativeTab(CreativeTabs.REDSTONE);
-        setHardness(kind == Kind.CHEST ? 2.5F : 3.5F);
+        setHardness(kind == Kind.FURNACE ? 3.5F : 2.5F);
     }
 
     @Override
     public @Nullable TileEntity createNewTileEntity(World world, int metadata) {
-        return this.kind == Kind.CHEST ? new ShowcaseChestTile() : new ShowcaseFurnaceTile();
+        return this.kind == Kind.CHEST ? new ShowcaseChestTile() : this.kind == Kind.CHEST_256 ? new ShowcaseChest256Tile() : new ShowcaseFurnaceTile();
     }
 
     @Override

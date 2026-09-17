@@ -27,6 +27,15 @@ final class ChatStyleSettingsPage implements NfrSettingsPage {
             NfrOptionsGrid messageElements = c.grid()
                     .add(c.toggleText(() -> chatTr("player_heads"), () -> chatTooltip("player_heads"),
                             () -> EnhancedChatConfig.playerHeads, value -> EnhancedChatConfig.playerHeads = value))
+                    .add(c.toggleText(() -> chatTr("server_heads"), () -> chatTooltip("server_heads"),
+                            () -> EnhancedChatConfig.serverHeads, value -> EnhancedChatConfig.serverHeads = value))
+                    .add(c.dropdownText("chat_server_avatar", () -> chatTr("server_avatar"),
+                            () -> EnhancedChatConfig.serverAvatar, value -> EnhancedChatConfig.serverAvatar = value,
+                            Arrays.asList("rack", "tower", "storage", "narrow"), value -> chatTr("server_avatar." + value)).size(260, 24))
+                    .add(c.toggleText(() -> chatTr("server_head_group_first"), () -> chatTooltip("server_head_group_first"),
+                            () -> EnhancedChatConfig.serverHeadGroupFirst, value -> EnhancedChatConfig.serverHeadGroupFirst = value))
+                    .add(c.toggleText(() -> chatTr("player_head_group_first"), () -> chatTooltip("player_head_group_first"),
+                            () -> EnhancedChatConfig.playerHeadGroupFirst, value -> EnhancedChatConfig.playerHeadGroupFirst = value))
                     .add(c.toggleText(() -> chatTr("head_shadow"), () -> chatTooltip("head_shadow"),
                             () -> EnhancedChatConfig.headShadow, value -> EnhancedChatConfig.headShadow = value))
                     .add(c.toggleText(() -> chatTr("item_icons"), () -> chatTooltip("item_icons"),
@@ -107,6 +116,10 @@ final class ChatStyleSettingsPage implements NfrSettingsPage {
     }
 
     private static final class Snapshot {
+        private final boolean playerHeadGroupFirst = EnhancedChatConfig.playerHeadGroupFirst;
+        private final boolean serverHeads = EnhancedChatConfig.serverHeads;
+        private final String serverAvatar = EnhancedChatConfig.serverAvatar;
+        private final boolean serverHeadGroupFirst = EnhancedChatConfig.serverHeadGroupFirst;
         private final boolean playerHeads = EnhancedChatConfig.playerHeads;
         private final boolean headShadow = EnhancedChatConfig.headShadow;
         private final boolean itemIcons = EnhancedChatConfig.itemIcons;
@@ -127,6 +140,10 @@ final class ChatStyleSettingsPage implements NfrSettingsPage {
         private final int opacity = ChatStyleConfig.opacityPercent;
 
         private void restore() {
+            EnhancedChatConfig.playerHeadGroupFirst = playerHeadGroupFirst;
+            EnhancedChatConfig.serverHeads = serverHeads;
+            EnhancedChatConfig.serverAvatar = serverAvatar;
+            EnhancedChatConfig.serverHeadGroupFirst = serverHeadGroupFirst;
             EnhancedChatConfig.playerHeads = playerHeads;
             EnhancedChatConfig.headShadow = headShadow;
             EnhancedChatConfig.itemIcons = itemIcons;

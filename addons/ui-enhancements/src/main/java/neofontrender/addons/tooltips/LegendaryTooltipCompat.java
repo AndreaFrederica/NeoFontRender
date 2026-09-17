@@ -18,15 +18,15 @@ public final class LegendaryTooltipCompat {
     public static boolean prefersPanel() {
         boolean resourceFrame = LegendaryResourceCompat.INSTANCE.frames().stream().findFirst().isPresent();
         return TooltipConfig.enabled && TooltipPanelOwner.choose(Loader.isModLoaded("legendarytooltips"),
-                resourceFrame, false, TooltipConfig.legendaryOwnership,
-                TooltipConfig.yieldToLegendaryTooltips, false) == TooltipPanelOwner.LEGENDARY;
+                resourceFrame, TooltipConfig.legendaryOwnership,
+                TooltipConfig.yieldToLegendaryTooltips) == TooltipPanelOwner.LEGENDARY;
     }
 
     public static boolean prefersPanel(ItemStack stack) {
         boolean resourceFrame = LegendaryResourceCompat.INSTANCE.match(stack) != null;
         return TooltipConfig.enabled && TooltipPanelOwner.choose(Loader.isModLoaded("legendarytooltips"),
-                resourceFrame, false, TooltipConfig.legendaryOwnership,
-                TooltipConfig.yieldToLegendaryTooltips, false) == TooltipPanelOwner.LEGENDARY;
+                resourceFrame, TooltipConfig.legendaryOwnership,
+                TooltipConfig.yieldToLegendaryTooltips) == TooltipPanelOwner.LEGENDARY;
     }
 
     public static boolean hasLayout() { return ACTIVE.get() != null; }

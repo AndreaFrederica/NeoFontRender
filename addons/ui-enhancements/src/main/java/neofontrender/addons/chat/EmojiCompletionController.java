@@ -21,6 +21,12 @@ import java.util.List;
 public final class EmojiCompletionController {
     public static final EmojiCompletionController INSTANCE = new EmojiCompletionController();
 
+    /** Diagnostic switch, -Dnfr.debug.commandCompletion=true. Logs emoji suggestion lookups. */
+    private static final boolean DEBUG_EMOJI =
+            Boolean.getBoolean("nfr.debug.commandCompletion");
+    private static final org.apache.logging.log4j.Logger LOGGER =
+            org.apache.logging.log4j.LogManager.getLogger("neofontrender.uie.completion");
+
     private final List<String> matches = new ArrayList<>();
     private GuiTextField input;
     private ChatSuggestionPopup.Layout layout;
@@ -90,7 +96,13 @@ public final class EmojiCompletionController {
         }
         String prefix = token.substring(1);
         if (!prefix.matches("[\\w+\\-]*")) { closeCandidates(); return; }
+        if (DEBUG_EMOJI) {
+            LOGGER.info("[emojiProbe] refresh prefix=[{}] text=[{}]", prefix, text);
+        }
         List<String> next = TextPipelineMiddleware.emojiSuggestions(prefix, 200);
+        if (DEBUG_EMOJI) {
+            LOGGER.info("[emojiProbe] suggestions n={}", next == null ? -1 : next.size());
+        }
         if (!next.equals(matches)) {
             String old = selected >= 0 && selected < matches.size() ? matches.get(selected) : "";
             matches.clear();

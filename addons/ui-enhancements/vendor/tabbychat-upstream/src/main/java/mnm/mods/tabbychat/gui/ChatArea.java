@@ -276,6 +276,16 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         }
     }
 
+    private boolean nfrUi$showHead(ChatMessage message) {
+        List<Message> rows = getChat();
+        int index = rows.indexOf(message);
+        ChatMessage older = index >= 0 && index + 1 < rows.size() && rows.get(index + 1) instanceof ChatMessage
+                ? (ChatMessage) rows.get(index + 1) : null;
+        return ChatHeadRenderer.showMessageHead(message.nfrUi$getSenderId(), message.nfrUi$getMessageMetadata(),
+                message.nfrUi$isFirstFragment(), older == null ? null : older.nfrUi$getSenderId(),
+                older == null ? null : older.nfrUi$getMessageMetadata(), older != null);
+    }
+
     private void drawChatLineInScope(Message line, int xPos, int yPos) {
         if (isPrivateView()) {
             drawPrivateLine(line, xPos, yPos);
@@ -288,8 +298,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         float fade = getLineFade(line);
         if (line instanceof ChatMessage) {
             ChatMessage message = (ChatMessage) line;
-            if (EnhancedChatFeatures.playerHeads() && message.nfrUi$isFirstFragment()) {
-                ChatHeadRenderer.render(message.nfrUi$getSenderId(), xPos, iconY,
+            if (nfrUi$showHead(message)) {
+                ChatHeadRenderer.renderMessage(message.nfrUi$getSenderId(), message.nfrUi$getMessageMetadata(), xPos, iconY,
                         mc.gameSettings.chatOpacity * fade);
             }
         }
@@ -386,10 +396,10 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         }
         int iconY = yPos + 1 + Math.max(0, contentHeight - mc.fontRenderer.FONT_HEIGHT);
         ChatItemIconRenderer.renderLine(display, textX, iconY);
-        if (line instanceof ChatMessage && ((ChatMessage) line).nfrUi$isFirstFragment()) {
+        if (line instanceof ChatMessage && nfrUi$showHead((ChatMessage) line)) {
             int headX = outgoing
                     ? getBounds().width - 3 - ChatHeadRenderer.HEAD_SIZE : xPos;
-            ChatHeadRenderer.render(((ChatMessage) line).nfrUi$getSenderId(),
+            ChatHeadRenderer.renderMessage(((ChatMessage) line).nfrUi$getSenderId(), ((ChatMessage) line).nfrUi$getMessageMetadata(),
                     headX, iconY, mc.gameSettings.chatOpacity * fade);
         }
     }
@@ -635,7 +645,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         boolean head = EnhancedChatFeatures.playerHeads()
                 && mouseX >= headX && mouseX < headX + ChatHeadRenderer.HEAD_SIZE
                 && line instanceof ChatMessage
-                && ((ChatMessage) line).nfrUi$isFirstFragment();
+                && !ChatHeadRenderer.isServer(((ChatMessage) line).nfrUi$getSenderId(), ((ChatMessage) line).nfrUi$getMessageMetadata())
+                && nfrUi$showHead((ChatMessage) line);
         ITextComponent component = nfrUi$componentAt(line, mouseX);
         int rowTop = Math.round(visualBottom);
         for (int index = 0; index <= row; index++) rowTop -= rowHeight(visible.get(index));

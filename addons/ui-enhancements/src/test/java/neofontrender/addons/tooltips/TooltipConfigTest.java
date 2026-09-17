@@ -1,5 +1,6 @@
 package neofontrender.addons.tooltips;
 
+import net.minecraft.item.EnumRarity;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,6 +50,34 @@ class TooltipConfigTest {
             TooltipConfig.lowBrightnessMicaEnhancement = original;
             TooltipConfig.micaSampleUi = originalSampleUi;
         }
+    }
+
+    @Test
+    void snapshotRestoresArmorStandBasePlateOption() {
+        boolean original = TooltipConfig.armorStandBasePlate;
+        try {
+            TooltipConfig.armorStandBasePlate = true;
+            TooltipConfig.Snapshot snapshot = TooltipConfig.snapshot();
+            TooltipConfig.armorStandBasePlate = false;
+
+            snapshot.restore();
+
+            assertTrue(TooltipConfig.armorStandBasePlate);
+        } finally {
+            TooltipConfig.armorStandBasePlate = original;
+        }
+    }
+
+    @Test
+    void mapsEveryVanillaRarityToAnAddonTranslation() {
+        assertEquals("neofontrender_ui_enhancements.tooltip.rarity.common",
+                TooltipHeaderLayout.rarityTranslationKey(EnumRarity.COMMON));
+        assertEquals("neofontrender_ui_enhancements.tooltip.rarity.uncommon",
+                TooltipHeaderLayout.rarityTranslationKey(EnumRarity.UNCOMMON));
+        assertEquals("neofontrender_ui_enhancements.tooltip.rarity.rare",
+                TooltipHeaderLayout.rarityTranslationKey(EnumRarity.RARE));
+        assertEquals("neofontrender_ui_enhancements.tooltip.rarity.epic",
+                TooltipHeaderLayout.rarityTranslationKey(EnumRarity.EPIC));
     }
 
     @Test

@@ -11,13 +11,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Pseudo
 @Mixin(targets = "dev.obscuria.tooltips.client.TooltipEventHandler", remap = false)
 public abstract class MixinObscureTooltipEventHandler {
-    @Inject(method = "onRenderTooltipPre", at = @At("HEAD"), require = 0, remap = false)
-    private void nfrUi$begin(RenderTooltipEvent.Pre event, CallbackInfo ci) {
-        ObscureTooltipCompat.begin(event);
-    }
-    // The event handler catches render exceptions, so RETURN also clears failed tooltips.
-    @Inject(method = "onRenderTooltipPre", at = @At("RETURN"), require = 0, remap = false)
-    private void nfrUi$clearActiveStack(CallbackInfo ci) {
-        ObscureTooltipCompat.clearActiveStack();
+    @Inject(method = "onRenderTooltipPre", at = @At("HEAD"), cancellable = true,
+            require = 0, remap = false)
+    private void nfrUi$skipNativeRenderer(RenderTooltipEvent.Pre event, CallbackInfo ci) {
+        if (ObscureTooltipCompat.shouldBypassObscure()) {
+            ci.cancel();
+        }
     }
 }

@@ -54,6 +54,15 @@ class TooltipExtensionStateRegressionTest {
         assertTrue(metadata.contains("bindTexture"));
     }
 
+    @Test
+    void isolatesModelNodesWhenAComponentRendererCallsThemDirectly() {
+        String metadata = classMetadata("TooltipVisualPlan$ExternalBlock.class");
+
+        assertTrue(metadata.contains("ModernTooltipRenderer$CallerGlState"));
+        assertTrue(metadata.contains("enableGUIStandardItemLighting"));
+        assertTrue(metadata.contains("disableStandardItemLighting"));
+    }
+
     private static String classMetadata(String name) {
         String path = "neofontrender/addons/tooltips/" + name;
         InputStream stream = TooltipExtensionStateRegressionTest.class.getClassLoader()

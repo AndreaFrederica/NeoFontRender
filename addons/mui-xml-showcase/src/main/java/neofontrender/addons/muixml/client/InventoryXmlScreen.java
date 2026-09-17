@@ -59,7 +59,9 @@ public final class InventoryXmlScreen extends ModularScreen {
                     MuiComponentDescriptor.builder(name, resource).build()));
 
             String stylesheetSource;
-            try (InputStream stream = resolver.require("styles/devices.css")) {
+            String stylesheetResource = this.tile.getXmlResource().contains("chest-256")
+                    ? "styles/large-chest.css" : "styles/devices.css";
+            try (InputStream stream = resolver.require(stylesheetResource)) {
                 stylesheetSource = readUtf8(stream);
                 setStylesheet(MuiStylesheetParser.parseCss(application.getOwner(), stylesheetSource, resolver));
             }
@@ -88,7 +90,7 @@ public final class InventoryXmlScreen extends ModularScreen {
                     devTools.registerSource(resourceId, source.getValue(), edited ->
                             this.compiledRoot = replaceCompiledDocument(this.compiledRoot,
                                     application.getOwner(), edited, components, resolver));
-                } else if ("styles/devices.css".equals(resourceId)) {
+                } else if ("styles/devices.css".equals(resourceId) || "styles/large-chest.css".equals(resourceId)) {
                     devTools.registerSource(resourceId, source.getValue());
                 } else {
                     devTools.registerReadOnlySource(resourceId, source.getValue());

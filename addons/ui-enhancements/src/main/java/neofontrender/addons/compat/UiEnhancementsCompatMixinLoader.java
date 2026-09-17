@@ -63,8 +63,8 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
                     && classResourcePresent("mezz/jei/render/IngredientRenderer.class");
         }
         if (OBSCURE_TOOLTIPS_CONFIG.equals(config)) {
-            return classResourcePresent("dev/obscuria/tooltips/client/TooltipState.class")
-                    && classResourcePresent("dev/obscuria/tooltips/client/component/HeaderComponent.class");
+            return context.isModPresent("obscure_tooltips")
+                    && classResourcePresent("dev/obscuria/tooltips/client/TooltipEventHandler.class");
         }
         if (SALUTATION_CONFIG.equals(config)) {
             return context.isModPresent("salutation")

@@ -54,11 +54,12 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(hei.contains("\"compat.MixinHeiTooltipRenderer\""));
         assertTrue(hei.contains("\"compat.MixinHeiCollapsedGroupTooltip\""));
         assertTrue(obscure.contains("\"required\": false"));
-        assertTrue(obscure.contains("\"compat.MixinObscureHeaderComponent\""));
-        assertTrue(obscure.contains("\"compat.MixinObscureTooltipState\""));
-        assertTrue(obscure.contains("\"compat.MixinObscureTextComponent\""));
-        assertTrue(obscure.contains("\"compat.MixinObscureTooltipHelper\""));
         assertTrue(obscure.contains("\"compat.MixinObscureTooltipEventHandler\""));
+        assertFalse(obscure.contains("\"compat.MixinObscureTooltipRenderer\""));
+        assertFalse(obscure.contains("\"compat.MixinObscureTooltipState\""));
+        assertFalse(obscure.contains("\"compat.MixinObscureTextComponent\""));
+        assertFalse(obscure.contains("\"compat.MixinObscureHeaderComponent\""));
+        assertFalse(obscure.contains("\"compat.MixinObscureTooltipHelper\""));
         assertTrue(salutation.contains("\"required\": false"));
         assertTrue(salutation.contains("\"compat.MixinSalutationAdvancedTabCompleter\""));
         assertTrue(quark.contains("\"required\": false"));
@@ -152,6 +153,12 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinProgressBarResourceReload\""));
         assertTrue(config.contains("\"MixinProgressManagerResourceReload\""));
         assertTrue(config.contains("\"MixinViewFrustumLoadingProgress\""));
+    }
+
+    @Test
+    void armorPreviewInvokerIsInTheClientConfig() {
+        String config = config("mixins.neofontrender_ui_enhancements.json");
+        assertTrue(config.contains("\"InvokerEntityArmorStandPreview\""));
     }
 
     @Test

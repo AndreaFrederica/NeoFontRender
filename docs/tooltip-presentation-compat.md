@@ -1,33 +1,25 @@
 # Tooltip layout and presentation compatibility
 
-With modern tooltips enabled, NFR measures and wraps text even when a foreign
-tooltip panel has priority. Obscure TextComponent uses the same width and line
-advance helpers as the native modern renderer, including inline formula heights.
+When Obscure Tooltips is installed, tooltip rendering has exactly one owner:
 
-| Installed / active | Legendary priority | Obscure priority | Panel | Other content |
-| --- | --- | --- | --- | --- |
-| Legendary only | On | Either | Rectangular panel using Legendary Color event | Legendary frame, shine and shadow; NFR text |
-| Obscure only | Either | On | Obscure | Obscure header, preview and effects; NFR text |
-| Both | On | Either | Legendary | Obscure header, preview and effects; Legendary decorations; NFR text |
-| Both | Off | On | Obscure | Legendary decorations and Obscure content; NFR text |
-| Either / both | Off | Off | NFR | Installed tooltip effects and NFR text |
+| UIE tooltip setting | Renderer | Content and presentation |
+| --- | --- | --- |
+| Item preview or armor preview enabled | UIE | UIE text, layout, panel, animations and previews, even on items without a model preview. Obscure's tooltip handler is skipped. |
+| Both previews disabled, or UIE renderer unavailable | Obscure | Its original tooltip handler, layout, components, panel and effects. UIE's Forge and document renderers yield. |
 
-The priority switches select presentation, not text layout. Disabling modern
-tooltips restores the original foreign renderers. Legendary's fixed-height name
-separator is suppressed only inside a modern layout scope; the measured NFR
-separator is controlled by NFR settings. Shadow, textured frame and shine remain
-Legendary's responsibility. Its PostText event receives bounds aligned to the
-actual panel, including the Obscure header and preview area. Other PostText
-subscribers retain their original event coordinates.
+`tooltip.preview.item.enabled` and `tooltip.preview.armor.enabled` control this
+ownership. The old `tooltip.yieldToObscureTooltips` setting is ignored. No UIE
+components are inserted into Obscure's renderer and no Obscure component is
+inserted into UIE's renderer. If Obscure is absent, UIE's normal tooltip setting
+continues to control its renderer independently of the preview switches.
 
-Inspected runtime jars: LegendaryTooltips 1.12.2-1.1.11 and Obscure Tooltips
-1.12.2-3.10.1. Legendary customizes Forge Color and PostText events; it does not
-own the text renderer. Obscure normally omits Color and synthesizes PostText
-coordinates around its text body; the bridge supplies color initialization and
-the full panel geometry for Legendary.
+LegendaryTooltips remains a presentation integration of UIE: its Color and
+PostText events can decorate the UIE-owned panel, and its resource-pack frames
+use UIE's measured bounds. UIE keeps ownership of the text and preview. When
+Obscure owns rendering, UIE does not invoke that presentation path.
 
-Regression coverage includes panel priority, decoration bounds, nested/failed
-render scope cleanup, inline row advances, width limits, header height and mixin
-registration. In-game validation should exercise a framed item with long text,
-LaTeX/SVG content, scaled text, and an armor/tool preview, then toggle both panel
-priorities and test at screen edges. Automated tests do not verify OpenGL output.
+Automated coverage checks the ownership selector, optional mixin registration,
+and Legendary panel bounds. Client validation still needs both preview switches
+tested individually and together on ordinary items, tools, armor and screen
+edges with Obscure and LegendaryTooltips installed; unit tests cannot validate
+OpenGL output or third-party event ordering.

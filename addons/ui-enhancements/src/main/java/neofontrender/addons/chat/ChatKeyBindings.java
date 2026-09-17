@@ -18,6 +18,12 @@ public final class ChatKeyBindings {
     private static final String CATEGORY = "key.categories.neofontrender_ui_enhancements.chat";
     private static final ChatKeyBindings INSTANCE = new ChatKeyBindings();
 
+    /** Diagnostic switch, -Dnfr.debug.commandCompletion=true. Logs every key the chat screen sees. */
+    private static final boolean DEBUG_KEY =
+            Boolean.getBoolean("nfr.debug.commandCompletion");
+    private static final org.apache.logging.log4j.Logger LOGGER =
+            org.apache.logging.log4j.LogManager.getLogger("neofontrender.uie.completion");
+
     private static final KeyBinding COPY = binding("copy", KeyModifier.CONTROL, Keyboard.KEY_C);
     private static final KeyBinding CUT = binding("cut", KeyModifier.CONTROL, Keyboard.KEY_X);
     private static final KeyBinding PASTE = binding("paste", KeyModifier.CONTROL, Keyboard.KEY_V);
@@ -49,8 +55,22 @@ public final class ChatKeyBindings {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onKeyboardInput(GuiScreenEvent.KeyboardInputEvent.Pre event) {
         handledCurrentEvent = false;
-        if (!(event.getGui() instanceof GuiChat) || !Keyboard.getEventKeyState()) return;
+        if (!(event.getGui() instanceof GuiChat) || !Keyboard.getEventKeyState()) {
+            if (DEBUG_KEY) {
+                LOGGER.info("[keyProbe] early gui={} isGuiChat={} keyState={}",
+                        event.getGui() == null ? "null" : event.getGui().getClass().getSimpleName(),
+                        event.getGui() instanceof GuiChat, Keyboard.getEventKeyState());
+            }
+            return;
+        }
         int keyCode = Keyboard.getEventKey();
+        if (DEBUG_KEY) {
+            GuiTextField probe = ((AccessorGuiChatFeatures) event.getGui()).nfrUi$getInputField();
+            LOGGER.info("[keyProbe] key={} focused={} text=[{}] cursor={}",
+                    keyCode, probe != null && probe.isFocused(),
+                    probe == null ? "" : probe.getText(),
+                    probe == null ? -1 : probe.getCursorPosition());
+        }
         if (ChatSearchController.INSTANCE.isOpen()) {
             handledCurrentEvent = ChatSearchController.INSTANCE.handleKeyboard();
             if (handledCurrentEvent) event.setCanceled(true);
@@ -85,6 +105,7 @@ public final class ChatKeyBindings {
             event.setCanceled(true);
             return;
         }
+        if (DEBUG_KEY) LOGGER.info("[keyProbe] key={} fell through to shortcuts", keyCode);
         if (!EnhancedChatFeatures.copySelection()) return;
 
         if (COPY.isActiveAndMatches(keyCode)) {

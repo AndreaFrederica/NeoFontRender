@@ -1,0 +1,311 @@
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by net.rubygrapefruit.platform.internal.NativeLibraryLoader in an unnamed module (file:/C:/Users/qwe17/.gradle/wrapper/dists/gradle-9.6.1-bin/4ticwg1pgcbps2hj28r8so764/gradle-9.6.1/lib/native-platform-0.22-milestone-29.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.6.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :
+[Unimined] Plugin Version: 1.4.26-kappa
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+[Unimined/MinecraftDownloader] retrieving version metadata
+[Unimined/Forge] Using FG3 transformer
+[Unimined/Minecraft ::main] Applying minecraft config for source set 'main'
+[Unimined/Minecraft ::main] Applying CleanroomFG3
+[Unimined/ForgeTransformer] Attempting inject forge userdev into minecraft jar
+[Unimined/Minecraft ::main] Applying run configs
+Merging client and server jars...
+[Unimined/Forge] transforming minecraft jar for FG3
+[Unimined/JarMod ::source set 'main'] Adding mappings for added inner class ain$22, {official=ain$22, searge=net/minecraft/item/Item$22, mcp=net/minecraft/item/Item$22}
+[Unimined/JarMod ::source set 'main'] Adding mappings for added inner class anh$FlowerEntry, {official=anh$FlowerEntry, searge=net/minecraft/world/biome/Biome$FlowerEntry, mcp=net/minecraft/world/biome/Biome$FlowerEntry}
+[Unimined/JarMod ::source set 'main'] Adding mappings for added inner class anp$EmeraldGenerator, {official=anp$EmeraldGenerator, searge=net/minecraft/world/biome/BiomeHills$EmeraldGenerator, mcp=net/minecraft/world/biome/BiomeHills$EmeraldGenerator}
+[Unimined/JarMod ::source set 'main'] Adding mappings for added inner class awu$Builder, {official=awu$Builder, searge=net/minecraft/block/state/BlockStateContainer$Builder, mcp=net/minecraft/block/state/BlockStateContainer$Builder}
+[Unimined/JarMod ::source set 'main'] Adding mappings for added inner class aym$WorldSleepResult, {official=aym$WorldSleepResult, searge=net/minecraft/world/WorldProvider$WorldSleepResult, mcp=net/minecraft/world/WorldProvider$WorldSleepResult}
+[Unimined/JarMod ::source set 'main'] Adding mappings for added inner class c$4, {official=c$4, searge=net/minecraft/crash/CrashReportCategory$4, mcp=net/minecraft/crash/CrashReportCategory$4}
+[Unimined/JarMod ::source set 'main'] Adding mappings for added inner class c$5, {official=c$5, searge=net/minecraft/crash/CrashReportCategory$5, mcp=net/minecraft/crash/CrashReportCategory$5}
+[Unimined/JarMod ::source set 'main'] Adding mappings for added inner class ot$1, {official=ot$1, searge=net/minecraft/server/management/PlayerChunkMapEntry$1, mcp=net/minecraft/server/management/PlayerChunkMapEntry$1}
+[Unimined/ForgeTransformer] Applying ATs [forge_at.cfg, D:\Projects\sfr\smoothfont-replacement\src\main\resources\neofontrender_at.cfg]
+[Unimined/ForgeTransformer] Using user access transformer D:\Projects\sfr\smoothfont-replacement\src\main\resources\neofontrender_at.cfg
+[Unimined/ModRemapper] Remapping mods from searge to mcp
+[Unimined/ModRemapper] Found 1 mods for remapping
+Merging client and server jars...
+[Unimined/Forge] transforming minecraft jar for FG3
+[Unimined/ForgeTransformer] Applying ATs [forge_at.cfg, D:\Projects\sfr\smoothfont-replacement\src\main\resources\neofontrender_at.cfg]
+[Unimined/ForgeTransformer] Using user access transformer D:\Projects\sfr\smoothfont-replacement\src\main\resources\neofontrender_at.cfg
+[Unimined/ModRemapper] Remapping mods from searge to mcp
+[Unimined/ModRemapper] No mods found for remapping
+[Unimined/ModRemapper] Remapping mods from searge to mcp
+[Unimined/ModRemapper] No mods found for remapping
+
+> Configure project :addons:electric-elytra
+[Unimined] Plugin Version: 1.4.26-kappa
+[Unimined/MinecraftDownloader] retrieving version metadata
+[Unimined/Forge] Using FG3 transformer
+[Unimined/Minecraft :addons:electric-elytra:main] Applying minecraft config for source set 'main'
+[Unimined/Minecraft :addons:electric-elytra:main] Applying CleanroomFG3
+[Unimined/ForgeTransformer] Attempting inject forge userdev into minecraft jar
+[Unimined/Minecraft :addons:electric-elytra:main] Applying run configs
+Merging client and server jars...
+[Unimined/Forge] transforming minecraft jar for FG3
+[Unimined/JarMod :addons:electric-elytra:source set 'main'] Adding mappings for added inner class ain$22, {official=ain$22, searge=net/minecraft/item/Item$22, mcp=net/minecraft/item/Item$22}
+[Unimined/JarMod :addons:electric-elytra:source set 'main'] Adding mappings for added inner class anh$FlowerEntry, {official=anh$FlowerEntry, searge=net/minecraft/world/biome/Biome$FlowerEntry, mcp=net/minecraft/world/biome/Biome$FlowerEntry}
+[Unimined/JarMod :addons:electric-elytra:source set 'main'] Adding mappings for added inner class anp$EmeraldGenerator, {official=anp$EmeraldGenerator, searge=net/minecraft/world/biome/BiomeHills$EmeraldGenerator, mcp=net/minecraft/world/biome/BiomeHills$EmeraldGenerator}
+[Unimined/JarMod :addons:electric-elytra:source set 'main'] Adding mappings for added inner class awu$Builder, {official=awu$Builder, searge=net/minecraft/block/state/BlockStateContainer$Builder, mcp=net/minecraft/block/state/BlockStateContainer$Builder}
+[Unimined/JarMod :addons:electric-elytra:source set 'main'] Adding mappings for added inner class aym$WorldSleepResult, {official=aym$WorldSleepResult, searge=net/minecraft/world/WorldProvider$WorldSleepResult, mcp=net/minecraft/world/WorldProvider$WorldSleepResult}
+[Unimined/JarMod :addons:electric-elytra:source set 'main'] Adding mappings for added inner class c$4, {official=c$4, searge=net/minecraft/crash/CrashReportCategory$4, mcp=net/minecraft/crash/CrashReportCategory$4}
+[Unimined/JarMod :addons:electric-elytra:source set 'main'] Adding mappings for added inner class c$5, {official=c$5, searge=net/minecraft/crash/CrashReportCategory$5, mcp=net/minecraft/crash/CrashReportCategory$5}
+[Unimined/JarMod :addons:electric-elytra:source set 'main'] Adding mappings for added inner class ot$1, {official=ot$1, searge=net/minecraft/server/management/PlayerChunkMapEntry$1, mcp=net/minecraft/server/management/PlayerChunkMapEntry$1}
+[Unimined/ForgeTransformer] Applying ATs [forge_at.cfg, D:\Projects\sfr\smoothfont-replacement\addons\electric-elytra\src\main\resources\neofontrender_electric_elytra_at.cfg]
+[Unimined/ForgeTransformer] Using user access transformer D:\Projects\sfr\smoothfont-replacement\addons\electric-elytra\src\main\resources\neofontrender_electric_elytra_at.cfg
+[Unimined/ModRemapper] Remapping mods from searge to mcp
+[Unimined/ModRemapper] No mods found for remapping
+
+> Configure project :addons:inline-content-showcase
+[Unimined] Plugin Version: 1.4.26-kappa
+[Unimined/MinecraftDownloader] retrieving version metadata
+[Unimined/Forge] Using FG3 transformer
+[Unimined/Minecraft :addons:inline-content-showcase:main] Applying minecraft config for source set 'main'
+[Unimined/Minecraft :addons:inline-content-showcase:main] Applying CleanroomFG3
+[Unimined/ForgeTransformer] Attempting inject forge userdev into minecraft jar
+[Unimined/Minecraft :addons:inline-content-showcase:main] Applying run configs
+Merging client and server jars...
+[Unimined/Forge] transforming minecraft jar for FG3
+[Unimined/JarMod :addons:inline-content-showcase:source set 'main'] Adding mappings for added inner class ain$22, {official=ain$22, searge=net/minecraft/item/Item$22, mcp=net/minecraft/item/Item$22}
+[Unimined/JarMod :addons:inline-content-showcase:source set 'main'] Adding mappings for added inner class anh$FlowerEntry, {official=anh$FlowerEntry, searge=net/minecraft/world/biome/Biome$FlowerEntry, mcp=net/minecraft/world/biome/Biome$FlowerEntry}
+[Unimined/JarMod :addons:inline-content-showcase:source set 'main'] Adding mappings for added inner class anp$EmeraldGenerator, {official=anp$EmeraldGenerator, searge=net/minecraft/world/biome/BiomeHills$EmeraldGenerator, mcp=net/minecraft/world/biome/BiomeHills$EmeraldGenerator}
+[Unimined/JarMod :addons:inline-content-showcase:source set 'main'] Adding mappings for added inner class awu$Builder, {official=awu$Builder, searge=net/minecraft/block/state/BlockStateContainer$Builder, mcp=net/minecraft/block/state/BlockStateContainer$Builder}
+[Unimined/JarMod :addons:inline-content-showcase:source set 'main'] Adding mappings for added inner class aym$WorldSleepResult, {official=aym$WorldSleepResult, searge=net/minecraft/world/WorldProvider$WorldSleepResult, mcp=net/minecraft/world/WorldProvider$WorldSleepResult}
+[Unimined/JarMod :addons:inline-content-showcase:source set 'main'] Adding mappings for added inner class c$4, {official=c$4, searge=net/minecraft/crash/CrashReportCategory$4, mcp=net/minecraft/crash/CrashReportCategory$4}
+[Unimined/JarMod :addons:inline-content-showcase:source set 'main'] Adding mappings for added inner class c$5, {official=c$5, searge=net/minecraft/crash/CrashReportCategory$5, mcp=net/minecraft/crash/CrashReportCategory$5}
+[Unimined/JarMod :addons:inline-content-showcase:source set 'main'] Adding mappings for added inner class ot$1, {official=ot$1, searge=net/minecraft/server/management/PlayerChunkMapEntry$1, mcp=net/minecraft/server/management/PlayerChunkMapEntry$1}
+[Unimined/ForgeTransformer] Applying ATs [forge_at.cfg]
+[Unimined/ModRemapper] Remapping mods from searge to mcp
+[Unimined/ModRemapper] No mods found for remapping
+
+> Configure project :addons:mui-xml-showcase
+[Unimined] Plugin Version: 1.4.26-kappa
+[Unimined/MinecraftDownloader] retrieving version metadata
+[Unimined/Forge] Using FG3 transformer
+[Unimined/Minecraft :addons:mui-xml-showcase:main] Applying minecraft config for source set 'main'
+[Unimined/Minecraft :addons:mui-xml-showcase:main] Applying CleanroomFG3
+[Unimined/ForgeTransformer] Attempting inject forge userdev into minecraft jar
+[Unimined/Minecraft :addons:mui-xml-showcase:main] Applying run configs
+Merging client and server jars...
+[Unimined/Forge] transforming minecraft jar for FG3
+[Unimined/JarMod :addons:mui-xml-showcase:source set 'main'] Adding mappings for added inner class ain$22, {official=ain$22, searge=net/minecraft/item/Item$22, mcp=net/minecraft/item/Item$22}
+[Unimined/JarMod :addons:mui-xml-showcase:source set 'main'] Adding mappings for added inner class anh$FlowerEntry, {official=anh$FlowerEntry, searge=net/minecraft/world/biome/Biome$FlowerEntry, mcp=net/minecraft/world/biome/Biome$FlowerEntry}
+[Unimined/JarMod :addons:mui-xml-showcase:source set 'main'] Adding mappings for added inner class anp$EmeraldGenerator, {official=anp$EmeraldGenerator, searge=net/minecraft/world/biome/BiomeHills$EmeraldGenerator, mcp=net/minecraft/world/biome/BiomeHills$EmeraldGenerator}
+[Unimined/JarMod :addons:mui-xml-showcase:source set 'main'] Adding mappings for added inner class awu$Builder, {official=awu$Builder, searge=net/minecraft/block/state/BlockStateContainer$Builder, mcp=net/minecraft/block/state/BlockStateContainer$Builder}
+[Unimined/JarMod :addons:mui-xml-showcase:source set 'main'] Adding mappings for added inner class aym$WorldSleepResult, {official=aym$WorldSleepResult, searge=net/minecraft/world/WorldProvider$WorldSleepResult, mcp=net/minecraft/world/WorldProvider$WorldSleepResult}
+[Unimined/JarMod :addons:mui-xml-showcase:source set 'main'] Adding mappings for added inner class c$4, {official=c$4, searge=net/minecraft/crash/CrashReportCategory$4, mcp=net/minecraft/crash/CrashReportCategory$4}
+[Unimined/JarMod :addons:mui-xml-showcase:source set 'main'] Adding mappings for added inner class c$5, {official=c$5, searge=net/minecraft/crash/CrashReportCategory$5, mcp=net/minecraft/crash/CrashReportCategory$5}
+[Unimined/JarMod :addons:mui-xml-showcase:source set 'main'] Adding mappings for added inner class ot$1, {official=ot$1, searge=net/minecraft/server/management/PlayerChunkMapEntry$1, mcp=net/minecraft/server/management/PlayerChunkMapEntry$1}
+[Unimined/ForgeTransformer] Applying ATs [forge_at.cfg]
+[Unimined/ModRemapper] Remapping mods from searge to mcp
+[Unimined/ModRemapper] No mods found for remapping
+
+> Configure project :addons:typst-renderer
+[Unimined] Plugin Version: 1.4.26-kappa
+[Unimined/MinecraftDownloader] retrieving version metadata
+[Unimined/Forge] Using FG3 transformer
+[Unimined/Minecraft :addons:typst-renderer:main] Applying minecraft config for source set 'main'
+[Unimined/Minecraft :addons:typst-renderer:main] Applying CleanroomFG3
+[Unimined/ForgeTransformer] Attempting inject forge userdev into minecraft jar
+[Unimined/Minecraft :addons:typst-renderer:main] Applying run configs
+Merging client and server jars...
+[Unimined/Forge] transforming minecraft jar for FG3
+[Unimined/JarMod :addons:typst-renderer:source set 'main'] Adding mappings for added inner class ain$22, {official=ain$22, searge=net/minecraft/item/Item$22, mcp=net/minecraft/item/Item$22}
+[Unimined/JarMod :addons:typst-renderer:source set 'main'] Adding mappings for added inner class anh$FlowerEntry, {official=anh$FlowerEntry, searge=net/minecraft/world/biome/Biome$FlowerEntry, mcp=net/minecraft/world/biome/Biome$FlowerEntry}
+[Unimined/JarMod :addons:typst-renderer:source set 'main'] Adding mappings for added inner class anp$EmeraldGenerator, {official=anp$EmeraldGenerator, searge=net/minecraft/world/biome/BiomeHills$EmeraldGenerator, mcp=net/minecraft/world/biome/BiomeHills$EmeraldGenerator}
+[Unimined/JarMod :addons:typst-renderer:source set 'main'] Adding mappings for added inner class awu$Builder, {official=awu$Builder, searge=net/minecraft/block/state/BlockStateContainer$Builder, mcp=net/minecraft/block/state/BlockStateContainer$Builder}
+[Unimined/JarMod :addons:typst-renderer:source set 'main'] Adding mappings for added inner class aym$WorldSleepResult, {official=aym$WorldSleepResult, searge=net/minecraft/world/WorldProvider$WorldSleepResult, mcp=net/minecraft/world/WorldProvider$WorldSleepResult}
+[Unimined/JarMod :addons:typst-renderer:source set 'main'] Adding mappings for added inner class c$4, {official=c$4, searge=net/minecraft/crash/CrashReportCategory$4, mcp=net/minecraft/crash/CrashReportCategory$4}
+[Unimined/JarMod :addons:typst-renderer:source set 'main'] Adding mappings for added inner class c$5, {official=c$5, searge=net/minecraft/crash/CrashReportCategory$5, mcp=net/minecraft/crash/CrashReportCategory$5}
+[Unimined/JarMod :addons:typst-renderer:source set 'main'] Adding mappings for added inner class ot$1, {official=ot$1, searge=net/minecraft/server/management/PlayerChunkMapEntry$1, mcp=net/minecraft/server/management/PlayerChunkMapEntry$1}
+[Unimined/ForgeTransformer] Applying ATs [forge_at.cfg]
+[Unimined/ModRemapper] Remapping mods from searge to mcp
+[Unimined/ModRemapper] No mods found for remapping
+
+> Configure project :addons:ui-enhancements
+[Unimined] Plugin Version: 1.4.26-kappa
+[Unimined/MinecraftDownloader] retrieving version metadata
+[Unimined/Forge] Using FG3 transformer
+[Unimined/Minecraft :addons:ui-enhancements:main] Applying minecraft config for source set 'main'
+[Unimined/Minecraft :addons:ui-enhancements:main] Applying CleanroomFG3
+[Unimined/ForgeTransformer] Attempting inject forge userdev into minecraft jar
+[Unimined/Minecraft :addons:ui-enhancements:main] Applying run configs
+Merging client and server jars...
+[Unimined/Forge] transforming minecraft jar for FG3
+[Unimined/JarMod :addons:ui-enhancements:source set 'main'] Adding mappings for added inner class ain$22, {official=ain$22, searge=net/minecraft/item/Item$22, mcp=net/minecraft/item/Item$22}
+[Unimined/JarMod :addons:ui-enhancements:source set 'main'] Adding mappings for added inner class anh$FlowerEntry, {official=anh$FlowerEntry, searge=net/minecraft/world/biome/Biome$FlowerEntry, mcp=net/minecraft/world/biome/Biome$FlowerEntry}
+[Unimined/JarMod :addons:ui-enhancements:source set 'main'] Adding mappings for added inner class anp$EmeraldGenerator, {official=anp$EmeraldGenerator, searge=net/minecraft/world/biome/BiomeHills$EmeraldGenerator, mcp=net/minecraft/world/biome/BiomeHills$EmeraldGenerator}
+[Unimined/JarMod :addons:ui-enhancements:source set 'main'] Adding mappings for added inner class awu$Builder, {official=awu$Builder, searge=net/minecraft/block/state/BlockStateContainer$Builder, mcp=net/minecraft/block/state/BlockStateContainer$Builder}
+[Unimined/JarMod :addons:ui-enhancements:source set 'main'] Adding mappings for added inner class aym$WorldSleepResult, {official=aym$WorldSleepResult, searge=net/minecraft/world/WorldProvider$WorldSleepResult, mcp=net/minecraft/world/WorldProvider$WorldSleepResult}
+[Unimined/JarMod :addons:ui-enhancements:source set 'main'] Adding mappings for added inner class c$4, {official=c$4, searge=net/minecraft/crash/CrashReportCategory$4, mcp=net/minecraft/crash/CrashReportCategory$4}
+[Unimined/JarMod :addons:ui-enhancements:source set 'main'] Adding mappings for added inner class c$5, {official=c$5, searge=net/minecraft/crash/CrashReportCategory$5, mcp=net/minecraft/crash/CrashReportCategory$5}
+[Unimined/JarMod :addons:ui-enhancements:source set 'main'] Adding mappings for added inner class ot$1, {official=ot$1, searge=net/minecraft/server/management/PlayerChunkMapEntry$1, mcp=net/minecraft/server/management/PlayerChunkMapEntry$1}
+[Unimined/ForgeTransformer] Applying ATs [forge_at.cfg]
+[Unimined/ModRemapper] Remapping mods from searge to mcp
+[Unimined/ModRemapper] No mods found for remapping
+
+> Configure project :addons:ui-enhancements-controller
+[Unimined] Plugin Version: 1.4.26-kappa
+[Unimined/MinecraftDownloader] retrieving version metadata
+[Unimined/Forge] Using FG3 transformer
+[Unimined/Minecraft :addons:ui-enhancements-controller:main] Applying minecraft config for source set 'main'
+[Unimined/Minecraft :addons:ui-enhancements-controller:main] Applying CleanroomFG3
+[Unimined/ForgeTransformer] Attempting inject forge userdev into minecraft jar
+[Unimined/Minecraft :addons:ui-enhancements-controller:main] Applying run configs
+Merging client and server jars...
+[Unimined/Forge] transforming minecraft jar for FG3
+[Unimined/JarMod :addons:ui-enhancements-controller:source set 'main'] Adding mappings for added inner class ain$22, {official=ain$22, searge=net/minecraft/item/Item$22, mcp=net/minecraft/item/Item$22}
+[Unimined/JarMod :addons:ui-enhancements-controller:source set 'main'] Adding mappings for added inner class anh$FlowerEntry, {official=anh$FlowerEntry, searge=net/minecraft/world/biome/Biome$FlowerEntry, mcp=net/minecraft/world/biome/Biome$FlowerEntry}
+[Unimined/JarMod :addons:ui-enhancements-controller:source set 'main'] Adding mappings for added inner class anp$EmeraldGenerator, {official=anp$EmeraldGenerator, searge=net/minecraft/world/biome/BiomeHills$EmeraldGenerator, mcp=net/minecraft/world/biome/BiomeHills$EmeraldGenerator}
+[Unimined/JarMod :addons:ui-enhancements-controller:source set 'main'] Adding mappings for added inner class awu$Builder, {official=awu$Builder, searge=net/minecraft/block/state/BlockStateContainer$Builder, mcp=net/minecraft/block/state/BlockStateContainer$Builder}
+[Unimined/JarMod :addons:ui-enhancements-controller:source set 'main'] Adding mappings for added inner class aym$WorldSleepResult, {official=aym$WorldSleepResult, searge=net/minecraft/world/WorldProvider$WorldSleepResult, mcp=net/minecraft/world/WorldProvider$WorldSleepResult}
+[Unimined/JarMod :addons:ui-enhancements-controller:source set 'main'] Adding mappings for added inner class c$4, {official=c$4, searge=net/minecraft/crash/CrashReportCategory$4, mcp=net/minecraft/crash/CrashReportCategory$4}
+[Unimined/JarMod :addons:ui-enhancements-controller:source set 'main'] Adding mappings for added inner class c$5, {official=c$5, searge=net/minecraft/crash/CrashReportCategory$5, mcp=net/minecraft/crash/CrashReportCategory$5}
+[Unimined/JarMod :addons:ui-enhancements-controller:source set 'main'] Adding mappings for added inner class ot$1, {official=ot$1, searge=net/minecraft/server/management/PlayerChunkMapEntry$1, mcp=net/minecraft/server/management/PlayerChunkMapEntry$1}
+[Unimined/ForgeTransformer] Applying ATs [forge_at.cfg]
+[Unimined/ModRemapper] Remapping mods from searge to mcp
+[Unimined/ModRemapper] No mods found for remapping
+
+> Configure project :addons:ui-enhancements-server
+[Unimined] Plugin Version: 1.4.26-kappa
+[Unimined/MinecraftDownloader] retrieving version metadata
+[Unimined/Forge] Using FG3 transformer
+[Unimined/Minecraft :addons:ui-enhancements-server:main] Applying minecraft config for source set 'main'
+[Unimined/Minecraft :addons:ui-enhancements-server:main] Applying CleanroomFG3
+[Unimined/ForgeTransformer] Attempting inject forge userdev into minecraft jar
+[Unimined/Minecraft :addons:ui-enhancements-server:main] Applying run configs
+Merging client and server jars...
+[Unimined/Forge] transforming minecraft jar for FG3
+[Unimined/JarMod :addons:ui-enhancements-server:source set 'main'] Adding mappings for added inner class ain$22, {official=ain$22, searge=net/minecraft/item/Item$22, mcp=net/minecraft/item/Item$22}
+[Unimined/JarMod :addons:ui-enhancements-server:source set 'main'] Adding mappings for added inner class anh$FlowerEntry, {official=anh$FlowerEntry, searge=net/minecraft/world/biome/Biome$FlowerEntry, mcp=net/minecraft/world/biome/Biome$FlowerEntry}
+[Unimined/JarMod :addons:ui-enhancements-server:source set 'main'] Adding mappings for added inner class anp$EmeraldGenerator, {official=anp$EmeraldGenerator, searge=net/minecraft/world/biome/BiomeHills$EmeraldGenerator, mcp=net/minecraft/world/biome/BiomeHills$EmeraldGenerator}
+[Unimined/JarMod :addons:ui-enhancements-server:source set 'main'] Adding mappings for added inner class awu$Builder, {official=awu$Builder, searge=net/minecraft/block/state/BlockStateContainer$Builder, mcp=net/minecraft/block/state/BlockStateContainer$Builder}
+[Unimined/JarMod :addons:ui-enhancements-server:source set 'main'] Adding mappings for added inner class aym$WorldSleepResult, {official=aym$WorldSleepResult, searge=net/minecraft/world/WorldProvider$WorldSleepResult, mcp=net/minecraft/world/WorldProvider$WorldSleepResult}
+[Unimined/JarMod :addons:ui-enhancements-server:source set 'main'] Adding mappings for added inner class c$4, {official=c$4, searge=net/minecraft/crash/CrashReportCategory$4, mcp=net/minecraft/crash/CrashReportCategory$4}
+[Unimined/JarMod :addons:ui-enhancements-server:source set 'main'] Adding mappings for added inner class c$5, {official=c$5, searge=net/minecraft/crash/CrashReportCategory$5, mcp=net/minecraft/crash/CrashReportCategory$5}
+[Unimined/JarMod :addons:ui-enhancements-server:source set 'main'] Adding mappings for added inner class ot$1, {official=ot$1, searge=net/minecraft/server/management/PlayerChunkMapEntry$1, mcp=net/minecraft/server/management/PlayerChunkMapEntry$1}
+[Unimined/ForgeTransformer] Applying ATs [forge_at.cfg]
+[Unimined/ModRemapper] Remapping mods from searge to mcp
+[Unimined/ModRemapper] No mods found for remapping
+
+> Task :generateBuildFeatures UP-TO-DATE
+> Task :engine:text-core:compileJava UP-TO-DATE
+> Task :compileJava UP-TO-DATE
+> Task :addons:ui-enhancements:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :addons:ui-enhancements-text:compileJava UP-TO-DATE
+> Task :engine:audio:compileJava UP-TO-DATE
+> Task :engine:audio:processResources NO-SOURCE
+> Task :engine:audio:classes UP-TO-DATE
+> Task :engine:audio:shadowJar UP-TO-DATE
+> Task :addons:ui-enhancements:tiqian-jvm:kmpPartiallyResolvedDependenciesChecker
+> Task :addons:ui-enhancements:tiqian-jvm:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :addons:ui-enhancements:tiqian-jvm:verifyPinnedTiqianSource
+> Task :addons:ui-enhancements:tiqian-jvm:compileKotlinJvm UP-TO-DATE
+> Task :addons:ui-enhancements:tiqian-jvm:compileJvmMainJava NO-SOURCE
+> Task :addons:ui-enhancements:tiqian-jvm:jvmProcessResources UP-TO-DATE
+> Task :addons:ui-enhancements:tiqian-jvm:processJvmMainResources SKIPPED
+> Task :addons:ui-enhancements:tiqian-jvm:jvmMainClasses UP-TO-DATE
+> Task :addons:ui-enhancements:tiqian-jvm:jvmJar UP-TO-DATE
+> Task :addons:ui-enhancements:compileKotlin UP-TO-DATE
+
+> Task :addons:ui-enhancements:compileJava
+注: SpongePowered MIXIN Annotation Processor Version=0.8.7
+注: Supported obfuscation types: ObfuscationServiceMCP supports [searge,notch]
+注: Loading searge mappings from C:\Users\qwe17\.gradle\caches\minecraft\de\oceanlabs\mcp\mcp_stable\39\rfg_srgs\mcp-srg.srg
+D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\compat\MixinShoulderSurfingCrosshairMatrix.java:18: 注: @Inject target 'offsetCrosshair' in @Pseudo mixin will not be obfuscated
+    @Inject(method = "offsetCrosshair", at = @At("HEAD"))
+    ^
+D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\compat\MixinShoulderSurfingCrosshairMatrix.java:36: 注: @Inject target 'clearCrosshairOffset' in @Pseudo mixin will not be obfuscated
+    @Inject(method = "clearCrosshairOffset", at = @At("HEAD"), cancellable = true)
+    ^
+D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\vendor\tabbychat-upstream\src\main\java\mnm\mods\tabbychat\core\mixin\MixinChatTabCompleter.java:19: 警告: Cannot find target method "complete()V" for @Inject.method="complete()V" in net.minecraft.client.gui.GuiChat$ChatTabCompleter
+    @Inject(
+    ^
+D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\compat\MixinShoulderSurfingCrosshairMatrix.java:24: 注: @Redirect target 'offsetCrosshair' in @Pseudo mixin will not be obfuscated
+    @Redirect(method = "offsetCrosshair", at = @At(value = "INVOKE",
+    ^
+D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\compat\MixinShoulderSurfingCrosshairMatrix.java:30: 注: @Redirect target 'offsetCrosshair' in @Pseudo mixin will not be obfuscated
+    @Redirect(method = "offsetCrosshair", at = @At(value = "INVOKE",
+    ^
+D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\MixinGuiContainerCreativeSmoothScroll.java:35: 警告: Unable to locate method mapping for @At(INVOKE.<target>) 'Lorg/lwjgl/input/Mouse;getEventDWheel()I'
+    @Redirect(method = "handleMouseInput", at = @At(value = "INVOKE",
+    ^
+D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\MixinGuiSlotSmoothScroll.java:37: 警告: Unable to locate method mapping for @At(INVOKE.<target>) 'Lorg/lwjgl/input/Mouse;getEventDWheel()I'
+    @Redirect(method = "handleMouseInput", at = @At(value = "INVOKE", target = "Lorg/lwjgl/input/Mouse;getEventDWheel()I"))
+    ^
+注: Writing refmap to D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\build\tmp\mixins\mixins.neofontrender_ui_enhancements-refmap.json
+注: Writing refmap to D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\build\tmp\mixins\mixins.neofontrender_ui_enhancements-refmap.json
+注: Writing searge output SRGs to D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\build\tmp\mixins\mixins.srg
+注: Writing refmap to D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\build\tmp\mixins\mixins.neofontrender_ui_enhancements-refmap.json
+注: Writing refmap to D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\build\tmp\mixins\mixins.neofontrender_ui_enhancements-refmap.json
+注: Writing searge output SRGs to D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\build\tmp\mixins\mixins.srg
+D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\tooltips\ModernTooltipHandler.java:25: 错误: 无法访问IMTModGuiContainer2
+        if (Loader.isModLoaded("ae2") && ae2.client.gui.AEBaseGui.ownsCurrentTooltip(event.getStack())) return;
+                                                                 ^
+  找不到yalter.mousetweaks.api.IMTModGuiContainer2的类文件
+注: 某些输入文件使用或覆盖了已过时的 API。
+注: 有关详细信息, 请使用 -Xlint:deprecation 重新编译。
+1 个错误
+3 个警告
+
+> Task :addons:ui-enhancements:compileJava FAILED
+
+
+[Incubating] Problems report is available at: file:///D:/Projects/sfr/smoothfont-replacement/build/reports/problems/problems-report.html
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':addons:ui-enhancements:compileJava' (registered by plugin class 'org.gradle.api.plugins.JavaBasePlugin').
+> Compilation failed; see the compiler output below.
+  D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\vendor\tabbychat-upstream\src\main\java\mnm\mods\tabbychat\core\mixin\MixinChatTabCompleter.java:19: 警告: Cannot find target method "complete()V" for @Inject.method="complete()V" in net.minecraft.client.gui.GuiChat$ChatTabCompleter
+      @Inject(
+      ^
+  D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\MixinGuiContainerCreativeSmoothScroll.java:35: 警告: Unable to locate method mapping for @At(INVOKE.<target>) 'Lorg/lwjgl/input/Mouse;getEventDWheel()I'
+      @Redirect(method = "handleMouseInput", at = @At(value = "INVOKE",
+      ^
+  D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\MixinGuiSlotSmoothScroll.java:37: 警告: Unable to locate method mapping for @At(INVOKE.<target>) 'Lorg/lwjgl/input/Mouse;getEventDWheel()I'
+      @Redirect(method = "handleMouseInput", at = @At(value = "INVOKE", target = "Lorg/lwjgl/input/Mouse;getEventDWheel()I"))
+      ^
+  注: 有关详细信息, 请使用 -Xlint:deprecation 重新编译。
+  D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\tooltips\ModernTooltipHandler.java:25: 错误: 无法访问IMTModGuiContainer2
+          if (Loader.isModLoaded("ae2") && ae2.client.gui.AEBaseGui.ownsCurrentTooltip(event.getStack())) return;
+                                                                   ^
+    找不到yalter.mousetweaks.api.IMTModGuiContainer2的类文件
+  注: 某些输入文件使用或覆盖了已过时的 API。
+  注: SpongePowered MIXIN Annotation Processor Version=0.8.7
+  注: Supported obfuscation types: ObfuscationServiceMCP supports [searge,notch]
+  注: Loading searge mappings from C:\Users\qwe17\.gradle\caches\minecraft\de\oceanlabs\mcp\mcp_stable\39\rfg_srgs\mcp-srg.srg
+  D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\compat\MixinShoulderSurfingCrosshairMatrix.java:18: 注: @Inject target 'offsetCrosshair' in @Pseudo mixin will not be obfuscated
+      @Inject(method = "offsetCrosshair", at = @At("HEAD"))
+      ^
+  D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\compat\MixinShoulderSurfingCrosshairMatrix.java:36: 注: @Inject target 'clearCrosshairOffset' in @Pseudo mixin will not be obfuscated
+      @Inject(method = "clearCrosshairOffset", at = @At("HEAD"), cancellable = true)
+      ^
+  D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\compat\MixinShoulderSurfingCrosshairMatrix.java:24: 注: @Redirect target 'offsetCrosshair' in @Pseudo mixin will not be obfuscated
+      @Redirect(method = "offsetCrosshair", at = @At(value = "INVOKE",
+      ^
+  D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\src\main\java\neofontrender\addons\mixin\compat\MixinShoulderSurfingCrosshairMatrix.java:30: 注: @Redirect target 'offsetCrosshair' in @Pseudo mixin will not be obfuscated
+      @Redirect(method = "offsetCrosshair", at = @At(value = "INVOKE",
+      ^
+  注: Writing refmap to D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\build\tmp\mixins\mixins.neofontrender_ui_enhancements-refmap.json
+  注: Writing searge output SRGs to D:\Projects\sfr\smoothfont-replacement\addons\ui-enhancements\build\tmp\mixins\mixins.srg
+  1 个错误
+  3 个警告
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.6.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 2m 50s
+13 actionable tasks: 3 executed, 10 up-to-date

@@ -8,10 +8,23 @@
 - 游戏中按 `F8`；
 - 或执行客户端命令 `/mui_xml_showcase`。
 
+## 游戏外实时预览
+
+无需启动 Minecraft，可用浏览器运行 XML/CSS/组件的基础交互测试：
+
+```powershell
+cd D:\Projects\sfr\smoothfont-replacement\addons\mui-xml-showcase
+.\preview.ps1
+```
+
+脚本会启动 `ModularUI/tools/xml-preview/server.py` 并打开本地页面。页面每 750ms 检查资源快照；保存 XML、CSS 或 manifest 后自动重建预览。右侧编辑器支持浏览器内草稿、应用/恢复和元素检查；Showcase 适配器模拟 Overview/Components action、store binding、runtime DOM rows、事件计数、物品槽和进度。预览不会执行 Java action 或服务端同步，协议、真实 inventory、配方和 native widget 仍需进游戏验证。
+
 界面包含两个页面。Overview 验证 store binding、toggle、按钮、slider、textfield 和实时文本；
 Components 验证 capture/target 事件以及挂载后的 DOM 节点新增、删除和 Widget projection。
 
 ## 同步容器测试
+
+仓库还提供独立的 `chest-256.xml` 示例箱子。它使用全新的 `neofontrender_mui_xml_showcase:chest-256` 协议，声明 256 个 `machine.storage.0` 到 `machine.storage.255` 槽位，并注册为 `xml_chest_256` 方块；原有 27 格 `xml_chest` 保持不变。
 
 addon 还注册了两个可放置方块：
 

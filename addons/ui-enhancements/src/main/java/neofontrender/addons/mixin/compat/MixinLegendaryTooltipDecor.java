@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinLegendaryTooltipDecor {
     @Inject(method = "drawSeparator", at = @At("HEAD"), cancellable = true, require = 0)
     private static void nfrUi$useMeasuredSeparator(int x, int y, int width, int color, CallbackInfo ci) {
-        // NFR/Obscure has already drawn the separator at the measured title height.
+        // UIE has already drawn the separator at the measured title height.
         // Legendary otherwise derives this from the old fixed ten-pixel row count.
         if (LegendaryTooltipCompat.hasLayout()) ci.cancel();
     }

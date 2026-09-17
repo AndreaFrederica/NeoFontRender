@@ -22,6 +22,9 @@ public final class MusicPlayer implements AutoCloseable {
     private Long pendingSeek;
     private long seekRequestedAt;
     private boolean rebuilding;
+    /** Set when playAt() could not start because the sound engine was still coming up. */
+    private boolean startPending;
+    private long startRequestedAt;
     private String error = "";
     public State state() { return state; }
     public String error() { return error; }
@@ -70,8 +73,16 @@ public final class MusicPlayer implements AutoCloseable {
         pendingSeek = null;
         rebuilding = true;
         release(); position = offset; error = "";
-        system = GameAudioBackend.system();
-        if (system == null) { state(State.FAILED); error = "Audio device unavailable"; return; }
+        SoundSystem live = GameAudioBackend.readySystem();
+        if (live == null) {
+            // The sound engine is still starting up (or genuinely absent). Nothing was created yet,
+            // so the player stays retryable instead of being permanently marked FAILED.
+            startPending = true;
+            startRequestedAt = System.nanoTime();
+            return;
+        }
+        system = live;
+        startPending = false;
         try {
             source = "uie_music_" + UUID.randomUUID();
             URL location = new URL("file", "", "/" + source + ".nfraudio");
@@ -90,7 +101,20 @@ public final class MusicPlayer implements AutoCloseable {
         } catch (Exception e) { AudioModule.LOG.error("Cannot start audio: file={}, offset={}, source={}", queue.current(), offset, source, e); error = e.toString(); release(); state(State.FAILED); }
     }
     void tick() {
-        if (source == null || state == State.CLOSED) return;
+        if (state == State.CLOSED) return;
+        if (startPending) {
+            // Retry the start until the sound engine finishes loading, but give up rather than
+            // polling forever if it never becomes available.
+            if (System.nanoTime() - startRequestedAt > 30_000_000_000L) {
+                startPending = false;
+                error = "Audio device unavailable";
+                state(State.FAILED);
+                return;
+            }
+            playAt(position);
+            return;
+        }
+        if (source == null) return;
         // Debounce slider events and serialize source replacement. A new seek
         // requested while the codec is opening is kept as the latest target;
         // it is applied only after the current source is ready.
@@ -102,7 +126,10 @@ public final class MusicPlayer implements AutoCloseable {
             userPaused = !resume;
             return;
         }
-        SoundSystem live = GameAudioBackend.system();
+        SoundSystem live = GameAudioBackend.readySystem();
+        // A system that is still starting up reports null: neither adopt it nor treat it as replaced,
+        // just wait for the next tick.
+        if (live == null) return;
         if (system != live) { playAt(position); return; }
         if (!request.error.isEmpty()) { AudioModule.LOG.error("Audio codec failed: file={}, source={}, offset={}, error={}", queue.current(), source, request.offset, request.error); error = request.error; release(); state(State.FAILED); return; }
         if (!request.opened) {
@@ -121,8 +148,9 @@ public final class MusicPlayer implements AutoCloseable {
             else state(State.PLAYING);
         }
         if (userPaused) return;
-        position = request.offset + Math.max(0, (long) system.millisecondsPlayed(source));
-        if (request.eof && !system.playing(source)) {
+        position = request.offset + Math.max(0L,
+                (long) GameAudioBackend.guard(() -> system.millisecondsPlayed(source), 0));
+        if (request.eof && !GameAudioBackend.guard(() -> system.playing(source), true)) {
             release(); state(State.FINISHED);
             if (autoAdvance && queue.next(true) != null) playAt(0);
         }
@@ -131,8 +159,9 @@ public final class MusicPlayer implements AutoCloseable {
         LavaStreamingCodec.Request oldRequest = request;
         if (oldRequest != null) oldRequest.cancelled = true;
         if (system != null && source != null) {
-            try { system.stop(source); system.removeSource(source); }
-            catch (Exception e) { AudioModule.LOG.debug("Audio device already gone while releasing {}", source, e); }
+            String closing = source;
+            SoundSystem target = system;
+            GameAudioBackend.guard(() -> { target.stop(closing); target.removeSource(closing); });
         }
         if (url != null) LavaStreamingCodec.REQUESTS.remove(url);
         source = url = null;

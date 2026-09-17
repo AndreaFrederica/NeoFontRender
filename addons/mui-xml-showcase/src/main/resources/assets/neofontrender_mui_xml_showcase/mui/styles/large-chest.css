@@ -1,0 +1,16 @@
+@import "styles/tokens.css";
+
+.large-chest-shell { width: 342px; height: 480px; background: #12161d; border-style: solid; border-color: #3c4a57; border-width: 1px; padding: 0px; }
+.large-chest-title { left: 14px; top: 10px; width: 270px; height: 15px; color: #f3f6fa; font-size: 1.0; }
+.large-chest-subtitle { left: 14px; top: 27px; width: 280px; height: 10px; color: #8792a3; font-size: 0.68; }
+.large-chest-shell .device-close { left: 319px; top: 9px; }
+.large-chest-shell .device-close > mui|text { left: 0px; top: 0px; width: 100%; height: 100%; text-align: center; }
+.large-machine-grid { left: 14px; top: 46px; width: 288px; height: 288px; grid-columns: 16; gap: 0px; }
+.large-machine-grid mui|item-slot { width: 18px; height: 18px; }
+.large-chest-shell .inventory-label { left: 14px; top: 344px; width: 130px; height: 10px; color: #aeb8c7; font-size: 0.72; }
+.large-chest-shell .player-inventory { left: 0px; top: 0px; width: 100%; height: 100%; }
+.large-chest-shell .player-main { left: 14px; top: 358px; }
+.large-chest-shell .player-hotbar { left: 14px; top: 420px; }
+.large-chest-shell .player-main, .large-chest-shell .player-hotbar { width: 162px; grid-columns: 9; gap: 0px; }
+.large-chest-shell mui|item-slot { width: 18px; height: 18px; background: #252d36; border-style: solid; border-color: #647587; border-width: 1px; }
+@media screen and (max-width: 360px) { .large-chest-shell { transform: scale(0.85); transform-origin: top left; } }

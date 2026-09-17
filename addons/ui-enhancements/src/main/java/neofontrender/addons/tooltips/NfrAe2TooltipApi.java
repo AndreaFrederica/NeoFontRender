@@ -1,104 +1,116 @@
 package neofontrender.addons.tooltips;
 
 import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.client.event.RenderTooltipEvent;
 import neofontrender.addons.ui.NfrUiEnhancements;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.ArrayList;
+import java.util.Optional;
+import ae2.api.storage.cells.IStackTooltipDataProvider;
+import ae2.items.storage.StorageCellTooltipComponent;
+import ae2.api.stacks.AEItemKey;
+import ae2.api.stacks.AEFluidKey;
+import ae2.api.stacks.GenericStack;
+import net.minecraftforge.fluids.FluidUtil;
 
 /** Public source-level bridge for AE2 Supergiant's native tooltip path. */
 public final class NfrAe2TooltipApi {
-    private static final long DIAGNOSTIC_INTERVAL_NANOS = 2_000_000_000L;
-    private static final AtomicLong LAST_DIAGNOSTIC = new AtomicLong();
-    private static final ThreadLocal<Boolean> IN_RENDER = new ThreadLocal<>();
+    /** Producer id written into anchor markers folded from AE2's reserved rows. */
+    private static final String AE2_MOD_ID = "ae2";
+    private static final neofontrender.api.client.tooltip.NfrTooltipApi.DocumentProvider DOCUMENT_PROVIDER =
+            NfrAe2TooltipApi::createDocument;
+    private static final neofontrender.api.client.tooltip.NfrTooltipApi.DocumentFinalizer DOCUMENT_FINALIZER =
+            NfrAe2TooltipApi::normalizeDocument;
 
     private NfrAe2TooltipApi() {}
 
     public static void register() {
-        boolean alreadyRegistered = neofontrender.api.client.tooltip.NfrTooltipApi.isRegistered();
-        neofontrender.api.client.tooltip.NfrTooltipApi.register((document, mouseX, mouseY, font) ->
-                renderDocument(document, mouseX, mouseY, font));
-        NfrUiEnhancements.LOGGER.info("Registered public tooltip renderer bridge (AE2 source adapter); previousRenderer={}",
-                alreadyRegistered);
+        neofontrender.api.client.tooltip.NfrTooltipApi.registerDocumentProvider(DOCUMENT_PROVIDER);
+        neofontrender.api.client.tooltip.NfrTooltipApi.registerDocumentFinalizer(DOCUMENT_FINALIZER);
+        NfrUiEnhancements.LOGGER.info("Registered AE2 tooltip document source adapter");
     }
 
-    private static boolean renderDocument(neofontrender.api.client.tooltip.NfrTooltipApi.TooltipDocument document,
-                                          int mouseX, int mouseY, FontRenderer font) {
-        if (Boolean.TRUE.equals(IN_RENDER.get())) {
-            NfrUiEnhancements.LOGGER.warn("Tooltip bridge re-entry detected; returning false to allow native fallback");
-            return false;
+    /** Builds the same coordinate-free document for ordinary Forge tooltips. */
+    public static Optional<neofontrender.api.client.tooltip.NfrTooltipApi.TooltipDocument>
+    createDocument(ItemStack stack, List<String> lines) {
+        if (stack == null || stack.isEmpty() || !(stack.getItem() instanceof IStackTooltipDataProvider provider)) {
+            return Optional.empty();
         }
-        IN_RENDER.set(Boolean.TRUE);
-        try {
-            return renderDocumentGuarded(document, mouseX, mouseY, font);
-        } finally {
-            IN_RENDER.remove();
+        Optional<StorageCellTooltipComponent> image = provider.getTooltipImage(stack);
+        if (!image.isPresent()) return Optional.empty();
+        neofontrender.api.client.tooltip.NfrTooltipApi.TooltipDocument.Builder builder =
+                neofontrender.api.client.tooltip.NfrTooltipApi.TooltipDocument.builder(stack, lines);
+        List<neofontrender.api.client.tooltip.NfrTooltipApi.ItemNode> items = new ArrayList<>();
+        for (GenericStack entry : image.get().content()) {
+            addNode(items, entry, image.get().showAmounts());
         }
-    }
-
-    private static boolean renderDocumentGuarded(neofontrender.api.client.tooltip.NfrTooltipApi.TooltipDocument document,
-                                                 int mouseX, int mouseY, FontRenderer font) {
-        boolean diagnostic = shouldDiagnostic();
-        if (diagnostic) {
-            NfrUiEnhancements.LOGGER.info(
-                    "Tooltip bridge render: stack={}, lines={}, nodes={}, mouse=({},{}), registered={}",
-                    describeStack(document.stack),
-                    document.lines.size(), document.nodes.size(), mouseX, mouseY,
-                    neofontrender.api.client.tooltip.NfrTooltipApi.isRegistered());
-            for (int i = 0; i < document.nodes.size(); i++) {
-                neofontrender.api.client.tooltip.NfrTooltipApi.VisualNode node = document.nodes.get(i);
-                NfrUiEnhancements.LOGGER.info("  node[{}]: class={}, kind={}, width={}, height={}",
-                        i, node == null ? "null" : node.getClass().getName(),
-                        node == null ? "null" : node.kind(),
-                        node == null ? 0 : safeWidth(node, font),
-                        node == null ? 0 : safeHeight(node, font));
+        if (!items.isEmpty()) {
+            builder.add(new neofontrender.api.client.tooltip.NfrTooltipApi.ItemRowNode(items,
+                    image.get().hasMoreContent()));
+        }
+        // Upgrades are part of the same AE2 visual component and must be included
+        // in the document so the common layout owns their height as well.
+        List<neofontrender.api.client.tooltip.NfrTooltipApi.ItemNode> upgrades = new ArrayList<>();
+        for (ItemStack upgrade : image.get().upgrades()) {
+            if (upgrade != null && !upgrade.isEmpty()) {
+                upgrades.add(new neofontrender.api.client.tooltip.NfrTooltipApi.ItemNode(upgrade, 1, false));
             }
         }
-        TooltipVisualPlan.EXTERNAL.set(document.nodes);
-        try {
-            ScaledResolution resolution = new ScaledResolution(net.minecraft.client.Minecraft.getMinecraft());
-            RenderTooltipEvent.Pre event = new RenderTooltipEvent.Pre(document.stack, document.lines,
-                    mouseX, mouseY, resolution.getScaledWidth(), resolution.getScaledHeight(), -1, font);
-            boolean rendered = new ModernTooltipRenderer().draw(event, null, "vanilla", null, true);
-            if (diagnostic) {
-                NfrUiEnhancements.LOGGER.info("Tooltip bridge renderer result: rendered={}, externalNodes={}",
-                        rendered, document.nodes.size());
-            }
-            return rendered;
+        if (!upgrades.isEmpty()) {
+            builder.add(new neofontrender.api.client.tooltip.NfrTooltipApi.SpacerNode(2));
+            builder.add(new neofontrender.api.client.tooltip.NfrTooltipApi.ItemRowNode(upgrades, false));
         }
-        finally { TooltipVisualPlan.EXTERNAL.remove(); }
+        if (items.isEmpty() && upgrades.isEmpty()) return Optional.empty();
+        return Optional.of(builder.build());
     }
 
-    private static int safeWidth(neofontrender.api.client.tooltip.NfrTooltipApi.VisualNode node,
-                                 FontRenderer font) {
-        try { return node.width(font); } catch (RuntimeException e) { return -1; }
+    private static void addNode(List<neofontrender.api.client.tooltip.NfrTooltipApi.ItemNode> target,
+                                GenericStack entry, boolean showAmount) {
+        if (entry == null || entry.what() == null) return;
+        ItemStack display = ItemStack.EMPTY;
+        if (entry.what() instanceof AEItemKey key) {
+            display = key.toStack();
+        } else if (entry.what() instanceof AEFluidKey key) {
+            // UIE's visual node is item based; use the canonical filled bucket
+            // representation for fluids so the generic renderer can still own
+            // measurement and drawing without a fluid-specific backend.
+            try {
+                display = FluidUtil.getFilledBucket(key.toStack(1000));
+            } catch (RuntimeException ignored) {
+                display = ItemStack.EMPTY;
+            }
+        }
+        if (display != null && !display.isEmpty()) {
+            target.add(new neofontrender.api.client.tooltip.NfrTooltipApi.ItemNode(
+                    display, entry.amount(), showAmount));
+        }
     }
 
-    private static int safeHeight(neofontrender.api.client.tooltip.NfrTooltipApi.VisualNode node,
-                                  FontRenderer font) {
-        try { return node.height(font); } catch (RuntimeException e) { return -1; }
-    }
-
-    private static String describeStack(ItemStack stack) {
-        if (stack == null || stack.isEmpty() || stack.getItem() == null) return "empty";
-        try { return String.valueOf(stack.getItem().getRegistryName()) + "@" + stack.getItemDamage(); }
-        catch (RuntimeException e) { return stack.getItem().getClass().getName(); }
-    }
-
-    private static boolean shouldDiagnostic() {
-        long now = System.nanoTime();
-        long previous = LAST_DIAGNOSTIC.get();
-        if (now - previous < DIAGNOSTIC_INTERVAL_NANOS) return false;
-        return LAST_DIAGNOSTIC.compareAndSet(previous, now);
+    /**
+     * Turns AE2's reserved placeholder rows into an explicit anchor marker and applies the
+     * configured ownership placement. AE2 appends its reserved image rows right after the
+     * ownership line and its ingredient-action lines after those rows, so "ownership last"
+     * means the ownership line moves past everything else while the stored-content rows
+     * keep the position AE2 reserved for them. Documents built by AE2 never pass through
+     * ModernTooltipHandler's reorder, so this is applied here for every document render.
+     */
+    private static neofontrender.api.client.tooltip.NfrTooltipApi.TooltipDocument normalizeDocument(
+            neofontrender.api.client.tooltip.NfrTooltipApi.TooltipDocument document) {
+        if (document == null) return null;
+        List<String> lines = NfrTooltipAnchor.foldReservedBlocks(document.lines,
+                ae2.client.gui.StackTooltipRenderer::isReservedTooltipLine,
+                NfrTooltipAnchor.FAMILY_ITEMS, AE2_MOD_ID);
+        if (lines != document.lines) {
+            document = new neofontrender.api.client.tooltip.NfrTooltipApi.TooltipDocument(
+                    document.stack, lines, document.nodes);
+        }
+        return document;
     }
 
     public static boolean render(ItemStack stack, List<String> lines, int mouseX, int mouseY,
                                  FontRenderer font) {
-        return renderDocument(new neofontrender.api.client.tooltip.NfrTooltipApi.TooltipDocument(
-                stack, lines, java.util.Collections.<neofontrender.api.client.tooltip.NfrTooltipApi.VisualNode>emptyList()),
-                mouseX, mouseY, font);
+        return neofontrender.api.client.tooltip.NfrTooltipApi.render(
+                stack, lines, mouseX, mouseY, font);
     }
 }

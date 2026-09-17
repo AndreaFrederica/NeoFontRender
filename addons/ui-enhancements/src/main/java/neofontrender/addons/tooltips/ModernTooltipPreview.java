@@ -67,7 +67,19 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
         PreviewData preview = previewData(selected, resolvePreviewStack(previewItemId.get()));
         List<String> lines = preview.lines;
         int contentWidth = measuredWidth(font, preview, profileScale);
-        int contentHeight = measuredHeight(font, preview, profileScale);
+        List<Integer> previewAdvances = TooltipLayout.lineAdvances(font, lines, preview.compactLines,
+                (textProfile ? profile : previewProfile()).textScale);
+        if (!previewAdvances.isEmpty()) {
+            int titleWidth = Math.max(1, Math.round(font.getStringWidth(lines.get(0))
+                    * profileScale * (isCompact(font, preview, 0) ? 0.5F : 1.0F)));
+            contentWidth = Math.max(contentWidth,
+                    TooltipHeaderLayout.requiredContentWidth(titleWidth, preview.stack, font));
+            int titleHeight = previewAdvances.get(0);
+            int extra = TooltipHeaderLayout.extraHeight(preview.stack, titleHeight);
+            previewAdvances.set(0, titleHeight + extra);
+        }
+        int contentHeight = previewAdvances.stream().mapToInt(Integer::intValue).sum();
+        if (TooltipConfig.titleBreak && lines.size() > 1) contentHeight += TooltipConfig.titleGap;
         int panelWidth = mapPreview ? QuarkMapTooltipLayout.PANEL_SIZE
                 : Math.max(140, contentWidth + TooltipConfig.horizontalPadding * 2);
         panelWidth = Math.min(Math.max(1, width - 24), panelWidth);
@@ -98,8 +110,7 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
             ModernTooltipRenderer.drawContent(textLeft, textTop, layoutWidth, lines,
                     preview.compactLines, lines.isEmpty() ? 0 : 1,
                     textProfile ? profile : previewProfile(), font, preview.stack, false, null,
-                    TooltipLayout.lineAdvances(font, lines, preview.compactLines,
-                            (textProfile ? profile : previewProfile()).textScale), null);
+                    previewAdvances, null);
 
             if (textProfile) {
                 String values = String.format(java.util.Locale.ROOT,
@@ -134,14 +145,6 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
                     AddonI18n.tr(root + "hei.title"), AddonI18n.tr(root + "hei.body")));
             List<Boolean> compact = flags(lines.size());
             appendModName(lines, compact, "Just Enough Items");
-            return new PreviewData(lines, compact, ItemStack.EMPTY);
-        }
-        if ("obscure".equals(id)) {
-            List<String> lines = new ArrayList<>(Arrays.asList(
-                    AddonI18n.tr(root + "obscure.title"),
-                    AddonI18n.tr(root + "obscure.body")));
-            List<Boolean> compact = flags(lines.size());
-            appendModName(lines, compact, "Obscure Tooltips");
             return new PreviewData(lines, compact, ItemStack.EMPTY);
         }
         if ("quark".equals(id)) {

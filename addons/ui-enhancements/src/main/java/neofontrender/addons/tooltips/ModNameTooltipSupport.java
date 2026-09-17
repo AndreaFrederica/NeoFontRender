@@ -16,15 +16,19 @@ final class ModNameTooltipSupport {
     }
 
     static boolean moveModNameToEnd(List<String> tooltip, String modName) {
-        if (tooltip == null || modName == null) return false;
+        int index = indexOfModNameLine(tooltip, modName);
+        if (index < 0 || index + 1 == tooltip.size()) return false;
+        tooltip.add(tooltip.remove(index));
+        return true;
+    }
+
+    /** Index of the ownership line, or -1 when the tooltip has no matching line. */
+    static int indexOfModNameLine(List<String> tooltip, String modName) {
+        if (tooltip == null || modName == null) return -1;
         for (int i = 0; i < tooltip.size(); i++) {
-            if (!isModNameLine(tooltip.get(i), modName)) continue;
-            if (i + 1 == tooltip.size()) return false;
-            String line = tooltip.remove(i);
-            tooltip.add(line);
-            return true;
+            if (isModNameLine(tooltip.get(i), modName)) return i;
         }
-        return false;
+        return -1;
     }
 
     private static boolean isModNameLine(String line, String modName) {

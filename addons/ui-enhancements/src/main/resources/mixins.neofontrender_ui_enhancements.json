@@ -4,7 +4,7 @@
   "package": "neofontrender.addons.mixin",
   "plugin": "neofontrender.addons.mixin.UiEnhancementsMixinPlugin",
   "refmap": "mixins.neofontrender_ui_enhancements-refmap.json",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_25",
   "target": "@env(DEFAULT)",
   "mixins": [
     "MixinCommandHandlerCompletionProviders",
@@ -40,6 +40,7 @@
     "MixinMinecraftDroneInputGate",
     "MixinMinecraftPerspectiveCycle",
     "AccessorMovementInputState",
+    "InvokerEntityArmorStandPreview",
     "MixinMovementInputFromOptionsDroneGate",
     "MixinEntityCameraRayTrace",
     "MixinItemCameraRayTrace",

@@ -8,11 +8,14 @@ public final class CommandCompletionOptions {
     public static final String UIE = "uie";
     public static final String PREGEN = "pregenerator";
     public static final String HIDDEN = "hidden";
+    public static final String CLEANROOM = "cleanroom";
 
     private CommandCompletionOptions() {}
 
     static String engine(String value, boolean available) {
-        return PREGEN.equals(value) && available ? PREGEN : UIE;
+        if (PREGEN.equals(value) && available) return PREGEN;
+        if (CLEANROOM.equals(value) && CleanroomCommandCompletionCompat.available()) return CLEANROOM;
+        return UIE;
     }
 
     static String display(String value, boolean available) {
@@ -20,12 +23,17 @@ public final class CommandCompletionOptions {
     }
 
     static List<String> engines() {
-        return PregenCompletionBridge.available() ? Arrays.asList(UIE, PREGEN) : Arrays.asList(UIE);
+        java.util.ArrayList<String> result = new java.util.ArrayList<>();
+        result.add(UIE);
+        if (PregenCompletionBridge.available()) result.add(PREGEN);
+        if (CleanroomCommandCompletionCompat.available()) result.add(CLEANROOM);
+        return result;
     }
 
     static List<String> displays() {
-        return PregenCompletionBridge.available()
-                ? Arrays.asList(UIE, PREGEN, HIDDEN) : Arrays.asList(UIE, HIDDEN);
+        java.util.ArrayList<String> result = new java.util.ArrayList<>(engines());
+        result.add(HIDDEN);
+        return result;
     }
 
     static String engine() {

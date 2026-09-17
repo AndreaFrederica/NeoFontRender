@@ -22,6 +22,7 @@ final class ShowcaseProtocolTemplates {
     private static final String OWNER = "neofontrender_mui_xml_showcase";
     private static final String RESOURCE_ROOT = "assets/" + OWNER + "/mui/";
     static final MuiProtocolTemplate CHEST = load("protocols/chest.xml");
+    static final MuiProtocolTemplate CHEST_256 = load("protocols/chest-256.xml");
     static final MuiProtocolTemplate FURNACE = load("protocols/furnace.xml");
 
     private ShowcaseProtocolTemplates() {}
@@ -69,7 +70,7 @@ final class ShowcaseProtocolTemplates {
             if ("machine.fuel".equals(key)) return ShowcaseFurnaceTile.FUEL_SLOT_INDEX;
             if ("machine.output".equals(key)) return ShowcaseFurnaceTile.OUTPUT_SLOT_INDEX;
         } else if (key.startsWith("machine.storage.")) {
-            return indexSuffix(key, "machine.storage.", 27);
+            return indexSuffix(key, "machine.storage.", tile.getItems().getSlots());
         }
         throw new IllegalArgumentException("Unknown machine slot binding: " + key);
     }
