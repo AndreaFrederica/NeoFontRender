@@ -8,6 +8,7 @@ import neofontrender.core.font.FontManager;
 import neofontrender.addons.cjk.CjkTypographyRenderer;
 import neofontrender.api.text.route.TextRenderRouteApi;
 import neofontrender.api.text.route.TextRenderRouteLayout;
+import neofontrender.api.client.tooltip.NfrTooltipApi;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,13 +26,16 @@ final class TooltipLayout {
     final int visualBottom;
     /** Final per-line widths; TC6 title/divider drawing must consume these exact values. */
     final List<Integer> lineWidths;
+    /** Baseline advances before header icon/rarity reservation is added. */
+    final List<Integer> rawLineAdvances;
     final List<Integer> lineAdvances;
     final TooltipVisualPlan visualPlan;
     private final TooltipConfig.Profile profile;
 
     private TooltipLayout(List<String> lines, List<Boolean> compactLines, int titleLines,
                           int x, int y, int width, int height, List<Integer> lineWidths,
-                          List<Integer> lineAdvances, int visualTop, int visualBottom,
+                          List<Integer> rawLineAdvances, List<Integer> lineAdvances,
+                          int visualTop, int visualBottom,
                           TooltipConfig.Profile profile, TooltipVisualPlan visualPlan) {
         this.lines = lines;
         this.compactLines = compactLines;
@@ -43,12 +47,82 @@ final class TooltipLayout {
         this.visualTop = visualTop;
         this.visualBottom = visualBottom;
         this.lineWidths = lineWidths;
+        this.rawLineAdvances = rawLineAdvances;
         this.lineAdvances = lineAdvances;
         this.profile = profile;
         this.visualPlan = visualPlan;
     }
 
     TooltipConfig.Profile profile() { return profile; }
+
+    /** Builds the same retained composition for the settings screen without a Forge event. */
+    static TooltipLayout preview(FontRenderer font, ItemStack stack, List<String> source,
+                                 List<Boolean> compactSource, TooltipConfig.Profile profile,
+                                 int maxWidth) {
+        List<String> safeSource = source == null ? java.util.Collections.<String>emptyList() : source;
+        TooltipConfig.Profile active = profile == null ? TooltipConfig.profile("vanilla") : profile;
+        List<Boolean> compact = flagsFor(safeSource.size(), compactSource == null ? null
+                : toFlags(compactSource));
+        List<Integer> widths = measureLineWidths(font, safeSource, compact, active.textScale);
+        TooltipVisualPlan visualPlan;
+        List<NfrTooltipApi.VisualNode> previous = TooltipVisualPlan.EXTERNAL.get();
+        try {
+            java.util.Optional<NfrTooltipApi.TooltipDocument> document =
+                    BuiltinPreviewProvider.INSTANCE.create(stack, safeSource);
+            if (document.isPresent()) TooltipVisualPlan.EXTERNAL.set(document.get().nodes);
+            else TooltipVisualPlan.EXTERNAL.remove();
+            visualPlan = TooltipVisualPlan.collect(stack, safeSource, font, Math.max(1, maxWidth));
+        } finally {
+            if (previous == null) TooltipVisualPlan.EXTERNAL.remove();
+            else TooltipVisualPlan.EXTERNAL.set(previous);
+        }
+        visualPlan = visualPlan.constrain(Math.max(1, maxWidth));
+        int limit = Math.max(1, maxWidth);
+        int width = visualPlanContentWidth(widths, visualPlan, stack, safeSource.isEmpty() ? 0 : 1, font);
+        List<String> finalLines = safeSource;
+        List<Boolean> finalCompact = compact;
+        int titleLines = safeSource.isEmpty() ? 0 : 1;
+        if (width > limit && !safeSource.isEmpty()) {
+            List<String> wrapped = new ArrayList<>();
+            List<Boolean> wrappedCompact = new ArrayList<>();
+            List<Integer> last = new ArrayList<>();
+            for (int i = 0; i < safeSource.size(); i++) {
+                int available = Math.max(1, limit - visualPlan.sideWidth()
+                        - (i == 0 ? TooltipHeaderLayout.titleInset(stack) : 0));
+                int sourceWidth = finalCompact.get(i)
+                        ? Math.max(1, Math.round(available * 2.0F / active.textScale))
+                        : Math.max(1, Math.round(available / active.textScale));
+                List<String> parts = wrapLine(font, safeSource.get(i), sourceWidth);
+                if (i == 0) titleLines = parts.size();
+                wrapped.addAll(parts);
+                for (int p = 0; p < parts.size(); p++) wrappedCompact.add(finalCompact.get(i));
+                last.add(wrapped.size() - 1);
+            }
+            finalLines = wrapped;
+            finalCompact = wrappedCompact;
+            visualPlan = visualPlan.remap(last, finalLines.size());
+            widths = measureLineWidths(font, finalLines, finalCompact, active.textScale);
+            width = Math.min(limit, visualPlanContentWidth(widths, visualPlan, stack, titleLines, font));
+        }
+        List<Integer> raw = lineAdvances(font, finalLines, finalCompact, active.textScale);
+        List<Integer> expanded = new ArrayList<>(raw);
+        addHeaderAdvance(expanded, stack, titleLines);
+        int height = Math.max(expanded.stream().mapToInt(Integer::intValue).sum()
+                + visualPlan.totalHeight(), visualPlan.contentHeight());
+        if (TooltipConfig.titleBreak && hasContentAfterTitle(finalLines, titleLines, visualPlan)) {
+            height += TooltipConfig.titleGap;
+        }
+        int[] bounds = visualBounds(font, finalLines, finalCompact, expanded, titleLines,
+                active.textScale, active.offsetY, visualPlan);
+        return new TooltipLayout(finalLines, finalCompact, titleLines, 0, 0, width,
+                Math.max(1, height), widths, raw, expanded, bounds[0], bounds[1], active, visualPlan);
+    }
+
+    private static boolean[] toFlags(List<Boolean> values) {
+        boolean[] result = new boolean[values.size()];
+        for (int i = 0; i < result.length; i++) result[i] = Boolean.TRUE.equals(values.get(i));
+        return result;
+    }
 
     static TooltipLayout calculate(RenderTooltipEvent.Pre event, boolean[] compactSource,
                                    TooltipConfig.Profile profile) {
@@ -129,8 +203,9 @@ final class TooltipLayout {
                     : event.getX() + cursorOffset;
         }
 
-        List<Integer> lineAdvances = lineAdvances(font, lines, compactLines,
+        List<Integer> rawLineAdvances = lineAdvances(font, lines, compactLines,
                 activeProfile.textScale);
+        List<Integer> lineAdvances = new ArrayList<>(rawLineAdvances);
         addHeaderAdvance(lineAdvances, event.getStack(), titleLines);
         int height = Math.max(lineAdvances.stream().mapToInt(Integer::intValue).sum()
                 + visualPlan.totalHeight(), visualPlan.contentHeight());
@@ -138,14 +213,14 @@ final class TooltipLayout {
             height += TooltipConfig.titleGap;
         }
         int[] visualBounds = visualBounds(font, lines, compactLines, lineAdvances,
-                titleLines, activeProfile.textScale, visualPlan);
+                titleLines, activeProfile.textScale, activeProfile.offsetY, visualPlan);
         int y = event.getY() - cursorOffset;
         y = Math.max(verticalPadding + extents.top - visualBounds[0], Math.min(y,
                 event.getScreenHeight() - visualBounds[1] - verticalPadding - extents.bottom));
         x = Math.max(horizontalPadding + extents.left, Math.min(x,
                 event.getScreenWidth() - width - horizontalPadding - extents.right));
         return new TooltipLayout(lines, compactLines, titleLines, x, y, width, height,
-                lineWidths, lineAdvances, visualBounds[0], visualBounds[1], activeProfile,
+                lineWidths, rawLineAdvances, lineAdvances, visualBounds[0], visualBounds[1], activeProfile,
                 visualPlan);
     }
 
@@ -214,8 +289,9 @@ final class TooltipLayout {
         }
 
         int x = placeLeft ? context.cursorX - width - 24 : context.cursorX + 12;
-        List<Integer> lineAdvances = lineAdvances(font, lines, compactLines,
+        List<Integer> rawLineAdvances = lineAdvances(font, lines, compactLines,
                 activeProfile.textScale);
+        List<Integer> lineAdvances = new ArrayList<>(rawLineAdvances);
         addHeaderAdvance(lineAdvances, event.getStack(), titleLines);
         int height = Math.max(lineAdvances.stream().mapToInt(Integer::intValue).sum()
                 + visualPlan.totalHeight(), visualPlan.contentHeight());
@@ -223,20 +299,20 @@ final class TooltipLayout {
             height += TooltipConfig.titleGap;
         }
         int[] visualBounds = visualBounds(font, lines, compactLines, lineAdvances,
-                titleLines, activeProfile.textScale, visualPlan);
+                titleLines, activeProfile.textScale, activeProfile.offsetY, visualPlan);
         int y = context.cursorY - 12;
         y = Math.max(verticalPadding + extents.top - visualBounds[0], Math.min(y,
                 event.getScreenHeight() - visualBounds[1] - verticalPadding - extents.bottom));
         x = Math.max(horizontalPadding + extents.left, Math.min(x,
                 event.getScreenWidth() - width - horizontalPadding - extents.right));
         return new TooltipLayout(lines, compactLines, titleLines, x, y, width, height,
-                lineWidths, lineAdvances, visualBounds[0], visualBounds[1], activeProfile,
+                lineWidths, rawLineAdvances, lineAdvances, visualBounds[0], visualBounds[1], activeProfile,
                 visualPlan);
     }
 
     private static int[] visualBounds(FontRenderer font, List<String> lines,
                                       List<Boolean> compactLines, List<Integer> lineAdvances,
-                                      int titleLines, float profileScale,
+                                      int titleLines, float profileScale, float offsetY,
                                       TooltipVisualPlan visualPlan) {
         float top = Float.POSITIVE_INFINITY;
         float bottom = Float.NEGATIVE_INFINITY;
@@ -261,8 +337,8 @@ final class TooltipLayout {
                 lineTop = measured.top * scale;
                 lineBottom = measured.bottom * scale;
             }
-            top = Math.min(top, baseline + lineTop);
-            bottom = Math.max(bottom, baseline + lineBottom);
+            top = Math.min(top, baseline + lineTop + offsetY);
+            bottom = Math.max(bottom, baseline + lineBottom + offsetY);
             baseline += lineAdvances.get(i);
             if (i + 1 == titleCount && TooltipConfig.titleBreak
                     && hasContentAfterTitle(lines, titleCount, visualPlan)) {

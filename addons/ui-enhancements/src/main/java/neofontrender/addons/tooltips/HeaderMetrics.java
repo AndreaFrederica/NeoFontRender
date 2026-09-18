@@ -20,6 +20,21 @@ final class HeaderMetrics {
 
     static HeaderMetrics measure(ItemStack stack, int titleLines, List<Integer> advances,
                                  int y) {
+        java.util.ArrayList<Integer> legacyRaw = new java.util.ArrayList<>();
+        if (advances != null) {
+            for (Integer value : advances) {
+                legacyRaw.add(Math.min(Math.max(1, value == null ? 1 : value), TooltipConfig.lineHeight));
+            }
+        }
+        return measure(stack, titleLines, advances, legacyRaw, y);
+    }
+
+    /**
+     * Measures the header from the raw text rows. The expanded list reserves icon/rarity
+     * space for the outer flow and must not be used as a proxy for glyph height.
+     */
+    static HeaderMetrics measure(ItemStack stack, int titleLines, List<Integer> advances,
+                                 List<Integer> rawAdvances, int y) {
         int count = Math.max(0, Math.min(titleLines, advances == null ? 0 : advances.size()));
         int reserved = 0;
         for (int i = 0; i < count; i++) reserved += Math.max(0, advances.get(i));
@@ -29,7 +44,9 @@ final class HeaderMetrics {
         // to the top of the expanded row.
         int textHeight = 0;
         for (int i = 0; i < count; i++) {
-            textHeight += Math.min(Math.max(1, advances.get(i)), TooltipConfig.lineHeight);
+            int raw = rawAdvances != null && i < rawAdvances.size()
+                    ? rawAdvances.get(i) : advances.get(i);
+            textHeight += Math.max(1, raw);
         }
         if (TooltipHeaderLayout.hasRarity(stack)) {
             textHeight += TooltipHeaderLayout.RARITY_HEIGHT

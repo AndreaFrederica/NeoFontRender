@@ -41,7 +41,7 @@ class TooltipVisualPlanTest {
         plan.addSide(new StubBlock(30, 12));
         plan.addSide(new StubBlock(30, 8));
 
-        TooltipVisualPlan constrained = plan.constrain(70);
+        TooltipVisualPlan constrained = plan.constrain(140);
 
         assertEquals(68, constrained.sideWidth());
         assertEquals(24, constrained.sideHeight());
@@ -55,7 +55,7 @@ class TooltipVisualPlanTest {
         plan.addSide(new StubBlock(30, 12));
         plan.addSide(new StubBlock(30, 8));
 
-        TooltipVisualPlan constrained = plan.constrain(70);
+        TooltipVisualPlan constrained = plan.constrain(140);
 
         assertEquals(1, constrained.placements().size());
         assertEquals(0, constrained.placements().get(0).line);
@@ -70,7 +70,7 @@ class TooltipVisualPlanTest {
         plan.addSide(new StubBlock(30, 12));
         plan.addSide(new StubBlock(30, 8));
 
-        TooltipVisualPlan constrained = plan.constrain(70);
+        TooltipVisualPlan constrained = plan.constrain(140);
         assertEquals(3, constrained.sidePlacements().size());
         assertEquals(0, constrained.sidePlacements().get(0).x);
         assertEquals(34, constrained.sidePlacements().get(1).x);
@@ -84,12 +84,28 @@ class TooltipVisualPlanTest {
         NfrTooltipApi.ItemRowNode row = new NfrTooltipApi.ItemRowNode(
                 Arrays.asList(item, item, item, item, item), true);
 
-        assertEquals(95, TooltipVisualPlan.itemRowMetrics(row, null, Integer.MAX_VALUE)[0]);
-        assertEquals(17, TooltipVisualPlan.itemRowMetrics(row, null, Integer.MAX_VALUE)[1]);
-        assertEquals(34, TooltipVisualPlan.itemRowMetrics(row, null, 40)[0]);
-        assertEquals(51, TooltipVisualPlan.itemRowMetrics(row, null, 40)[1]);
-        assertEquals(17, TooltipVisualPlan.itemRowMetrics(row, null, 20)[0]);
-        assertEquals(102, TooltipVisualPlan.itemRowMetrics(row, null, 20)[1]);
+        TooltipVisualNodeLayout.Composition composition = TooltipVisualNodeLayout.compose(row, null);
+        TooltipVisualNodeLayout.Result unbounded = composition.layout(Integer.MAX_VALUE);
+        assertEquals(95, unbounded.width);
+        assertEquals(17, unbounded.height);
+        TooltipVisualNodeLayout.Result constrained = TooltipVisualNodeLayout.compose(row, null).layout(40);
+        assertEquals(34, constrained.width);
+        assertEquals(51, constrained.height);
+        TooltipVisualNodeLayout.Result narrow = TooltipVisualNodeLayout.compose(row, null).layout(20);
+        assertEquals(17, narrow.width);
+        assertEquals(102, narrow.height);
+    }
+
+    @Test
+    void retainedCompositionExposesNestedDebugBounds() {
+        NfrTooltipApi.GroupNode group = new NfrTooltipApi.GroupNode(
+                Arrays.asList(new NfrTooltipApi.TextNode("label", 0xFFFFFFFF, false),
+                        new NfrTooltipApi.ItemNode(ItemStack.EMPTY, 1, false)),
+                NfrTooltipApi.LayoutDirection.HORIZONTAL);
+        TooltipVisualNodeLayout.Result result = TooltipVisualNodeLayout.compose(group, null).layout(100);
+        assertEquals(2, result.debugBounds.stream()
+                .filter(value -> "text".equals(value.label) || "item".equals(value.label)).count());
+        assertEquals(0, result.debugBounds.get(0).x);
     }
 
     private static final class StubBlock implements TooltipVisualBlock {

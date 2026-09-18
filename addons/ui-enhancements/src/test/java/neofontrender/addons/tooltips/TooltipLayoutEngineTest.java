@@ -49,4 +49,49 @@ class TooltipLayoutEngineTest {
         assertEquals(5, third.bounds().x);
         assertEquals(20, third.bounds().y);
     }
+
+    @Test
+    void leafKeepsIntrinsicSizeWhenConstraintsAreSmaller() {
+        TooltipLayoutEngine.Leaf leaf = new TooltipLayoutEngine.Leaf(24, 12);
+        TooltipLayoutEngine.Measurement measured = leaf.measure(new TooltipLayoutEngine.Constraints(4, 3));
+        assertEquals(24, measured.width);
+        assertEquals(12, measured.height);
+    }
+
+    @Test
+    void wrapKeepsOversizedItemOnItsOwnRow() {
+        TooltipLayoutEngine.Leaf wide = new TooltipLayoutEngine.Leaf(40, 7);
+        TooltipLayoutEngine.Leaf small = new TooltipLayoutEngine.Leaf(10, 5);
+        TooltipLayoutEngine.Wrap wrap = new TooltipLayoutEngine.Wrap(24, 2, 3,
+                TooltipLayoutEngine.Insets.none(), Arrays.asList(wide, small));
+        TooltipLayoutEngine.Measurement measured = wrap.measure(new TooltipLayoutEngine.Constraints(24, 100));
+        wrap.place(new TooltipLayoutEngine.Rect(0, 0, measured.width, measured.height));
+        assertEquals(40, measured.width);
+        assertEquals(15, measured.height);
+        assertEquals(0, wide.bounds().x);
+        assertEquals(10, small.bounds().y);
+    }
+
+    @Test
+    void gridDropsColumnsWhenNaturalTracksDoNotFit() {
+        TooltipLayoutEngine.Leaf first = new TooltipLayoutEngine.Leaf(30, 4);
+        TooltipLayoutEngine.Leaf second = new TooltipLayoutEngine.Leaf(30, 5);
+        TooltipLayoutEngine.Grid grid = new TooltipLayoutEngine.Grid(2, 2, Arrays.asList(first, second));
+        TooltipLayoutEngine.Measurement measured = grid.measure(new TooltipLayoutEngine.Constraints(40, 100));
+        grid.place(new TooltipLayoutEngine.Rect(0, 0, measured.width, measured.height));
+        assertEquals(30, measured.width);
+        assertEquals(11, measured.height);
+        assertEquals(0, first.bounds().x);
+        assertEquals(6, second.bounds().y);
+    }
+
+    @Test
+    void zeroConstraintsAllowEmptyContainers() {
+        TooltipLayoutEngine.Flow flow = new TooltipLayoutEngine.Flow(
+                TooltipLayoutEngine.Direction.COLUMN, TooltipLayoutEngine.Alignment.START, 0,
+                TooltipLayoutEngine.Insets.none(), Arrays.asList());
+        TooltipLayoutEngine.Measurement measured = flow.measure(new TooltipLayoutEngine.Constraints(0, 0));
+        assertEquals(0, measured.width);
+        assertEquals(0, measured.height);
+    }
 }

@@ -15,14 +15,15 @@ final class TooltipLayoutEngine {
             this.right = Math.max(0, right); this.bottom = Math.max(0, bottom);
         }
         static Insets none() { return new Insets(0, 0, 0, 0); }
-        int horizontal() { return left + right; }
-        int vertical() { return top + bottom; }
+        int horizontal() { return add(left, right); }
+        int vertical() { return add(top, bottom); }
     }
 
+    /** Available space for responsive nodes, not permission to truncate fixed-size content. */
     static final class Constraints {
         final int maxWidth, maxHeight;
         Constraints(int maxWidth, int maxHeight) {
-            this.maxWidth = Math.max(1, maxWidth); this.maxHeight = Math.max(1, maxHeight);
+            this.maxWidth = Math.max(0, maxWidth); this.maxHeight = Math.max(0, maxHeight);
         }
         static Constraints unbounded() { return new Constraints(Integer.MAX_VALUE, Integer.MAX_VALUE); }
     }
@@ -52,195 +53,216 @@ final class TooltipLayoutEngine {
         private Rect bounds = new Rect(0, 0, 0, 0);
         Leaf(int width, int height) { this.width = Math.max(0, width); this.height = Math.max(0, height); }
         @Override public Measurement measure(Constraints constraints) {
-            return new Measurement(Math.min(width, constraints.maxWidth), Math.min(height, constraints.maxHeight));
+            return new Measurement(width, height);
         }
         @Override public void place(Rect bounds) { this.bounds = bounds; }
         Rect bounds() { return bounds; }
     }
 
-    static final class Flow implements Node {
+    private static final class Layout {
+        final Measurement size;
+        final List<Rect> children;
+        Layout(int width, int height, List<Rect> children) {
+            this.size = new Measurement(width, height);
+            this.children = children;
+        }
+    }
+
+    /** Retains the measured arrangement so fitting a container never measures its children again. */
+    private abstract static class Container implements Node {
+        final List<Node> children;
+        private Layout measured;
+        private Rect bounds = new Rect(0, 0, 0, 0);
+
+        Container(List<? extends Node> children) {
+            this.children = children == null ? Collections.emptyList()
+                    : Collections.unmodifiableList(new ArrayList<>(children));
+        }
+
+        abstract Layout layout(Constraints constraints);
+
+        @Override public final Measurement measure(Constraints constraints) {
+            measured = layout(constraints);
+            return measured.size;
+        }
+
+        @Override public final void place(Rect bounds) {
+            this.bounds = bounds;
+            if (measured == null || measured.size.width != bounds.width || measured.size.height != bounds.height) {
+                measured = layout(new Constraints(bounds.width, bounds.height));
+            }
+            placeChildren(bounds, measured);
+        }
+
+        void placeChildren(Rect bounds, Layout layout) {
+            for (int index = 0; index < children.size(); index++) {
+                Rect child = layout.children.get(index);
+                children.get(index).place(new Rect(bounds.x + child.x, bounds.y + child.y, child.width, child.height));
+            }
+        }
+
+        final Rect bounds() { return bounds; }
+    }
+
+    static final class Flow extends Container {
         private final Direction direction;
         private final Alignment crossAlignment;
         private final int gap;
         private final Insets padding;
-        private final List<Node> children;
-        private Rect bounds = new Rect(0, 0, 0, 0);
 
         Flow(Direction direction, Alignment crossAlignment, int gap, Insets padding,
              List<? extends Node> children) {
+            super(children);
             this.direction = direction == null ? Direction.COLUMN : direction;
             this.crossAlignment = crossAlignment == null ? Alignment.START : crossAlignment;
             this.gap = Math.max(0, gap);
             this.padding = padding == null ? Insets.none() : padding;
-            this.children = children == null ? Collections.emptyList() :
-                    Collections.unmodifiableList(new ArrayList<>(children));
         }
-        @Override public Measurement measure(Constraints constraints) {
-            int main = direction == Direction.ROW ? padding.horizontal() : padding.vertical();
-            int cross = direction == Direction.ROW ? padding.vertical() : padding.horizontal();
-            int count = 0;
+
+        @Override Layout layout(Constraints constraints) {
+            boolean row = direction == Direction.ROW;
+            Constraints childConstraints = row
+                    ? new Constraints(Integer.MAX_VALUE, Math.max(0, constraints.maxHeight - padding.vertical()))
+                    : new Constraints(Math.max(0, constraints.maxWidth - padding.horizontal()), Integer.MAX_VALUE);
+            int main = 0;
+            int cross = 0;
+            List<Rect> placements = new ArrayList<>(children.size());
             for (Node child : children) {
-                Measurement value = child.measure(constraints);
-                if (direction == Direction.ROW) { main += value.width; cross = Math.max(cross, value.height); }
-                else { main += value.height; cross = Math.max(cross, value.width); }
-                count++;
+                Measurement value = child.measure(childConstraints);
+                if (!placements.isEmpty()) main = add(main, gap);
+                placements.add(new Rect(row ? main : 0, row ? 0 : main, value.width, value.height));
+                main = add(main, row ? value.width : value.height);
+                cross = Math.max(cross, row ? value.height : value.width);
             }
-            if (count > 1) main += gap * (count - 1);
-            int width = direction == Direction.ROW ? main : cross;
-            int height = direction == Direction.ROW ? cross : main;
-            return new Measurement(Math.min(width, constraints.maxWidth), Math.min(height, constraints.maxHeight));
+            return new Layout(add(row ? main : cross, padding.horizontal()),
+                    add(row ? cross : main, padding.vertical()), placements);
         }
-        @Override public void place(Rect bounds) {
-            this.bounds = bounds;
-            int cursor = direction == Direction.ROW ? bounds.x + padding.left : bounds.y + padding.top;
-            int innerWidth = Math.max(0, bounds.width - padding.horizontal());
-            int innerHeight = Math.max(0, bounds.height - padding.vertical());
-            for (Node child : children) {
-                Measurement value = child.measure(new Constraints(innerWidth, innerHeight));
-                int width = direction == Direction.ROW ? value.width : crossSize(value.width, innerWidth);
-                int height = direction == Direction.ROW ? crossSize(value.height, innerHeight) : value.height;
-                int cross = direction == Direction.ROW ? innerHeight - height : innerWidth - width;
-                int offset = crossAlignment == Alignment.CENTER ? cross / 2
-                        : crossAlignment == Alignment.END ? cross : 0;
-                if (direction == Direction.ROW) child.place(new Rect(cursor, bounds.y + padding.top + offset, width, height));
-                else child.place(new Rect(bounds.x + padding.left + offset, cursor, width, height));
-                cursor += (direction == Direction.ROW ? width : height) + gap;
+
+        @Override void placeChildren(Rect bounds, Layout layout) {
+            boolean row = direction == Direction.ROW;
+            int innerCross = Math.max(0, row ? bounds.height - padding.vertical() : bounds.width - padding.horizontal());
+            for (int index = 0; index < children.size(); index++) {
+                Rect child = layout.children.get(index);
+                int naturalCross = row ? child.height : child.width;
+                int cross = crossAlignment == Alignment.STRETCH ? Math.max(naturalCross, innerCross) : naturalCross;
+                int free = Math.max(0, innerCross - cross);
+                int offset = crossAlignment == Alignment.CENTER ? free / 2
+                        : crossAlignment == Alignment.END ? free : 0;
+                children.get(index).place(new Rect(bounds.x + padding.left + child.x + (row ? 0 : offset),
+                        bounds.y + padding.top + child.y + (row ? offset : 0),
+                        row ? child.width : cross, row ? cross : child.height));
             }
         }
-        private int crossSize(int value, int available) { return crossAlignment == Alignment.STRETCH ? available : value; }
-        Rect bounds() { return bounds; }
     }
 
-    /** Places children left-to-right and starts a new row when the width limit is reached. */
-    static final class Wrap implements Node {
+    /** Places children left-to-right and starts a new row when the available inner width is reached. */
+    static final class Wrap extends Container {
         private final int widthLimit;
         private final int gap;
         private final int rowGap;
         private final Insets padding;
-        private final List<Node> children;
-        private Rect bounds = new Rect(0, 0, 0, 0);
 
         Wrap(int widthLimit, int gap, int rowGap, Insets padding, List<? extends Node> children) {
-            this.widthLimit = widthLimit == Integer.MAX_VALUE ? Integer.MAX_VALUE : Math.max(1, widthLimit);
+            super(children);
+            this.widthLimit = Math.max(0, widthLimit);
             this.gap = Math.max(0, gap);
             this.rowGap = Math.max(0, rowGap);
             this.padding = padding == null ? Insets.none() : padding;
-            this.children = children == null ? Collections.emptyList() :
-                    Collections.unmodifiableList(new ArrayList<>(children));
         }
 
-        @Override public Measurement measure(Constraints constraints) {
-            int limit = Math.min(widthLimit, Math.max(1, constraints.maxWidth));
+        @Override Layout layout(Constraints constraints) {
+            int limit = Math.max(0, Math.min(widthLimit, constraints.maxWidth) - padding.horizontal());
+            Constraints childConstraints = new Constraints(limit, Integer.MAX_VALUE);
             int rowWidth = 0;
             int rowHeight = 0;
             int totalWidth = 0;
-            int totalHeight = padding.vertical();
+            int y = 0;
             boolean hasRow = false;
+            List<Rect> placements = new ArrayList<>(children.size());
             for (Node child : children) {
-                Measurement value = child.measure(new Constraints(limit, constraints.maxHeight));
-                int next = rowWidth == 0 ? value.width : rowWidth + gap + value.width;
-                if (hasRow && next > limit - padding.horizontal()) {
+                Measurement value = child.measure(childConstraints);
+                int next = hasRow ? add(add(rowWidth, gap), value.width) : value.width;
+                if (hasRow && next > limit) {
                     totalWidth = Math.max(totalWidth, rowWidth);
-                    totalHeight += rowHeight + rowGap;
-                    rowWidth = value.width;
-                    rowHeight = value.height;
-                } else {
-                    rowWidth = next;
-                    rowHeight = Math.max(rowHeight, value.height);
+                    y = add(add(y, rowHeight), rowGap);
+                    rowWidth = 0;
+                    rowHeight = 0;
+                    hasRow = false;
                 }
+                if (hasRow) rowWidth = add(rowWidth, gap);
+                placements.add(new Rect(add(padding.left, rowWidth), add(padding.top, y), value.width, value.height));
+                rowWidth = add(rowWidth, value.width);
+                rowHeight = Math.max(rowHeight, value.height);
                 hasRow = true;
             }
-            if (hasRow) {
-                totalWidth = Math.max(totalWidth, rowWidth);
-                totalHeight += rowHeight;
-            }
-            return new Measurement(Math.min(constraints.maxWidth, totalWidth + padding.horizontal()),
-                    Math.min(constraints.maxHeight, totalHeight));
+            totalWidth = Math.max(totalWidth, rowWidth);
+            return new Layout(add(totalWidth, padding.horizontal()),
+                    add(add(y, rowHeight), padding.vertical()), placements);
         }
-
-        @Override public void place(Rect bounds) {
-            this.bounds = bounds;
-            int limit = Math.min(widthLimit, Math.max(1, bounds.width - padding.horizontal()));
-            int x = bounds.x + padding.left;
-            int y = bounds.y + padding.top;
-            int rowHeight = 0;
-            for (Node child : children) {
-                Measurement value = child.measure(new Constraints(limit, Math.max(1, bounds.height)));
-                if (x > bounds.x + padding.left && x - (bounds.x + padding.left) + gap + value.width > limit) {
-                    x = bounds.x + padding.left;
-                    y += rowHeight + rowGap;
-                    rowHeight = 0;
-                } else if (x > bounds.x + padding.left) {
-                    x += gap;
-                }
-                child.place(new Rect(x, y, value.width, value.height));
-                x += value.width;
-                rowHeight = Math.max(rowHeight, value.height);
-            }
-        }
-
-        Rect bounds() { return bounds; }
     }
 
-    static final class Grid implements Node {
+    /** Shared column tracks with fewer columns when the natural tracks exceed the available width. */
+    static final class Grid extends Container {
         private final int columns;
         private final int gap;
-        private final List<Node> children;
-        private Rect bounds = new Rect(0, 0, 0, 0);
 
         Grid(int columns, int gap, List<? extends Node> children) {
+            super(children);
             this.columns = Math.max(1, columns);
             this.gap = Math.max(0, gap);
-            this.children = children == null ? Collections.emptyList() :
-                    Collections.unmodifiableList(new ArrayList<>(children));
         }
 
-        @Override public Measurement measure(Constraints constraints) {
+        @Override Layout layout(Constraints constraints) {
             int count = Math.min(columns, children.size());
-            if (count == 0) return new Measurement(0, 0);
-            int[] widths = new int[count];
-            int rows = (children.size() + columns - 1) / columns;
-            int[] heights = new int[rows];
-            for (int index = 0; index < children.size(); index++) {
-                Measurement value = children.get(index).measure(constraints);
-                int column = index % columns;
-                int row = index / columns;
-                widths[column] = Math.max(widths[column], value.width);
-                heights[row] = Math.max(heights[row], value.height);
+            if (count == 0) return new Layout(0, 0, Collections.emptyList());
+            List<Measurement> sizes = new ArrayList<>(children.size());
+            for (Node child : children) sizes.add(child.measure(Constraints.unbounded()));
+            int[] widths = columnWidths(sizes, count);
+            while (count > 1 && trackSize(widths) > constraints.maxWidth) {
+                widths = columnWidths(sizes, --count);
             }
-            int width = Math.max(0, count - 1) * gap;
-            for (int value : widths) width += value;
-            int height = Math.max(0, rows - 1) * gap;
-            for (int value : heights) height += value;
-            return new Measurement(Math.min(width, constraints.maxWidth), Math.min(height, constraints.maxHeight));
-        }
-
-        @Override public void place(Rect bounds) {
-            this.bounds = bounds;
-            int count = Math.min(columns, children.size());
-            if (count == 0) return;
-            int[] widths = new int[count];
-            int rows = (children.size() + columns - 1) / columns;
+            if (count == 1) {
+                sizes.clear();
+                Constraints childConstraints = new Constraints(constraints.maxWidth, Integer.MAX_VALUE);
+                for (Node child : children) sizes.add(child.measure(childConstraints));
+                widths = columnWidths(sizes, count);
+            }
+            int rows = (children.size() - 1) / count + 1;
             int[] heights = new int[rows];
-            for (int index = 0; index < children.size(); index++) {
-                Measurement value = children.get(index).measure(new Constraints(bounds.width, bounds.height));
-                widths[index % columns] = Math.max(widths[index % columns], value.width);
-                heights[index / columns] = Math.max(heights[index / columns], value.height);
+            for (int index = 0; index < sizes.size(); index++) {
+                heights[index / count] = Math.max(heights[index / count], sizes.get(index).height);
             }
             int[] x = new int[count];
-            for (int column = 1; column < count; column++) x[column] = x[column - 1] + widths[column - 1] + gap;
-            int y = bounds.y;
-            for (int row = 0; row < rows; row++) {
-                for (int column = 0; column < count; column++) {
-                    int index = row * columns + column;
-                    if (index >= children.size()) break;
-                    Measurement value = children.get(index).measure(new Constraints(widths[column], heights[row]));
-                    children.get(index).place(new Rect(bounds.x + x[column], y, value.width, value.height));
-                }
-                y += heights[row] + gap;
+            for (int column = 1; column < count; column++) x[column] = add(add(x[column - 1], widths[column - 1]), gap);
+            List<Rect> placements = new ArrayList<>(children.size());
+            int y = 0;
+            for (int index = 0; index < sizes.size(); index++) {
+                if (index > 0 && index % count == 0) y = add(add(y, heights[index / count - 1]), gap);
+                Measurement value = sizes.get(index);
+                placements.add(new Rect(x[index % count], y, value.width, value.height));
             }
+            return new Layout(trackSize(widths), trackSize(heights), placements);
         }
 
-        Rect bounds() { return bounds; }
+        private int[] columnWidths(List<Measurement> sizes, int count) {
+            int[] widths = new int[count];
+            for (int index = 0; index < sizes.size(); index++) {
+                widths[index % count] = Math.max(widths[index % count], sizes.get(index).width);
+            }
+            return widths;
+        }
+
+        private int trackSize(int[] values) {
+            int total = 0;
+            for (int index = 0; index < values.length; index++) {
+                if (index > 0) total = add(total, gap);
+                total = add(total, values[index]);
+            }
+            return total;
+        }
+    }
+
+    private static int add(int left, int right) {
+        return (int) Math.min(Integer.MAX_VALUE, (long) left + right);
     }
 }
