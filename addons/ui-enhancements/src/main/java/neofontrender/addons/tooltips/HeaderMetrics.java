@@ -63,7 +63,9 @@ final class HeaderMetrics {
         int iconY = y;
         if (TooltipHeaderLayout.hasIcon(stack)) {
             if ("title".equals(TooltipConfig.headerIconAlignment)) {
-                iconY += textOffset + Math.max(0, (titleOnlyHeight - iconHeight) / 2);
+                // "title" means the visible title text block, including its optional
+                // rarity row. This is the useful two-line anchor for left-aligned titles.
+                iconY += textOffset + Math.max(0, (textHeight - iconHeight) / 2);
             } else if ("first_line".equals(TooltipConfig.headerIconAlignment)) {
                 int firstLineHeight = rawAdvances != null && !rawAdvances.isEmpty()
                         ? Math.max(1, rawAdvances.get(0))

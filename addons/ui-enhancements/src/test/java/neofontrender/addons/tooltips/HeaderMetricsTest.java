@@ -66,7 +66,7 @@ class HeaderMetricsTest {
                     Collections.singletonList(22), Collections.singletonList(10), 0);
 
             assertEquals(3, header.iconY);
-            assertEquals(0, title.iconY);
+            assertEquals(3, title.iconY);
             assertEquals(header.headerHeight, title.headerHeight);
         } finally {
             TooltipConfig.rarityEnabled = oldRarity;
