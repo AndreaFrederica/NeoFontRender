@@ -110,4 +110,75 @@ final class TooltipLayoutEngine {
         private int crossSize(int value, int available) { return crossAlignment == Alignment.STRETCH ? available : value; }
         Rect bounds() { return bounds; }
     }
+
+    /** Places children left-to-right and starts a new row when the width limit is reached. */
+    static final class Wrap implements Node {
+        private final int widthLimit;
+        private final int gap;
+        private final int rowGap;
+        private final Insets padding;
+        private final List<Node> children;
+        private Rect bounds = new Rect(0, 0, 0, 0);
+
+        Wrap(int widthLimit, int gap, int rowGap, Insets padding, List<? extends Node> children) {
+            this.widthLimit = widthLimit == Integer.MAX_VALUE ? Integer.MAX_VALUE : Math.max(1, widthLimit);
+            this.gap = Math.max(0, gap);
+            this.rowGap = Math.max(0, rowGap);
+            this.padding = padding == null ? Insets.none() : padding;
+            this.children = children == null ? Collections.emptyList() :
+                    Collections.unmodifiableList(new ArrayList<>(children));
+        }
+
+        @Override public Measurement measure(Constraints constraints) {
+            int limit = Math.min(widthLimit, Math.max(1, constraints.maxWidth));
+            int rowWidth = 0;
+            int rowHeight = 0;
+            int totalWidth = 0;
+            int totalHeight = padding.vertical();
+            boolean hasRow = false;
+            for (Node child : children) {
+                Measurement value = child.measure(new Constraints(limit, constraints.maxHeight));
+                int next = rowWidth == 0 ? value.width : rowWidth + gap + value.width;
+                if (hasRow && next > limit - padding.horizontal()) {
+                    totalWidth = Math.max(totalWidth, rowWidth);
+                    totalHeight += rowHeight + rowGap;
+                    rowWidth = value.width;
+                    rowHeight = value.height;
+                } else {
+                    rowWidth = next;
+                    rowHeight = Math.max(rowHeight, value.height);
+                }
+                hasRow = true;
+            }
+            if (hasRow) {
+                totalWidth = Math.max(totalWidth, rowWidth);
+                totalHeight += rowHeight;
+            }
+            return new Measurement(Math.min(constraints.maxWidth, totalWidth + padding.horizontal()),
+                    Math.min(constraints.maxHeight, totalHeight));
+        }
+
+        @Override public void place(Rect bounds) {
+            this.bounds = bounds;
+            int limit = Math.min(widthLimit, Math.max(1, bounds.width - padding.horizontal()));
+            int x = bounds.x + padding.left;
+            int y = bounds.y + padding.top;
+            int rowHeight = 0;
+            for (Node child : children) {
+                Measurement value = child.measure(new Constraints(limit, Math.max(1, bounds.height)));
+                if (x > bounds.x + padding.left && x - (bounds.x + padding.left) + gap + value.width > limit) {
+                    x = bounds.x + padding.left;
+                    y += rowHeight + rowGap;
+                    rowHeight = 0;
+                } else if (x > bounds.x + padding.left) {
+                    x += gap;
+                }
+                child.place(new Rect(x, y, value.width, value.height));
+                x += value.width;
+                rowHeight = Math.max(rowHeight, value.height);
+            }
+        }
+
+        Rect bounds() { return bounds; }
+    }
 }

@@ -529,70 +529,54 @@ final class TooltipVisualPlan {
     }
 
     int sideWidth() {
-        int width = 0;
-        int rowWidth = 0;
-        for (TooltipVisualBlock block : sideBlocks) {
-            int cellWidth = block.width() + 4;
-            if (rowWidth > 0 && rowWidth + cellWidth > sideWidthLimit) {
-                width = Math.max(width, rowWidth);
-                rowWidth = 0;
-            }
-            rowWidth += cellWidth;
-        }
-        return Math.max(width, rowWidth);
+        return sideLayout().width;
     }
 
     int sideHeight() {
-        int height = 0;
-        int rowWidth = 0;
-        int rowHeight = 0;
-        for (TooltipVisualBlock block : sideBlocks) {
-            int cellWidth = block.width() + 4;
-            if (rowWidth > 0 && rowWidth + cellWidth > sideWidthLimit) {
-                height += rowHeight + 4;
-                rowWidth = 0;
-                rowHeight = 0;
-            }
-            rowWidth += cellWidth;
-            rowHeight = Math.max(rowHeight, block.height());
-        }
-        return height + rowHeight;
+        return sideLayout().height;
     }
 
     void drawSide(int x, int y, FontRenderer font) {
-        int offsetX = 0;
-        int offsetY = 0;
-        int rowHeight = 0;
-        for (TooltipVisualBlock block : sideBlocks) {
-            int cellWidth = block.width() + 4;
-            if (offsetX > 0 && offsetX + cellWidth > sideWidthLimit) {
-                offsetX = 0;
-                offsetY += rowHeight + 4;
-                rowHeight = 0;
-            }
-            block.draw(x + offsetX, y + offsetY, font);
-            offsetX += cellWidth;
-            rowHeight = Math.max(rowHeight, block.height());
+        for (SidePlacement placement : sideLayout().placements) {
+            placement.block.draw(x + placement.x, y + placement.y, font);
         }
     }
 
     List<SidePlacement> sidePlacements() {
-        List<SidePlacement> result = new ArrayList<>();
-        int offsetX = 0;
-        int offsetY = 0;
-        int rowHeight = 0;
+        return sideLayout().placements;
+    }
+
+    private SideLayout sideLayout() {
+        List<TooltipLayoutEngine.Node> cells = new ArrayList<>();
+        List<TooltipLayoutEngine.Leaf> leaves = new ArrayList<>();
         for (TooltipVisualBlock block : sideBlocks) {
-            int cellWidth = block.width() + 4;
-            if (offsetX > 0 && offsetX + cellWidth > sideWidthLimit) {
-                offsetX = 0;
-                offsetY += rowHeight + 4;
-                rowHeight = 0;
-            }
-            result.add(new SidePlacement(offsetX, offsetY, block));
-            offsetX += cellWidth;
-            rowHeight = Math.max(rowHeight, block.height());
+            TooltipLayoutEngine.Leaf leaf = new TooltipLayoutEngine.Leaf(block.width() + 4, block.height());
+            leaves.add(leaf);
+            cells.add(leaf);
         }
-        return result;
+        TooltipLayoutEngine.Wrap wrap = new TooltipLayoutEngine.Wrap(
+                sideWidthLimit, 0, 4, TooltipLayoutEngine.Insets.none(), cells);
+        TooltipLayoutEngine.Measurement measurement = wrap.measure(TooltipLayoutEngine.Constraints.unbounded());
+        wrap.place(new TooltipLayoutEngine.Rect(0, 0, measurement.width, measurement.height));
+        List<SidePlacement> placements = new ArrayList<>();
+        for (int index = 0; index < leaves.size(); index++) {
+            TooltipLayoutEngine.Rect bounds = leaves.get(index).bounds();
+            placements.add(new SidePlacement(bounds.x, bounds.y, sideBlocks.get(index)));
+        }
+        return new SideLayout(measurement.width, measurement.height,
+                Collections.unmodifiableList(placements));
+    }
+
+    private static final class SideLayout {
+        final int width;
+        final int height;
+        final List<SidePlacement> placements;
+
+        SideLayout(int width, int height, List<SidePlacement> placements) {
+            this.width = width;
+            this.height = height;
+            this.placements = placements;
+        }
     }
 
     List<TooltipVisualBlock> after(int lineIndex) {
