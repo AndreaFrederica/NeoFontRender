@@ -26,6 +26,9 @@ Components 验证 capture/target 事件以及挂载后的 DOM 节点新增、删
 
 仓库还提供独立的 `chest-256.xml` 示例箱子。它使用全新的 `neofontrender_mui_xml_showcase:chest-256` 协议，声明 256 个 `machine.storage.0` 到 `machine.storage.255` 槽位，并注册为 `xml_chest_256` 方块；原有 27 格 `xml_chest` 保持不变。
 
+256 格协议使用 `<slot-range>` 展开槽位，需要本仓库 ModularUI fork 的 `3.2.0-nfr.2` 或更新版本。
+编译、客户端和服务端必须使用一致的 ModularUI 版本；升级后需要重新启动游戏。
+
 addon 还注册了两个可放置方块：
 
 - `neofontrender_mui_xml_showcase:xml_chest`：27 个 TileEntity 槽位和 36 个玩家槽位；
@@ -92,23 +95,23 @@ XML 不执行 Java 表达式；只有显式注册的 namespaced action 可以被
 
 ## 构建与验证
 
-先在实际 MUI 仓库构建开发 jar，再指向它运行测试：
+先在实际 MUI 仓库构建并发布到本地 Maven，再按 `gradle.properties` 中的版本运行测试：
 
 ```powershell
 cd D:\Projects\sfr\other_mods\ModularUI
-.\gradlew.bat build -DDISABLE_BUILDSCRIPT_UPDATE_CHECK=true
+.\gradlew.bat build publishToMavenLocal -DDISABLE_BUILDSCRIPT_UPDATE_CHECK=true
 
 cd D:\Projects\sfr\smoothfont-replacement
-.\gradlew.bat :addons:mui-xml-showcase:test :addons:mui-xml-showcase:jar `
-  --configure-on-demand `
-  -Plocal_modularui_jar="D:/Projects/sfr/other_mods/ModularUI/build/libs/modularui-3.2.0-nfr.1-dev.jar"
+.\gradlew.bat :addons:mui-xml-showcase:test :addons:mui-xml-showcase:prepareCombinedClientRun `
+  --configure-on-demand
 ```
 
 测试会验证 manifest 安全解析、component/slot 完整展开、CSS `@import`/`@media`、DOM event、store
-响应、运行时 DOM mutation、Widget projection 和 native element bridge。可安装 jar 位于：
+响应、运行时 DOM mutation、Widget projection 和 native element bridge，另验证 256 格箱子的
+292 个协议槽位与界面绑定一致、TileEntity 初始化和最后一格物品的 NBT 存取。可安装 jar 位于：
 
 ```text
-build/libs/neofontrender-mui-xml-showcase-0.1.0.jar
+addons/mui-xml-showcase/build/libs/neofontrender-mui-xml-showcase-0.1.0.jar
 ```
 
 XML 与 CSS 子集的完整语法见仓库 `docs/modularui-markup-style-syntax.md`。

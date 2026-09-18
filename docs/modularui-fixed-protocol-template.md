@@ -63,10 +63,17 @@ MuiProtocolPlan plan = MuiProtocolXmlParser.parse(owner, protocolXml, resourceRe
 | `handler` | `key`, `type`, `version` | `id`，默认 0 | 一个 `SyncHandler` |
 | `action` | `key`, `type`, `version` | 无 | 一个 `MuiProtocolAction` |
 | `slot` | `key`, `type`, `version`, `ordinal` | `id`，默认 0 | 一个真实 `ItemSlotSH` |
+| `slot-range` | `prefix`, `count`, `type`, `version`, `ordinal` | 无 | 顺序展开多个真实槽位（需要 fork `3.2.0-nfr.2` 或更新版本） |
 | `component` | `src` | `ordinal-offset`，默认 0 | 展开一个 `<protocol-component>` common resource |
 
 所有 version、id、ordinal 都是非负十进制整数。action 没有 numeric id。entry 不能包含 child 或非空文本；
 unknown element/attribute、重复 `(key,id)`、重复 slot ordinal 和跨 handler/slot 的最终 sync key 碰撞都会失败。
+
+`slot-range` 可以出现在 `<protocol>`（或 `<mui-protocol>`）和 `<protocol-component>` 的直接子节点中。
+例如 `<slot-range prefix="storage." count="256" type="example:item" version="1" ordinal="0"/>`
+等价于按顺序声明 `storage.0` 到 `storage.255` 的 256 个 `<slot>`：每项 `id=0`，ordinal 从 0 递增，
+组件的 `ordinal-offset` 同样生效。展开后的 fingerprint 与逐项声明完全一致；`count` 必须为 1–4096，
+全部组件和范围展开后的总条目数仍不得超过 4096，最终 ordinal 不得溢出 Java 非负整数范围。
 
 解析器使用 secure JRE StAX，关闭 DTD、external entity 和 external schema。主协议与展开组件合计最多 256 KiB、
 4096 entries，组件递归深度最多 32，循环引用直接失败。组件只能通过调用方提供的受信任 resolver 加载。

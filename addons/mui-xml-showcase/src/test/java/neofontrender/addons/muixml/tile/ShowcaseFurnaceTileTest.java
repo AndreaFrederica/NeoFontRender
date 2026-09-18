@@ -22,6 +22,19 @@ class ShowcaseFurnaceTileTest {
     }
 
     @Test
+    void chest256ConstructsAndPersistsItsLastSlot() {
+        ShowcaseChest256Tile chest = new ShowcaseChest256Tile();
+        assertEquals(256, chest.getItems().getSlots());
+        chest.getItems().setStackInSlot(255, new ItemStack(Items.DIAMOND, 17));
+        NBTTagCompound saved = chest.writeToNBT(new NBTTagCompound());
+        ShowcaseChest256Tile loaded = new ShowcaseChest256Tile();
+        loaded.readFromNBT(saved);
+        assertEquals(256, loaded.getItems().getSlots());
+        assertEquals(Items.DIAMOND, loaded.getItems().getStackInSlot(255).getItem());
+        assertEquals(17, loaded.getItems().getStackInSlot(255).getCount());
+    }
+
+    @Test
     void furnaceEnforcesSlotRolesSmeltsAndPersistsInventory() {
         ShowcaseFurnaceTile furnace = new ShowcaseFurnaceTile();
         assertEquals(3, furnace.getItems().getSlots());

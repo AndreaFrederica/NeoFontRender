@@ -128,6 +128,48 @@ class ShowcaseResourcesTest {
         }
     }
 
+    @Test
+    void chest256ProtocolMatchesEveryScreenSlotWithUniqueOrdinals() throws Exception {
+        ShowcaseResourceResolver resolver = new ShowcaseResourceResolver();
+        MuiApplicationDescriptor application;
+        try (InputStream stream = resolver.require("mui-app.json")) {
+            application = MuiApplicationDescriptorParser.parse(stream);
+        }
+        MuiComponentRegistry components = new MuiComponentRegistry();
+        application.getComponents().forEach((name, resource) -> components.register(
+                MuiComponentDescriptor.builder(name, resource).build()));
+        MuiElement chest = compile(application, components, resolver, "screens/chest-256.xml");
+        assertEquals("16", chest.querySelector("#machine-slots").getAttribute("columns"));
+        assertEquals(256, chest.querySelectorAll(".machine-slot").size());
+        assertEquals(292, chest.querySelectorAll("mui:item-slot").size());
+
+        try (InputStream stream = resolver.require("protocols/chest-256.xml")) {
+            var protocol = MuiProtocolXmlParser.parse(application.getOwner(), read(stream), resolver);
+            assertEquals("neofontrender_mui_xml_showcase:chest-256", protocol.getId());
+            assertEquals(2, protocol.getSchemaVersion());
+            assertEquals(292, protocol.getEntries().size());
+            java.util.Set<String> keys = new java.util.HashSet<>();
+            java.util.Set<Integer> ordinals = new java.util.HashSet<>();
+            for (var entry : protocol.getEntries()) {
+                assertEquals(com.cleanroommc.modularui.api.sync.MuiProtocolEntry.Kind.SLOT, entry.getKind());
+                assertTrue(keys.add(entry.getKey()), entry.getKey());
+                assertTrue(ordinals.add(entry.getOrder()), entry.getKey());
+                if (entry.getKey().startsWith("machine.storage.")) {
+                    assertEquals(Integer.parseInt(entry.getKey().substring("machine.storage.".length())),
+                            entry.getOrder());
+                } else {
+                    assertTrue(entry.getOrder() >= 256 && entry.getOrder() < 292);
+                }
+            }
+            for (int i = 0; i < 292; i++) assertTrue(ordinals.contains(i));
+            java.util.Set<String> bindings = new java.util.HashSet<>();
+            for (MuiElement slot : chest.querySelectorAll("mui:item-slot")) {
+                assertTrue(bindings.add(slot.getAttribute("bind")));
+            }
+            assertEquals(keys, bindings);
+        }
+    }
+
     private static MuiElement compile(MuiApplicationDescriptor application, MuiComponentRegistry components,
                                       ShowcaseResourceResolver resolver, String resource) throws Exception {
         String xml;
