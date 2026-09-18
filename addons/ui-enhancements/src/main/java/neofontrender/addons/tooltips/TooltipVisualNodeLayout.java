@@ -32,6 +32,26 @@ final class TooltipVisualNodeLayout {
             for (NfrTooltipApi.VisualNode child : grid.children()) children.add(adapt(child, font));
             return new TooltipLayoutEngine.Grid(grid.columns(), grid.gap(), children);
         }
+        if (node instanceof NfrTooltipApi.PreviewNode) {
+            NfrTooltipApi.PreviewNode preview = (NfrTooltipApi.PreviewNode) node;
+            NfrTooltipApi.PreviewRenderer renderer = TooltipPreviewRenderers.find(preview.request());
+            if (renderer != null) {
+                try {
+                    NfrTooltipApi.PreviewSize measured = renderer.measure(preview.request(), font);
+                    if (measured != null) {
+                        int width = preview.width(font) > 0 ? preview.width(font) : measured.width();
+                        int height = preview.height(font) > 0 ? preview.height(font) : measured.height();
+                        NfrTooltipApi.PreviewInsets outsets = PreviewEffects.outsets(
+                                preview.request(), new NfrTooltipApi.PreviewSize(width, height));
+                        return new TooltipLayoutEngine.Leaf(
+                                width + outsets.left() + outsets.right(),
+                                height + outsets.top() + outsets.bottom());
+                    }
+                } catch (RuntimeException | LinkageError ignored) {
+                    // A missing optional renderer must not break ordinary tooltips.
+                }
+            }
+        }
         return new TooltipLayoutEngine.Leaf(node.width(font), node.height(font));
     }
 
