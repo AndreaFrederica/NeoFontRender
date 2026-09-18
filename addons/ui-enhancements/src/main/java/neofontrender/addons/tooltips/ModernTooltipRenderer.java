@@ -142,6 +142,8 @@ final class ModernTooltipRenderer {
         debugLines.add("tooltip " + layout.width + "x" + Math.max(1, contentBottom - contentTop));
 
         int sideWidth = layout.visualPlan == null ? 0 : layout.visualPlan.sideWidth();
+        int titleCount = Math.max(0, Math.min(layout.titleLines, layout.lines.size()));
+        HeaderMetrics header = HeaderMetrics.measure(stack, titleCount, layout.lineAdvances, layout.y);
         if (sideWidth > 0 && layout.visualPlan != null) {
             outline(layout.x, layout.y, layout.x + sideWidth,
                     layout.y + layout.visualPlan.sideHeight(), 0xD0FF9E4D);
@@ -157,13 +159,7 @@ final class ModernTooltipRenderer {
         }
         if (TooltipHeaderLayout.hasIcon(stack)) {
             int iconX = layout.x + sideWidth;
-            int titleAdvance = 0;
-            for (int titleIndex = 0; titleIndex < layout.titleLines
-                    && titleIndex < layout.lineAdvances.size(); titleIndex++) {
-                titleAdvance += layout.lineAdvances.get(titleIndex);
-            }
-            int iconY = layout.y + Math.max(0,
-                    (titleAdvance - TooltipHeaderLayout.ICON_SIZE) / 2);
+            int iconY = layout.y + header.iconY;
             int iconInset = TooltipHeaderLayout.iconDecorationInset();
             int iconBoxSize = TooltipHeaderLayout.iconDecorationSize();
             outline(iconX - iconInset, iconY - iconInset,
@@ -175,12 +171,7 @@ final class ModernTooltipRenderer {
                     ? "header icon background 18x18" : "header icon 16x16");
         }
         if (TooltipHeaderLayout.hasRarity(stack)) {
-            int titleAdvance = 0;
-            for (int titleIndex = 0; titleIndex < layout.titleLines
-                    && titleIndex < layout.lineAdvances.size(); titleIndex++) {
-                titleAdvance += layout.lineAdvances.get(titleIndex);
-            }
-            int rarityY = layout.y + Math.max(1, titleAdvance)
+            int rarityY = layout.y + header.textOffset + Math.max(1, header.titleTextHeight)
                     - TooltipHeaderLayout.RARITY_HEIGHT
                     - TooltipHeaderLayout.RARITY_BOTTOM_GAP;
             int rarityX = layout.x + sideWidth + TooltipHeaderLayout.titleInset(stack);
@@ -191,7 +182,6 @@ final class ModernTooltipRenderer {
         }
 
         int rowY = layout.y;
-        int titleCount = Math.max(0, Math.min(layout.titleLines, layout.lines.size()));
         for (int i = 0; i < layout.lines.size(); i++) {
             int advance = layout.lineAdvances.get(i);
             int rowBottom = rowY + advance;
@@ -220,17 +210,12 @@ final class ModernTooltipRenderer {
             }
         }
 
-        int titleAdvance = 0;
-        for (int titleIndex = 0; titleIndex < titleCount
-                && titleIndex < layout.lineAdvances.size(); titleIndex++) {
-            titleAdvance += layout.lineAdvances.get(titleIndex);
-        }
         if (titleCount > 0) {
             int headerX = layout.x + sideWidth;
             int headerWidth = Math.max(1, layout.width - sideWidth);
             outline(headerX, layout.y, headerX + headerWidth,
-                    layout.y + titleAdvance, 0xE0FFFFFF);
-            debugLines.add("header " + headerWidth + "x" + titleAdvance);
+                    layout.y + header.headerHeight, 0xE0FFFFFF);
+            debugLines.add("header " + headerWidth + "x" + header.headerHeight);
         }
         drawDebugLegend(debugLines, font, layout, contentTop, contentBottom);
     }
