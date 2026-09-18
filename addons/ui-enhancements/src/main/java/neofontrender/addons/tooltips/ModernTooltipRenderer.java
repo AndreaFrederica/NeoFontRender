@@ -182,6 +182,10 @@ final class ModernTooltipRenderer {
         }
 
         int rowY = layout.y;
+        // Visual blocks follow the same title offset correction as drawContent().
+        // Keeping this cursor separate from rowY prevents title-attached previews
+        // from being drawn one header offset too high in the F3 overlay.
+        int visualCursorY = layout.y + header.textOffset;
         for (int i = 0; i < layout.lines.size(); i++) {
             int advance = layout.lineAdvances.get(i);
             int rowBottom = rowY + advance;
@@ -194,19 +198,24 @@ final class ModernTooltipRenderer {
             debugLines.add(label);
 
             rowY = rowBottom;
+            visualCursorY += advance;
             if (i + 1 == titleCount) {
                 if (TooltipConfig.titleBreak
                         && hasContentAfterTitle(layout.lines, titleCount, layout.visualPlan)) {
                     Gui.drawRect(layout.x + sideWidth, rowY, layout.x + layout.width,
                             rowY + TooltipConfig.titleGap, 0x604D7DFF);
                     rowY += TooltipConfig.titleGap;
+                    visualCursorY += TooltipConfig.titleGap;
                 }
+                visualCursorY -= header.textOffset;
             }
             if (layout.visualPlan != null) for (TooltipVisualBlock block : layout.visualPlan.after(i)) {
-                outline(layout.x + sideWidth, rowY, layout.x + sideWidth + block.width(),
-                        rowY + block.height(), 0xE0FFE14D);
+                outline(layout.x + sideWidth, visualCursorY,
+                        layout.x + sideWidth + block.width(),
+                        visualCursorY + block.height(), 0xE0FFE14D);
                 debugLines.add(block.debugLabel() + " " + block.width() + "x" + block.height());
                 rowY += block.height();
+                visualCursorY += block.height();
             }
         }
 
