@@ -39,6 +39,10 @@ final class TooltipConfig {
     static boolean suppressEnderCore = true;
     static boolean rounded = true;
     static boolean centerTitle = true;
+    /** Title text alignment: left, center or right. centerTitle is retained for old configs. */
+    static String titleAlignment = "center";
+    /** Vertical anchor used by the title icon: full header, title block or first title row. */
+    static String headerIconAlignment = "header";
     static boolean titleBreak = true;
     static boolean adaptiveBorder = true;
     static String borderShading = "gradient";
@@ -136,6 +140,10 @@ final class TooltipConfig {
         suppressEnderCore = config.getBoolean("tooltip.suppress.enderCore", true);
         rounded = config.getBoolean("tooltip.rounded", true);
         centerTitle = config.getBoolean("tooltip.centerTitle", true);
+        titleAlignment = normalizeTitleAlignment(config.getString(
+                "tooltip.titleAlignment", centerTitle ? "center" : "left"));
+        headerIconAlignment = normalizeHeaderIconAlignment(config.getString(
+                "tooltip.preview.icon.alignment", "header"));
         titleBreak = config.getBoolean("tooltip.titleBreak", true);
         adaptiveBorder = config.getBoolean("tooltip.adaptiveBorder", true);
         borderShading = normalizeBorderShading(config.getString("tooltip.borderShading", "gradient"));
@@ -239,7 +247,9 @@ final class TooltipConfig {
                 .set("tooltip.suppress.immersiveEngineering", suppressImmersiveEngineering)
                 .set("tooltip.suppress.enderCore", suppressEnderCore)
                 .set("tooltip.rounded", rounded)
-                .set("tooltip.centerTitle", centerTitle)
+                .set("tooltip.centerTitle", "center".equals(titleAlignment))
+                .set("tooltip.titleAlignment", titleAlignment)
+                .set("tooltip.preview.icon.alignment", headerIconAlignment)
                 .set("tooltip.titleBreak", titleBreak)
                 .set("tooltip.adaptiveBorder", adaptiveBorder)
                 .set("tooltip.borderShading", borderShading)
@@ -339,6 +349,11 @@ final class TooltipConfig {
                 .define("tooltip.suppress.enderCore", true, "Suppress EnderCore ore tooltip lines.")
                 .define("tooltip.rounded", true, "Draw rounded antialiased corners.")
                 .define("tooltip.centerTitle", true, "Center the first tooltip line.")
+                .define("tooltip.titleAlignment", "center",
+                        "Title text alignment: left, center or right."
+                                + " The legacy centerTitle option is used when this key is absent.")
+                .define("tooltip.preview.icon.alignment", "header",
+                        "Title icon vertical alignment: header, title or first_line.")
                 .define("tooltip.titleBreak", true, "Draw a divider after the title.")
                 .define("tooltip.adaptiveBorder", true, "Derive border colors from formatted title colors, rarity and enchantment.")
                 .define("tooltip.borderShading", "gradient", "Border shading: gradient, solid, horizontal, vertical or spectrum.")
@@ -515,6 +530,24 @@ final class TooltipConfig {
         return "all".equalsIgnoreCase(value == null ? "" : value.trim()) ? "all" : "tools";
     }
 
+    static String normalizeTitleAlignment(String value) {
+        if (value != null) {
+            String normalized = value.trim().toLowerCase(Locale.ROOT);
+            if ("left".equals(normalized) || "right".equals(normalized)
+                    || "center".equals(normalized)) return normalized;
+        }
+        return "center";
+    }
+
+    static String normalizeHeaderIconAlignment(String value) {
+        if (value != null) {
+            String normalized = value.trim().toLowerCase(Locale.ROOT);
+            if ("title".equals(normalized) || "first_line".equals(normalized)
+                    || "header".equals(normalized)) return normalized;
+        }
+        return "header";
+    }
+
     private static int[] defaults(int color) { return new int[]{color, color, color, color}; }
 
     static final class Snapshot {
@@ -530,6 +563,8 @@ final class TooltipConfig {
         private final String originalModNameFormat = modNameFormat;
         private final boolean originalRounded = rounded;
         private final boolean originalCenterTitle = centerTitle;
+        private final String originalTitleAlignment = titleAlignment;
+        private final String originalHeaderIconAlignment = headerIconAlignment;
         private final boolean originalTitleBreak = titleBreak;
         private final boolean originalAdaptive = adaptiveBorder;
         private final String originalBorderShading = borderShading;
@@ -604,6 +639,8 @@ final class TooltipConfig {
             modNameEnabled = originalModNameEnabled; modNameMoveToEnd = originalModNameMoveToEnd;
             modNameFormat = originalModNameFormat;
             centerTitle = originalCenterTitle; titleBreak = originalTitleBreak; adaptiveBorder = originalAdaptive;
+            titleAlignment = originalTitleAlignment;
+            headerIconAlignment = originalHeaderIconAlignment;
             borderShading = originalBorderShading; borderCycleMillis = originalBorderCycleMillis;
             cornerRadius = originalCorner; borderWidth = originalBorder; shadowRadius = originalShadow;
             shadowAlpha = originalAlpha;

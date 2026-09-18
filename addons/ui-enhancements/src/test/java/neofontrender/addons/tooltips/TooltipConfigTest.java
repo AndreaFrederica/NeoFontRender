@@ -1,6 +1,9 @@
 package neofontrender.addons.tooltips;
 
 import net.minecraft.item.EnumRarity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,6 +25,12 @@ class TooltipConfigTest {
         assertEquals("gradient", TooltipConfig.normalizeBorderShading(null));
         assertEquals("horizontal", TooltipConfig.normalizeBorderShading("HORIZONTAL"));
         assertEquals("spectrum", TooltipConfig.normalizeBorderShading("spectrum"));
+        assertEquals("left", TooltipConfig.normalizeTitleAlignment("LEFT"));
+        assertEquals("right", TooltipConfig.normalizeTitleAlignment("right"));
+        assertEquals("center", TooltipConfig.normalizeTitleAlignment("unknown"));
+        assertEquals("title", TooltipConfig.normalizeHeaderIconAlignment("TITLE"));
+        assertEquals("first_line", TooltipConfig.normalizeHeaderIconAlignment("first_line"));
+        assertEquals("header", TooltipConfig.normalizeHeaderIconAlignment("unknown"));
     }
 
     @Test
@@ -78,6 +87,31 @@ class TooltipConfigTest {
                 TooltipHeaderLayout.rarityTranslationKey(EnumRarity.RARE));
         assertEquals("neofontrender_ui_enhancements.tooltip.rarity.epic",
                 TooltipHeaderLayout.rarityTranslationKey(EnumRarity.EPIC));
+    }
+
+    @Test
+    void titleAlignmentUsesOneSharedTextOriginForTitleAndRarity() {
+        String oldAlignment = TooltipConfig.titleAlignment;
+        boolean oldCenter = TooltipConfig.centerTitle;
+        try {
+            ItemStack stack = new ItemStack(new Item().setRegistryName(
+                    new ResourceLocation("test", "alignment")));
+            TooltipConfig.centerTitle = false;
+            TooltipConfig.titleAlignment = "left";
+            int left = TooltipHeaderLayout.titleTextOffset(stack, 100, 20);
+            TooltipConfig.titleAlignment = "right";
+            int right = TooltipHeaderLayout.titleTextOffset(stack, 100, 20);
+            TooltipConfig.titleAlignment = "center";
+            TooltipConfig.centerTitle = true;
+            int center = TooltipHeaderLayout.titleTextOffset(stack, 100, 20);
+
+            assertEquals(20, left);
+            assertEquals(80, right);
+            assertEquals(50, center);
+        } finally {
+            TooltipConfig.titleAlignment = oldAlignment;
+            TooltipConfig.centerTitle = oldCenter;
+        }
     }
 
     @Test

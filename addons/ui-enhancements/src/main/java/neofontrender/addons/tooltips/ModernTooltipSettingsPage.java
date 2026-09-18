@@ -115,8 +115,14 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             ModernTooltipSettingsPage::modNameFormatLabel).size(260, 24))
                     .add(c.toggleText(() -> tr("gui.rounded"), () -> "",
                             () -> TooltipConfig.rounded, value -> TooltipConfig.rounded = value))
-                    .add(c.toggleText(() -> tr("gui.center_title"), () -> "",
-                            () -> TooltipConfig.centerTitle, value -> TooltipConfig.centerTitle = value))
+                    .add(c.dropdownText("tooltip_title_alignment", () -> tr("gui.title_alignment"),
+                            () -> TooltipConfig.titleAlignment,
+                            value -> {
+                                TooltipConfig.titleAlignment = TooltipConfig.normalizeTitleAlignment(value);
+                                TooltipConfig.centerTitle = "center".equals(TooltipConfig.titleAlignment);
+                            },
+                            Arrays.asList("left", "center", "right"),
+                            value -> tr("gui.title_alignment." + value)).size(260, 24))
                     .add(c.toggleText(() -> tr("gui.title_break"), () -> "",
                             () -> TooltipConfig.titleBreak, value -> TooltipConfig.titleBreak = value))
                     .add(c.toggleText(() -> tr("gui.adaptive_border"), () -> "",
@@ -163,6 +169,14 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                      .add(c.toggleText(() -> tr("gui.preview_header_icon"), () -> tr("tooltip.preview.icon.enabled"),
                              () -> TooltipConfig.headerIconEnabled,
                              value -> TooltipConfig.headerIconEnabled = value))
+                     .add(c.dropdownText("tooltip_preview_header_icon_alignment",
+                             () -> tr("gui.preview_header_icon_alignment"),
+                             () -> TooltipConfig.headerIconAlignment,
+                             value -> TooltipConfig.headerIconAlignment =
+                                     TooltipConfig.normalizeHeaderIconAlignment(value),
+                             Arrays.asList("header", "title", "first_line"),
+                             value -> tr("gui.preview_header_icon_alignment." + value))
+                             .size(260, 24))
                      .add(c.toggleText(() -> tr("gui.preview_header_icon_frame"),
                              () -> tr("tooltip.preview.icon.frame.enabled"),
                              () -> TooltipConfig.headerIconFrameEnabled,

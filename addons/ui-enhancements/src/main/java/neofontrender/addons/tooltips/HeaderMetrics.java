@@ -42,12 +42,14 @@ final class HeaderMetrics {
         // A line advance can include reserved icon/rarity space. Measure the text block
         // separately so a one-line title is centered beside a 16px icon instead of pinned
         // to the top of the expanded row.
-        int textHeight = 0;
+        int titleOnlyHeight = 0;
         for (int i = 0; i < count; i++) {
             int raw = rawAdvances != null && i < rawAdvances.size()
                     ? rawAdvances.get(i) : advances.get(i);
-            textHeight += Math.max(1, raw);
+            titleOnlyHeight += Math.max(1, raw);
         }
+        titleOnlyHeight = Math.max(1, titleOnlyHeight);
+        int textHeight = titleOnlyHeight;
         if (TooltipHeaderLayout.hasRarity(stack)) {
             textHeight += TooltipHeaderLayout.RARITY_HEIGHT
                     + TooltipHeaderLayout.RARITY_BOTTOM_GAP;
@@ -58,8 +60,21 @@ final class HeaderMetrics {
                 ? TooltipHeaderLayout.ICON_SIZE : 0;
         int height = Math.max(1, Math.max(reserved, Math.max(textHeight, iconHeight)));
         int textOffset = Math.max(0, (height - textHeight) / 2);
-        int iconY = TooltipHeaderLayout.hasIcon(stack)
-                ? y + Math.max(0, (height - iconHeight) / 2) : y;
+        int iconY = y;
+        if (TooltipHeaderLayout.hasIcon(stack)) {
+            if ("title".equals(TooltipConfig.headerIconAlignment)) {
+                iconY += textOffset + Math.max(0, (titleOnlyHeight - iconHeight) / 2);
+            } else if ("first_line".equals(TooltipConfig.headerIconAlignment)) {
+                int firstLineHeight = rawAdvances != null && !rawAdvances.isEmpty()
+                        ? Math.max(1, rawAdvances.get(0))
+                        : (advances == null || advances.isEmpty()
+                        ? TooltipConfig.lineHeight : Math.max(1, advances.get(0)));
+                iconY += textOffset + Math.max(0, (firstLineHeight - iconHeight) / 2);
+            } else {
+                // The default header anchor includes the rarity row when it is enabled.
+                iconY += Math.max(0, (height - iconHeight) / 2);
+            }
+        }
         return new HeaderMetrics(height, textOffset, iconY - y, textHeight);
     }
 }

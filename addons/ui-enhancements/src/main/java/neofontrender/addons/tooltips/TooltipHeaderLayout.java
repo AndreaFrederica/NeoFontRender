@@ -35,6 +35,23 @@ final class TooltipHeaderLayout {
         return hasIcon(stack) ? ICON_SLOT : 0;
     }
 
+    /**
+     * Returns the text origin inside the title content box. Keeping this calculation here
+     * makes the immediate and retained render paths agree for every title alignment mode.
+     */
+    static int titleTextOffset(ItemStack stack, int contentWidth, int renderedWidth) {
+        int inset = titleInset(stack);
+        int available = Math.max(1, contentWidth - inset);
+        int spare = Math.max(0, available - Math.max(0, renderedWidth));
+        String alignment = TooltipConfig.titleAlignment;
+        // A few integrations still toggle the pre-0.7 boolean directly; preserve that
+        // behavior until they migrate to the explicit alignment value.
+        if ("center".equals(alignment) && !TooltipConfig.centerTitle) alignment = "left";
+        int alignmentOffset = "right".equals(alignment) ? spare
+                : "center".equals(alignment) ? spare / 2 : 0;
+        return inset + alignmentOffset;
+    }
+
     static boolean hasIconDecoration() {
         return TooltipConfig.headerIconFrameEnabled
                 || TooltipConfig.headerIconBackgroundEnabled;

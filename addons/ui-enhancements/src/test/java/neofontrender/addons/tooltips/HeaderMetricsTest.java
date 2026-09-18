@@ -49,4 +49,28 @@ class HeaderMetricsTest {
             TooltipConfig.headerIconEnabled = old;
         }
     }
+
+    @Test
+    void iconAnchorCanCenterTheTitleWithoutTheRarityRow() {
+        boolean oldRarity = TooltipConfig.rarityEnabled;
+        String oldAlignment = TooltipConfig.headerIconAlignment;
+        try {
+            ItemStack stack = new ItemStack(new Item().setRegistryName(
+                    new ResourceLocation("test", "header_anchor")));
+            TooltipConfig.rarityEnabled = true;
+            TooltipConfig.headerIconAlignment = "header";
+            HeaderMetrics header = HeaderMetrics.measure(stack, 1,
+                    Collections.singletonList(22), Collections.singletonList(10), 0);
+            TooltipConfig.headerIconAlignment = "title";
+            HeaderMetrics title = HeaderMetrics.measure(stack, 1,
+                    Collections.singletonList(22), Collections.singletonList(10), 0);
+
+            assertEquals(3, header.iconY);
+            assertEquals(0, title.iconY);
+            assertEquals(header.headerHeight, title.headerHeight);
+        } finally {
+            TooltipConfig.rarityEnabled = oldRarity;
+            TooltipConfig.headerIconAlignment = oldAlignment;
+        }
+    }
 }

@@ -37,8 +37,7 @@ final class TooltipContentLayout {
         HeaderMetrics header = HeaderMetrics.measure(stack, titleCount, layout.lineAdvances,
                 layout.rawLineAdvances, layout.y);
         int contentWidth = Math.max(1, layout.width - sideWidth);
-        int titleInset = TooltipHeaderLayout.titleInset(stack);
-        int rowY = layout.y;
+            int rowY = layout.y;
         int textY = layout.y + header.textOffset;
         List<Row> rows = new ArrayList<>(layout.lines.size());
         List<BlockPlacement> blocks = new ArrayList<>();
@@ -46,13 +45,10 @@ final class TooltipContentLayout {
             String line = layout.lines.get(i);
             int advance = i < layout.lineAdvances.size() ? layout.lineAdvances.get(i) : 0;
             boolean title = i < titleCount;
-            int available = title ? Math.max(1, contentWidth - titleInset) : contentWidth;
             int renderedWidth = i < layout.lineWidths.size() ? layout.lineWidths.get(i)
                     : TooltipLayout.measuredLineWidth(font, line, false, layout.profile().textScale);
-            int textX = layout.x + sideWidth + (title ? titleInset : 0);
-            if (TooltipConfig.centerTitle && title) {
-                textX += Math.max(0, (available - renderedWidth) / 2);
-            }
+            int textX = layout.x + sideWidth
+                    + (title ? TooltipHeaderLayout.titleTextOffset(stack, contentWidth, renderedWidth) : 0);
             boolean anchor = NfrTooltipAnchor.isAnchorLine(line);
             rows.add(new Row(i, layout.x + sideWidth, rowY, contentWidth, Math.max(0, advance),
                     anchor ? textX : textX, textY, renderedWidth, title));
