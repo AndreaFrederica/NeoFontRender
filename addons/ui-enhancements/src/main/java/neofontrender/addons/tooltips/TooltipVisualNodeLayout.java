@@ -30,9 +30,7 @@ final class TooltipVisualNodeLayout {
             NfrTooltipApi.GridNode grid = (NfrTooltipApi.GridNode) node;
             List<TooltipLayoutEngine.Node> children = new ArrayList<>();
             for (NfrTooltipApi.VisualNode child : grid.children()) children.add(adapt(child, font));
-            return new TooltipLayoutEngine.Flow(TooltipLayoutEngine.Direction.ROW,
-                    TooltipLayoutEngine.Alignment.START, grid.gap(),
-                    TooltipLayoutEngine.Insets.none(), children);
+            return new TooltipLayoutEngine.Grid(grid.columns(), grid.gap(), children);
         }
         return new TooltipLayoutEngine.Leaf(node.width(font), node.height(font));
     }

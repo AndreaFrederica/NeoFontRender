@@ -32,4 +32,21 @@ class TooltipLayoutEngineTest {
         assertEquals(4, title.bounds().y);
         assertEquals(17, rarity.bounds().y);
     }
+
+    @Test
+    void gridSharesColumnWidthsAcrossRows() {
+        TooltipLayoutEngine.Leaf first = new TooltipLayoutEngine.Leaf(20, 8);
+        TooltipLayoutEngine.Leaf second = new TooltipLayoutEngine.Leaf(30, 10);
+        TooltipLayoutEngine.Leaf third = new TooltipLayoutEngine.Leaf(25, 6);
+        TooltipLayoutEngine.Grid grid = new TooltipLayoutEngine.Grid(2, 3,
+                Arrays.asList(first, second, third));
+        TooltipLayoutEngine.Measurement measured = grid.measure(TooltipLayoutEngine.Constraints.unbounded());
+        grid.place(new TooltipLayoutEngine.Rect(5, 7, measured.width, measured.height));
+        assertEquals(58, measured.width);
+        assertEquals(19, measured.height);
+        assertEquals(5, first.bounds().x);
+        assertEquals(33, second.bounds().x);
+        assertEquals(5, third.bounds().x);
+        assertEquals(20, third.bounds().y);
+    }
 }

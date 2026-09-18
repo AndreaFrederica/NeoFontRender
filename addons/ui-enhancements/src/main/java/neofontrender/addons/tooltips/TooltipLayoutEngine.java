@@ -181,4 +181,66 @@ final class TooltipLayoutEngine {
 
         Rect bounds() { return bounds; }
     }
+
+    static final class Grid implements Node {
+        private final int columns;
+        private final int gap;
+        private final List<Node> children;
+        private Rect bounds = new Rect(0, 0, 0, 0);
+
+        Grid(int columns, int gap, List<? extends Node> children) {
+            this.columns = Math.max(1, columns);
+            this.gap = Math.max(0, gap);
+            this.children = children == null ? Collections.emptyList() :
+                    Collections.unmodifiableList(new ArrayList<>(children));
+        }
+
+        @Override public Measurement measure(Constraints constraints) {
+            int count = Math.min(columns, children.size());
+            if (count == 0) return new Measurement(0, 0);
+            int[] widths = new int[count];
+            int rows = (children.size() + columns - 1) / columns;
+            int[] heights = new int[rows];
+            for (int index = 0; index < children.size(); index++) {
+                Measurement value = children.get(index).measure(constraints);
+                int column = index % columns;
+                int row = index / columns;
+                widths[column] = Math.max(widths[column], value.width);
+                heights[row] = Math.max(heights[row], value.height);
+            }
+            int width = Math.max(0, count - 1) * gap;
+            for (int value : widths) width += value;
+            int height = Math.max(0, rows - 1) * gap;
+            for (int value : heights) height += value;
+            return new Measurement(Math.min(width, constraints.maxWidth), Math.min(height, constraints.maxHeight));
+        }
+
+        @Override public void place(Rect bounds) {
+            this.bounds = bounds;
+            int count = Math.min(columns, children.size());
+            if (count == 0) return;
+            int[] widths = new int[count];
+            int rows = (children.size() + columns - 1) / columns;
+            int[] heights = new int[rows];
+            for (int index = 0; index < children.size(); index++) {
+                Measurement value = children.get(index).measure(new Constraints(bounds.width, bounds.height));
+                widths[index % columns] = Math.max(widths[index % columns], value.width);
+                heights[index / columns] = Math.max(heights[index / columns], value.height);
+            }
+            int[] x = new int[count];
+            for (int column = 1; column < count; column++) x[column] = x[column - 1] + widths[column - 1] + gap;
+            int y = bounds.y;
+            for (int row = 0; row < rows; row++) {
+                for (int column = 0; column < count; column++) {
+                    int index = row * columns + column;
+                    if (index >= children.size()) break;
+                    Measurement value = children.get(index).measure(new Constraints(widths[column], heights[row]));
+                    children.get(index).place(new Rect(bounds.x + x[column], y, value.width, value.height));
+                }
+                y += heights[row] + gap;
+            }
+        }
+
+        Rect bounds() { return bounds; }
+    }
 }
