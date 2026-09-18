@@ -311,7 +311,10 @@ final class TooltipPreviewRenderers {
             ((InvokerEntityArmorStandPreview) (Object) stand)
                     .nfrUi$setNoBasePlate(!TooltipConfig.armorStandBasePlate);
             float spin = rotationAngle(System.nanoTime(), request.rotationSpeed());
-            setPreviewYaw(stand, 180.0F + spin);
+            // Keep the vanilla renderer's entity yaw stable. The preview matrix owns the
+            // complete turn so the stand base plate follows the body and armor in exactly the
+            // same transform instead of relying on RenderArmorStand's interpolated yaw path.
+            setPreviewYaw(stand, 180.0F);
 
             RenderManager dispatcher = Minecraft.getMinecraft().getRenderManager();
             GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
@@ -329,6 +332,7 @@ final class TooltipPreviewRenderers {
                 GlStateManager.scale(-request.scale() * animation, -request.scale() * animation,
                         request.scale() * animation);
                 GlStateManager.rotate(request.pitch(), 1.0F, 0.0F, 0.0F);
+                GlStateManager.rotate(spin, 0.0F, 1.0F, 0.0F);
                 dispatcher.setRenderShadow(false);
                 dispatcher.setPlayerViewY(180.0F);
                 dispatcher.renderEntity(stand, 0.0D, 0.0D, 0.0D, stand.rotationYaw, 1.0F, false);
