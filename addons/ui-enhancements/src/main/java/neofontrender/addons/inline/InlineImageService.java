@@ -8,6 +8,7 @@ import neofontrender.api.text.pipeline.InlineContent;
 import neofontrender.addons.api.content.InlineImageHandle;
 import neofontrender.addons.chat.EnhancedChatFeatures;
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.build.UiBuildFeatures;
 
 import javax.annotation.Nullable;
 import javax.imageio.ImageIO;
@@ -137,7 +138,9 @@ public enum InlineImageService {
         } catch (Throwable failure) {
             handle.state = InlineImageHandle.State.FAILED;
             TextRenderRouteApi.invalidate();
-            NfrUiEnhancements.LOGGER.debug("Inline image rejected or unavailable: {}", handle.uri, failure);
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                NfrUiEnhancements.LOGGER.debug("Inline image rejected or unavailable: {}", handle.uri, failure);
+            }
         }
     }
 
@@ -152,7 +155,9 @@ public enum InlineImageService {
         } catch (Throwable failure) {
             handle.state = InlineImageHandle.State.FAILED;
             TextRenderRouteApi.invalidate();
-            NfrUiEnhancements.LOGGER.debug("Local inline image rejected or unavailable: {}", path, failure);
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                NfrUiEnhancements.LOGGER.debug("Local inline image rejected or unavailable: {}", path, failure);
+            }
         }
     }
 
@@ -377,7 +382,9 @@ public enum InlineImageService {
                         .getDynamicTextureLocation("nfr_inline_image", created);
                 texture = created;
             } catch (Throwable failure) {
-                NfrUiEnhancements.LOGGER.debug("Could not upload inline image {}", uri, failure);
+                if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                    NfrUiEnhancements.LOGGER.debug("Could not upload inline image {}", uri, failure);
+                }
             }
             return location;
         }

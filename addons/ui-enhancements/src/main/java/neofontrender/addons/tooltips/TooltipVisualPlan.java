@@ -13,6 +13,7 @@ import java.util.List;
 import net.minecraftforge.fml.common.Loader;
 import neofontrender.api.client.tooltip.NfrTooltipApi;
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.build.UiBuildFeatures;
 import org.lwjgl.opengl.GL11;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -52,7 +53,7 @@ final class TooltipVisualPlan {
             if (chart != null) plan.addAfter(0, chart);
             QuarkTooltipVisuals.populate(plan, stack, lines, font, maxWidth);
         }
-        if (shouldDiagnostic(LAST_COLLECT_DIAGNOSTIC)) {
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && shouldDiagnostic(LAST_COLLECT_DIAGNOSTIC)) {
             NfrUiEnhancements.LOGGER.debug(
                     "Tooltip visual plan: lines={}, externalNodes={}, blocks={}, maxWidth={}, totalHeight={}, hasAny={}, maxConstraint={}",
                     lines == null ? 0 : lines.size(), external == null ? 0 : external.size(),
@@ -71,7 +72,7 @@ final class TooltipVisualPlan {
         if (family != null) {
             NfrTooltipAnchor.FamilyScan scan = NfrTooltipAnchor.scanFamily(lines, family);
             if (scan.found()) {
-                if (shouldDiagnostic(LAST_ANCHOR_DIAGNOSTIC)) {
+                if (UiBuildFeatures.DIAGNOSTIC_LOGS && shouldDiagnostic(LAST_ANCHOR_DIAGNOSTIC)) {
                     NfrUiEnhancements.LOGGER.debug(
                             "Tooltip anchor: family={}, line={}, producer={}, custom={}, duplicates={}, producers={}, unknown={}",
                             family, scan.firstIndex, scan.anchor.producer,
@@ -177,7 +178,7 @@ final class TooltipVisualPlan {
 
         @Override public void draw(int x, int y, FontRenderer font) {
             TooltipVisualNodeLayout.Result layout = result();
-            if (shouldDiagnostic(LAST_DRAW_DIAGNOSTIC)) {
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS && shouldDiagnostic(LAST_DRAW_DIAGNOSTIC)) {
                 RenderItem renderItem = Minecraft.getMinecraft().getRenderItem();
                 NfrUiEnhancements.LOGGER.debug(
                         "Tooltip external draw: kind={}, x={}, y={}, width={}, height={}, renderItemZ={}",
@@ -395,6 +396,7 @@ final class TooltipVisualPlan {
     }
 
     private static boolean shouldDiagnostic(AtomicLong last) {
+        if (!UiBuildFeatures.DIAGNOSTIC_LOGS) return false;
         if (!NfrUiEnhancements.LOGGER.isDebugEnabled()) return false;
         long now = System.nanoTime();
         long previous = last.get();

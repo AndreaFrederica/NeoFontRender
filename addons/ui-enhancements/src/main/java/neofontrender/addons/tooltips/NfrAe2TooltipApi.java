@@ -3,6 +3,7 @@ package neofontrender.addons.tooltips;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.item.ItemStack;
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.build.UiBuildFeatures;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -28,7 +29,9 @@ public final class NfrAe2TooltipApi {
     public static void register() {
         neofontrender.api.client.tooltip.NfrTooltipApi.registerDocumentProvider(DOCUMENT_PROVIDER);
         neofontrender.api.client.tooltip.NfrTooltipApi.registerDocumentFinalizer(DOCUMENT_FINALIZER);
-        NfrUiEnhancements.LOGGER.info("Registered AE2 tooltip document source adapter");
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            NfrUiEnhancements.LOGGER.info("Registered AE2 tooltip document source adapter");
+        }
     }
 
     /** Builds the same coordinate-free document for ordinary Forge tooltips. */

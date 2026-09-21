@@ -7,6 +7,7 @@ import neofontrender.api.text.pipeline.InlineContent;
 import neofontrender.api.text.route.TextRenderRouteApi;
 import neofontrender.text.InlineRaster;
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.build.UiBuildFeatures;
 
 import java.awt.image.BufferedImage;
 import java.util.Map;
@@ -82,7 +83,9 @@ public enum RasterGlyphService {
         } catch (Throwable failure) {
             handle.state = State.FAILED;
             TextRenderRouteApi.invalidate();
-            NfrUiEnhancements.LOGGER.debug("Embedded content could not be rasterized: {}", key, failure);
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                NfrUiEnhancements.LOGGER.debug("Embedded content could not be rasterized: {}", key, failure);
+            }
         }
     }
 
@@ -102,7 +105,9 @@ public enum RasterGlyphService {
         } catch (Throwable failure) {
             handle.state = State.FAILED;
             TextRenderRouteApi.invalidate();
-            NfrUiEnhancements.LOGGER.debug("Embedded content texture upload failed: {}", key, failure);
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                NfrUiEnhancements.LOGGER.debug("Embedded content texture upload failed: {}", key, failure);
+            }
         }
     }
 

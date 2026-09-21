@@ -17,6 +17,7 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagString;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.build.UiBuildFeatures;
 import neofontrender.api.client.tooltip.NfrTooltipApi;
 
 import java.io.IOException;
@@ -126,8 +127,10 @@ final class PreviewStyleRegistry implements IResourceManagerReloadListener {
         styles = Collections.unmodifiableList(loaded);
         diagnostics = Collections.unmodifiableList(new ArrayList<>(errors));
         for (String error : errors) NfrUiEnhancements.LOGGER.warn("Tooltip preview style: {}", error);
-        NfrUiEnhancements.LOGGER.info("Loaded {} tooltip preview styles ({} diagnostics)",
-                loaded.size(), errors.size());
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            NfrUiEnhancements.LOGGER.info("Loaded {} tooltip preview styles ({} diagnostics)",
+                    loaded.size(), errors.size());
+        }
     }
 
     Style match(ItemStack stack) {

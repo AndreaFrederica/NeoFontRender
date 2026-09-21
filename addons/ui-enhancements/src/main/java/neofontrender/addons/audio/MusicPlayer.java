@@ -2,6 +2,7 @@ package neofontrender.addons.audio;
 
 import neofontrender.audio.Playlist;
 import paulscode.sound.SoundSystem;
+import neofontrender.addons.build.UiBuildFeatures;
 import java.nio.file.Path;
 import java.net.URL;
 import java.util.*;
@@ -63,7 +64,9 @@ public final class MusicPlayer implements AutoCloseable {
     public void seek(long millis) {
         if (request == null || (state != State.PLAYING && state != State.PAUSED && state != State.LOADING)
                 || millis < 0 || millis > durationMillis()) return;
-        AudioModule.LOG.info("Seek requested: file={}, target={}ms, state={}, source={}", queue.current(), millis, state, source);
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            AudioModule.LOG.info("Seek requested: file={}, target={}ms, state={}, source={}", queue.current(), millis, state, source);
+        }
         pendingSeek = millis;
         seekRequestedAt = System.nanoTime();
         position = millis;

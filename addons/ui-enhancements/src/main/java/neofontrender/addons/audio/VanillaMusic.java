@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.*;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundCategory;
+import neofontrender.addons.build.UiBuildFeatures;
 import java.util.*;
 import java.util.function.UnaryOperator;
 
@@ -68,7 +69,9 @@ public final class VanillaMusic {
         if (current() == null) selectedTrack = null;
         boolean blocked = !enabled || paused || !focus.isEmpty();
         if (current() != null) {
-            AudioModule.LOG.debug("Vanilla BGM tick: sound={}, blocked={}, paused={}, enabled={}, focus={}", current().getSoundLocation(), blocked, paused, enabled, focus.size());
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                AudioModule.LOG.debug("Vanilla BGM tick: sound={}, blocked={}, paused={}, enabled={}, focus={}", current().getSoundLocation(), blocked, paused, enabled, focus.size());
+            }
             GameAudioBackend.pause(current(), blocked);
         }
         return blocked;
@@ -106,7 +109,9 @@ public final class VanillaMusic {
             }
         };
         selectedTrack = selected;
-        AudioModule.LOG.info("Vanilla BGM play: scene={}, sound={}, event={}, weight={}", scene, selected.getSoundLocation(), event, selected.getWeight());
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            AudioModule.LOG.info("Vanilla BGM play: scene={}, sound={}, event={}, weight={}", scene, selected.getSoundLocation(), event, selected.getWeight());
+        }
         value.uie$current(record); value.uie$delay(Integer.MAX_VALUE);
         Minecraft.getMinecraft().getSoundHandler().playSound(record);
     }

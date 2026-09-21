@@ -16,6 +16,7 @@ import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.ClientCommandHandler;
 import neofontrender.addons.api.command.CommandCompletionPosition;
 import neofontrender.addons.api.command.client.ClientCommandCompletionApi;
+import neofontrender.addons.build.UiBuildFeatures;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.input.Keyboard;
@@ -42,7 +43,7 @@ public final class ChatCommandCompletionController {
      * candidate" can be told apart from "the cycle was dropped between keystrokes".
      */
     private static final boolean DEBUG =
-            Boolean.getBoolean("nfr.debug.commandCompletion");
+            UiBuildFeatures.DIAGNOSTIC_LOGS && Boolean.getBoolean("nfr.debug.commandCompletion");
 
     /** Commands already known to hand Forge an unmodifiable completion list; warned about once. */
     private static final Set<String> UNSAFE_CLIENT_COMPLETION =
@@ -80,20 +81,20 @@ public final class ChatCommandCompletionController {
             // committing (which dismisses the popup) no longer strands Tab on an empty list, which is
             // what used to make every Tab after the first one a silent no-op.
             if (state.cycle != null) {
-                if (DEBUG) {
+                if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
                     debug("tab selected=" + state.cycle.selected() + " n=" + state.cycle.values().size()
                             + " text=[" + field.getText() + "]");
                 }
                 state.commit(state.cycle.selected());
                 // PREGEN drives its own completer index, so it must not advance on top of a commit.
                 if (!CommandCompletionOptions.PREGEN.equals(state.engine)) state.moveCycle(1);
-                if (DEBUG) debug("tab advanced to=" + state.cycle.selected());
+                if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) debug("tab advanced to=" + state.cycle.selected());
                 return true;
             }
             // No cycle yet: ask for candidates. Logged because "Tab does nothing" can mean either
             // "no candidates came back" or "this branch never ran", and the two need different fixes.
             boolean slashPrefix = field.getCursorPosition() > 0 && field.getText().startsWith("/");
-            if (DEBUG) {
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
                 debug("tab no-cycle cursor=" + field.getCursorPosition() + " text=["
                         + field.getText() + "] slash=" + slashPrefix);
             }
@@ -137,7 +138,7 @@ public final class ChatCommandCompletionController {
             close(field);
             return;
         }
-        if (DEBUG) {
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
             debug("afterKey key=" + keyCode + " text=[" + field.getText()
                     + "] cursor=" + field.getCursorPosition());
         }
@@ -153,7 +154,7 @@ public final class ChatCommandCompletionController {
 
     private void request(GuiTextField field, boolean force) {
         if (field == null || !field.isFocused()) {
-            if (DEBUG) debug("request skipped: field=" + (field == null ? "null" : "present")
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) debug("request skipped: field=" + (field == null ? "null" : "present")
                     + " focused=" + (field != null && field.isFocused()));
             return;
         }
@@ -170,13 +171,13 @@ public final class ChatCommandCompletionController {
         // permanent no-op on "/" exactly that way: the prefix never changes, so shouldRequest()
         // stayed false and no request could ever be sent again. An explicit Tab may always retry.
         if (!state.shouldRequest(prefix, force)) {
-            if (DEBUG) debug("request deduped prefix=[" + prefix + "]");
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) debug("request deduped prefix=[" + prefix + "]");
             return;
         }
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft.player == null || minecraft.player.connection == null) return;
         BlockPos target = targetBlock(minecraft);
-        if (DEBUG) {
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
             debug("autoComplete BEGIN prefix=[" + prefix + "] space=" + prefix.indexOf(' '));
         }
         // Forge's ClientCommandHandler.autoComplete() rewrites the list it receives from
@@ -189,7 +190,7 @@ public final class ChatCommandCompletionController {
             ClientCommandHandler.instance.autoComplete(prefix);
             clientValues = ClientCommandCompletionApi.resolve(prefix,
                     completionPosition(target), ClientCommandHandler.instance.latestAutoComplete);
-            if (DEBUG) {
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
                 debug("autoComplete OK prefix=[" + prefix + "] n="
                         + (clientValues == null ? -1 : clientValues.length));
             }
@@ -198,7 +199,7 @@ public final class ChatCommandCompletionController {
                 LOGGER.warn("Command /{} failed while completing; its client-side suggestions are"
                         + " skipped. Server-side suggestions still apply. Cause: {}",
                         rootOf(prefix), failure.getClass().getName(), failure);
-            } else if (DEBUG) {
+            } else if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
                 debug("autoComplete failed again prefix=[" + prefix + "] type="
                         + failure.getClass().getName());
             }
@@ -238,7 +239,7 @@ public final class ChatCommandCompletionController {
         String currentPrefix = text.substring(0, cursor);
         Request accepted = state.acceptResponse(currentPrefix);
         if (accepted == null || !enabled(field)) {
-            if (DEBUG) {
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
                 debug("response dropped: accepted=" + (accepted != null));
             }
             return;
@@ -258,7 +259,7 @@ public final class ChatCommandCompletionController {
         CommandCompletionPresentation.rememberRootCandidates(currentPrefix, next);
         boolean exactMatch = next.stream().anyMatch(value -> sameCandidate(value, current));
         if (!pregenEngine && !state.isCycling() && exactMatch && (cursor < range.end || next.size() == 1)) {
-            if (DEBUG) {
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
                 debug("dismiss: exactMatch reason next=" + next.size()
                         + " current=[" + current + "] cursor=" + cursor
                         + " range=" + range.start + "-" + range.end);
@@ -268,11 +269,11 @@ public final class ChatCommandCompletionController {
         }
         if (!pregenEngine) next.removeIf(value -> sameCandidate(value, current));
         if (next.isEmpty()) {
-            if (DEBUG) debug("dismiss: no candidates after filtering current=[" + current + "]");
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) debug("dismiss: no candidates after filtering current=[" + current + "]");
             state.dismiss();
             return;
         }
-        if (DEBUG) {
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
             debug("cycle built n=" + next.size() + " range=" + range.start + "-" + range.end);
         }
         List<String> plain = plainOf(next);
@@ -326,7 +327,9 @@ public final class ChatCommandCompletionController {
     }
 
     private static void debug(String message) {
-        LOGGER.info("[commandCompletion] {}", message);
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            LOGGER.info("[commandCompletion] {}", message);
+        }
     }
 
     private static final org.apache.logging.log4j.Logger LOGGER =

@@ -11,6 +11,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.inline.TextPipelineMiddleware;
 import neofontrender.addons.inline.EmbeddedContentConfig;
 import neofontrender.addons.mixin.AccessorGuiChatFeatures;
+import neofontrender.addons.build.UiBuildFeatures;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
@@ -23,7 +24,7 @@ public final class EmojiCompletionController {
 
     /** Diagnostic switch, -Dnfr.debug.commandCompletion=true. Logs emoji suggestion lookups. */
     private static final boolean DEBUG_EMOJI =
-            Boolean.getBoolean("nfr.debug.commandCompletion");
+            UiBuildFeatures.DIAGNOSTIC_LOGS && Boolean.getBoolean("nfr.debug.commandCompletion");
     private static final org.apache.logging.log4j.Logger LOGGER =
             org.apache.logging.log4j.LogManager.getLogger("neofontrender.uie.completion");
 
@@ -96,11 +97,11 @@ public final class EmojiCompletionController {
         }
         String prefix = token.substring(1);
         if (!prefix.matches("[\\w+\\-]*")) { closeCandidates(); return; }
-        if (DEBUG_EMOJI) {
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG_EMOJI) {
             LOGGER.info("[emojiProbe] refresh prefix=[{}] text=[{}]", prefix, text);
         }
         List<String> next = TextPipelineMiddleware.emojiSuggestions(prefix, 200);
-        if (DEBUG_EMOJI) {
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG_EMOJI) {
             LOGGER.info("[emojiProbe] suggestions n={}", next == null ? -1 : next.size());
         }
         if (!next.equals(matches)) {

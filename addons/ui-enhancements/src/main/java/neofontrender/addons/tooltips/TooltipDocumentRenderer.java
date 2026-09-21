@@ -7,6 +7,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.client.event.RenderTooltipEvent;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.api.client.tooltip.NfrTooltipApi;
+import neofontrender.addons.build.UiBuildFeatures;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -23,20 +24,25 @@ final class TooltipDocumentRenderer {
         if (!TooltipConfig.enabled || !Arc3DRuntimeSupport.isAvailable()
                 || ObscureTooltipCompat.shouldYieldToObscure()) return false;
         if (Boolean.TRUE.equals(IN_RENDER.get())) {
-            NfrUiEnhancements.LOGGER.warn(
-                    "Tooltip document renderer re-entry detected; allowing native fallback");
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                NfrUiEnhancements.LOGGER.warn(
+                        "Tooltip document renderer re-entry detected; allowing native fallback");
+            }
             return false;
         }
         IN_RENDER.set(Boolean.TRUE);
         try {
             NfrTooltipApi.TooltipDocument document = NfrTooltipApi.finalizeDocument(source);
             if (document == null) return false;
-            boolean diagnostic = shouldDiagnostic();
-            if (diagnostic) {
-                NfrUiEnhancements.LOGGER.debug(
-                        "Tooltip document render: stack={}, lines={}, nodes={}, mouse=({}, {})",
-                        describeStack(document.stack), document.lines.size(), document.nodes.size(),
-                        mouseX, mouseY);
+            boolean diagnostic = false;
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                diagnostic = shouldDiagnostic();
+                if (diagnostic) {
+                    NfrUiEnhancements.LOGGER.debug(
+                            "Tooltip document render: stack={}, lines={}, nodes={}, mouse=({}, {})",
+                            describeStack(document.stack), document.lines.size(), document.nodes.size(),
+                            mouseX, mouseY);
+                }
             }
             java.util.List<NfrTooltipApi.VisualNode> previous = TooltipVisualPlan.EXTERNAL.get();
             TooltipVisualPlan.EXTERNAL.set(document.nodes);
@@ -47,7 +53,7 @@ final class TooltipDocumentRenderer {
                         resolution.getScaledHeight(), -1, font);
                 boolean rendered = new ModernTooltipRenderer().draw(
                         event, null, "vanilla", null, true);
-                if (diagnostic) {
+                if (UiBuildFeatures.DIAGNOSTIC_LOGS && diagnostic) {
                     NfrUiEnhancements.LOGGER.debug(
                             "Tooltip document renderer result: rendered={}, externalNodes={}",
                             rendered, document.nodes.size());
@@ -72,6 +78,7 @@ final class TooltipDocumentRenderer {
     }
 
     private static boolean shouldDiagnostic() {
+        if (!UiBuildFeatures.DIAGNOSTIC_LOGS) return false;
         if (!NfrUiEnhancements.LOGGER.isDebugEnabled()) return false;
         long now = System.nanoTime();
         long previous = LAST_DIAGNOSTIC.get();

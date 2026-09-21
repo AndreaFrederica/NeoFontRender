@@ -10,6 +10,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.IReloadableResourceManager;
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.build.UiBuildFeatures;
 import neofontrender.addons.ui.UiEnhancementModule;
 import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 import net.minecraftforge.fml.common.Loader;
@@ -26,7 +27,9 @@ public final class TooltipModule implements UiEnhancementModule {
         TooltipConfig.load();
         TooltipPreviewRenderers.initialize();
         PreviewStyleRegistry.INSTANCE.initialize();
-        LOGGER.info("Tooltip module preInit; enabled={}, style={}", TooltipConfig.enabled, TooltipConfig.renderStyle);
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            LOGGER.info("Tooltip module preInit; enabled={}, style={}", TooltipConfig.enabled, TooltipConfig.renderStyle);
+        }
         Arc3DRuntimeSupport.verify();
     }
 
@@ -48,7 +51,9 @@ public final class TooltipModule implements UiEnhancementModule {
                 ModNameTooltipHandler::finalizeDocument);
         neofontrender.api.client.tooltip.NfrTooltipApi.registerDocumentProvider(
                 BuiltinPreviewProvider.INSTANCE);
-        LOGGER.info("Registered Revo UI tooltip settings page: {}", NfrUiEnhancements.MOD_ID + ":tooltips");
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            LOGGER.info("Registered Revo UI tooltip settings page: {}", NfrUiEnhancements.MOD_ID + ":tooltips");
+        }
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new AdvancedTooltipHandler());
         MinecraftForge.EVENT_BUS.register(new ModernTooltipHandler());

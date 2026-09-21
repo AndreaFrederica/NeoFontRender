@@ -12,6 +12,7 @@ import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.mixin.AccessorGuiChatFeatures;
+import neofontrender.addons.build.UiBuildFeatures;
 import org.lwjgl.input.Keyboard;
 
 public final class ChatKeyBindings {
@@ -20,7 +21,7 @@ public final class ChatKeyBindings {
 
     /** Diagnostic switch, -Dnfr.debug.commandCompletion=true. Logs every key the chat screen sees. */
     private static final boolean DEBUG_KEY =
-            Boolean.getBoolean("nfr.debug.commandCompletion");
+            UiBuildFeatures.DIAGNOSTIC_LOGS && Boolean.getBoolean("nfr.debug.commandCompletion");
     private static final org.apache.logging.log4j.Logger LOGGER =
             org.apache.logging.log4j.LogManager.getLogger("neofontrender.uie.completion");
 
@@ -56,7 +57,7 @@ public final class ChatKeyBindings {
     public void onKeyboardInput(GuiScreenEvent.KeyboardInputEvent.Pre event) {
         handledCurrentEvent = false;
         if (!(event.getGui() instanceof GuiChat) || !Keyboard.getEventKeyState()) {
-            if (DEBUG_KEY) {
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG_KEY) {
                 LOGGER.info("[keyProbe] early gui={} isGuiChat={} keyState={}",
                         event.getGui() == null ? "null" : event.getGui().getClass().getSimpleName(),
                         event.getGui() instanceof GuiChat, Keyboard.getEventKeyState());
@@ -64,7 +65,7 @@ public final class ChatKeyBindings {
             return;
         }
         int keyCode = Keyboard.getEventKey();
-        if (DEBUG_KEY) {
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG_KEY) {
             GuiTextField probe = ((AccessorGuiChatFeatures) event.getGui()).nfrUi$getInputField();
             LOGGER.info("[keyProbe] key={} focused={} text=[{}] cursor={}",
                     keyCode, probe != null && probe.isFocused(),
@@ -105,7 +106,7 @@ public final class ChatKeyBindings {
             event.setCanceled(true);
             return;
         }
-        if (DEBUG_KEY) LOGGER.info("[keyProbe] key={} fell through to shortcuts", keyCode);
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG_KEY) LOGGER.info("[keyProbe] key={} fell through to shortcuts", keyCode);
         if (!EnhancedChatFeatures.copySelection()) return;
 
         if (COPY.isActiveAndMatches(keyCode)) {

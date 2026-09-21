@@ -1,6 +1,7 @@
 package neofontrender.addons.inline;
 
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.build.UiBuildFeatures;
 import neofontrender.api.text.StructuredTextApi;
 import neofontrender.uie.text.v3.UiEnhancementsTextPlugin;
 
@@ -33,10 +34,12 @@ public final class TextPipelineMiddleware {
                         TextPipelineMiddleware::minecraftGuiScale)));
         StructuredTextApi.register(UiEInlineContentResolver.INSTANCE);
         LocalImageCatalog.INSTANCE.initialize();
-        NfrUiEnhancements.LOGGER.info(
-                "Initialized text pipeline middleware (LaTeX={}, SVG={}, full SVG={}, Markdown={})",
-                EmbeddedContentConfig.latexEnabled(), EmbeddedContentConfig.svgEnabled(),
-                EmbeddedContentConfig.fullSvgEnabled(), EmbeddedContentConfig.markdownEnabled());
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            NfrUiEnhancements.LOGGER.info(
+                    "Initialized text pipeline middleware (LaTeX={}, SVG={}, full SVG={}, Markdown={})",
+                    EmbeddedContentConfig.latexEnabled(), EmbeddedContentConfig.svgEnabled(),
+                    EmbeddedContentConfig.fullSvgEnabled(), EmbeddedContentConfig.markdownEnabled());
+        }
     }
 
     private static java.util.List<String> latexFontSelectors() {
