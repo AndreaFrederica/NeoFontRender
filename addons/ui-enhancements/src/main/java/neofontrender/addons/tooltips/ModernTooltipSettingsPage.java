@@ -94,7 +94,8 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                     .add(c.dropdownText("tooltip_legendary_ownership", () -> tr("gui.legendary_ownership"),
                             () -> TooltipConfig.legendaryOwnership,
                             value -> TooltipConfig.legendaryOwnership = TooltipConfig.normalizeOwnership(value),
-                            Arrays.asList("auto", "uie", "legendary", "resource-pack"), value -> value).size(260, 24))
+                            Arrays.asList("auto", "uie", "legendary", "resource-pack"),
+                            value -> tr("gui.legendary_ownership." + value)).size(260, 24))
                     .add(c.toggleText(() -> tr("gui.hei_custom"), () -> tr("tooltip.hei_custom"),
                             () -> TooltipConfig.heiCustomTooltips,
                             value -> TooltipConfig.heiCustomTooltips = value,
@@ -116,11 +117,10 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                     .add(c.toggleText(() -> tr("gui.rounded"), () -> "",
                             () -> TooltipConfig.rounded, value -> TooltipConfig.rounded = value))
                     .add(c.dropdownText("tooltip_title_alignment", () -> tr("gui.title_alignment"),
-                            () -> TooltipConfig.titleAlignment,
-                            value -> {
-                                TooltipConfig.titleAlignment = TooltipConfig.normalizeTitleAlignment(value);
-                                TooltipConfig.centerTitle = "center".equals(TooltipConfig.titleAlignment);
-                            },
+                             () -> TooltipConfig.titleAlignment,
+                             value -> {
+                                 TooltipConfig.titleAlignment = TooltipConfig.normalizeTitleAlignment(value);
+                             },
                             Arrays.asList("left", "center", "right"),
                             value -> tr("gui.title_alignment." + value)).size(260, 24))
                     .add(c.toggleText(() -> tr("gui.title_break"), () -> "",

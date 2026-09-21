@@ -24,6 +24,14 @@ final class AudioSettingsPage implements NfrSettingsPage {
     public NfrSettingsPageSession createSession() { return new Session(); }
     static String tr(String key) { return AddonI18n.tr("neofontrender_ui_enhancements.audio." + key); }
     private final class Session implements NfrSettingsPageSession {
+        private final boolean originalSceneMode = AudioModule.sceneMode;
+        private final boolean originalExclusive = AudioModule.exclusive;
+        private final boolean originalVanillaEnabled = UieAudio.vanillaMusic().enabled();
+        private final boolean originalVanillaOrdered = UieAudio.vanillaMusic().ordered();
+        private final float originalVanillaVolume = UieAudio.vanillaMusic().volume();
+        private final float originalIndependentVolume = UieAudio.independent().volume();
+        private final neofontrender.audio.Playlist.Mode originalIndependentMode =
+                UieAudio.independent().playlist().mode();
         private String path = "", name = "", search = "", selected = "0";
         private String scene = "GAME";
         private NfrMusicList musicList;
@@ -199,7 +207,16 @@ final class AudioSettingsPage implements NfrSettingsPage {
         }
         public void apply() { AudioModule.save(); }
         // Playback and library operations are immediate, like other media controls.
-        public void cancel() { AudioModule.save(); }
+        // Restore the persistent toggles/sliders so Cancel does not write them.
+        public void cancel() {
+            AudioModule.sceneMode = originalSceneMode;
+            AudioModule.exclusive = originalExclusive;
+            UieAudio.vanillaMusic().enabled(originalVanillaEnabled);
+            UieAudio.vanillaMusic().ordered(originalVanillaOrdered);
+            UieAudio.vanillaMusic().volume(originalVanillaVolume);
+            UieAudio.independent().volume(originalIndependentVolume);
+            UieAudio.independent().playlist().mode(originalIndependentMode);
+        }
     }
     private static NfrLabeledTextField field(String label, java.util.function.Supplier<String> getter, java.util.function.Consumer<String> setter) {
         return new NfrLabeledTextField(label, new TextFieldWidget().setMaxLength(4096).value(new NfrStringValue(getter, setter))).size(260, 52);

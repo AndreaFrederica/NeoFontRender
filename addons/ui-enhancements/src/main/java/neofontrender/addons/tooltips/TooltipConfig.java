@@ -35,9 +35,9 @@ final class TooltipConfig {
     static boolean advancedNbt = true;
     static boolean advancedNbtRequireShift = true;
     static int advancedNbtCharacterLimit = 0;
-    static boolean suppressImmersiveEngineering = true;
-    static boolean suppressEnderCore = true;
     static boolean rounded = true;
+    /** @deprecated Only retained in memory while migrating pre-titleAlignment configs. */
+    @Deprecated
     static boolean centerTitle = true;
     /** Title text alignment: left, center or right. centerTitle is retained for old configs. */
     static String titleAlignment = "center";
@@ -114,6 +114,9 @@ final class TooltipConfig {
 
     static void load() {
         config = UiEnhancementsConfig.file();
+        // Read legacy values before defineDefaults() adds the replacement key.
+        boolean hasExplicitTitleAlignment = config.contains("tooltip.titleAlignment");
+        boolean legacyCenterTitle = config.getBoolean("tooltip.centerTitle", true);
         defineDefaults();
         enabled = config.getBoolean("tooltip.enabled", true);
         renderStyle = normalizeStyle(config.getString("tooltip.style", "modernui"));
@@ -136,12 +139,11 @@ final class TooltipConfig {
         advancedNbt = config.getBoolean("tooltip.advanced.nbt", true);
         advancedNbtRequireShift = config.getBoolean("tooltip.advanced.nbtRequireShift", true);
         advancedNbtCharacterLimit = config.getInt("tooltip.advanced.nbtCharacterLimit", 0, 0, 100000);
-        suppressImmersiveEngineering = config.getBoolean("tooltip.suppress.immersiveEngineering", true);
-        suppressEnderCore = config.getBoolean("tooltip.suppress.enderCore", true);
         rounded = config.getBoolean("tooltip.rounded", true);
-        centerTitle = config.getBoolean("tooltip.centerTitle", true);
-        titleAlignment = normalizeTitleAlignment(config.getString(
-                "tooltip.titleAlignment", centerTitle ? "center" : "left"));
+        titleAlignment = normalizeTitleAlignment(hasExplicitTitleAlignment
+                ? config.getString("tooltip.titleAlignment", "center")
+                : (legacyCenterTitle ? "center" : "left"));
+        centerTitle = "center".equals(titleAlignment);
         headerIconAlignment = normalizeHeaderIconAlignment(config.getString(
                 "tooltip.preview.icon.alignment", "header"));
         titleBreak = config.getBoolean("tooltip.titleBreak", true);
@@ -220,6 +222,12 @@ final class TooltipConfig {
             profile.offsetY = (float) config.getDouble(profileKey(id, "offsetY"), 0.0D, -12.0D, 12.0D);
             PROFILES.put(id, profile);
         }
+        // Persist the migrated alignment before dropping the legacy boolean.
+        config.set("tooltip.titleAlignment", titleAlignment);
+        // Remove obsolete keys after the one-time legacy title migration.
+        config.remove("tooltip.centerTitle");
+        config.remove("tooltip.suppress.immersiveEngineering");
+        config.remove("tooltip.suppress.enderCore");
         config.save();
     }
 
@@ -244,10 +252,7 @@ final class TooltipConfig {
                 .set("tooltip.advanced.nbt", advancedNbt)
                 .set("tooltip.advanced.nbtRequireShift", advancedNbtRequireShift)
                 .set("tooltip.advanced.nbtCharacterLimit", advancedNbtCharacterLimit)
-                .set("tooltip.suppress.immersiveEngineering", suppressImmersiveEngineering)
-                .set("tooltip.suppress.enderCore", suppressEnderCore)
                 .set("tooltip.rounded", rounded)
-                .set("tooltip.centerTitle", "center".equals(titleAlignment))
                 .set("tooltip.titleAlignment", titleAlignment)
                 .set("tooltip.preview.icon.alignment", headerIconAlignment)
                 .set("tooltip.titleBreak", titleBreak)
@@ -345,13 +350,9 @@ final class TooltipConfig {
                 .define("tooltip.advanced.nbt", true, "Show NBT information.")
                 .define("tooltip.advanced.nbtRequireShift", true, "Require Shift to reveal NBT contents.")
                 .define("tooltip.advanced.nbtCharacterLimit", 0, "Maximum NBT characters; zero means unlimited.")
-                .define("tooltip.suppress.immersiveEngineering", true, "Suppress Immersive Engineering ore tooltip lines.")
-                .define("tooltip.suppress.enderCore", true, "Suppress EnderCore ore tooltip lines.")
                 .define("tooltip.rounded", true, "Draw rounded antialiased corners.")
-                .define("tooltip.centerTitle", true, "Center the first tooltip line.")
                 .define("tooltip.titleAlignment", "center",
-                        "Title text alignment: left, center or right."
-                                + " The legacy centerTitle option is used when this key is absent.")
+                        "Title text alignment: left, center or right.")
                 .define("tooltip.preview.icon.alignment", "header",
                         "Title icon vertical alignment: header, title or first_line.")
                 .define("tooltip.titleBreak", true, "Draw a divider after the title.")
@@ -556,11 +557,21 @@ final class TooltipConfig {
         private final boolean originalLowBrightnessMicaEnhancement = lowBrightnessMicaEnhancement;
         private final boolean originalMicaSampleUi = micaSampleUi;
         private final boolean originalYield = yieldToLegendaryTooltips;
+        private final String originalLegendaryOwnership = legendaryOwnership;
         private final boolean originalHeiCustomTooltips = heiCustomTooltips;
         private final boolean originalQuarkModernMapTooltip = quarkModernMapTooltip;
         private final boolean originalModNameEnabled = modNameEnabled;
         private final boolean originalModNameMoveToEnd = modNameMoveToEnd;
         private final String originalModNameFormat = modNameFormat;
+        private final boolean originalAdvancedEnabled = advancedEnabled;
+        private final boolean originalAdvancedRequireCtrl = advancedRequireCtrl;
+        private final boolean originalAdvancedOreDictionary = advancedOreDictionary;
+        private final boolean originalAdvancedRegistryName = advancedRegistryName;
+        private final boolean originalAdvancedUnlocalizedName = advancedUnlocalizedName;
+        private final boolean originalAdvancedMeta = advancedMeta;
+        private final boolean originalAdvancedNbt = advancedNbt;
+        private final boolean originalAdvancedNbtRequireShift = advancedNbtRequireShift;
+        private final int originalAdvancedNbtCharacterLimit = advancedNbtCharacterLimit;
         private final boolean originalRounded = rounded;
         private final boolean originalCenterTitle = centerTitle;
         private final String originalTitleAlignment = titleAlignment;
@@ -634,10 +645,20 @@ final class TooltipConfig {
             lowBrightnessMicaEnhancement = originalLowBrightnessMicaEnhancement;
             micaSampleUi = originalMicaSampleUi;
             yieldToLegendaryTooltips = originalYield; rounded = originalRounded;
+            legendaryOwnership = originalLegendaryOwnership;
             heiCustomTooltips = originalHeiCustomTooltips;
             quarkModernMapTooltip = originalQuarkModernMapTooltip;
             modNameEnabled = originalModNameEnabled; modNameMoveToEnd = originalModNameMoveToEnd;
             modNameFormat = originalModNameFormat;
+            advancedEnabled = originalAdvancedEnabled;
+            advancedRequireCtrl = originalAdvancedRequireCtrl;
+            advancedOreDictionary = originalAdvancedOreDictionary;
+            advancedRegistryName = originalAdvancedRegistryName;
+            advancedUnlocalizedName = originalAdvancedUnlocalizedName;
+            advancedMeta = originalAdvancedMeta;
+            advancedNbt = originalAdvancedNbt;
+            advancedNbtRequireShift = originalAdvancedNbtRequireShift;
+            advancedNbtCharacterLimit = originalAdvancedNbtCharacterLimit;
             centerTitle = originalCenterTitle; titleBreak = originalTitleBreak; adaptiveBorder = originalAdaptive;
             titleAlignment = originalTitleAlignment;
             headerIconAlignment = originalHeaderIconAlignment;

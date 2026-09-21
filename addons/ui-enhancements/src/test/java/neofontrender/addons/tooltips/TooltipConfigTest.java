@@ -78,6 +78,63 @@ class TooltipConfigTest {
     }
 
     @Test
+    void snapshotRestoresAdvancedAndPreviewSelectorOptions() {
+        boolean oldAdvanced = TooltipConfig.advancedEnabled;
+        boolean oldCtrl = TooltipConfig.advancedRequireCtrl;
+        boolean oldUnlocalized = TooltipConfig.advancedUnlocalizedName;
+        boolean oldMeta = TooltipConfig.advancedMeta;
+        boolean oldNbtShift = TooltipConfig.advancedNbtRequireShift;
+        int oldLimit = TooltipConfig.advancedNbtCharacterLimit;
+        String oldOwnership = TooltipConfig.legendaryOwnership;
+        List<String> oldWhitelist = TooltipConfig.previewWhitelist;
+        List<String> oldBlacklist = TooltipConfig.previewBlacklist;
+        try {
+            TooltipConfig.advancedEnabled = true;
+            TooltipConfig.advancedRequireCtrl = true;
+            TooltipConfig.advancedUnlocalizedName = true;
+            TooltipConfig.advancedMeta = true;
+            TooltipConfig.advancedNbtRequireShift = true;
+            TooltipConfig.advancedNbtCharacterLimit = 120;
+            TooltipConfig.legendaryOwnership = "auto";
+            TooltipConfig.previewWhitelist = Arrays.asList("minecraft:diamond");
+            TooltipConfig.previewBlacklist = Arrays.asList("minecraft:dirt");
+            TooltipConfig.Snapshot snapshot = TooltipConfig.snapshot();
+
+            TooltipConfig.advancedEnabled = false;
+            TooltipConfig.advancedRequireCtrl = false;
+            TooltipConfig.advancedUnlocalizedName = false;
+            TooltipConfig.advancedMeta = false;
+            TooltipConfig.advancedNbtRequireShift = false;
+            TooltipConfig.advancedNbtCharacterLimit = 1;
+            TooltipConfig.legendaryOwnership = "uie";
+            TooltipConfig.previewWhitelist = Arrays.asList("test:other");
+            TooltipConfig.previewBlacklist = Arrays.asList("test:block");
+
+            snapshot.restore();
+
+            assertTrue(TooltipConfig.advancedEnabled);
+            assertTrue(TooltipConfig.advancedRequireCtrl);
+            assertTrue(TooltipConfig.advancedUnlocalizedName);
+            assertTrue(TooltipConfig.advancedMeta);
+            assertTrue(TooltipConfig.advancedNbtRequireShift);
+            assertEquals(120, TooltipConfig.advancedNbtCharacterLimit);
+            assertEquals("auto", TooltipConfig.legendaryOwnership);
+            assertEquals(Arrays.asList("minecraft:diamond"), TooltipConfig.previewWhitelist);
+            assertEquals(Arrays.asList("minecraft:dirt"), TooltipConfig.previewBlacklist);
+        } finally {
+            TooltipConfig.advancedEnabled = oldAdvanced;
+            TooltipConfig.advancedRequireCtrl = oldCtrl;
+            TooltipConfig.advancedUnlocalizedName = oldUnlocalized;
+            TooltipConfig.advancedMeta = oldMeta;
+            TooltipConfig.advancedNbtRequireShift = oldNbtShift;
+            TooltipConfig.advancedNbtCharacterLimit = oldLimit;
+            TooltipConfig.legendaryOwnership = oldOwnership;
+            TooltipConfig.previewWhitelist = oldWhitelist;
+            TooltipConfig.previewBlacklist = oldBlacklist;
+        }
+    }
+
+    @Test
     void mapsEveryVanillaRarityToAnAddonTranslation() {
         assertEquals("neofontrender_ui_enhancements.tooltip.rarity.common",
                 TooltipHeaderLayout.rarityTranslationKey(EnumRarity.COMMON));
