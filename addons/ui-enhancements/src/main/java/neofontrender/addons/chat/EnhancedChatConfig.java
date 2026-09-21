@@ -156,12 +156,11 @@ public final class EnhancedChatConfig {
         mentionSound = file.getString("chat.mentions.sound", "minecraft:entity.experience_orb.pickup");
         privateMessageCommand = file.getString("chat.privateMessageCommand", "/msg {player}");
         privateCommandBlock = file.getBoolean("chat.privateCommandBlock", true);
-        boolean legacyKeepOpen = file.getBoolean("chat.tabby.layout.keepChatOpen", false);
-        keepOpenPublic = file.getBoolean("chat.keepOpen.public", legacyKeepOpen);
-        keepOpenPlayer = file.getBoolean("chat.keepOpen.player", legacyKeepOpen);
-        keepOpenServer = file.getBoolean("chat.keepOpen.server", legacyKeepOpen);
-        keepOpenPrivate = file.getBoolean("chat.keepOpen.private", legacyKeepOpen);
-        keepOpenCustom = file.getBoolean("chat.keepOpen.custom", legacyKeepOpen);
+        keepOpenPublic = file.getBoolean("chat.keepOpen.public", false);
+        keepOpenPlayer = file.getBoolean("chat.keepOpen.player", false);
+        keepOpenServer = file.getBoolean("chat.keepOpen.server", false);
+        keepOpenPrivate = file.getBoolean("chat.keepOpen.private", false);
+        keepOpenCustom = file.getBoolean("chat.keepOpen.custom", false);
         verticalTabs = file.getBoolean("chat.tabs.vertical", false);
         pinnedTabs = file.getString("chat.tabs.pinned", "");
         persistentChatHud = file.getBoolean("chat.hud.persistent", false);

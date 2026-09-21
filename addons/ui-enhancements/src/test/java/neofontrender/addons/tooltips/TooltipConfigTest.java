@@ -149,17 +149,14 @@ class TooltipConfigTest {
     @Test
     void titleAlignmentUsesOneSharedTextOriginForTitleAndRarity() {
         String oldAlignment = TooltipConfig.titleAlignment;
-        boolean oldCenter = TooltipConfig.centerTitle;
         try {
             ItemStack stack = new ItemStack(new Item().setRegistryName(
                     new ResourceLocation("test", "alignment")));
-            TooltipConfig.centerTitle = false;
             TooltipConfig.titleAlignment = "left";
             int left = TooltipHeaderLayout.titleTextOffset(stack, 100, 20);
             TooltipConfig.titleAlignment = "right";
             int right = TooltipHeaderLayout.titleTextOffset(stack, 100, 20);
             TooltipConfig.titleAlignment = "center";
-            TooltipConfig.centerTitle = true;
             int center = TooltipHeaderLayout.titleTextOffset(stack, 100, 20);
 
             assertEquals(20, left);
@@ -167,7 +164,6 @@ class TooltipConfigTest {
             assertEquals(50, center);
         } finally {
             TooltipConfig.titleAlignment = oldAlignment;
-            TooltipConfig.centerTitle = oldCenter;
         }
     }
 

@@ -51,7 +51,6 @@ public final class ChatStyleConfig {
         text = parse(f.getString("chat.style.text", color(text)), text);
         borderWidth = f.getInt("chat.style.borderWidth", 1, 0, 8);
         opacityPercent = f.getInt("chat.style.opacityPercent", 100, 10, 100);
-        migrateOriginalBlueDefaults();
         f.save();
     }
 
@@ -81,26 +80,6 @@ public final class ChatStyleConfig {
     }
 
     private static String color(int value) { return String.format("#%08X", value); }
-
-    /** The addon was unpublished when this palette changed, so only its exact old defaults migrate. */
-    private static void migrateOriginalBlueDefaults() {
-        if (background != 0xB012151B || border != 0xD08094AC || inputBackground != 0xD00B0D12
-                || trayBackground != 0xC0101319 || tabBackground != 0xB0181C24
-                || activeTab != 0xD0255363 || unreadTab != 0xD04A3D24
-                || pingedTab != 0xD0682D38 || hoveredTab != 0xD02B3442
-                || scrollbar != 0xE0B8C2D0) return;
-        background = 0x98000000;
-        border = 0x80484848;
-        inputBackground = 0xB0000000;
-        trayBackground = 0xA0000000;
-        tabBackground = 0x90101010;
-        activeTab = 0xC0282828;
-        unreadTab = 0xC03A3420;
-        pingedTab = 0xC0502028;
-        hoveredTab = 0xB0383838;
-        scrollbar = 0xC0A0A0A0;
-        save();
-    }
 
     private static int parse(String value, int fallback) {
         try {

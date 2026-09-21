@@ -36,10 +36,7 @@ final class TooltipConfig {
     static boolean advancedNbtRequireShift = true;
     static int advancedNbtCharacterLimit = 0;
     static boolean rounded = true;
-    /** @deprecated Only retained in memory while migrating pre-titleAlignment configs. */
-    @Deprecated
-    static boolean centerTitle = true;
-    /** Title text alignment: left, center or right. centerTitle is retained for old configs. */
+    /** Title text alignment: left, center or right. */
     static String titleAlignment = "center";
     /** Vertical anchor used by the title icon: full header, title block or first title row. */
     static String headerIconAlignment = "header";
@@ -114,9 +111,6 @@ final class TooltipConfig {
 
     static void load() {
         config = UiEnhancementsConfig.file();
-        // Read legacy values before defineDefaults() adds the replacement key.
-        boolean hasExplicitTitleAlignment = config.contains("tooltip.titleAlignment");
-        boolean legacyCenterTitle = config.getBoolean("tooltip.centerTitle", true);
         defineDefaults();
         enabled = config.getBoolean("tooltip.enabled", true);
         renderStyle = normalizeStyle(config.getString("tooltip.style", "modernui"));
@@ -140,10 +134,7 @@ final class TooltipConfig {
         advancedNbtRequireShift = config.getBoolean("tooltip.advanced.nbtRequireShift", true);
         advancedNbtCharacterLimit = config.getInt("tooltip.advanced.nbtCharacterLimit", 0, 0, 100000);
         rounded = config.getBoolean("tooltip.rounded", true);
-        titleAlignment = normalizeTitleAlignment(hasExplicitTitleAlignment
-                ? config.getString("tooltip.titleAlignment", "center")
-                : (legacyCenterTitle ? "center" : "left"));
-        centerTitle = "center".equals(titleAlignment);
+        titleAlignment = normalizeTitleAlignment(config.getString("tooltip.titleAlignment", "center"));
         headerIconAlignment = normalizeHeaderIconAlignment(config.getString(
                 "tooltip.preview.icon.alignment", "header"));
         titleBreak = config.getBoolean("tooltip.titleBreak", true);
@@ -222,9 +213,7 @@ final class TooltipConfig {
             profile.offsetY = (float) config.getDouble(profileKey(id, "offsetY"), 0.0D, -12.0D, 12.0D);
             PROFILES.put(id, profile);
         }
-        // Persist the migrated alignment before dropping the legacy boolean.
-        config.set("tooltip.titleAlignment", titleAlignment);
-        // Remove obsolete keys after the one-time legacy title migration.
+        // Discard obsolete keys without transferring their values to current settings.
         config.remove("tooltip.centerTitle");
         config.remove("tooltip.suppress.immersiveEngineering");
         config.remove("tooltip.suppress.enderCore");
@@ -573,7 +562,6 @@ final class TooltipConfig {
         private final boolean originalAdvancedNbtRequireShift = advancedNbtRequireShift;
         private final int originalAdvancedNbtCharacterLimit = advancedNbtCharacterLimit;
         private final boolean originalRounded = rounded;
-        private final boolean originalCenterTitle = centerTitle;
         private final String originalTitleAlignment = titleAlignment;
         private final String originalHeaderIconAlignment = headerIconAlignment;
         private final boolean originalTitleBreak = titleBreak;
@@ -659,7 +647,7 @@ final class TooltipConfig {
             advancedNbt = originalAdvancedNbt;
             advancedNbtRequireShift = originalAdvancedNbtRequireShift;
             advancedNbtCharacterLimit = originalAdvancedNbtCharacterLimit;
-            centerTitle = originalCenterTitle; titleBreak = originalTitleBreak; adaptiveBorder = originalAdaptive;
+            titleBreak = originalTitleBreak; adaptiveBorder = originalAdaptive;
             titleAlignment = originalTitleAlignment;
             headerIconAlignment = originalHeaderIconAlignment;
             borderShading = originalBorderShading; borderCycleMillis = originalBorderCycleMillis;

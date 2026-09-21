@@ -143,9 +143,7 @@ final class CrosshairConfig {
                 .define("crosshair.compat.tridentItems", "",
                         "Additional exact trident item IDs, separated by commas; bundled TOML defaults remain active.")
                 .define("crosshair.compat.rangedItems", "",
-                        "Additional exact non-charging ranged weapon IDs, separated by commas; bundled TOML defaults remain active.")
-                // Kept so existing UIE 0.3 configs migrate without changing their appearance.
-                .define("crosshair.armLength", 5, "Legacy arm length; used as the initial width and height.");
+                        "Additional exact non-charging ranged weapon IDs, separated by commas; bundled TOML defaults remain active.");
 
         customEnabled = file.getBoolean("crosshair.customEnabled", false);
         preferModCrosshair = file.getBoolean("crosshair.preferModCrosshair", true);
@@ -156,9 +154,8 @@ final class CrosshairConfig {
         keepDebugCrosshair = file.getBoolean("crosshair.keepDebugCrosshair", false);
         color = parseColor(file.getString("crosshair.color", "#FFFFFFFF"), 0xFFFFFFFF);
         adaptiveColor = file.getBoolean("crosshair.adaptiveColor", false);
-        int legacyArm = file.getInt("crosshair.armLength", 5, 1, 24);
-        width = file.getInt("crosshair.width", legacyArm, 0, 50);
-        height = file.getInt("crosshair.height", legacyArm, 0, 50);
+        width = file.getInt("crosshair.width", 5, 0, 50);
+        height = file.getInt("crosshair.height", 5, 0, 50);
         gap = file.getInt("crosshair.gap", 3, 0, 50);
         thickness = file.getInt("crosshair.thickness", 1, 1, 10);
         rotation = file.getInt("crosshair.rotation", 0, 0, 360);
