@@ -53,6 +53,13 @@ final class TooltipHeaderLayout {
         return textOffset(stack, contentWidth, renderedWidth, TooltipConfig.titleAlignment);
     }
 
+    /** Uses the same final paragraph measurement consumed by the text renderer. */
+    static int titleTextOffset(ItemStack stack, int contentWidth, FontRenderer font,
+                               String line, boolean compact, float textScale) {
+        return titleTextOffset(stack, contentWidth,
+                TooltipLayout.measuredLineWidth(font, line, compact, textScale), font);
+    }
+
     static int rarityTextOffset(ItemStack stack, int contentWidth, int renderedWidth,
                                 FontRenderer font) {
         return textOffset(stack, contentWidth, renderedWidth, TooltipConfig.rarityAlignment);

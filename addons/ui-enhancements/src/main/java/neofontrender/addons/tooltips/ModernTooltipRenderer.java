@@ -192,6 +192,28 @@ final class ModernTooltipRenderer {
             debugLines.add("header rarity: " + TooltipHeaderLayout.rarityLabel(stack)
                     + " @" + rarityX + " alignment=" + TooltipConfig.rarityAlignment);
         }
+        if (titleCount > 0 && !layout.lineWidths.isEmpty()) {
+            int textWidth = Math.max(1, layout.width - sideWidth);
+            boolean titleCompact = !layout.compactLines.isEmpty() && layout.compactLines.get(0);
+            int titleWidth = TooltipLayout.measuredLineWidth(font, layout.lines.get(0),
+                    titleCompact, layout.profile().textScale);
+            int titleX = layout.x + sideWidth
+                    + TooltipHeaderLayout.titleTextOffset(stack, textWidth, titleWidth, font);
+            int titleCenter = titleX + titleWidth / 2;
+            String rarity = TooltipHeaderLayout.rarityLabel(stack);
+            int rarityWidth = Math.max(1, font.getStringWidth(rarity));
+            int rarityX = layout.x + sideWidth
+                    + TooltipHeaderLayout.rarityTextOffset(stack, textWidth, rarityWidth, font);
+            int rarityCenter = rarityX + rarityWidth / 2;
+            debugLines.add("header measured title=" + titleWidth + " center=" + titleCenter
+                    + ", rarity=" + rarityWidth + " center=" + rarityCenter);
+            Gui.drawRect(titleCenter, layout.y, titleCenter + 1,
+                    layout.y + Math.max(1, header.headerHeight), 0xB0FFEA4D);
+            if (TooltipHeaderLayout.hasRarity(stack)) {
+                Gui.drawRect(rarityCenter, layout.y, rarityCenter + 1,
+                        layout.y + Math.max(1, header.headerHeight), 0xB0FF7DFF);
+            }
+        }
 
         for (TooltipContentLayout.Row row : content.rows) {
             int i = row.index;
@@ -563,19 +585,9 @@ final class ModernTooltipRenderer {
             TextParagraphProvider.Layout paragraph = CjkTypographyRenderer.layout(
                     font, line, paragraphWidth,
                     compact ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT * 2 : TooltipConfig.lineHeight);
-            int renderedWidth = lineBreaksAlreadyApplied && measuredLineWidths != null
-                    && i < measuredLineWidths.size()
-                    ? measuredLineWidths.get(i)
-                    : lineBreaksAlreadyApplied
-                    ? TooltipLayout.measuredLineWidth(font, line, compact, activeProfile.textScale)
-                    : paragraph == null ? font.getStringWidth(line)
-                    : CjkTypographyRenderer.measuredWidth(font, paragraph);
-            if (!lineBreaksAlreadyApplied && compact) renderedWidth = (renderedWidth + 1) / 2;
-            if (!lineBreaksAlreadyApplied) {
-                renderedWidth = Math.max(1, Math.round(renderedWidth * activeProfile.textScale));
-            }
             if (i < lineTitleCount) {
-                lineX += TooltipHeaderLayout.titleTextOffset(stack, textWidth, renderedWidth, font);
+                lineX += TooltipHeaderLayout.titleTextOffset(stack, textWidth, font, line,
+                        compact, activeProfile.textScale);
             }
             int color = i < lineTitleCount ? TooltipConfig.titleColor : TooltipConfig.textColor;
             if (textScale != 1.0F || activeProfile.offsetX != 0.0F || activeProfile.offsetY != 0.0F) {

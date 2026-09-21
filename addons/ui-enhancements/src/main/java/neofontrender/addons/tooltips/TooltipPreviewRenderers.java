@@ -2,7 +2,6 @@ package neofontrender.addons.tooltips;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.RenderItem;
@@ -26,8 +25,6 @@ import org.lwjgl.opengl.GL11;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.nio.IntBuffer;
-import org.lwjgl.BufferUtils;
 import com.mojang.authlib.GameProfile;
 
 /** Built-in preview backends. The implementation owns all Minecraft render state. */
@@ -249,7 +246,6 @@ final class TooltipPreviewRenderers {
                 preparePreviewDepthLayer();
                 GlStateManager.color(1.0F, 1.0F, 1.0F, animation);
                 RenderHelper.enableGUIStandardItemLighting();
-                enablePreviewScissor(x, y, size);
                 float centerX = x + size.width()
                         * (stack.getItem() instanceof ItemShield ? 0.50F : 0.46F);
                 float centerY = y + size.height() * 0.52F;
@@ -265,7 +261,6 @@ final class TooltipPreviewRenderers {
                 GlStateManager.scale(16.0F, -16.0F, 16.0F);
                 itemRenderer.renderItem(stack, ItemCameraTransforms.TransformType.NONE);
             } finally {
-                disablePreviewScissor();
                 RenderHelper.disableStandardItemLighting();
                 GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
                 GlStateManager.popMatrix();
@@ -275,49 +270,10 @@ final class TooltipPreviewRenderers {
         }
     }
 
-    private static boolean previewScissorWasEnabled;
-    private static final IntBuffer PREVIEW_SCISSOR = BufferUtils.createIntBuffer(4);
-
-    private static void enablePreviewScissor(int x, int y, NfrTooltipApi.PreviewSize size) {
-        Minecraft minecraft = Minecraft.getMinecraft();
-        ScaledResolution resolution = new ScaledResolution(minecraft);
-        int factor = resolution.getScaleFactor();
-        int left = Math.max(0, x * factor);
-        int bottom = Math.max(0, minecraft.displayHeight - (y + size.height()) * factor);
-        int width = Math.max(0, Math.min(minecraft.displayWidth - left, size.width() * factor));
-        int height = Math.max(0, Math.min(minecraft.displayHeight - bottom, size.height() * factor));
-        previewScissorWasEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
-        if (previewScissorWasEnabled) {
-            PREVIEW_SCISSOR.clear();
-            GL11.glGetInteger(GL11.GL_SCISSOR_BOX, PREVIEW_SCISSOR);
-            int oldLeft = PREVIEW_SCISSOR.get(0);
-            int oldBottom = PREVIEW_SCISSOR.get(1);
-            int oldRight = oldLeft + PREVIEW_SCISSOR.get(2);
-            int oldTop = oldBottom + PREVIEW_SCISSOR.get(3);
-            int right = Math.min(left + width, oldRight);
-            int top = Math.min(bottom + height, oldTop);
-            left = Math.max(left, oldLeft);
-            bottom = Math.max(bottom, oldBottom);
-            width = Math.max(0, right - left);
-            height = Math.max(0, top - bottom);
-        }
-        GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(left, bottom, width, height);
-    }
-
-    private static void disablePreviewScissor() {
-        if (previewScissorWasEnabled) {
-            GL11.glScissor(PREVIEW_SCISSOR.get(0), PREVIEW_SCISSOR.get(1),
-                    PREVIEW_SCISSOR.get(2), PREVIEW_SCISSOR.get(3));
-        } else {
-            GL11.glDisable(GL11.GL_SCISSOR_TEST);
-        }
-    }
-
     /** Keeps broad item models inside the preview cell while leaving normal item styles intact. */
     static float itemModelScale(ItemStack stack, float requestedScale) {
         if (stack != null && !stack.isEmpty() && stack.getItem() instanceof ItemShield) {
-            return Math.min(requestedScale, 2.0F);
+            return Math.min(requestedScale, 1.35F);
         }
         return requestedScale;
     }
