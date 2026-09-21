@@ -185,12 +185,12 @@ final class ModernTooltipRenderer {
                     - TooltipHeaderLayout.RARITY_BOTTOM_GAP;
             int rarityWidth = Math.max(1, font.getStringWidth(TooltipHeaderLayout.rarityLabel(stack)));
             int rarityX = layout.x + sideWidth
-                    + TooltipHeaderLayout.titleTextOffset(stack, Math.max(1, layout.width - sideWidth), rarityWidth);
+                    + TooltipHeaderLayout.rarityTextOffset(stack, Math.max(1, layout.width - sideWidth), rarityWidth, font);
             outline(rarityX, rarityY,
                     rarityX + Math.max(1, font.getStringWidth(TooltipHeaderLayout.rarityLabel(stack))),
                     rarityY + TooltipHeaderLayout.RARITY_HEIGHT, 0xE0B58CFF);
             debugLines.add("header rarity: " + TooltipHeaderLayout.rarityLabel(stack)
-                    + " @" + rarityX + " alignment=" + TooltipConfig.titleAlignment);
+                    + " @" + rarityX + " alignment=" + TooltipConfig.rarityAlignment);
         }
 
         for (TooltipContentLayout.Row row : content.rows) {
@@ -575,7 +575,7 @@ final class ModernTooltipRenderer {
                 renderedWidth = Math.max(1, Math.round(renderedWidth * activeProfile.textScale));
             }
             if (i < lineTitleCount) {
-                lineX += TooltipHeaderLayout.titleTextOffset(stack, textWidth, renderedWidth);
+                lineX += TooltipHeaderLayout.titleTextOffset(stack, textWidth, renderedWidth, font);
             }
             int color = i < lineTitleCount ? TooltipConfig.titleColor : TooltipConfig.textColor;
             if (textScale != 1.0F || activeProfile.offsetX != 0.0F || activeProfile.offsetY != 0.0F) {
@@ -600,7 +600,7 @@ final class ModernTooltipRenderer {
                 String rarityLabel = TooltipHeaderLayout.rarityLabel(stack);
                 int rarityWidth = Math.max(1, font.getStringWidth(rarityLabel));
                 int rarityX = x + sideWidth
-                        + TooltipHeaderLayout.titleTextOffset(stack, textWidth, rarityWidth);
+                        + TooltipHeaderLayout.rarityTextOffset(stack, textWidth, rarityWidth, font);
                 TooltipHeaderLayout.drawRarity(stack, font, rarityX,
                         textY + Math.max(0, lineAdvances.get(i)
                                 - TooltipHeaderLayout.RARITY_HEIGHT
@@ -675,8 +675,8 @@ final class ModernTooltipRenderer {
                     String rarityLabel = TooltipHeaderLayout.rarityLabel(stack);
                     int rarityWidth = Math.max(1, font.getStringWidth(rarityLabel));
                     int rarityX = layout.x + content.sideWidth
-                            + TooltipHeaderLayout.titleTextOffset(stack,
-                            Math.max(1, layout.width - content.sideWidth), rarityWidth);
+                            + TooltipHeaderLayout.rarityTextOffset(stack,
+                            Math.max(1, layout.width - content.sideWidth), rarityWidth, font);
                     TooltipHeaderLayout.drawRarity(stack, font, rarityX,
                             row.textY + Math.max(0, layout.lineAdvances.get(row.index)
                                     - TooltipHeaderLayout.RARITY_HEIGHT - TooltipHeaderLayout.RARITY_BOTTOM_GAP));

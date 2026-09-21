@@ -88,6 +88,9 @@ final class BuiltinPreviewProvider implements NfrTooltipApi.DocumentProvider {
             float rotationSpeed = style == null ? -20.0F : style.rotationSpeed(-20.0F);
             int previewWidth = style == null ? TooltipConfig.itemPreviewWidth
                     : style.width(TooltipConfig.itemPreviewWidth);
+            // Shields have a broad rotated quad. Reserve a larger side cell so the model does
+            // not spill into the inventory behind the tooltip.
+            if (item instanceof ItemShield) previewWidth = Math.max(previewWidth, 44);
             int previewHeight = style == null ? 64 : style.height(64);
             List<String> effects = style == null || !TooltipConfig.previewEffectsEnabled
                     ? Collections.<String>emptyList() : style.effects;

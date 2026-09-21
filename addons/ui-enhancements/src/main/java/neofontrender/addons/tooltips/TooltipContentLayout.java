@@ -48,7 +48,7 @@ final class TooltipContentLayout {
             int renderedWidth = i < layout.lineWidths.size() ? layout.lineWidths.get(i)
                     : TooltipLayout.measuredLineWidth(font, line, false, layout.profile().textScale);
             int textX = layout.x + sideWidth
-                    + (title ? TooltipHeaderLayout.titleTextOffset(stack, contentWidth, renderedWidth) : 0);
+                    + (title ? TooltipHeaderLayout.titleTextOffset(stack, contentWidth, renderedWidth, font) : 0);
             boolean anchor = NfrTooltipAnchor.isAnchorLine(line);
             rows.add(new Row(i, layout.x + sideWidth, rowY, contentWidth, Math.max(0, advance),
                     anchor ? textX : textX, textY, renderedWidth, title));

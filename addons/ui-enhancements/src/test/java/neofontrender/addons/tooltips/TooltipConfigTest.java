@@ -162,6 +162,21 @@ class TooltipConfigTest {
             assertEquals(20, left);
             assertEquals(80, right);
             assertEquals(50, center);
+
+            // Rows with different widths must share the same center/right edge rather than
+            // being forced to the same left edge.
+            int narrowCenter = TooltipHeaderLayout.titleTextOffset(stack, 100, 20);
+            int wideCenter = TooltipHeaderLayout.titleTextOffset(stack, 100, 40);
+            assertEquals(60, narrowCenter + 10);
+            assertEquals(60, wideCenter + 20);
+
+            int narrowRight;
+            int wideRight;
+            TooltipConfig.titleAlignment = "right";
+            narrowRight = TooltipHeaderLayout.titleTextOffset(stack, 100, 20);
+            wideRight = TooltipHeaderLayout.titleTextOffset(stack, 100, 40);
+            assertEquals(100, narrowRight + 20);
+            assertEquals(100, wideRight + 40);
         } finally {
             TooltipConfig.titleAlignment = oldAlignment;
         }

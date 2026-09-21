@@ -38,6 +38,8 @@ final class TooltipConfig {
     static boolean rounded = true;
     /** Title text alignment: left, center or right. */
     static String titleAlignment = "center";
+    /** Rarity row alignment is independent; left is the least surprising default. */
+    static String rarityAlignment = "left";
     /** Vertical anchor used by the title icon: full header, title block or first title row. */
     static String headerIconAlignment = "header";
     static boolean titleBreak = true;
@@ -135,6 +137,7 @@ final class TooltipConfig {
         advancedNbtCharacterLimit = config.getInt("tooltip.advanced.nbtCharacterLimit", 0, 0, 100000);
         rounded = config.getBoolean("tooltip.rounded", true);
         titleAlignment = normalizeTitleAlignment(config.getString("tooltip.titleAlignment", "center"));
+        rarityAlignment = normalizeAlignment(config.getString("tooltip.rarityAlignment", "left"), "left");
         headerIconAlignment = normalizeHeaderIconAlignment(config.getString(
                 "tooltip.preview.icon.alignment", "header"));
         titleBreak = config.getBoolean("tooltip.titleBreak", true);
@@ -243,6 +246,7 @@ final class TooltipConfig {
                 .set("tooltip.advanced.nbtCharacterLimit", advancedNbtCharacterLimit)
                 .set("tooltip.rounded", rounded)
                 .set("tooltip.titleAlignment", titleAlignment)
+                .set("tooltip.rarityAlignment", rarityAlignment)
                 .set("tooltip.preview.icon.alignment", headerIconAlignment)
                 .set("tooltip.titleBreak", titleBreak)
                 .set("tooltip.adaptiveBorder", adaptiveBorder)
@@ -342,6 +346,8 @@ final class TooltipConfig {
                 .define("tooltip.rounded", true, "Draw rounded antialiased corners.")
                 .define("tooltip.titleAlignment", "center",
                         "Title text alignment: left, center or right.")
+                .define("tooltip.rarityAlignment", "left",
+                        "Rarity row alignment: left, center or right.")
                 .define("tooltip.preview.icon.alignment", "header",
                         "Title icon vertical alignment: header, title or first_line.")
                 .define("tooltip.titleBreak", true, "Draw a divider after the title.")
@@ -521,12 +527,16 @@ final class TooltipConfig {
     }
 
     static String normalizeTitleAlignment(String value) {
+        return normalizeAlignment(value, "center");
+    }
+
+    static String normalizeAlignment(String value, String fallback) {
         if (value != null) {
             String normalized = value.trim().toLowerCase(Locale.ROOT);
             if ("left".equals(normalized) || "right".equals(normalized)
                     || "center".equals(normalized)) return normalized;
         }
-        return "center";
+        return fallback;
     }
 
     static String normalizeHeaderIconAlignment(String value) {
@@ -563,6 +573,7 @@ final class TooltipConfig {
         private final int originalAdvancedNbtCharacterLimit = advancedNbtCharacterLimit;
         private final boolean originalRounded = rounded;
         private final String originalTitleAlignment = titleAlignment;
+        private final String originalRarityAlignment = rarityAlignment;
         private final String originalHeaderIconAlignment = headerIconAlignment;
         private final boolean originalTitleBreak = titleBreak;
         private final boolean originalAdaptive = adaptiveBorder;
@@ -649,6 +660,7 @@ final class TooltipConfig {
             advancedNbtCharacterLimit = originalAdvancedNbtCharacterLimit;
             titleBreak = originalTitleBreak; adaptiveBorder = originalAdaptive;
             titleAlignment = originalTitleAlignment;
+            rarityAlignment = originalRarityAlignment;
             headerIconAlignment = originalHeaderIconAlignment;
             borderShading = originalBorderShading; borderCycleMillis = originalBorderCycleMillis;
             cornerRadius = originalCorner; borderWidth = originalBorder; shadowRadius = originalShadow;

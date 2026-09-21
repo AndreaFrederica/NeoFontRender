@@ -40,10 +40,30 @@ final class TooltipHeaderLayout {
      * makes the immediate and retained render paths agree for every title alignment mode.
      */
     static int titleTextOffset(ItemStack stack, int contentWidth, int renderedWidth) {
+        return titleTextOffset(stack, contentWidth, renderedWidth, null);
+    }
+
+    /**
+     * Calculates a row origin inside one shared text region. Each row uses its own measured
+     * width, but the center/right edge is derived from the same available region, so title and
+     * rarity remain aligned even when their strings have different widths.
+     */
+    static int titleTextOffset(ItemStack stack, int contentWidth, int renderedWidth,
+                               FontRenderer font) {
+        return textOffset(stack, contentWidth, renderedWidth, TooltipConfig.titleAlignment);
+    }
+
+    static int rarityTextOffset(ItemStack stack, int contentWidth, int renderedWidth,
+                                FontRenderer font) {
+        return textOffset(stack, contentWidth, renderedWidth, TooltipConfig.rarityAlignment);
+    }
+
+    private static int textOffset(ItemStack stack, int contentWidth, int renderedWidth,
+                                  String alignment) {
         int inset = titleInset(stack);
         int available = Math.max(1, contentWidth - inset);
-        int spare = Math.max(0, available - Math.max(0, renderedWidth));
-        String alignment = TooltipConfig.titleAlignment;
+        int rowWidth = Math.max(0, renderedWidth);
+        int spare = Math.max(0, available - rowWidth);
         int alignmentOffset = "right".equals(alignment) ? spare
                 : "center".equals(alignment) ? spare / 2 : 0;
         return inset + alignmentOffset;

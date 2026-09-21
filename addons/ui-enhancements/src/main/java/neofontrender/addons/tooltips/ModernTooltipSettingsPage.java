@@ -123,6 +123,11 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                              },
                             Arrays.asList("left", "center", "right"),
                             value -> tr("gui.title_alignment." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_rarity_alignment", () -> tr("gui.rarity_alignment"),
+                            () -> TooltipConfig.rarityAlignment,
+                            value -> TooltipConfig.rarityAlignment = TooltipConfig.normalizeAlignment(value, "left"),
+                            Arrays.asList("left", "center", "right"),
+                            value -> tr("gui.title_alignment." + value)).size(260, 24))
                     .add(c.toggleText(() -> tr("gui.title_break"), () -> "",
                             () -> TooltipConfig.titleBreak, value -> TooltipConfig.titleBreak = value))
                     .add(c.toggleText(() -> tr("gui.adaptive_border"), () -> "",
