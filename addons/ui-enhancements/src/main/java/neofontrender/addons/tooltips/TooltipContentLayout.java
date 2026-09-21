@@ -35,7 +35,8 @@ final class TooltipContentLayout {
         int sideHeight = plan == null ? 0 : plan.sideHeight();
         int titleCount = Math.max(0, Math.min(layout.titleLines, layout.lines.size()));
         HeaderMetrics header = HeaderMetrics.measure(stack, titleCount, layout.lineAdvances,
-                layout.rawLineAdvances, layout.y);
+                layout.rawLineAdvances, layout.y, font, layout.lines,
+                layout.profile().textScale, layout.compactLines);
         int contentWidth = Math.max(1, layout.width - sideWidth);
             int rowY = layout.y;
         int textY = layout.y + header.textOffset;
