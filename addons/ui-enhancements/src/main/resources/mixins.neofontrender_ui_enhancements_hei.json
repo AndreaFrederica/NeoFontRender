@@ -12,6 +12,7 @@
     "compat.MixinHeiCollapsedGroupHover",
     "compat.MixinJeiIngredientGridHover",
     "compat.MixinHeiCollapsedGroupTooltip",
-    "compat.MixinHeiTooltipRenderer"
+    "compat.MixinHeiTooltipRenderer",
+    "compat.MixinHeiScrollBar"
   ]
 }

@@ -67,6 +67,20 @@ public final class HeiTooltipCompat {
         return !PANELS.get().isEmpty();
     }
 
+    /** True when UIE owns the active HEI panel and may replace its visual chrome. */
+    public static boolean ownsCustomTooltip() {
+        return activeOwnedPanel() != null;
+    }
+
+    /**
+     * Returns the stack that owns the active HEI tooltip.  The value is only exposed while a
+     * HEI tooltip is being drawn, so optional visual integrations do not need to retain HEI state.
+     */
+    public static ItemStack activeStack() {
+        PanelState state = activeOwnedPanel();
+        return state == null ? ItemStack.EMPTY : state.stack;
+    }
+
     public static int availableScreenWidth(int screenWidth) {
         PanelState state = activeOwnedPanel();
         return state == null ? screenWidth
