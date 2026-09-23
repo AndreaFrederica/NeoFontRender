@@ -24,7 +24,11 @@ public final class HeiTooltipCompat {
     private HeiTooltipCompat() {}
 
     public static void begin(ItemStack stack) {
-        PANELS.get().push(new PanelState(stack == null ? ItemStack.EMPTY : stack));
+        ItemStack active = stack == null ? ItemStack.EMPTY : stack;
+        PANELS.get().push(new PanelState(active));
+        // HEI owns this tooltip renderer and does not reliably publish Forge's standard
+        // RenderTooltipEvent.Pre. Feed the same stack to the deferred Item Zoom overlay.
+        ItemZoomOverlay.capture(active);
     }
 
     public static void beginIfAbsent(ItemStack stack) {
