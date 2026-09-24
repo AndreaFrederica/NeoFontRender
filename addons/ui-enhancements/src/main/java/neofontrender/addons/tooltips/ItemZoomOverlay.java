@@ -46,7 +46,7 @@ final class ItemZoomOverlay {
     static void capture(ItemStack stack) {
         Minecraft minecraft = Minecraft.getMinecraft();
         GuiScreen screen = minecraft.currentScreen;
-        if (!TooltipConfig.zoomOverlayEnabled || !(screen instanceof GuiContainer)
+        if (!ItemZoomKeyBindings.isActive() || !(screen instanceof GuiContainer)
                 || stack == null || stack.isEmpty() || !allowed(stack)) {
             return;
         }
@@ -57,7 +57,12 @@ final class ItemZoomOverlay {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void draw(GuiScreenEvent.DrawScreenEvent.Post event) {
-        if (!TooltipConfig.zoomOverlayEnabled || captured.isEmpty()
+        if (!ItemZoomKeyBindings.isActive()) {
+            captured = ItemStack.EMPTY;
+            capturedScreen = null;
+            return;
+        }
+        if (captured.isEmpty()
                 || event.getGui() != capturedScreen
                 || System.nanoTime() - capturedAt > CAPTURE_TIMEOUT_NANOS) {
             return;

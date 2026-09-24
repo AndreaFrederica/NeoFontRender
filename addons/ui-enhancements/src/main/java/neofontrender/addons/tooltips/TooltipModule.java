@@ -35,6 +35,7 @@ public final class TooltipModule implements UiEnhancementModule {
 
     @Override
     public void init() {
+        ItemZoomKeyBindings.register();
         neofontrender.api.client.tooltip.NfrTooltipApi.register(
                 TooltipDocumentRenderer::render);
         ((IReloadableResourceManager) Minecraft.getMinecraft().getResourceManager())
