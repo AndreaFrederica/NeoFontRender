@@ -9,6 +9,7 @@ import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.RenderItem;
+import net.minecraft.client.renderer.block.model.ItemCameraTransforms;
 import net.minecraft.item.ItemArmor;
 import net.minecraft.item.ItemBow;
 import net.minecraft.item.ItemShield;
@@ -134,26 +135,26 @@ final class ItemZoomOverlay {
                 GlStateManager.color(1.0F, 1.0F, 1.0F, appear);
                 GlStateManager.pushMatrix();
                 try {
-                    GlStateManager.translate(centerX, centerY, 0.0F);
-                    // Rotate in the GUI plane. Rotating a flat item around Y makes it edge-on
-                    // and intermittently invisible, which the original 1.12 renderer avoids.
-                    GlStateManager.rotate(rotation, 0.0F, 0.0F, 1.0F);
-                    // Item Zoom only enlarges the GUI plane. Keep Z at unit scale because
-                    // RenderItem adds its own GUI z offset and zLevel internally; scaling Z
-                    // sends that offset outside the GUI projection at large zoom sizes.
-                    GlStateManager.scale(scale, scale, 1.0F);
-                    GlStateManager.translate(-8.0F, -8.0F, 0.0F);
-                    // Match Item Zoom's relative z lift and preserve whatever the caller had
-                    // already established for this GUI pass.
-                    renderer.zLevel = oldZ + 100.0F;
+                    // Render the baked item model directly, matching the tooltip preview path.
+                    // TransformType.NONE preserves the model's three-dimensional faces, so tools,
+                    // weapons, armor items and block items can rotate around the Y axis.
+                    TooltipPreviewRenderers.preparePreviewDepthLayer();
+                    GlStateManager.translate(centerX, centerY, 500.0F);
+                    GlStateManager.scale(scale, scale, scale);
+                    GlStateManager.rotate(-30.0F, 1.0F, 0.0F, 0.0F);
+                    GlStateManager.rotate(rotation, 0.0F, 1.0F, 0.0F);
+                    GlStateManager.rotate(-45.0F, 0.0F, 0.0F, 1.0F);
+                    GlStateManager.scale(16.0F, -16.0F, 16.0F);
                     TooltipPreviewRenderers.enableZoomItemLighting(scale);
-                    renderer.renderItemAndEffectIntoGUI(minecraft.player, stack, 0, 0);
+                    renderer.renderItem(stack, ItemCameraTransforms.TransformType.NONE);
                 } finally {
                     GlStateManager.popMatrix();
                     renderer.zLevel = oldZ;
                     RenderHelper.disableStandardItemLighting();
                 }
 
+                RenderHelper.disableStandardItemLighting();
+                GlStateManager.disableDepth();
                 GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
                 GlStateManager.pushMatrix();
                 try {
