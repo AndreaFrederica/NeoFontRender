@@ -97,3 +97,10 @@ tasks.register('prepareCombinedClientRun', Copy) {
     into rootProject.layout.projectDirectory.dir('run/client/mods')
     rename { 'neofontrender-inline-content-showcase-dev.jar' }
 }
+
+tasks.register('stageInlineContentShowcaseRelease', Sync) {
+    group = 'distribution'
+    dependsOn tasks.named('build'), tasks.named('remapJar')
+    from(tasks.named('remapJar').flatMap { it.archiveFile })
+    into rootProject.layout.buildDirectory.dir('release/inline-content-showcase')
+}

@@ -65,6 +65,11 @@ configurations {
 }
 
 sourceSets {
+    // Signatures only: compile the optional AE2 bridge without a sibling checkout.
+    // This output is never on the runtime classpath or included in either JAR.
+    ae2Api {
+        java.srcDir 'src/ae2Api/java'
+    }
     main {
         java.srcDir(generatedUiBuildFeaturesDir)
         java.srcDir '../ui-enhancements-common/src/main/java'
@@ -91,9 +96,6 @@ dependencies {
     implementation project(':engine:audio')
     contain(project(path: ':engine:audio', configuration: 'shadow')) { transitive = false }
     compileOnly project(':')
-    def ae2LocalLib = fileTree(dir: "${rootProject.projectDir}/../ref/Applied-Energistics-2-Supergiant/build/libs",
-            includes: ['AppliedEnergistics2-Supergiant-*.jar'])
-    if (!ae2LocalLib.isEmpty()) compileOnly ae2LocalLib
     implementation uiTextProject
     uiTextEmbed uiTextProject
     if (localModularUiPath) {
@@ -143,6 +145,11 @@ dependencies {
     testImplementation 'org.lwjgl:lwjgl:3.4.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+
+// Capture the normal Minecraft classpath before adding the signatures to main.
+// Keep Gradle's producer dependencies, without a dependency back to ae2Api.
+sourceSets.ae2Api.compileClasspath = sourceSets.main.compileClasspath
+sourceSets.main.compileClasspath += sourceSets.ae2Api.output
 
 def mixinRefMap = layout.buildDirectory.file('tmp/mixins/mixins.neofontrender_ui_enhancements-refmap.json')
 def mixinSrg = layout.buildDirectory.file('tmp/mixins/mixins.srg')
@@ -255,6 +262,7 @@ tasks.withType(JavaCompile).configureEach {
 
 test {
     useJUnitPlatform()
+    systemProperty 'nfr.test.ae2Jar', providers.gradleProperty('ae2CompatJar').getOrElse('')
     systemProperty 'nfr.test.pregenJar', providers.gradleProperty('pregenCompatJar').getOrElse('')
     systemProperty 'nfr.test.heiJar', providers.gradleProperty('heiCompatJar').getOrElse('')
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })

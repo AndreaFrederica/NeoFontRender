@@ -80,3 +80,10 @@ tasks.register('prepareCombinedClientRun', Copy) {
     into rootProject.layout.projectDirectory.dir('run/client/mods')
     rename { 'neofontrender-mui-xml-showcase-dev.jar' }
 }
+
+tasks.register('stageMuiXmlShowcaseRelease', Sync) {
+    group = 'distribution'
+    dependsOn tasks.named('build'), tasks.named('remapJar')
+    from(tasks.named('remapJar').flatMap { it.archiveFile })
+    into rootProject.layout.buildDirectory.dir('release/mui-xml-showcase')
+}
