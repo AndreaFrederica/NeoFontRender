@@ -24,6 +24,12 @@ final class Arc3DFlightHudRenderer {
         try {
             FlightHudGraphics.withGuiScissor(bounds.x, bounds.y,
                     bounds.x + bounds.width, bounds.y + bounds.height, () -> {
+                        if (FlightRollConfig.hudMaskEnabled
+                                && FlightRollConfig.hudMaskOpacityPercent > 0) {
+                            FlightHudGraphics.quad(bounds.x, bounds.y,
+                                    bounds.x + bounds.width, bounds.y + bounds.height,
+                                    FlightRollConfig.hudMaskArgb());
+                        }
                         for (FlightHudTheme.Element element : theme.elements) {
                             if (element.enabled) components.render(frame, element);
                         }

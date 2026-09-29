@@ -5,7 +5,9 @@ import net.minecraftforge.common.MinecraftForge;
 import neofontrender.addons.ui.UiEnhancementModule;
 import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 import neofontrender.addons.chat.network.SelfMessageCapability;
-import neofontrender.addons.inline.InlineGlyphMiddleware;
+import neofontrender.addons.inline.TextPipelineMiddleware;
+import neofontrender.addons.inline.EmbeddedContentConfig;
+import neofontrender.addons.inline.EmbeddedContentLaboratorySettings;
 import speiger.src.salutation.Salutation;
 import speiger.src.salutation.client.ClientHandler;
 
@@ -13,9 +15,11 @@ public final class EnhancedChatModule implements UiEnhancementModule {
     @Override
     public void preInit() {
         SelfMessageCapability.initialize();
+        ClientChatPolicy.initialize();
         EnhancedChatConfig.load();
         EmojiAndImageConfig.load();
-        InlineGlyphMiddleware.initialize();
+        EmbeddedContentConfig.load();
+        TextPipelineMiddleware.initialize();
         ChatStyleConfig.load();
         Salutation.initialize();
         if (!ExternalChatCompat.salutationLoaded()) ClientHandler.INSTANCE.init();
@@ -26,6 +30,7 @@ public final class EnhancedChatModule implements UiEnhancementModule {
     @Override
     public void init() {
         NfrSettingsPageRegistry.register(new EnhancedChatSettingsPage());
+        EmbeddedContentLaboratorySettings.register();
         NfrSettingsPageRegistry.register(new EmojiAndImageSettingsPage());
         NfrSettingsPageRegistry.register(new ChatRulesSettingsPage());
         if (!ExternalChatCompat.tabbyChatLoaded()) NfrSettingsPageRegistry.register(new TabbedChatSettingsPage());

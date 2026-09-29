@@ -234,6 +234,18 @@ public class FontSet implements AutoCloseable {
         return getGlyph(cp);
     }
 
+    /** Deterministic variant used to keep foreground and shadow aligned in one animation frame. */
+    @Nullable
+    public BakedGlyph getRandomGlyph(float advance, long seed) {
+        int w = (int) Math.ceil(advance);
+        List<Integer> bucket = glyphsByWidth.get(w);
+        if (bucket == null || bucket.isEmpty()) bucket = findNearestGlyphBucket(w);
+        if (bucket == null || bucket.isEmpty()) return null;
+        int mixed = (int) (seed ^ seed >>> 32);
+        int cp = bucket.get(Math.floorMod(mixed, bucket.size()));
+        return getGlyph(cp);
+    }
+
     @Nullable
     private List<Integer> findNearestGlyphBucket(int width) {
         List<Integer> nearest = null;

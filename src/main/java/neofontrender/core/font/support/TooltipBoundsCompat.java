@@ -1,9 +1,8 @@
 package neofontrender.core.font.support;
 
+import neofontrender.api.text.TextVisualBounds;
+
 import net.minecraft.client.gui.FontRenderer;
-import neofontrender.core.font.FontManager;
-import neofontrender.core.font.backend.TextRenderBackend;
-import neofontrender.core.font.backend.TextRenderResult;
 
 /** Makes Forge tooltip layout account for shaped glyph overhang and shadow pixels. */
 public final class TooltipBoundsCompat {
@@ -13,31 +12,47 @@ public final class TooltipBoundsCompat {
     }
 
     public static int measuredWidth(FontRenderer font, String text) {
-        int advanceWidth = font.getStringWidth(text);
-        FontManager manager = FontManager.INSTANCE;
-        if (!manager.isTextBackendActive()) {
-            // SFR glyph quads can still extend slightly past their logical advance. Forge draws
-            // tooltip text with a one-pixel shadow, so retain a small safety pixel on each side.
-            return manager.isSfrActive() ? advanceWidth + 2 : advanceWidth;
-        }
+        // Forge callers still draw at the logical origin, so include advance and overhang.
+        TextVisualBounds bounds = measuredVisualBounds(font, text, true);
+        return (int) Math.ceil(Math.max(font.getStringWidth(text), bounds.right)
+                - Math.min(0, bounds.left));
+    }
 
-        TextRenderBackend backend = manager.getTextRenderBackend();
-        if (backend == null || text == null || text.isEmpty()) {
-            return advanceWidth;
-        }
+    /** Uses the selected FontRenderer route, including its configured shadow and inline offset. */
+    public static TextVisualBounds measuredVisualBounds(
+            FontRenderer font, String text, boolean shadow) {
+        if (text == null || text.isEmpty()) return TextVisualBounds.EMPTY;
         try {
-            TextRenderResult rendered = backend.renderFormatted(text, 0xFFFFFFFF, false);
-            float left = Math.min(0.0F, rendered.visualLeft());
-            // drawStringWithShadow may add one pixel beyond the foreground raster.
-            float right = Math.max(rendered.advance(), rendered.visualRight()) + 1.0F;
-            int visualWidth = (int) Math.ceil(right - (float) Math.floor(left));
-            return Math.max(advanceWidth, visualWidth);
+            return neofontrender.api.text.route.TextRenderRouteApi.layout(
+                    font, text, 0xFFFFFFFF, shadow).visualBounds();
         } catch (RuntimeException | LinkageError ignored) {
-            // Tooltip rendering must remain available if an optional native backend fails.
-            return advanceWidth + 2;
+            float width = font == null ? 0 : font.getStringWidth(text);
+            return new TextVisualBounds(0, 0, width,
+                    Math.max(1, font == null ? 9 : font.FONT_HEIGHT));
         }
     }
 
+    public static HorizontalBounds measuredHorizontalBounds(FontRenderer font, String text,
+                                                             boolean shadow) {
+        TextVisualBounds bounds = measuredVisualBounds(font, text, shadow);
+        return new HorizontalBounds(bounds.left, bounds.right);
+    }
+
+    public static final class HorizontalBounds {
+        public final float left, right;
+        HorizontalBounds(float left, float right) { this.left = left; this.right = right; }
+        public int width() { return Math.max(0, (int) Math.ceil(right - left)); }
+    }
+
+    public static VerticalBounds measuredVerticalBounds(FontRenderer font, String text, boolean shadow) {
+        TextVisualBounds bounds = measuredVisualBounds(font, text, shadow);
+        return new VerticalBounds(bounds.top, bounds.bottom);
+    }
+
+    public static final class VerticalBounds {
+        public final float top, bottom;
+        VerticalBounds(float top, float bottom) { this.top = top; this.bottom = bottom; }
+    }
     public static void beginRichTooltip() {
         Integer depth = RICH_TOOLTIP_DEPTH.get();
         RICH_TOOLTIP_DEPTH.set(depth == null ? 1 : depth + 1);

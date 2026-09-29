@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased]
+
+- Preserve destination alpha across Cosmic and SFR/AWT text draws so transparent glyph padding
+  cannot punch holes in offscreen framebuffers such as Xaero's entity-name minimap layer.
+- Keep the current renderer active while SFR fonts load asynchronously, and perform atlas upload,
+  prewarming, disposal, and backend activation on Minecraft's client thread.
+
+## [uie/0.7.0]
+
+- Route UIE structured inline content and CJK paragraph layout through NFR's unified text-rendering
+  protocol, including shared layout options for LaTeX, Typst, SVG, images, and emoji.
+
+## [0.6.0]
+
+- Introduce the unified structured-text, route, paragraph, GL component, and post-processing APIs
+  used by both modern renderers and optional content addons.
+- Add the standalone Text Render Lab for testing AWT, Cosmic, UIE, LaTeX, Typst, images, formatting,
+  CJK layout, shadows, and animated effects outside Minecraft.
+
 ## [electric-elytra/0.1.0]
 
 - Initial alpha of the Revo Electric Elytra submod: vanilla-control electric elytra and
@@ -10,6 +29,12 @@
 
 ## [uie/0.6.0]
 
+- Suppress Cleanroom 0.6.10+ chat suggestions while Revo UI owns command completion, preventing
+  duplicate dropdowns and requests while preserving Cleanroom completion in command blocks and
+  whenever Revo UI command completion is disabled.
+- Bring Revo UI command completion presentation in line with Cleanroom: deduplicate requests,
+  reject stale responses, replace complete tokens, show ghost text and command/argument colors,
+  and expose explicit selection plus a popup scrollbar.
 - Add loading-time prompt arbitration so Forge startup queries and modded confirmation screens
   remain visible and interactive, with a scrollable modern skin for Forge confirmations.
 - Expand the Flight API to v9 with shared quaternion attitude, body-pose and camera-tracking

@@ -1,7 +1,8 @@
 package neofontrender.addons.camera;
 
-import net.minecraftforge.common.MinecraftForge;
+import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.MouseEvent;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.event.world.WorldEvent;
@@ -70,10 +71,14 @@ public final class CameraModule implements UiEnhancementModule {
 
     /** Avoid owning Minecraft's hotbar redirect so inventory mods can compose with this gate. */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void blockDroneHotbarScroll(MouseEvent event) {
-        if (event.getDwheel() != 0 && InputApi.isBlocked(InputAction.PLAYER_HOTBAR)) {
-            event.setCanceled(true);
-        }
+    public void mouseInput(MouseEvent event) {
+        if (event.getDwheel() == 0) return;
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft.player == null || minecraft.world == null
+                || minecraft.currentScreen != null || !minecraft.inGameHasFocus) return;
+        // Forge posts this before hotbar scrolling and BogoSorter's redirect. Cancel the
+        // wheel event instead of competing to redirect InventoryPlayer.changeCurrentItem.
+        if (InputApi.isBlocked(InputAction.PLAYER_HOTBAR)) event.setCanceled(true);
     }
 
     @SubscribeEvent

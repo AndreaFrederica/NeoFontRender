@@ -58,28 +58,48 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
         font.drawString(AddonI18n.tr("neofontrender_ui_enhancements.gui.preview.tooltip")
                 + " · " + AddonI18n.tr("neofontrender_ui_enhancements.gui.profile." + selected),
                 10, 8, 0xFFB8C8D8);
-        TooltipConfig.Profile profile = TooltipConfig.profile(selected);
-        boolean textProfile = isTextProfile(selected);
-        float profileScale = textProfile ? profile.textScale : 1.0F;
-        float profileOffsetX = textProfile ? profile.offsetX : 0.0F;
-        float profileOffsetY = textProfile ? profile.offsetY : 0.0F;
         boolean mapPreview = "quark".equals(selected);
         PreviewData preview = previewData(selected, resolvePreviewStack(previewItemId.get()));
-        List<String> lines = preview.lines;
-        int contentWidth = measuredWidth(font, preview, profileScale);
-        int contentHeight = measuredHeight(font, preview, profileScale);
-        int panelWidth = mapPreview ? QuarkMapTooltipLayout.PANEL_SIZE
-                : Math.max(140, contentWidth + TooltipConfig.horizontalPadding * 2);
-        panelWidth = Math.min(Math.max(1, width - 24), panelWidth);
-        int panelHeight = mapPreview ? QuarkMapTooltipLayout.PANEL_SIZE
-                : Math.max(36, contentHeight + TooltipConfig.verticalPadding * 2);
-        panelHeight = Math.min(Math.max(1, stageBottom - stageTop - 12), panelHeight);
-        int panelLeft = Math.max(6, (width - panelWidth) / 2);
-        int panelTop = Math.max(stageTop + 6,
-                stageTop + (stageBottom - stageTop - panelHeight) / 2);
-        int layoutWidth = Math.max(1, panelWidth - TooltipConfig.horizontalPadding * 2);
-        int textLeft = panelLeft + TooltipConfig.horizontalPadding;
-        int textTop = panelTop + TooltipConfig.verticalPadding;
+        TooltipConfig.Profile profile = TooltipConfig.profile(selected);
+        boolean textProfile = isTextProfile(selected);
+        TooltipConfig.Profile activeProfile = textProfile ? profile : previewProfile();
+        int maxWidth = Math.max(1, width - 24 - (TooltipConfig.leftPadding + TooltipConfig.rightPadding));
+        TooltipLayout layout = mapPreview ? null : TooltipLayout.preview(
+                font, preview.stack, preview.lines, preview.compactLines, activeProfile, maxWidth);
+
+        int panelLeft;
+        int panelTop;
+        int panelWidth;
+        int panelHeight;
+        int contentX = 0;
+        int contentY = 0;
+        float stageScale = 1.0F;
+        if (mapPreview) {
+            panelWidth = QuarkMapTooltipLayout.PANEL_SIZE;
+            panelHeight = QuarkMapTooltipLayout.PANEL_SIZE;
+            panelLeft = Math.max(6, (width - panelWidth) / 2);
+            panelTop = Math.max(stageTop + 6,
+                    stageTop + (stageBottom - stageTop - panelHeight) / 2);
+        } else {
+            TooltipPanelBounds panel = layout.panelBounds();
+            panelWidth = Math.max(1, panel.width());
+            panelHeight = Math.max(1, panel.height());
+            int stageWidth = Math.max(1, right - 4);
+            int stageHeight = Math.max(1, stageBottom - stageTop - 12);
+            stageScale = Math.min(1.0F,
+                    Math.min((float) stageWidth / panelWidth, (float) stageHeight / panelHeight));
+            float centerX = width * 0.5F;
+            float centerY = stageTop + (stageBottom - stageTop) * 0.5F;
+            contentX = Math.round(centerX - panelWidth * stageScale * 0.5F
+                    + TooltipConfig.leftPadding * stageScale);
+            contentY = Math.round(centerY - panelHeight * stageScale * 0.5F
+                    + (TooltipConfig.topPadding - layout.visualTop) * stageScale);
+            panelLeft = Math.round(contentX - TooltipConfig.leftPadding * stageScale);
+            panelTop = Math.round(contentY + layout.visualTop * stageScale
+                    - TooltipConfig.topPadding * stageScale);
+            panelWidth = Math.max(1, Math.round(panelWidth * stageScale));
+            panelHeight = Math.max(1, Math.round(panelHeight * stageScale));
+        }
 
         boolean lighting = GL11.glIsEnabled(GL11.GL_LIGHTING);
         boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
@@ -88,16 +108,31 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
         boolean alpha = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
         boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
         try {
-            ModernTooltipRenderer.drawCompatibleBackground(
-                    panelLeft, panelTop, panelWidth, panelHeight, preview.stack);
-            GlStateManager.disableLighting();
-            GlStateManager.disableDepth();
-            GlStateManager.enableTexture2D();
-            GlStateManager.enableAlpha();
-            if (mapPreview) drawMapPreview(panelLeft, panelTop);
-            ModernTooltipRenderer.drawContent(textLeft, textTop, layoutWidth, lines,
-                    preview.compactLines, lines.isEmpty() ? 0 : 1,
-                    textProfile ? profile : previewProfile(), font, preview.stack, false, null);
+            if (!mapPreview) {
+                GlStateManager.pushMatrix();
+                try {
+                    GlStateManager.translate(contentX, contentY, 0.0F);
+                    GlStateManager.scale(stageScale, stageScale, 1.0F);
+                    TooltipPanelBounds panel = layout.panelBounds();
+                    ModernTooltipRenderer.drawCompatibleBackground(
+                            panel.left, panel.top, panel.width(), panel.height(), preview.stack);
+                    GlStateManager.disableLighting();
+                    GlStateManager.disableDepth();
+                    GlStateManager.enableTexture2D();
+                    GlStateManager.enableAlpha();
+                    ModernTooltipRenderer.drawContent(layout, font, preview.stack);
+                } finally {
+                    GlStateManager.popMatrix();
+                }
+            } else {
+                ModernTooltipRenderer.drawCompatibleBackground(
+                        panelLeft, panelTop, panelWidth, panelHeight, preview.stack);
+                GlStateManager.disableLighting();
+                GlStateManager.disableDepth();
+                GlStateManager.enableTexture2D();
+                GlStateManager.enableAlpha();
+                drawMapPreview(panelLeft, panelTop);
+            }
 
             if (textProfile) {
                 String values = String.format(java.util.Locale.ROOT,
@@ -132,14 +167,6 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
                     AddonI18n.tr(root + "hei.title"), AddonI18n.tr(root + "hei.body")));
             List<Boolean> compact = flags(lines.size());
             appendModName(lines, compact, "Just Enough Items");
-            return new PreviewData(lines, compact, ItemStack.EMPTY);
-        }
-        if ("obscure".equals(id)) {
-            List<String> lines = new ArrayList<>(Arrays.asList(
-                    AddonI18n.tr(root + "obscure.title"),
-                    AddonI18n.tr(root + "obscure.body")));
-            List<Boolean> compact = flags(lines.size());
-            appendModName(lines, compact, "Obscure Tooltips");
             return new PreviewData(lines, compact, ItemStack.EMPTY);
         }
         if ("quark".equals(id)) {
@@ -214,32 +241,6 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
         Gui.drawRect(left + 9, top + 35, left + 39, bottom - 7, 0xFF8A7658);
         Gui.drawRect(left + 43, top + 41, right - 6, bottom - 8, 0xFF527258);
         Gui.drawRect(left + 30, top + 25, left + 34, top + 29, 0xFFF3E7C2);
-    }
-
-    private static int measuredWidth(FontRenderer font, PreviewData preview, float profileScale) {
-        int width = 0;
-        for (int index = 0; index < preview.lines.size(); index++) {
-            float scale = profileScale * (isCompact(font, preview, index) ? 0.5F : 1.0F);
-            width = Math.max(width, Math.max(1,
-                    Math.round(font.getStringWidth(preview.lines.get(index)) * scale)));
-        }
-        return width;
-    }
-
-    private static int measuredHeight(FontRenderer font, PreviewData preview, float profileScale) {
-        int height = 0;
-        for (int index = 0; index < preview.lines.size(); index++) {
-            int advance = isCompact(font, preview, index)
-                    ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT
-                    : index == 0 ? Math.max(1, font.FONT_HEIGHT - 1) : TooltipConfig.lineHeight;
-            height += Math.max(1, Math.round(advance * profileScale));
-        }
-        if (preview.lines.size() > 1) height += TooltipConfig.titleGap;
-        return height;
-    }
-
-    private static boolean isCompact(FontRenderer font, PreviewData preview, int lineIndex) {
-        return !font.getUnicodeFlag() && preview.compactLines.get(lineIndex);
     }
 
     private static boolean isTextProfile(String profileId) {

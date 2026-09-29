@@ -1,0 +1,148 @@
+plugins {
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+}
+
+dependencies {
+    implementation project(':engine:text-core')
+    implementation project(':engine:typst-render')
+    implementation project(':addons:ui-enhancements-text')
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+def hostOs = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
+def hostArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
+def nativeArch = (hostArch == 'amd64' || hostArch == 'x86_64') ? 'x86_64' :
+        (hostArch == 'aarch64' || hostArch == 'arm64') ? 'aarch64' : 'unsupported'
+def nativePlatform = hostOs.contains('win') ? "windows-${nativeArch}" :
+        (hostOs.contains('mac') ? "macos-${nativeArch}" : "linux-${nativeArch}-gnu")
+def nativeLibraryName = hostOs.contains('win') ? 'neofontrender_cosmic.dll' :
+        (hostOs.contains('mac') ? 'libneofontrender_cosmic.dylib' : 'libneofontrender_cosmic.so')
+def typstNativeLibraryName = hostOs.contains('win') ? 'neofontrender_typst.dll' :
+        (hostOs.contains('mac') ? 'libneofontrender_typst.dylib' : 'libneofontrender_typst.so')
+def nativeLibrary = rootProject.file("native/cosmic-text/target/release/${nativeLibraryName}")
+
+processResources {
+    dependsOn rootProject.tasks.named('buildCosmicNative')
+    from(rootProject.file('src/main/resources/assets/neofontrender/fonts')) {
+        into 'assets/neofontrender/fonts'
+    }
+    from(nativeLibrary) {
+        into "assets/neofontrender/natives/${nativePlatform}"
+    }
+}
+
+application {
+    mainClass = 'neofontrender.lab.TextRenderLab'
+    applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
+}
+
+jar {
+    dependsOn configurations.runtimeClasspath
+    archiveBaseName = 'neofontrender-text-render-lab'
+    archiveVersion = rootProject.version
+    archiveClassifier = nativePlatform
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes(
+                'Main-Class': application.mainClass.get(),
+                'Enable-Native-Access': 'ALL-UNNAMED'
+        )
+    }
+    from {
+        configurations.runtimeClasspath.collect { dependency ->
+            dependency.isDirectory() ? dependency : zipTree(dependency)
+        }
+    }
+    exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+tasks.register('verifyGolden', Test) {
+    description = 'Runs the headless AWT/Cosmic structured-text and animation golden checks.'
+    group = 'verification'
+    useJUnitPlatform { includeTags 'golden' }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+}
+
+tasks.register('verifyStandaloneJar') {
+    group = 'verification'
+    description = 'Verifies that the executable laboratory JAR is self-contained.'
+    dependsOn tasks.named('jar')
+    doLast {
+        def archive = tasks.named('jar').get().archiveFile.get().asFile
+        def file = new java.util.jar.JarFile(archive)
+        try {
+            def required = [
+                    'neofontrender/lab/TextRenderLab.class',
+                    'neofontrender/text/StructuredText.class',
+                    'neofontrender/uie/text/v3/UiEnhancementsTextPlugin.class',
+                    'neofontrender/core/font/cosmic/CosmicNative.class',
+                    'neofontrender/typst/TypstEngine.class',
+                    'assets/neofontrender/fonts/noto_sans_sc-regular.otf',
+                    'assets/neofontrender/fonts/noto_color_emoji_regular.ttf',
+                    'assets/neofontrender_ui_enhancements/fonts/fira_math-regular.otf',
+                    "assets/neofontrender/natives/${nativePlatform}/${nativeLibraryName}",
+                    "assets/neofontrender/typst-native/${nativePlatform}/${typstNativeLibraryName}"
+            ]
+            def missing = required.findAll { file.getEntry(it) == null }
+            if (!missing.isEmpty()) {
+                throw new GradleException("Standalone laboratory JAR is missing: ${missing}")
+            }
+            if (file.entries().toList().any { it.name.startsWith('net/minecraft/')
+                    || it.name.startsWith('net/minecraftforge/') }) {
+                throw new GradleException('Standalone laboratory JAR contains Minecraft/Forge classes')
+            }
+            if (file.manifest?.mainAttributes?.getValue('Main-Class') != application.mainClass.get()) {
+                throw new GradleException('Standalone laboratory JAR has no executable Main-Class')
+            }
+        } finally {
+            file.close()
+        }
+    }
+}
+
+tasks.register('verifyStandaloneExecutable', Exec) {
+    group = 'verification'
+    description = 'Launches the packaged executable JAR and runs both raster backends.'
+    dependsOn tasks.named('jar')
+    def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+    commandLine launcher.get().executablePath.asFile.absolutePath,
+            '-jar', tasks.named('jar').get().archiveFile.get().asFile.absolutePath,
+            '--self-test'
+}
+
+tasks.register('verifyUiEnhancementsPluginJar', Exec) {
+    group = 'verification'
+    description = 'Loads the real UI Enhancements mod JAR through the isolated text SPI loader.'
+    dependsOn tasks.named('jar'), project(':addons:ui-enhancements').tasks.named('jar')
+    def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+    commandLine launcher.get().executablePath.asFile.absolutePath,
+            '-jar', tasks.named('jar').get().archiveFile.get().asFile.absolutePath,
+            '--self-test', '--plugin',
+            project(':addons:ui-enhancements').tasks.named('jar').get()
+                    .archiveFile.get().asFile.absolutePath
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyGolden')
+    dependsOn tasks.named('verifyStandaloneJar')
+    dependsOn tasks.named('verifyStandaloneExecutable')
+    dependsOn tasks.named('verifyUiEnhancementsPluginJar')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

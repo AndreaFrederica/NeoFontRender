@@ -22,7 +22,7 @@ import java.util.Map;
 /**
  * AWT-based rasterization backend for Forge and ModernSplash loading screens.
  *
- * <p>Each distinct string is rasterized once into a GL texture and cached. The texture is
+ * <p>Each distinct string is rasterized once into a shared GL atlas and cached. The texture is
  * drawn as a quad tinted by the theme color already active in OpenGL. Text is oversampled for
  * quality, while advance and pixel bounds come from the same {@link TextLayout} so long strings
  * and overhanging glyphs are not clipped.</p>
@@ -31,21 +31,19 @@ public final class SplashAwtBackend {
 
     public static final int LOGICAL_HEIGHT = 8;
     private static final int OVERSAMPLE = 2;
-    private static final int MAX_CACHE_ENTRIES = 128;
+    private static final int MAX_CACHE_ENTRIES = 256;
+    private static final int REQUESTED_ATLAS_WIDTH = 2048;
+    private static final int REQUESTED_ATLAS_HEIGHT = 1024;
+    private static final int ATLAS_GUTTER = 1;
 
     private final Font font;
     private final FontRenderContext fontRenderContext;
     private final float outlineStrokeWidth;
-    private final Map<String, RenderedString> cache = new LinkedHashMap<String, RenderedString>(16, 0.75F, true) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<String, RenderedString> eldest) {
-            if (size() <= MAX_CACHE_ENTRIES) {
-                return false;
-            }
-            eldest.getValue().delete();
-            return true;
-        }
-    };
+    private final Map<String, RenderedString> cache =
+            new LinkedHashMap<String, RenderedString>(16, 0.75F, true);
+    private final SplashTextureAtlasLayout atlasLayout;
+    private final int atlasTextureId;
+    private boolean warnedOversizedText;
 
     public SplashAwtBackend() {
         float size = resolveFontSize();
@@ -55,6 +53,14 @@ public final class SplashAwtBackend {
                 this.font.getSize2D(), resolved.weight.emboldenDelta);
         this.fontRenderContext = new FontRenderContext(null, true,
                 NeofontrenderConfig.fontFractionalMetrics());
+
+        int maxTextureSize = GL11.glGetInteger(GL11.GL_MAX_TEXTURE_SIZE);
+        int atlasWidth = clampAtlasDimension(REQUESTED_ATLAS_WIDTH, maxTextureSize);
+        int atlasHeight = clampAtlasDimension(REQUESTED_ATLAS_HEIGHT, maxTextureSize);
+        this.atlasLayout = new SplashTextureAtlasLayout(atlasWidth, atlasHeight, ATLAS_GUTTER);
+        this.atlasTextureId = createAtlasTexture(atlasWidth, atlasHeight);
+        NeoFontRender.LOGGER.debug("Allocated {}x{} shared splash text atlas",
+                atlasWidth, atlasHeight);
 
         if (resolved.weight.adjusted) {
             NeoFontRender.LOGGER.info(
@@ -179,13 +185,13 @@ public final class SplashAwtBackend {
             float y1 = y0 + rendered.textureHeight;
 
             GL11.glBegin(GL11.GL_QUADS);
-            GL11.glTexCoord2f(0.0F, 0.0F);
+            GL11.glTexCoord2f(rendered.u0, rendered.v0);
             GL11.glVertex2f(x0, y0);
-            GL11.glTexCoord2f(0.0F, 1.0F);
+            GL11.glTexCoord2f(rendered.u0, rendered.v1);
             GL11.glVertex2f(x0, y1);
-            GL11.glTexCoord2f(1.0F, 1.0F);
+            GL11.glTexCoord2f(rendered.u1, rendered.v1);
             GL11.glVertex2f(x1, y1);
-            GL11.glTexCoord2f(1.0F, 0.0F);
+            GL11.glTexCoord2f(rendered.u1, rendered.v0);
             GL11.glVertex2f(x1, y0);
             GL11.glEnd();
         }
@@ -195,6 +201,10 @@ public final class SplashAwtBackend {
         RenderedString cached = cache.get(text);
         if (cached != null) {
             return cached;
+        }
+
+        if (cache.size() >= MAX_CACHE_ENTRIES) {
+            resetAtlasCache();
         }
 
         RenderedString rendered = rasterize(text);
@@ -250,7 +260,22 @@ public final class SplashAwtBackend {
 
         int cropW = bounds.maxX - bounds.minX + 1;
         int cropH = bounds.maxY - bounds.minY + 1;
-        int textureId = uploadTexture(pixels, width, height, bounds);
+        SplashTextureAtlasLayout.Placement placement = atlasLayout.allocate(cropW, cropH);
+        if (placement == null) {
+            resetAtlasCache();
+            placement = atlasLayout.allocate(cropW, cropH);
+        }
+        if (placement == null) {
+            if (!warnedOversizedText) {
+                warnedOversizedText = true;
+                NeoFontRender.LOGGER.warn(
+                        "A loading-screen string raster ({}x{}) exceeds the fixed {}x{} text atlas; "
+                                + "the string will not be drawn",
+                        cropW, cropH, atlasLayout.width(), atlasLayout.height());
+            }
+            return RenderedString.empty(logicalWidth);
+        }
+        uploadAtlasRegion(pixels, width, bounds, placement);
 
         float textureWidth = cropW / (float) OVERSAMPLE;
         float textureHeight = cropH / (float) OVERSAMPLE;
@@ -262,8 +287,12 @@ public final class SplashAwtBackend {
                 - (baseline - bounds.minY) / OVERSAMPLE
                 + NeofontrenderConfig.fontBaselineShift();
 
-        return new RenderedString(textureId, logicalWidth, textureWidth, textureHeight,
-                xOffset, baselineOffset);
+        return new RenderedString(atlasTextureId, logicalWidth, textureWidth, textureHeight,
+                xOffset, baselineOffset,
+                placement.x / (float) atlasLayout.width(),
+                placement.y / (float) atlasLayout.height(),
+                (placement.x + placement.width) / (float) atlasLayout.width(),
+                (placement.y + placement.height) / (float) atlasLayout.height());
     }
 
     static void drawLayout(Graphics2D graphics, TextLayout layout, float drawX, float baseline,
@@ -286,14 +315,22 @@ public final class SplashAwtBackend {
         return padding;
     }
 
-    private static int uploadTexture(int[] src, int srcW, int srcH, Bounds bounds) {
+    private void uploadAtlasRegion(int[] src, int srcW, Bounds bounds,
+                                   SplashTextureAtlasLayout.Placement placement) {
         int w = bounds.maxX - bounds.minX + 1;
         int h = bounds.maxY - bounds.minY + 1;
+        int gutter = atlasLayout.gutter();
+        int uploadW = w + gutter * 2;
+        int uploadH = h + gutter * 2;
 
-        ByteBuffer buffer = BufferUtils.createByteBuffer(w * h * 4);
-        for (int y = bounds.minY; y <= bounds.maxY; y++) {
-            for (int x = bounds.minX; x <= bounds.maxX; x++) {
-                int argb = src[y * srcW + x];
+        ByteBuffer buffer = BufferUtils.createByteBuffer(uploadW * uploadH * 4);
+        for (int y = 0; y < uploadH; y++) {
+            for (int x = 0; x < uploadW; x++) {
+                int sourceX = x - gutter;
+                int sourceY = y - gutter;
+                int argb = sourceX >= 0 && sourceX < w && sourceY >= 0 && sourceY < h
+                        ? src[(bounds.minY + sourceY) * srcW + bounds.minX + sourceX]
+                        : 0;
                 buffer.put((byte) ((argb >> 16) & 0xFF));
                 buffer.put((byte) ((argb >> 8) & 0xFF));
                 buffer.put((byte) (argb & 0xFF));
@@ -302,15 +339,46 @@ public final class SplashAwtBackend {
         }
         buffer.flip();
 
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, atlasTextureId);
+        int previousAlignment = GL11.glGetInteger(GL11.GL_UNPACK_ALIGNMENT);
+        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+        try {
+            GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0,
+                    placement.x - gutter, placement.y - gutter, uploadW, uploadH,
+                    GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+        } finally {
+            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, previousAlignment);
+        }
+    }
+
+    private static int createAtlasTexture(int width, int height) {
         int textureId = GL11.glGenTextures();
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_CLAMP);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_CLAMP);
-        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, w, h, 0,
-                GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+        int previousAlignment = GL11.glGetInteger(GL11.GL_UNPACK_ALIGNMENT);
+        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+        try {
+            // Allocate storage once, before Minecraft begins its large resource-atlas uploads.
+            // TODO: use Cleanroom's command/render core once it exposes a supported splash upload
+            // queue; shared-context texture storage allocation is driver-sensitive on Intel.
+            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, width, height, 0,
+                    GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
+        } finally {
+            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, previousAlignment);
+        }
         return textureId;
+    }
+
+    private static int clampAtlasDimension(int requested, int maxTextureSize) {
+        return maxTextureSize > 0 ? Math.min(requested, maxTextureSize) : requested;
+    }
+
+    private void resetAtlasCache() {
+        cache.clear();
+        atlasLayout.reset();
     }
 
     private static Bounds cropBounds(int[] pixels, int width, int height) {
@@ -426,25 +494,29 @@ public final class SplashAwtBackend {
         final float textureHeight;
         final float xOffset;
         final float baselineOffset;
+        final float u0;
+        final float v0;
+        final float u1;
+        final float v1;
 
         RenderedString(int textureId, float logicalWidth, float textureWidth, float textureHeight,
-                       float xOffset, float baselineOffset) {
+                       float xOffset, float baselineOffset,
+                       float u0, float v0, float u1, float v1) {
             this.textureId = textureId;
             this.logicalWidth = logicalWidth;
             this.textureWidth = textureWidth;
             this.textureHeight = textureHeight;
             this.xOffset = xOffset;
             this.baselineOffset = baselineOffset;
+            this.u0 = u0;
+            this.v0 = v0;
+            this.u1 = u1;
+            this.v1 = v1;
         }
 
         static RenderedString empty(float logicalWidth) {
-            return new RenderedString(0, logicalWidth, 0.0F, 0.0F, 0.0F, 0.0F);
-        }
-
-        void delete() {
-            if (textureId > 0) {
-                GL11.glDeleteTextures(textureId);
-            }
+            return new RenderedString(0, logicalWidth, 0.0F, 0.0F, 0.0F, 0.0F,
+                    0.0F, 0.0F, 0.0F, 0.0F);
         }
     }
 }

@@ -1,0 +1,76 @@
+<nfr:app-shell xmlns:mui="urn:mui" xmlns:nfr="urn:neofontrender:components">
+    <mui:container slot="header" class="header-copy">
+        <mui:text class="brand-title" text="Revo Font UI Library"/>
+        <mui:text class="brand-subtitle" text="XML / CSS / DOM integration showcase"/>
+    </mui:container>
+
+    <mui:container slot="sidebar" class="sidebar-copy">
+        <mui:text class="section-label" text="SHOWCASE"/>
+        <nfr:nav-item id="nav-overview" label="Overview" selected="true" onclick="showcase:nav-overview"/>
+        <nfr:nav-item id="nav-components" label="Components" selected="false" onclick="showcase:nav-components"/>
+        <mui:text class="sidebar-note" text="F8 or /mui_xml_showcase"/>
+    </mui:container>
+
+    <mui:container slot="content" class="page-stack">
+        <mui:scroll id="page-overview" class="showcase-page" data-active="true">
+            <mui:column class="page-flow">
+                <nfr:card id="settings-card" title="Reactive settings">
+                    <mui:column slot="body" class="control-list">
+                        <nfr:toggle id="toggle-font" label="Enable font renderer" checked="true" onclick="showcase:toggle-font"/>
+                        <nfr:toggle id="toggle-shadow" label="Text shadow" checked="false" onclick="showcase:toggle-shadow"/>
+                        <nfr:field label="Rendering mode">
+                            <mui:button slot="control" id="cycle-mode" class="value-button" onclick="showcase:cycle-mode">
+                                <mui:text id="mode-value" class="value-text" text="Balanced"/>
+                            </mui:button>
+                        </nfr:field>
+                        <nfr:field label="Interface scale">
+                            <mui:container slot="control" class="slider-control">
+                                <nfr:slider id="scale-slider" store-key="scale" min="0.5" max="2.0" step="0.1" value="1.0"/>
+                                <mui:text id="scale-value" class="slider-value" text="1.0"/>
+                            </mui:container>
+                        </nfr:field>
+                        <nfr:field label="Preview text">
+                            <nfr:text-field slot="control" id="sample-input" store-key="sampleText" max-length="80"/>
+                        </nfr:field>
+                    </mui:column>
+                </nfr:card>
+
+                <nfr:card id="preview-card" title="Live preview">
+                    <mui:container slot="body" class="preview-box">
+                        <mui:text id="sample-preview" class="preview-text" text="The quick brown fox"/>
+                    </mui:container>
+                </nfr:card>
+            </mui:column>
+        </mui:scroll>
+
+        <mui:scroll id="page-components" class="showcase-page" data-active="false">
+            <mui:column class="page-flow">
+                <nfr:card id="runtime-card" title="Runtime DOM mutation">
+                    <mui:column slot="body" class="runtime-demo">
+                        <mui:text class="body-copy" text="These rows are created and removed after mount without rebuilding the screen."/>
+                        <mui:row class="action-row">
+                            <nfr:action id="add-row" label="Add row" kind="primary" onclick="showcase:add-row"/>
+                            <nfr:action id="remove-row" label="Remove row" kind="secondary" onclick="showcase:remove-row"/>
+                        </mui:row>
+                        <mui:column id="runtime-list" class="runtime-list"/>
+                    </mui:column>
+                </nfr:card>
+
+                <nfr:card id="event-card" title="Event propagation">
+                    <mui:container slot="body" class="event-info">
+                        <mui:text class="body-copy" text="Root capture listener counts pointerdown before target handlers run."/>
+                        <mui:text class="metric-label" text="Captured events"/>
+                        <mui:text id="event-count" class="metric-value" text="0"/>
+                    </mui:container>
+                </nfr:card>
+            </mui:column>
+        </mui:scroll>
+    </mui:container>
+
+    <mui:container slot="footer" class="footer-copy">
+        <mui:text id="status-text" class="status-text" text="Loading"/>
+        <mui:text class="runtime-summary" text="Runtime rows"/>
+        <mui:text id="runtime-count" class="runtime-count" text="0"/>
+        <nfr:action id="reset-demo" label="Reset demo" kind="secondary" onclick="showcase:reset"/>
+    </mui:container>
+</nfr:app-shell>

@@ -179,7 +179,8 @@ public final class NeofontrenderConfigScreen {
             case COMPATIBILITY:
                 return new NfrCompatibilitySettingsView(draft, controls);
             case LABORATORY:
-                return new NfrLaboratorySettingsView(draft, controls);
+                return new NfrLaboratorySettingsView(draft, controls,
+                        screen.sectionControls(NfrSettingsSection.LABORATORY, selected));
             case ABOUT:
                 return new NfrAboutSettingsView(draft);
             case LICENSES:
@@ -255,7 +256,10 @@ public final class NeofontrenderConfigScreen {
                 if (session == null) throw new IllegalStateException("Settings page returned a null session: " + page.id());
                 extensionSessions.put(page.id(), session);
             }
-            this.sectionContributions = NfrSettingsSectionRegistry.snapshot(NfrSettingsSection.FIXES);
+            this.sectionContributions = new ArrayList<>();
+            for (NfrSettingsSection section : NfrSettingsSection.values()) {
+                this.sectionContributions.addAll(NfrSettingsSectionRegistry.snapshot(section));
+            }
             for (NfrSettingsSectionContribution contribution : sectionContributions) {
                 NfrSettingsSectionSession session = contribution.createSession();
                 if (session == null) {

@@ -3,7 +3,7 @@ package neofontrender.addons.camera;
 import java.util.List;
 
 /** Pure presentation state rules shared by runtime code and regression tests. */
-final class CameraPresentationPolicy {
+public final class CameraPresentationPolicy {
     private CameraPresentationPolicy() {}
 
     /** Omnilook exits only when its own active FreeLook perspective is changed externally. */
@@ -21,6 +21,11 @@ final class CameraPresentationPolicy {
     static boolean usesQuaternionView(boolean shoulderActive, boolean lookCameraActive,
                                       boolean droneActive) {
         return !shoulderActive && (lookCameraActive || droneActive);
+    }
+
+    public static double vanillaThirdPersonDistance(double computedDistance,
+                                                     boolean suppressDisplacement) {
+        return suppressDisplacement ? 0.0D : computedDistance;
     }
 
     static int currentIndex(List<?> modes, Object activeMode) {

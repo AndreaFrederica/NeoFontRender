@@ -66,6 +66,7 @@ public final class NfrShadowPreview extends Widget<NfrShadowPreview> {
         String[] sample = previewParts();
         int[] colors = TEXT_COLORS;
         ModernTextLayout[] layouts = new ModernTextLayout[sample.length];
+        ModernTextLayout[] legacyShadows = new ModernTextLayout[sample.length];
         float totalWidth = 0.0F;
         ShadowRenderSpec spec = ShadowRenderSpec.of(
                 draft.shadowOffsetX, draft.shadowOffsetY,
@@ -79,11 +80,20 @@ public final class NfrShadowPreview extends Widget<NfrShadowPreview> {
             layouts[index] = useShadow
                     ? ModernTextApi.layoutFormattedWithShadow(sample[index], FONT_SIZE, color, spec)
                     : ModernTextApi.layoutFormatted(sample[index], FONT_SIZE, color, false);
+            if (!draft.modernShadow && shadowEnabled()) {
+                legacyShadows[index] = ModernTextApi.layoutFormattedLegacyShadow(
+                        sample[index], FONT_SIZE, color, spec);
+            }
             totalWidth += layouts[index].advance();
         }
         float cursor = Math.max(10.0F, (width - totalWidth) * 0.5F);
         float top = stageTop + Math.max(4.0F, (stageBottom - stageTop - FONT_SIZE) * 0.5F);
-        for (ModernTextLayout layout : layouts) {
+        for (int index = 0; index < layouts.length; index++) {
+            ModernTextLayout layout = layouts[index];
+            if (legacyShadows[index] != null) {
+                float offset = draft.shadowLength;
+                legacyShadows[index].draw(cursor + offset, top + offset, draft.shadowOpacity);
+            }
             layout.draw(cursor, top);
             cursor += layout.advance();
         }

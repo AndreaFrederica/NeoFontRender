@@ -51,6 +51,10 @@ java {
     if (generate_javadocs_jar.toBoolean()) withJavadocJar()
 }
 
+tasks.matching { it.name == 'sourcesJar' }.configureEach {
+    dependsOn tasks.named('generateBuildFeatures')
+}
+
 configurations {
     contain
     relocate
@@ -73,10 +77,13 @@ unimined.minecraft {
         if (use_access_transformer.toBoolean()) {
             accessTransformer "${rootProject.projectDir}/src/main/resources/$access_transformer_locations"
         }
-        loader '0.6.8-alpha'
+        loader providers.gradleProperty('cleanroom_version').get()
         runs.preLaunch('client', ':addons:ui-enhancements:prepareCombinedClientRun')
         runs.preLaunch('client', ':addons:ui-enhancements-controller:prepareCombinedClientRun')
         runs.preLaunch('client', ':addons:electric-elytra:prepareCombinedClientRun')
+        runs.preLaunch('client', ':addons:mui-xml-showcase:prepareCombinedClientRun')
+        runs.preLaunch('client', ':addons:inline-content-showcase:prepareCombinedClientRun')
+        runs.preLaunch('client', ':addons:typst-renderer:prepareCombinedClientRun')
         runs.all {
             args += ['--username', minecraft_username]
             // Dev runs use MCP-mapped classes, so reference-map remapping must stay disabled.
@@ -101,6 +108,12 @@ unimined.minecraft {
 }
 
 dependencies {
+    contain project(':engine:text-core')
+    // Optional compile-time API for the local AE2-Supergiant compatibility renderer.
+    // The dependency is never bundled; the runtime mixin is gated on the ae2 mod id.
+    def ae2LocalLib = fileTree(dir: "${rootProject.projectDir}/../ref/Applied-Energistics-2-Supergiant/build/libs",
+            includes: ['AppliedEnergistics2-Supergiant-*.jar'])
+    if (!ae2LocalLib.isEmpty()) modCompileOnly ae2LocalLib
     if (use_asset_mover.toBoolean()) implementation "com.cleanroommc:assetmover:${asset_mover_version}"
     if (enable_junit_testing.toBoolean()) {
         testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
@@ -151,10 +164,6 @@ compileJava {
 def configureModManifest = { archiveTask ->
     archiveTask.doFirst {
         def manifestAttributes = ['ModType': 'CRL']
-        if (project.configurations.contain.size() > 0) {
-            manifestAttributes['ContainedDeps'] = project.configurations.contain.collect { it.name }.join(' ')
-            manifestAttributes['NonModDeps'] = true
-        }
         if (is_coremod.toBoolean()) {
             manifestAttributes['FMLCorePlugin'] = coremod_plugin_class_name
             if (coremod_includes_mod.toBoolean()) manifestAttributes['FMLCorePluginContainsFMLMod'] = true
@@ -165,18 +174,22 @@ def configureModManifest = { archiveTask ->
 }
 
 jar {
+    dependsOn ':engine:text-core:jar'
     archiveClassifier = 'dev'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    if (configurations.contain.size() > 0) from(configurations.contain) { into '/' }
+    if (configurations.contain.size() > 0) {
+        from { configurations.contain.collect { zipTree(it) } }
+    }
     finalizedBy tasks.named(remapTaskName)
 }
 
 shadowJar {
+    dependsOn ':engine:text-core:jar'
     configurations = [project.configurations.relocate]
     archiveClassifier = 'shadow'
     relocate 'com.electronwill.nightconfig', 'neofontrender.internal.nightconfig'
     if (project.configurations.contain.size() > 0) {
-        from(project.configurations.contain) { into '/' }
+        from { project.configurations.contain.collect { zipTree(it) } }
     }
 }
 configureModManifest(tasks.named('jar').get())

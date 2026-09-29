@@ -34,6 +34,9 @@ public final class NfrGeneralSettingsView extends NfrContentView<NfrGeneralSetti
                 .add(c.toggle("neofontrender.gui.option.fractional", "neofontrender.tooltip.fractional",
                         () -> d.fractionalMetrics, value -> d.fractionalMetrics = value))
                 .add(c.toggle("neofontrender.gui.option.builtins", "neofontrender.tooltip.builtins",
-                        () -> d.builtinFallbacks, value -> d.builtinFallbacks = value));
+                        () -> d.builtinFallbacks, value -> d.builtinFallbacks = value))
+                .add(c.toggle("neofontrender.gui.option.show_main_menu_branding",
+                        "neofontrender.tooltip.show_main_menu_branding",
+                        () -> d.showMainMenuBranding, value -> d.showMainMenuBranding = value));
     }
 }

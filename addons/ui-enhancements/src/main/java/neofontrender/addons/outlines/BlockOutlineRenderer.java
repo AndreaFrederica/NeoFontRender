@@ -254,7 +254,8 @@ public final class BlockOutlineRenderer {
     }
 
     private static void vertex(ClipPoint source, double ndcX, double ndcY) {
-        GL11.glVertex4d(ndcX * source.w, ndcY * source.w, source.z, source.w);
+        if (!Double.isFinite(source.w) || Math.abs(source.w) < 1.0E-8D) return;
+        GL11.glVertex3d(ndcX, ndcY, source.z / source.w);
     }
 
     private static void drawNative(AxisAlignedBB box, BlockOutlineResolver.ResolvedOutline outline,

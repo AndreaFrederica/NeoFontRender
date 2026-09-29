@@ -1,0 +1,7 @@
+﻿javap.exe : 错误: 找不到类: paulscode.sound.SoundSystem
+At line:2 char:1
++ & "D:\jvm\zulu25\bin\javap.exe" -p -c -classpath $dir paulscode.sound ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (错误: 找不到类: paulscode.sound.SoundSystem:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

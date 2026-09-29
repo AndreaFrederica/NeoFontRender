@@ -1,8 +1,13 @@
 package neofontrender.addons.tooltips;
 
+import neofontrender.api.text.TextVisualBounds;
+
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.MathUtil;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.item.ItemStack;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
@@ -11,19 +16,43 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraftforge.client.event.RenderTooltipEvent;
 import net.minecraftforge.common.MinecraftForge;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL14;
+import org.lwjgl.opengl.GL20;
 
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import neofontrender.addons.cjk.CjkTypographyRenderer;
-import neofontrender.api.text.CjkParagraphLayoutProvider;
+import java.util.function.ToIntFunction;
+import neofontrender.addons.inline.EmbeddedContentConfig;
+import neofontrender.api.text.route.TextInlineBounds;
+import neofontrender.api.text.route.TextRenderRouteApi;
+import neofontrender.api.text.route.TextRenderRouteLayout;
+import neofontrender.core.font.support.TooltipLayoutCompat;
 
 final class ModernTooltipRenderer {
     private static final int Z_LEVEL = 300;
 
     boolean draw(RenderTooltipEvent.Pre event, boolean[] compactLines, String profileId,
-                 ThaumcraftTooltipCompat.Context thaumcraftContext) {
+                 ThaumcraftTooltipCompat.Context thaumcraftContext,
+                 boolean preserveCallerState) {
+        CallerGlState callerState = preserveCallerState ? CallerGlState.capture() : null;
+        try {
+            return drawInternal(event, compactLines, profileId, thaumcraftContext);
+        } finally {
+            if (callerState != null) callerState.close();
+        }
+    }
+
+    private boolean drawInternal(RenderTooltipEvent.Pre event, boolean[] compactLines,
+                                 String profileId,
+                                 ThaumcraftTooltipCompat.Context thaumcraftContext) {
         if (event.getLines().isEmpty()) return false;
+        ItemZoomOverlay.beforeTooltip(event.getStack(), event.getX(), event.getY());
         MicaBackdrop.captureUiIfEnabled();
         TooltipLayout layout = TooltipLayout.calculate(event, compactLines,
                 TooltipConfig.profile(profileId), thaumcraftContext);
@@ -32,14 +61,19 @@ final class ModernTooltipRenderer {
         int[] fill = TooltipConfig.fillColors.clone();
         int[] border = TooltipConfig.borderColors.clone();
         boolean spectrum = false;
+        // Resource-pack frame definitions take precedence over adaptive rarity coloring.
+        // The texture region is still rendered by UIE's panel path, so no foreign asset is bundled.
+        LegendaryResourceCompat.Frame resourceFrame = LegendaryResourceCompat.INSTANCE.match(event.getStack());
         if (TooltipConfig.adaptiveBorder) {
             // Match ModernUI: inspect the stack's hover/display name itself. Forge 1.12 prefixes
             // the rendered first line with WHITE even for COMMON items, which would otherwise
             // make every ordinary item produce an artificial white adaptive palette.
             String title = event.getStack().isEmpty() ? "" : event.getStack().getDisplayName();
-            AdaptiveBorderColors.Result adaptive = AdaptiveBorderColors.compute(event.getStack(), title, border);
-            border = adaptive.colors;
-            spectrum = adaptive.spectrum;
+            if (resourceFrame == null) {
+                AdaptiveBorderColors.Result adaptive = AdaptiveBorderColors.compute(event.getStack(), title, border);
+                border = adaptive.colors;
+                spectrum = adaptive.spectrum;
+            }
         }
         spectrum |= "spectrum".equals(TooltipConfig.borderShading);
         applyBorderShading(border, TooltipConfig.borderShading);
@@ -56,22 +90,272 @@ final class ModernTooltipRenderer {
             border[2] = border[3] = colorEvent.getBorderEnd();
         }
 
-        drawBackground(layout, fill, border, spectrum);
+        TooltipPanelBounds panel = layout.panelBounds();
+        int panelLeft = panel.left, panelTop = panel.top;
+        int panelRight = panel.right, panelBottom = panel.bottom;
+        if (LegendaryTooltipCompat.prefersPanel(event.getStack())) {
+            LegendaryTooltipCompat.drawPanel(panelLeft, panelTop, panelRight, panelBottom,
+                    fill[0], border[0], border[2]);
+            LegendaryTooltipCompat.drawResourceFrame(panelLeft, panelTop, panelRight, panelBottom,
+                    LegendaryResourceCompat.INSTANCE.match(event.getStack()));
+        } else {
+            drawBackground(layout, fill, border, spectrum);
+        }
         beginTooltipExtensions();
-        try {
+        try (LegendaryTooltipCompat.Scope ignored = LegendaryTooltipCompat.begin(
+                panelLeft, panelTop, panelRight, panelBottom)) {
             MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostBackground(
                     event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
                     layout.width, layout.height));
-            drawContent(layout.x, layout.y, layout.width, layout.lines, layout.compactLines,
-                    layout.titleLines, layout.profile(), event.getFontRenderer(), event.getStack(),
-                    thaumcraftContext != null, layout.lineWidths);
-            MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostText(
-                    event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
-                    layout.width, layout.height));
+            drawContent(layout, event.getFontRenderer(), event.getStack());
+            QuarkTooltipVisuals.beginModernPostText();
+            TooltipLayoutCompat.publish(event.getFontRenderer(), layout.lines, layout.x, layout.y,
+                    layout.width, layout.height);
+            try {
+                MinecraftForge.EVENT_BUS.post(new RenderTooltipEvent.PostText(
+                        event.getStack(), layout.lines, layout.x, layout.y, event.getFontRenderer(),
+                        layout.width, layout.height));
+            } finally {
+                TooltipLayoutCompat.clear();
+                QuarkTooltipVisuals.endModernPostText();
+            }
+            drawDebugLayout(layout, event.getFontRenderer(), event.getStack());
         } finally {
             endTooltipExtensions();
         }
         return true;
+    }
+
+    /** F3 overlay for inspecting logical rows before ScaledResolution projects them. */
+    private static void drawDebugLayout(TooltipLayout layout, FontRenderer font, ItemStack stack) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft.gameSettings == null || !minecraft.gameSettings.showDebugInfo
+                || !EmbeddedContentConfig.tooltipLayoutDebug()) return;
+
+        int contentTop = layout.y + layout.visualTop;
+        int contentBottom = layout.y + layout.visualBottom;
+        outline(layout.x, contentTop, layout.x + layout.width, contentBottom, 0xD000FFFF);
+        TooltipPanelBounds panel = layout.panelBounds();
+        outline(panel.left, panel.top, panel.right, panel.bottom, 0xA08899FF);
+        List<String> debugLines = new ArrayList<>();
+        debugLines.add("tooltip " + layout.width + "x" + Math.max(1, contentBottom - contentTop));
+        debugLines.add("panel=" + panel.left + "," + panel.top + ".." + panel.right + "," + panel.bottom
+                + " padding L/R/T/B=" + TooltipConfig.leftPadding + "/" + TooltipConfig.rightPadding
+                + "/" + TooltipConfig.topPadding + "/" + TooltipConfig.bottomPadding);
+        debugLines.add("content=" + layout.x + "," + layout.y + " divider=" + TooltipConfig.dividerTopMargin + "/"
+                + TooltipConfig.dividerBottomMargin);
+
+        TooltipContentLayout content = TooltipContentLayout.build(layout, font, stack);
+        int sideWidth = content.sideWidth;
+        int titleCount = Math.max(0, Math.min(layout.titleLines, layout.lines.size()));
+        HeaderMetrics header = content.header;
+        if (sideWidth > 0 && layout.visualPlan != null) {
+            outline(layout.x, layout.y, layout.x + sideWidth,
+                    layout.y + layout.visualPlan.sideHeight(), 0xD0FF9E4D);
+            debugLines.add("preview flow " + sideWidth + "x" + layout.visualPlan.sideHeight());
+            for (TooltipVisualPlan.SidePlacement placement : layout.visualPlan.sidePlacements()) {
+                int left = layout.x + placement.x;
+                int top = layout.y + placement.y;
+                outline(left, top, left + placement.block.width(),
+                        top + placement.block.height(), 0xE0FFCF66);
+                debugLines.add(placement.block.debugLabel() + " "
+                        + placement.block.width() + "x" + placement.block.height());
+                for (TooltipVisualBlock.DebugBounds nested : placement.block.debugBounds()) {
+                    outline(left + nested.x, top + nested.y,
+                            left + nested.x + nested.width,
+                            top + nested.y + nested.height, 0xB0FFB14D);
+                    debugLines.add("  " + nested.label + " " + nested.width + "x" + nested.height);
+                }
+            }
+        }
+        if (TooltipHeaderLayout.hasIcon(stack)) {
+            int iconX = layout.x + sideWidth;
+            int iconY = layout.y + header.iconY;
+            int iconInset = TooltipHeaderLayout.iconDecorationInset();
+            int iconBoxSize = TooltipHeaderLayout.iconDecorationSize();
+            outline(iconX - iconInset, iconY - iconInset,
+                    iconX - iconInset + iconBoxSize,
+                    iconY - iconInset + iconBoxSize, 0xE0FFFFFF);
+            debugLines.add(TooltipConfig.headerIconFrameEnabled
+                    ? "header icon frame 18x18"
+                    : TooltipConfig.headerIconBackgroundEnabled
+                    ? "header icon background 18x18" : "header icon 16x16");
+            debugLines.add("header icon anchor=" + TooltipConfig.headerIconAlignment
+                    + " y=" + iconY);
+        }
+        if (content.rarity != null) {
+            TextVisualBounds bounds =
+                    content.rarity.bounds.translate(content.rarityX, content.rarityY);
+            outline((int) Math.floor(bounds.left), (int) Math.floor(bounds.top),
+                    (int) Math.ceil(bounds.right), (int) Math.ceil(bounds.bottom), 0xE0B58CFF);
+            debugLines.add("header rarity @" + content.rarityX + "," + content.rarityY
+                    + " alignment=" + TooltipConfig.rarityAlignment);
+        }
+        if (titleCount > 0 && !content.rows.isEmpty()) {
+            TooltipContentLayout.Row first = content.rows.get(0);
+            float scale = layout.profile().textScale * (layout.compactLines.get(0) ? 0.5F : 1);
+            TextVisualBounds bounds = first.text.bounds.scale(scale);
+            int titleCenter = Math.round(first.textX + layout.profile().offsetX
+                    + (bounds.left + bounds.right) * 0.5F);
+            debugLines.add("header measured title=" + bounds.width() + " center=" + titleCenter);
+            Gui.drawRect(titleCenter, layout.y, titleCenter + 1,
+                    layout.y + Math.max(1, header.headerHeight), 0xB0FFEA4D);
+            if (content.rarity != null) {
+                int rarityCenter = Math.round(content.rarityX
+                        + (content.rarity.bounds.left + content.rarity.bounds.right) * 0.5F);
+                Gui.drawRect(rarityCenter, layout.y, rarityCenter + 1,
+                        layout.y + Math.max(1, header.headerHeight), 0xB0FF7DFF);
+            }
+        }
+
+        for (TooltipContentLayout.Row row : content.rows) {
+            int i = row.index;
+            int rowBottom = row.y + row.height;
+            int color = (i & 1) == 0 ? 0xB0FF4D8D : 0xB04DFF88;
+            outline(row.x, row.y, row.x + row.width, rowBottom, color);
+            drawInlineDebugBounds(layout, font, stack, row);
+
+            String label = NfrTooltipAnchor.isAnchorLine(layout.lines.get(i))
+                    ? layout.lines.get(i) : "row " + i + " " + row.height + "px";
+            String rowDebug = label + " @" + row.x + "," + row.y;
+            if (!NfrTooltipAnchor.isAnchorLine(layout.lines.get(i))) {
+                float scale = layout.profile().textScale
+                        * (layout.compactLines.get(i) ? 0.5F : 1.0F);
+                TextVisualBounds bounds = row.text.bounds.scale(scale)
+                        .translate(row.textX + layout.profile().offsetX, row.textY + layout.profile().offsetY);
+                rowDebug += " text=" + row.textWidth + " x=" + row.textX + " y=" + row.textY
+                        + " align=" + (row.title ? TooltipConfig.titleAlignment : TooltipConfig.bodyAlignment);
+                int textLeft = (int) Math.floor(bounds.left);
+                int textTop = (int) Math.floor(bounds.top);
+                int textBottom = (int) Math.ceil(bounds.bottom);
+                outline(textLeft, textTop, (int) Math.ceil(bounds.right), textBottom, 0x90FFDD44);
+                rowDebug += " measuredY=" + textTop + ".." + textBottom;
+            }
+            debugLines.add(rowDebug);
+            if (row.dividerY != Integer.MIN_VALUE) {
+                Gui.drawRect(row.x, row.dividerY, row.x + row.width,
+                        row.dividerY + 1, 0x604D7DFF);
+            }
+        }
+        for (TooltipContentLayout.BlockPlacement placement : content.blocks) {
+            TooltipVisualBlock block = placement.block;
+            outline(placement.x, placement.y, placement.x + block.width(),
+                    placement.y + block.height(), 0xE0FFE14D);
+            debugLines.add(block.debugLabel() + " " + block.width() + "x" + block.height()
+                    + " @" + placement.x + "," + placement.y);
+            for (TooltipVisualBlock.DebugBounds nested : block.debugBounds()) {
+                outline(placement.x + nested.x, placement.y + nested.y,
+                        placement.x + nested.x + nested.width,
+                        placement.y + nested.y + nested.height, 0xB0FFB14D);
+                debugLines.add("  " + nested.label + " " + nested.width + "x" + nested.height);
+            }
+        }
+
+        if (titleCount > 0) {
+            int headerX = layout.x + sideWidth;
+            int headerWidth = Math.max(1, layout.width - sideWidth);
+            outline(headerX, layout.y, headerX + headerWidth,
+                    layout.y + header.headerHeight, 0xE0FFFFFF);
+            debugLines.add("header " + headerWidth + "x" + header.headerHeight);
+            debugLines.add("header title alignment=" + TooltipConfig.titleAlignment
+                    + " icon anchor=" + TooltipConfig.headerIconAlignment
+                    + " inset=" + TooltipHeaderLayout.titleInset(stack));
+        }
+        drawDebugLegend(debugLines, font, layout, contentTop, contentBottom);
+    }
+
+    private static void drawDebugLegend(List<String> lines, FontRenderer font,
+                                        TooltipLayout layout, int contentTop, int contentBottom) {
+        if (lines.isEmpty() || font == null) return;
+        Minecraft minecraft = Minecraft.getMinecraft();
+        ScaledResolution resolution = new ScaledResolution(minecraft);
+        int lineHeight = 9;
+        int padding = 4;
+        int maxLines = Math.max(1,
+                (resolution.getScaledHeight() - padding * 2 - 4) / lineHeight);
+        if (lines.size() > maxLines) {
+            int visibleCount = Math.max(0, maxLines - 1);
+            List<String> visible = new ArrayList<>(lines.subList(0, visibleCount));
+            visible.add("+" + (lines.size() - visibleCount) + " more");
+            lines = visible;
+        }
+        int width = 0;
+        for (String line : lines) width = Math.max(width, font.getStringWidth(line));
+        width = Math.min(Math.max(86, width), 220);
+        int height = padding * 2 + lines.size() * lineHeight;
+        int panelLeft = layout.x + layout.width + 7;
+        int panelTop = contentTop;
+        if (panelLeft + width > resolution.getScaledWidth()) {
+            panelLeft = layout.x - width - 7;
+        }
+        if (panelLeft < 2) {
+            panelLeft = Math.max(2, layout.x);
+            panelTop = contentBottom + 7;
+            if (panelTop + height > resolution.getScaledHeight()) {
+                panelTop = Math.max(2, contentTop - height - 7);
+            }
+        }
+        panelTop = Math.max(2, Math.min(panelTop, resolution.getScaledHeight() - height - 2));
+        Gui.drawRect(panelLeft, panelTop, panelLeft + width, panelTop + height, 0xD8101018);
+        Gui.drawRect(panelLeft, panelTop, panelLeft + width, panelTop + 1, 0xF0FFCF66);
+        Gui.drawRect(panelLeft, panelTop + height - 1, panelLeft + width, panelTop + height,
+                0xF0FFCF66);
+        Gui.drawRect(panelLeft, panelTop, panelLeft + 1, panelTop + height, 0xF0FFCF66);
+        Gui.drawRect(panelLeft + width - 1, panelTop, panelLeft + width, panelTop + height,
+                0xF0FFCF66);
+        int y = panelTop + padding;
+        for (String line : lines) {
+            String clipped = clipDebugLabel(line, width - padding * 2, font::getStringWidth);
+            font.drawString(clipped, panelLeft + padding, y, 0xFFFFE8A8, false);
+            y += lineHeight;
+        }
+    }
+
+    static String clipDebugLabel(String value, int maxWidth, ToIntFunction<String> width) {
+        String text = value == null ? "" : value;
+        int available = Math.max(0, maxWidth);
+        if (width.applyAsInt(text) <= available) return text;
+        String suffix = "...";
+        int low = 0;
+        int high = text.length();
+        while (low < high) {
+            int mid = (low + high + 1) >>> 1;
+            if (width.applyAsInt(text.substring(0, mid) + suffix) <= available) low = mid;
+            else high = mid - 1;
+        }
+        return text.substring(0, low) + suffix;
+    }
+
+    private static void drawInlineDebugBounds(TooltipLayout tooltip, FontRenderer font,
+                                              ItemStack stack, TooltipContentLayout.Row row) {
+        int lineIndex = row.index;
+        TextRenderRouteLayout line;
+        try {
+            line = TextRenderRouteApi.layout(font, tooltip.lines.get(lineIndex));
+        } catch (RuntimeException ignored) {
+            return;
+        }
+        if (!line.hasInlineContent()) return;
+
+        boolean compact = tooltip.compactLines.get(lineIndex);
+        float scale = tooltip.profile().textScale * (compact ? 0.5F : 1.0F);
+        float originX = row.textX + tooltip.profile().offsetX;
+        float originY = row.textY + tooltip.profile().offsetY;
+        for (TextInlineBounds hit : line.inlineBounds()) {
+            int left = Math.round(originX + hit.x() * scale);
+            int top = Math.round(originY + hit.y() * scale);
+            int right = Math.round(originX + (hit.x() + hit.width()) * scale);
+            int bottom = Math.round(originY + (hit.y() + hit.height()) * scale);
+            outline(left, top, right, bottom, 0xE0FFE14D);
+        }
+    }
+
+    private static void outline(int left, int top, int right, int bottom, int color) {
+        if (right <= left || bottom <= top) return;
+        Gui.drawRect(left, top, right, top + 1, color);
+        Gui.drawRect(left, bottom - 1, right, bottom, color);
+        Gui.drawRect(left, top, left + 1, bottom, color);
+        Gui.drawRect(right - 1, top, right, bottom, color);
     }
 
     /** Matches Forge GuiUtils' GL contract while PostBackground/PostText subscribers render. */
@@ -90,10 +374,8 @@ final class ModernTooltipRenderer {
     }
 
     private static void drawBackground(TooltipLayout layout, int[] fill, int[] border, boolean spectrum) {
-        float left = layout.x - TooltipConfig.horizontalPadding;
-        float top = layout.y - TooltipConfig.verticalPadding;
-        float right = layout.x + layout.width + TooltipConfig.horizontalPadding;
-        float bottom = layout.y + layout.height + TooltipConfig.verticalPadding;
+        TooltipPanelBounds panel = layout.panelBounds();
+        float left = panel.left, top = panel.top, right = panel.right, bottom = panel.bottom;
         float radius = TooltipConfig.rounded ? TooltipConfig.cornerRadius : 0.01F;
         boolean cullEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
 
@@ -247,68 +529,47 @@ final class ModernTooltipRenderer {
         }
     }
 
-    static void drawContent(int x, int y, int width, List<String> lines,
-                            List<Boolean> compactLines, int titleLines,
-                            TooltipConfig.Profile profile, FontRenderer font, ItemStack stack,
-                            boolean lineBreaksAlreadyApplied, List<Integer> measuredLineWidths) {
-        TooltipConfig.Profile activeProfile = profile == null ? TooltipConfig.profile("vanilla") : profile;
-        int textY = y;
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
-            boolean compact = compactLines != null && i < compactLines.size() && compactLines.get(i);
-            int lineTitleCount = Math.max(0, Math.min(titleLines, lines.size()));
-            int lineX = x;
-            float textScale = activeProfile.textScale * (compact ? 0.5F : 1.0F);
-            int paragraphWidth = lineBreaksAlreadyApplied ? 1_000_000
-                    : Math.max(1, compact ? Math.round(width * 2.0F / activeProfile.textScale)
-                            : Math.round(width / activeProfile.textScale));
-            CjkParagraphLayoutProvider.Layout paragraph = CjkTypographyRenderer.layout(
-                    font, line, paragraphWidth,
-                    compact ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT * 2 : TooltipConfig.lineHeight);
-            int renderedWidth = lineBreaksAlreadyApplied && measuredLineWidths != null
-                    && i < measuredLineWidths.size()
-                    ? measuredLineWidths.get(i)
-                    : lineBreaksAlreadyApplied
-                    ? TooltipLayout.measuredLineWidth(font, line, compact, activeProfile.textScale)
-                    : paragraph == null ? font.getStringWidth(line)
-                    : CjkTypographyRenderer.measuredWidth(font, paragraph);
-            if (!lineBreaksAlreadyApplied && compact) renderedWidth = (renderedWidth + 1) / 2;
-            if (!lineBreaksAlreadyApplied) {
-                renderedWidth = Math.max(1, Math.round(renderedWidth * activeProfile.textScale));
-            }
-            if (TooltipConfig.centerTitle && i < lineTitleCount) {
-                lineX += Math.max(0, (width - renderedWidth) / 2);
-            }
-            int color = i < lineTitleCount ? TooltipConfig.titleColor : TooltipConfig.textColor;
-            if (textScale != 1.0F || activeProfile.offsetX != 0.0F || activeProfile.offsetY != 0.0F) {
+    /** Shared retained layout for production and the settings preview. */
+    static void drawContent(TooltipLayout layout, FontRenderer font, ItemStack stack) {
+        if (layout != null && font != null) drawRetainedContent(layout, font, stack);
+    }
+
+    private static void drawRetainedContent(TooltipLayout layout, FontRenderer font, ItemStack stack) {
+        TooltipContentLayout content = TooltipContentLayout.build(layout, font, stack);
+        if (layout.visualPlan != null && content.sideWidth > 0) {
+            layout.visualPlan.drawSide(layout.x, layout.y, font);
+        }
+        if (content.header.headerHeight > 0 && TooltipHeaderLayout.hasIcon(stack)) {
+            TooltipHeaderLayout.drawIcon(stack, layout.x + content.sideWidth,
+                    layout.y + content.header.iconY);
+        }
+        for (TooltipContentLayout.Row row : content.rows) {
+            String line = layout.lines.get(row.index);
+            if (!NfrTooltipAnchor.isAnchorLine(line)) {
+                boolean compact = layout.compactLines.get(row.index);
+                float scale = layout.profile().textScale * (compact ? 0.5F : 1.0F);
+                int color = row.title ? TooltipConfig.titleColor : TooltipConfig.textColor;
+                float drawX = row.textX + layout.profile().offsetX;
+                float drawY = row.textY + layout.profile().offsetY;
                 GlStateManager.pushMatrix();
                 try {
-                    GlStateManager.scale(textScale, textScale, 1.0F);
-                    float scaledX = (lineX + activeProfile.offsetX) / textScale;
-                    float scaledY = (textY + activeProfile.offsetY) / textScale;
-                    if (!CjkTypographyRenderer.draw(font, paragraph, scaledX, scaledY,
-                            color, TooltipConfig.textShadow)) {
-                        if (TooltipConfig.textShadow) font.drawStringWithShadow(line, Math.round(scaledX), Math.round(scaledY), color);
-                        else font.drawString(line, Math.round(scaledX), Math.round(scaledY), color);
-                    }
+                    GlStateManager.scale(scale, scale, 1.0F);
+                    row.text.draw(font, drawX / scale, drawY / scale, color, TooltipConfig.textShadow);
                 } finally {
                     GlStateManager.popMatrix();
                 }
-            } else if (!CjkTypographyRenderer.draw(font, paragraph, lineX, textY, color, TooltipConfig.textShadow)) {
-                if (TooltipConfig.textShadow) font.drawStringWithShadow(line, lineX, textY, color);
-                else font.drawString(line, lineX, textY, color);
-            }
-            if (i + 1 == lineTitleCount && lines.size() > lineTitleCount) {
-                if (TooltipConfig.titleBreak) {
-                    int dividerY = Math.round(textY + Math.max(1, Math.round(
-                            (compact ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT
-                                    : TooltipConfig.lineHeight) * activeProfile.textScale)) - 1.5F);
-                    drawCompatibleDivider(x, dividerY, width, stack);
+                if (row.title && row.index + 1 == layout.titleLines && content.rarity != null) {
+                    content.rarity.draw(font, content.rarityX, content.rarityY,
+                            TooltipHeaderLayout.rarityColor(stack), true);
                 }
-                textY += TooltipConfig.titleGap;
+                if (row.dividerY != Integer.MIN_VALUE) {
+                    drawCompatibleDivider(layout.x + content.sideWidth, row.dividerY,
+                            Math.max(1, layout.width - content.sideWidth), stack);
+                }
             }
-            textY += Math.max(1, Math.round((compact ? ThaumcraftTooltipCompat.COMPACT_LINE_HEIGHT
-                    : TooltipConfig.lineHeight) * activeProfile.textScale));
+            for (TooltipContentLayout.BlockPlacement placement : content.blocks) {
+                if (placement.line == row.index) placement.block.draw(placement.x, placement.y, font);
+            }
         }
     }
 
@@ -332,8 +593,8 @@ final class ModernTooltipRenderer {
         colors[3] = withAlpha(0xFFFF55FF, alpha);
     }
 
-    private static void drawRoundedFill(float left, float top, float right, float bottom,
-                                        float radius, int[] colors) {
+    static void drawRoundedFill(float left, float top, float right, float bottom,
+                                float radius, int[] colors) {
         List<Point> points = perimeter(left, top, right, bottom, radius);
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder buffer = tessellator.getBuffer();
@@ -352,8 +613,8 @@ final class ModernTooltipRenderer {
         tessellator.draw();
     }
 
-    private static void drawRoundedBorder(float left, float top, float right, float bottom,
-                                          float radius, float width, int[] colors) {
+    static void drawRoundedBorder(float left, float top, float right, float bottom,
+                                  float radius, float width, int[] colors) {
         List<Point> outer = perimeter(left, top, right, bottom, radius);
         List<Point> inner = perimeter(left + width, top + width, right - width, bottom - width,
                 Math.max(0.01F, radius - width));
@@ -486,6 +747,170 @@ final class ModernTooltipRenderer {
     private static float normalize(float value, float start, float end) {
         if (end <= start) return 0.5F;
         return Math.max(0.0F, Math.min(1.0F, (value - start) / (end - start)));
+    }
+
+    /**
+     * ModularUI publishes its tooltip Pre event before establishing the state used by its own
+     * renderer. Cancelling that event must therefore leave the publisher's state untouched.
+     * glPushAttrib restores the driver while the explicit setters also repair Minecraft's cached
+     * GlStateManager view, which raw GL calls in third-party Post handlers can desynchronize.
+     * Item lighting uses texture units 0, 1 and 2, so all three must be synchronized even though
+     * only one of them is active when the tooltip event is posted.
+     */
+    static final class CallerGlState implements AutoCloseable {
+        private final boolean lighting = GL11.glIsEnabled(GL11.GL_LIGHTING);
+        private final boolean light0 = GL11.glIsEnabled(GL11.GL_LIGHT0);
+        private final boolean light1 = GL11.glIsEnabled(GL11.GL_LIGHT1);
+        private final boolean colorMaterial = GL11.glIsEnabled(GL11.GL_COLOR_MATERIAL);
+        private final boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        private final boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+        private final int depthFunc = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
+        private final int alphaFunc = GL11.glGetInteger(GL11.GL_ALPHA_TEST_FUNC);
+        private final float alphaRef = GL11.glGetFloat(GL11.GL_ALPHA_TEST_REF);
+        private final int cullFace = GL11.glGetInteger(GL11.GL_CULL_FACE_MODE);
+        private final boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
+        private final boolean alpha = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
+        private final boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        private final boolean fog = GL11.glIsEnabled(GL11.GL_FOG);
+        private final boolean rescaleNormal = GL11.glIsEnabled(GL12.GL_RESCALE_NORMAL);
+        private final int srcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
+        private final int dstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
+        private final int srcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
+        private final int dstAlpha = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
+        private final int blendEquationRgb = GL11.glGetInteger(GL20.GL_BLEND_EQUATION_RGB);
+        private final int blendEquationAlpha = GL11.glGetInteger(GL20.GL_BLEND_EQUATION_ALPHA);
+        private final int shadeModel = GL11.glGetInteger(GL11.GL_SHADE_MODEL);
+        private final int program = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
+        private final int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+        private final TextureUnitState[] textureUnits = readTextureUnits(activeTexture);
+        private final float[] color = readColor();
+        private final boolean[] colorMask = readColorMask();
+        private boolean closed;
+
+        private CallerGlState() {
+            GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+        }
+
+        static CallerGlState capture() {
+            return new CallerGlState();
+        }
+
+        @Override
+        public void close() {
+            if (closed) return;
+            closed = true;
+            GL11.glPopAttrib();
+
+            GL20.glUseProgram(program);
+            GL20.glBlendEquationSeparate(blendEquationRgb, blendEquationAlpha);
+            GlStateManager.tryBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
+            GL14.glBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
+            restoreToggle(lighting, GL11.GL_LIGHTING,
+                    GlStateManager::enableLighting, GlStateManager::disableLighting);
+            restoreToggle(light0, GL11.GL_LIGHT0,
+                    () -> GlStateManager.enableLight(0), () -> GlStateManager.disableLight(0));
+            restoreToggle(light1, GL11.GL_LIGHT1,
+                    () -> GlStateManager.enableLight(1), () -> GlStateManager.disableLight(1));
+            restoreToggle(colorMaterial, GL11.GL_COLOR_MATERIAL,
+                    GlStateManager::enableColorMaterial, GlStateManager::disableColorMaterial);
+            restoreToggle(depth, GL11.GL_DEPTH_TEST,
+                    GlStateManager::enableDepth, GlStateManager::disableDepth);
+            GlStateManager.depthMask(depthMask);
+            GL11.glDepthMask(depthMask);
+            GlStateManager.depthFunc(depthFunc);
+            GL11.glDepthFunc(depthFunc);
+            GlStateManager.alphaFunc(alphaFunc, alphaRef);
+            GL11.glAlphaFunc(alphaFunc, alphaRef);
+            GlStateManager.cullFace(cullFace == GL11.GL_FRONT ? GlStateManager.CullFace.FRONT
+                    : cullFace == GL11.GL_FRONT_AND_BACK ? GlStateManager.CullFace.FRONT_AND_BACK
+                    : GlStateManager.CullFace.BACK);
+            GL11.glCullFace(cullFace);
+            restoreToggle(blend, GL11.GL_BLEND,
+                    GlStateManager::enableBlend, GlStateManager::disableBlend);
+            restoreToggle(alpha, GL11.GL_ALPHA_TEST,
+                    GlStateManager::enableAlpha, GlStateManager::disableAlpha);
+            restoreToggle(cull, GL11.GL_CULL_FACE,
+                    GlStateManager::enableCull, GlStateManager::disableCull);
+            restoreToggle(fog, GL11.GL_FOG,
+                    GlStateManager::enableFog, GlStateManager::disableFog);
+            restoreToggle(rescaleNormal, GL12.GL_RESCALE_NORMAL,
+                    GlStateManager::enableRescaleNormal, GlStateManager::disableRescaleNormal);
+            GlStateManager.shadeModel(shadeModel);
+            GL11.glShadeModel(shadeModel);
+            GlStateManager.colorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
+            GL11.glColorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
+            GlStateManager.color(color[0], color[1], color[2], color[3]);
+            GL11.glColor4f(color[0], color[1], color[2], color[3]);
+            restoreTextureUnits(textureUnits, activeTexture);
+        }
+
+        private static void restoreToggle(boolean enabled, int capability,
+                                          Runnable enable, Runnable disable) {
+            if (enabled) enable.run();
+            else disable.run();
+            if (enabled) GL11.glEnable(capability);
+            else GL11.glDisable(capability);
+        }
+
+        private static float[] readColor() {
+            FloatBuffer values = BufferUtils.createFloatBuffer(4);
+            GL11.glGetFloat(GL11.GL_CURRENT_COLOR, values);
+            return new float[]{values.get(0), values.get(1), values.get(2), values.get(3)};
+        }
+
+        private static boolean[] readColorMask() {
+            IntBuffer values = BufferUtils.createIntBuffer(4);
+            GL11.glGetInteger(GL11.GL_COLOR_WRITEMASK, values);
+            return new boolean[]{values.get(0) != 0, values.get(1) != 0,
+                    values.get(2) != 0, values.get(3) != 0};
+        }
+
+        private static TextureUnitState[] readTextureUnits(int originalActiveTexture) {
+            boolean originalIsItemUnit = originalActiveTexture >= GL13.GL_TEXTURE0
+                    && originalActiveTexture <= GL13.GL_TEXTURE2;
+            TextureUnitState[] states = new TextureUnitState[originalIsItemUnit ? 3 : 4];
+            for (int i = 0; i < 3; i++) {
+                int unit = GL13.GL_TEXTURE0 + i;
+                GL13.glActiveTexture(unit);
+                states[i] = new TextureUnitState(unit,
+                        GL11.glIsEnabled(GL11.GL_TEXTURE_2D),
+                        GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D));
+            }
+            if (!originalIsItemUnit) {
+                GL13.glActiveTexture(originalActiveTexture);
+                states[3] = new TextureUnitState(originalActiveTexture,
+                        GL11.glIsEnabled(GL11.GL_TEXTURE_2D),
+                        GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D));
+            }
+            GL13.glActiveTexture(originalActiveTexture);
+            return states;
+        }
+
+        private static void restoreTextureUnits(TextureUnitState[] states,
+                                                int originalActiveTexture) {
+            for (TextureUnitState state : states) {
+                GlStateManager.setActiveTexture(state.unit);
+                GL13.glActiveTexture(state.unit);
+                restoreToggle(state.enabled, GL11.GL_TEXTURE_2D,
+                        GlStateManager::enableTexture2D, GlStateManager::disableTexture2D);
+                GlStateManager.bindTexture(state.binding);
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, state.binding);
+            }
+            GlStateManager.setActiveTexture(originalActiveTexture);
+            GL13.glActiveTexture(originalActiveTexture);
+        }
+    }
+
+    private static final class TextureUnitState {
+        final int unit;
+        final boolean enabled;
+        final int binding;
+
+        TextureUnitState(int unit, boolean enabled, int binding) {
+            this.unit = unit;
+            this.enabled = enabled;
+            this.binding = binding;
+        }
     }
 
     private static final class Point {

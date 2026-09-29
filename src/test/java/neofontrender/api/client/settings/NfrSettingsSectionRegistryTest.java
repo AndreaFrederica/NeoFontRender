@@ -5,8 +5,8 @@ import org.junit.jupiter.api.Test;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class NfrSettingsSectionRegistryTest {
     @Test
@@ -27,10 +27,30 @@ class NfrSettingsSectionRegistryTest {
         }
     }
 
+    @Test
+    void laboratoryContributionsAreIsolatedFromFixes() {
+        String id = "registry_test:laboratory";
+        try {
+            NfrSettingsSectionRegistry.register(contribution(
+                    id, 10, NfrSettingsSection.LABORATORY));
+
+            assertTrue(NfrSettingsSectionRegistry.snapshot(NfrSettingsSection.FIXES).isEmpty());
+            assertEquals(id, NfrSettingsSectionRegistry
+                    .snapshot(NfrSettingsSection.LABORATORY).get(0).id());
+        } finally {
+            assertTrue(NfrSettingsSectionRegistry.unregister(id));
+        }
+    }
+
     private static NfrSettingsSectionContribution contribution(String id, int order) {
+        return contribution(id, order, NfrSettingsSection.FIXES);
+    }
+
+    private static NfrSettingsSectionContribution contribution(
+            String id, int order, NfrSettingsSection section) {
         return new NfrSettingsSectionContribution() {
             @Override public String id() { return id; }
-            @Override public NfrSettingsSection section() { return NfrSettingsSection.FIXES; }
+            @Override public NfrSettingsSection section() { return section; }
             @Override public int order() { return order; }
             @Override public NfrSettingsSectionSession createSession() {
                 return context -> Collections.emptyList();
