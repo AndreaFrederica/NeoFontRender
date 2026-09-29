@@ -16,7 +16,7 @@ public abstract class MixinHeiCollapsedGroupTooltip {
     @Inject(method = "drawTooltip", at = @At("HEAD"), require = 0, remap = false)
     private void nfrUi$beginCustomTooltip(Minecraft minecraft, int mouseX, int mouseY,
                                            CallbackInfo ci) {
-        HeiTooltipCompat.beginCollapsed(this, minecraft);
+        HeiTooltipCompat.beginCollapsed(this, minecraft, mouseX, mouseY);
     }
 
     @Inject(method = "drawTooltip", at = @At("RETURN"), require = 0, remap = false)

@@ -1,5 +1,7 @@
 package neofontrender.core.font.route;
 
+import neofontrender.api.text.TextVisualBounds;
+
 import neofontrender.api.text.ModernTextLayout;
 import neofontrender.api.text.route.TextRenderRouteRequest;
 import neofontrender.core.config.NeofontrenderConfig;
@@ -41,14 +43,38 @@ final class ModernStructuredRouteLayout extends AbstractStructuredRouteLayout {
         return drawOffset;
     }
 
+    private boolean shadowEnabled() {
+        return request.shadow() && !"none".equals(NeofontrenderConfig.shadowMode())
+                && NeofontrenderConfig.shadowOpacity() > 0.0F
+                && backend.shouldRenderShadow(request.structuredText().plainText());
+    }
+
+    private ModernTextLayout foreground(boolean modernShadow) {
+        TextPostProcessPipeline.initialize();
+        return TextPostProcessPipeline.renderStructured(backend, request.structuredText(),
+                request.argb(), request.fontSize(), modernShadow, ShadowRenderSpec.fromConfig());
+    }
+
+    @Override
+    public TextVisualBounds visualBounds() {
+        boolean shadow = shadowEnabled();
+        boolean modernShadow = shadow && NeofontrenderConfig.modernShadowEnabled();
+        TextVisualBounds bounds = foreground(modernShadow)
+                .resultForPostProcess().visualBounds();
+        if (shadow && !modernShadow) {
+            TextRenderResult shadowResult = backend.renderStructuredAtSize(request.structuredText(),
+                    request.argb(), true, request.fontSize());
+            float offset = NeofontrenderConfig.shadowLength();
+            bounds = bounds.union(shadowResult.visualBounds().translate(offset, offset));
+        }
+        return bounds.translate(0, drawOffset);
+    }
+
     @Override
     public void draw(float x, float y) {
         try (TextAnimationFrame.Scope ignored = TextAnimationFrame.openAutomatic(
                 request.source(), x, y + drawOffset)) {
-            boolean shadowEnabled = request.shadow()
-                    && !"none".equals(NeofontrenderConfig.shadowMode())
-                    && NeofontrenderConfig.shadowOpacity() > 0.0F
-                    && backend.shouldRenderShadow(request.structuredText().plainText());
+            boolean shadowEnabled = shadowEnabled();
             boolean modernShadow = shadowEnabled && NeofontrenderConfig.modernShadowEnabled();
             if (shadowEnabled && !modernShadow) {
                 TextRenderResult shadow = backend.renderStructuredAtSize(request.structuredText(),
@@ -57,10 +83,7 @@ final class ModernStructuredRouteLayout extends AbstractStructuredRouteLayout {
                 shadow.draw(x + offset, y + drawOffset + offset,
                         NeofontrenderConfig.shadowOpacity());
             }
-            TextPostProcessPipeline.initialize();
-            ModernTextLayout layout = TextPostProcessPipeline.renderStructured(backend,
-                    request.structuredText(), request.argb(), request.fontSize(), modernShadow,
-                    ShadowRenderSpec.fromConfig());
+            ModernTextLayout layout = foreground(modernShadow);
             layout.draw(x, y + drawOffset);
         }
     }

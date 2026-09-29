@@ -1,6 +1,8 @@
 package neofontrender.addons.tooltips;
 
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.client.gui.inventory.GuiContainer;
+import net.minecraft.item.ItemStack;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.settings.KeyConflictContext;
 import net.minecraftforge.client.settings.KeyModifier;
@@ -22,6 +24,9 @@ final class ItemZoomKeyBindings {
     static final KeyBinding HOLD = new KeyBinding(
             "key.neofontrender_ui_enhancements.item_zoom.hold",
             KeyConflictContext.GUI, KeyModifier.NONE, Keyboard.KEY_NONE, CATEGORY);
+    static final KeyBinding MODE = new KeyBinding(
+            "key.neofontrender_ui_enhancements.item_zoom.mode",
+            KeyConflictContext.GUI, KeyModifier.CONTROL, Keyboard.KEY_Z, CATEGORY);
 
     private static final ItemZoomKeyBindings INSTANCE = new ItemZoomKeyBindings();
     private static final String TOGGLED_ENABLED_KEY = "tooltip.zoomOverlay.toggled.enabled";
@@ -41,6 +46,7 @@ final class ItemZoomKeyBindings {
         config.save();
         ClientRegistry.registerKeyBinding(TOGGLE);
         ClientRegistry.registerKeyBinding(HOLD);
+        ClientRegistry.registerKeyBinding(MODE);
         MinecraftForge.EVENT_BUS.register(INSTANCE);
     }
 
@@ -54,9 +60,16 @@ final class ItemZoomKeyBindings {
 
     @SubscribeEvent(priority = EventPriority.LOW)
     public void onGuiKeyboardInput(GuiScreenEvent.KeyboardInputEvent.Post event) {
-        if (!Keyboard.getEventKeyState()) return;
+        if (!(event.getGui() instanceof GuiContainer)
+                || !Keyboard.getEventKeyState() || Keyboard.isRepeatEvent()) return;
         int eventKey = Keyboard.getEventKey();
-        if (TOGGLE.isActiveAndMatches(eventKey)) {
+        if (MODE.isActiveAndMatches(eventKey)) {
+            ItemStack stack = ItemZoomOverlay.hoveredStack(event.getGui());
+            if (stack.isEmpty() || !ItemZoomOverlay.allowed(stack)) return;
+            ItemZoomPresentation.toggleMode(ItemZoomPresentation.category(stack));
+            TooltipConfig.save();
+            event.setCanceled(true);
+        } else if (TOGGLE.isActiveAndMatches(eventKey)) {
             toggledEnabled = !toggledEnabled;
             if (config != null) {
                 config.set(TOGGLED_ENABLED_KEY, toggledEnabled).save();

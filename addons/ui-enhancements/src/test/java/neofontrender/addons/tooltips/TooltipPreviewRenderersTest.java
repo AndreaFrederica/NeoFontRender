@@ -38,6 +38,9 @@ class TooltipPreviewRenderersTest {
         Item item = new Item().setRegistryName(new ResourceLocation("test", "preview"));
         ItemStack first = new ItemStack(item);
         ItemStack second = new ItemStack(item);
+        second.setCount(32);
+        assertEquals(TooltipPreviewRenderers.animationKey(null, first),
+                TooltipPreviewRenderers.animationKey(null, second));
         NBTTagCompound tag = new NBTTagCompound();
         tag.setInteger("charge", 2);
         second.setTagCompound(tag);
@@ -56,6 +59,26 @@ class TooltipPreviewRenderersTest {
 
         assertNotEquals(TooltipPreviewRenderers.animationKey(stand, first),
                 TooltipPreviewRenderers.animationKey(player, first));
+    }
+
+    @Test
+    void disablingMeasurementPreservesTheConfiguredPreviewCell() {
+        TooltipConfig.Snapshot original = TooltipConfig.snapshot();
+        try {
+            TooltipConfig.previewMeasureBounds = false;
+            NfrTooltipApi.ItemPreviewRequest item = new NfrTooltipApi.ItemPreviewRequest(
+                    ItemStack.EMPTY, 3, 25, 0, 20, 37, 83, Collections.emptyList());
+            NfrTooltipApi.PreviewSize measured = TooltipPreviewRenderers.find(item).measure(item, null);
+            assertEquals(37, measured.width());
+            assertEquals(83, measured.height());
+            NfrTooltipApi.ArmorPreviewRequest armor = new NfrTooltipApi.ArmorPreviewRequest(
+                    ItemStack.EMPTY, EntityEquipmentSlot.HEAD);
+            measured = TooltipPreviewRenderers.find(armor).measure(armor, null);
+            assertEquals(armor.width(), measured.width());
+            assertEquals(armor.height(), measured.height());
+        } finally {
+            original.restore();
+        }
     }
 
     @Test

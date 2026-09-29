@@ -12,6 +12,26 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CosmicRasterPreparationTest {
+    @Test
+    void visibleBoundsExcludeTexturePaddingInRgbaAndSdfWithoutChangingAdvance() {
+        ByteBuffer data = ByteBuffer.allocate(36 + 8 * 6 * 4).order(ByteOrder.LITTLE_ENDIAN);
+        data.putInt(0x434F534D).putInt(8).putInt(6).putInt(-2).putInt(4)
+                .putFloat(9).putFloat(7).putFloat(2).putInt(CosmicNative.RASTER_MODEL_MASK);
+        data.putInt(36 + (2 * 8 + 2) * 4, 0xFFFFFFFF);
+        data.putInt(36 + (3 * 8 + 3) * 4, 0xFFFFFFFF);
+        for (boolean sdf : new boolean[]{false, true}) {
+            var raster = CosmicRasterPreparation.prepare(data.array(), options(sdf, false));
+            var bounds = raster.foreground().bounds();
+            assertEquals(9, raster.advance());
+            assertEquals(8, raster.foreground().width());
+            assertEquals(-1, raster.foreground().x());
+            assertEquals(0, bounds.left);
+            assertEquals(1, bounds.right);
+            assertEquals(3, bounds.top);
+            assertEquals(4, bounds.bottom);
+        }
+    }
+
     private static byte[] raster(int flags) {
         return ByteBuffer.allocate(40).order(ByteOrder.LITTLE_ENDIAN)
                 .putInt(0x434F534D).putInt(1).putInt(1).putInt(-2).putInt(4)

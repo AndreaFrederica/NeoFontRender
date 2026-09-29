@@ -1,5 +1,7 @@
 package neofontrender.api.text.route;
 
+import neofontrender.api.text.TextVisualBounds;
+
 import neofontrender.text.StructuredText;
 
 import java.util.List;
@@ -12,6 +14,10 @@ public interface TextRenderRouteLayout {
     StructuredText structuredText();
     float advance();
     float height();
+    /** Routes may expose tighter raster bounds without changing advance/wrapping semantics. */
+    default TextVisualBounds visualBounds() {
+        return new TextVisualBounds(0, 0, advance(), height());
+    }
     void draw(float x, float y);
     int sourceIndexAt(float localX);
     float widthToSource(int sourceIndex);

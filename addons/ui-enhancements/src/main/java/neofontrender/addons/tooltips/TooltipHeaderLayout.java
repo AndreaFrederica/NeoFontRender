@@ -53,6 +53,12 @@ final class TooltipHeaderLayout {
         return textOffset(stack, contentWidth, renderedWidth, TooltipConfig.titleAlignment);
     }
 
+    static int titleTextOffset(ItemStack stack, int contentWidth, int renderedWidth,
+                               FontRenderer font, float visualLeft) {
+        return textOffset(stack, contentWidth, renderedWidth, TooltipConfig.titleAlignment)
+                + visualOriginCorrection(visualLeft);
+    }
+
     /** Uses the same final paragraph measurement consumed by the text renderer. */
     static int titleTextOffset(ItemStack stack, int contentWidth, FontRenderer font,
                                String line, boolean compact, float textScale) {
@@ -60,9 +66,31 @@ final class TooltipHeaderLayout {
                 TooltipLayout.measuredLineWidth(font, line, compact, textScale), font);
     }
 
+    static int titleTextOffset(ItemStack stack, int contentWidth, FontRenderer font,
+                               String line, boolean compact, float textScale,
+                               float visualLeft) {
+        return titleTextOffset(stack, contentWidth,
+                TooltipLayout.measuredLineWidth(font, line, compact, textScale), font,
+                visualLeft);
+    }
+
     static int rarityTextOffset(ItemStack stack, int contentWidth, int renderedWidth,
                                 FontRenderer font) {
         return textOffset(stack, contentWidth, renderedWidth, TooltipConfig.rarityAlignment);
+    }
+
+    /** Body rows use the same measured width but do not reserve the header icon slot. */
+    static int bodyTextOffset(int contentWidth, int renderedWidth) {
+        return textOffset(null, contentWidth, renderedWidth, TooltipConfig.bodyAlignment);
+    }
+
+    static int bodyTextOffset(int contentWidth, int renderedWidth, float visualLeft) {
+        return textOffset(null, contentWidth, renderedWidth, TooltipConfig.bodyAlignment)
+                + visualOriginCorrection(visualLeft);
+    }
+
+    private static int visualOriginCorrection(float visualLeft) {
+        return Float.isFinite(visualLeft) ? Math.round(-visualLeft) : 0;
     }
 
     private static int textOffset(ItemStack stack, int contentWidth, int renderedWidth,
@@ -90,7 +118,8 @@ final class TooltipHeaderLayout {
     }
 
     static int requiredContentWidth(int titleWidth, ItemStack stack, FontRenderer font) {
-        int rarityWidth = font == null ? 0 : font.getStringWidth(rarityLabel(stack));
+        int rarityWidth = font == null || !hasRarity(stack) ? 0
+                : (int) Math.ceil(measureRarity(stack, font).bounds.width());
         return Math.max(1, Math.max(titleWidth, rarityWidth) + titleInset(stack));
     }
 
@@ -246,9 +275,7 @@ final class TooltipHeaderLayout {
                 | (Math.max(0, Math.min(255, alpha)) << 24);
     }
 
-    static void drawRarity(ItemStack stack, FontRenderer font, int x, int y) {
-        String label = rarityLabel(stack);
-        if (label.isEmpty() || font == null) return;
-        font.drawStringWithShadow(label, x, y, rarityColor(stack));
+    static TooltipTextLine measureRarity(ItemStack stack, FontRenderer font) {
+        return TooltipTextLine.measure(font, rarityLabel(stack), rarityColor(stack), true);
     }
 }

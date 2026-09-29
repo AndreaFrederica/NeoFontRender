@@ -63,7 +63,7 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
         TooltipConfig.Profile profile = TooltipConfig.profile(selected);
         boolean textProfile = isTextProfile(selected);
         TooltipConfig.Profile activeProfile = textProfile ? profile : previewProfile();
-        int maxWidth = Math.max(1, width - 24 - TooltipConfig.horizontalPadding * 2);
+        int maxWidth = Math.max(1, width - 24 - (TooltipConfig.leftPadding + TooltipConfig.rightPadding));
         TooltipLayout layout = mapPreview ? null : TooltipLayout.preview(
                 font, preview.stack, preview.lines, preview.compactLines, activeProfile, maxWidth);
 
@@ -81,21 +81,22 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
             panelTop = Math.max(stageTop + 6,
                     stageTop + (stageBottom - stageTop - panelHeight) / 2);
         } else {
-            int visualHeight = Math.max(1, layout.visualBottom - layout.visualTop);
-            panelWidth = Math.max(1, layout.width + TooltipConfig.horizontalPadding * 2);
-            panelHeight = Math.max(1, visualHeight + TooltipConfig.verticalPadding * 2);
+            TooltipPanelBounds panel = layout.panelBounds();
+            panelWidth = Math.max(1, panel.width());
+            panelHeight = Math.max(1, panel.height());
             int stageWidth = Math.max(1, right - 4);
             int stageHeight = Math.max(1, stageBottom - stageTop - 12);
             stageScale = Math.min(1.0F,
                     Math.min((float) stageWidth / panelWidth, (float) stageHeight / panelHeight));
             float centerX = width * 0.5F;
             float centerY = stageTop + (stageBottom - stageTop) * 0.5F;
-            contentX = Math.round(centerX - (layout.width * stageScale) * 0.5F);
-            contentY = Math.round(centerY - ((layout.visualTop + layout.visualBottom)
-                    * stageScale) * 0.5F);
-            panelLeft = Math.round(contentX - TooltipConfig.horizontalPadding * stageScale);
+            contentX = Math.round(centerX - panelWidth * stageScale * 0.5F
+                    + TooltipConfig.leftPadding * stageScale);
+            contentY = Math.round(centerY - panelHeight * stageScale * 0.5F
+                    + (TooltipConfig.topPadding - layout.visualTop) * stageScale);
+            panelLeft = Math.round(contentX - TooltipConfig.leftPadding * stageScale);
             panelTop = Math.round(contentY + layout.visualTop * stageScale
-                    - TooltipConfig.verticalPadding * stageScale);
+                    - TooltipConfig.topPadding * stageScale);
             panelWidth = Math.max(1, Math.round(panelWidth * stageScale));
             panelHeight = Math.max(1, Math.round(panelHeight * stageScale));
         }
@@ -112,17 +113,14 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
                 try {
                     GlStateManager.translate(contentX, contentY, 0.0F);
                     GlStateManager.scale(stageScale, stageScale, 1.0F);
+                    TooltipPanelBounds panel = layout.panelBounds();
                     ModernTooltipRenderer.drawCompatibleBackground(
-                            -TooltipConfig.horizontalPadding,
-                            layout.visualTop - TooltipConfig.verticalPadding,
-                            layout.width + TooltipConfig.horizontalPadding * 2,
-                            layout.visualBottom - layout.visualTop + TooltipConfig.verticalPadding * 2,
-                            preview.stack);
+                            panel.left, panel.top, panel.width(), panel.height(), preview.stack);
                     GlStateManager.disableLighting();
                     GlStateManager.disableDepth();
                     GlStateManager.enableTexture2D();
                     GlStateManager.enableAlpha();
-                    ModernTooltipRenderer.drawContent(0, 0, layout, font, preview.stack);
+                    ModernTooltipRenderer.drawContent(layout, font, preview.stack);
                 } finally {
                     GlStateManager.popMatrix();
                 }

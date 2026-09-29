@@ -9,48 +9,81 @@ import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.RenderItem;
-import net.minecraft.client.renderer.block.model.ItemCameraTransforms;
-import net.minecraft.item.ItemArmor;
-import net.minecraft.item.ItemBow;
-import net.minecraft.item.ItemShield;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemSword;
-import net.minecraft.item.ItemTool;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.event.RenderTooltipEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.build.UiBuildFeatures;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL20;
 
 /**
  * Item Zoom style inventory overlay for the 1.12 GUI renderer.
  *
- * The stack is supplied by every tooltip path and the actual draw is deferred until the GUI
- * post event. The deferred draw is important for HEI and Modern Tooltip, which can replace
- * the normal tooltip renderer without publishing a Forge RenderTooltipEvent.Pre themselves.
+ * Every tooltip path supplies its hovered stack. Draw before the tooltip or after the GUI
+ * according to the configured overlap order, at most once per frame across all entry paths.
  */
 final class ItemZoomOverlay {
     private static final long CAPTURE_TIMEOUT_NANOS = 500_000_000L;
     private static final long ROTATION_WINDOW_NANOS = 3_600_000_000_000L;
+    private static final ItemZoomDrawOrder DRAW_ORDER = new ItemZoomDrawOrder();
 
     private static ItemStack captured = ItemStack.EMPTY;
     private static GuiScreen capturedScreen;
     private static long capturedAt;
+    private static ItemStack hovered = ItemStack.EMPTY;
+    private static GuiScreen hoveredScreen;
+    private static boolean hoveredThisFrame;
+
+    static ItemStack hoveredStack(GuiScreen screen) {
+        return screen == hoveredScreen ? hovered : ItemStack.EMPTY;
+    }
+
+    static void reset() {
+        captured = ItemStack.EMPTY;
+        capturedScreen = null;
+        hovered = ItemStack.EMPTY;
+        hoveredScreen = null;
+        hoveredThisFrame = false;
+        DRAW_ORDER.beginFrame();
+        ItemZoomRenderTarget.release();
+        PreviewBoundsMeasurement.releaseTargets();
+        TooltipPreviewRenderers.resetItemZoomAnimation();
+        ItemZoomRenderer.clearModelCache();
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void beginFrame(GuiScreenEvent.DrawScreenEvent.Pre event) {
+        DRAW_ORDER.beginFrame();
+        captured = ItemStack.EMPTY;
+        capturedScreen = null;
+        hoveredThisFrame = false;
+    }
 
     /** Standard Forge tooltip source. */
     @SubscribeEvent(priority = EventPriority.LOW)
     public void capture(RenderTooltipEvent.Pre event) {
-        capture(event.getStack());
+        beforeTooltip(event.getStack(), event.getX(), event.getY());
+    }
+
+    /** Also called by renderers that bypass Forge's Pre event, before any tooltip pixels. */
+    static void beforeTooltip(ItemStack stack, int mouseX, int mouseY) {
+        capture(stack);
+        drawCaptured(Minecraft.getMinecraft().currentScreen, mouseX, mouseY,
+                ItemZoomDrawOrder.Phase.BEFORE_TOOLTIP);
     }
 
     /** Shared source used by the modern document renderer and HEI bridge. */
     static void capture(ItemStack stack) {
         Minecraft minecraft = Minecraft.getMinecraft();
         GuiScreen screen = minecraft.currentScreen;
-        if (!ItemZoomKeyBindings.isActive() || !(screen instanceof GuiContainer)
-                || stack == null || stack.isEmpty() || !allowed(stack)) {
-            return;
-        }
+        if (!(screen instanceof GuiContainer) || stack == null || stack.isEmpty()) return;
+        hovered = stack.copy();
+        hoveredScreen = screen;
+        hoveredThisFrame = true;
+        if (!ItemZoomKeyBindings.isActive() || !allowed(stack)
+                || "off".equals(ItemZoomPresentation.mode(ItemZoomPresentation.category(stack)))) return;
         captured = stack.copy();
         capturedScreen = screen;
         capturedAt = System.nanoTime();
@@ -58,22 +91,39 @@ final class ItemZoomOverlay {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void draw(GuiScreenEvent.DrawScreenEvent.Post event) {
+        if (!hoveredThisFrame || event.getGui() != hoveredScreen) {
+            hovered = ItemStack.EMPTY;
+            hoveredScreen = null;
+        }
+        hoveredThisFrame = false;
+        drawCaptured(event.getGui(), event.getMouseX(), event.getMouseY(),
+                ItemZoomDrawOrder.Phase.AFTER_SCREEN);
+        captured = ItemStack.EMPTY;
+        capturedScreen = null;
+    }
+
+    private static void drawCaptured(GuiScreen screen, int mouseX, int mouseY,
+                                     ItemZoomDrawOrder.Phase phase) {
         if (!ItemZoomKeyBindings.isActive()) {
+            TooltipPreviewRenderers.resetItemZoomAnimation();
             captured = ItemStack.EMPTY;
             capturedScreen = null;
             return;
         }
         if (captured.isEmpty()
-                || event.getGui() != capturedScreen
+                || screen != capturedScreen
                 || System.nanoTime() - capturedAt > CAPTURE_TIMEOUT_NANOS) {
             return;
         }
+        // Claim before drawing: a model renderer can re-enter a tooltip path.
+        if (!DRAW_ORDER.claim(TooltipConfig.zoomOverlayLayer, phase)) return;
 
         ItemStack stack = captured;
         captured = ItemStack.EMPTY;
         capturedScreen = null;
         try {
-            render(event.getGui(), stack, event.getMouseX(), event.getMouseY());
+            render(screen, stack, mouseX, mouseY);
+            TooltipPreviewRenderers.itemZoomRendered();
         } catch (RuntimeException | LinkageError failure) {
             if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
                 TooltipModule.LOGGER.warn("Item zoom overlay render failed for {}",
@@ -82,26 +132,28 @@ final class ItemZoomOverlay {
         }
     }
 
-    private void render(GuiScreen screen, ItemStack stack, int mouseX, int mouseY) {
+    private static void render(GuiScreen screen, ItemStack stack, int mouseX, int mouseY) {
         Minecraft minecraft = Minecraft.getMinecraft();
         ScaledResolution resolution = new ScaledResolution(minecraft);
         int screenWidth = resolution.getScaledWidth();
         int screenHeight = resolution.getScaledHeight();
-        int size = Math.max(32, Math.min(TooltipConfig.zoomOverlaySize, 160));
         int gap = Math.max(2, TooltipConfig.zoomOverlayGap);
         if (!(screen instanceof GuiContainer)) return;
 
-        Bounds area = availableArea((GuiContainer) screen, mouseX, screenWidth, screenHeight, gap);
-        int renderSize = Math.min(size, Math.min(area.width - gap * 2, area.height - gap * 2));
-        if (renderSize < 32) return;
-
-        int x = area.left + (area.width - renderSize) / 2;
-        int y = area.top + (area.height - renderSize) / 2;
+        GuiContainer container = (GuiContainer) screen;
+        int panelInset = TooltipConfig.zoomOverlayPanel
+                ? Math.max(0, TooltipConfig.zoomOverlayPanelInset) : 0;
+        ItemZoomLayout layout = ItemZoomLayout.fit(TooltipConfig.zoomOverlaySide, mouseX,
+                screenWidth, screenHeight, container.getGuiLeft(), container.getGuiTop(),
+                container.getXSize(), container.getYSize(), TooltipConfig.zoomOverlaySize,
+                gap, panelInset);
+        if (layout == null) return;
+        int x = layout.x;
+        int y = layout.y;
+        int renderSize = layout.size;
         float appear = TooltipPreviewRenderers.itemZoomAnimationProgress(stack);
         if (appear <= 0.001F) return;
 
-        int panelInset = TooltipConfig.zoomOverlayPanel
-                ? Math.max(0, TooltipConfig.zoomOverlayPanelInset) : 0;
         int panelLeft = x - panelInset;
         int panelTop = y - panelInset;
         int panelRight = x + renderSize + panelInset;
@@ -111,10 +163,25 @@ final class ItemZoomOverlay {
         // complete caller state, including GlStateManager's cached color, so lighting or fade
         // alpha cannot leak into the rest of the GUI.
         try (ModernTooltipRenderer.CallerGlState ignored = ModernTooltipRenderer.CallerGlState.capture()) {
+            // Tooltip callbacks may inherit a widget transform or scissor. The standalone
+            // preview always uses screen coordinates, then restores the caller's matrices.
+            int matrixMode = GL11.glGetInteger(GL11.GL_MATRIX_MODE);
+            GlStateManager.matrixMode(GL11.GL_PROJECTION);
             GlStateManager.pushMatrix();
+            GlStateManager.loadIdentity();
+            GlStateManager.ortho(0, resolution.getScaledWidth_double(),
+                    resolution.getScaledHeight_double(), 0, 1000, 3000);
+            GlStateManager.matrixMode(GL11.GL_MODELVIEW);
+            GlStateManager.pushMatrix();
+            GlStateManager.loadIdentity();
+            GlStateManager.translate(0, 0, -2000);
             RenderItem renderer = minecraft.getRenderItem();
             float oldZ = renderer == null ? 0.0F : renderer.zLevel;
             try {
+                GL20.glUseProgram(0);
+                GL11.glDisable(GL11.GL_SCISSOR_TEST);
+                RenderHelper.disableStandardItemLighting();
+                GlStateManager.disableFog();
                 GlStateManager.enableTexture2D();
                 GlStateManager.enableAlpha();
                 GlStateManager.enableBlend();
@@ -126,31 +193,22 @@ final class ItemZoomOverlay {
                 if (renderer == null) return;
 
                 FontRenderer font = minecraft.fontRenderer;
-                float centerX = x + renderSize * 0.5F;
-                float centerY = y + renderSize * 0.5F;
-                float rotation = TooltipConfig.zoomOverlayRotation
-                        ? rotationAngle(System.nanoTime(), TooltipConfig.zoomOverlayRotationSpeed) : 0.0F;
                 float scale = renderSize / 16.0F;
-
-                GlStateManager.color(1.0F, 1.0F, 1.0F, appear);
-                GlStateManager.pushMatrix();
-                try {
-                    // Render the baked item model directly, matching the tooltip preview path.
-                    // TransformType.NONE preserves the model's three-dimensional faces, so tools,
-                    // weapons, armor items and block items can rotate around the Y axis.
-                    TooltipPreviewRenderers.preparePreviewDepthLayer();
-                    GlStateManager.translate(centerX, centerY, 500.0F);
-                    GlStateManager.scale(scale, scale, scale);
-                    GlStateManager.rotate(-30.0F, 1.0F, 0.0F, 0.0F);
-                    GlStateManager.rotate(rotation, 0.0F, 1.0F, 0.0F);
-                    GlStateManager.rotate(-45.0F, 0.0F, 0.0F, 1.0F);
-                    GlStateManager.scale(16.0F, -16.0F, 16.0F);
-                    TooltipPreviewRenderers.enableZoomItemLighting(scale);
-                    renderer.renderItem(stack, ItemCameraTransforms.TransformType.NONE);
-                } finally {
-                    GlStateManager.popMatrix();
-                    renderer.zLevel = oldZ;
-                    RenderHelper.disableStandardItemLighting();
+                ItemZoomPresentation.Category category = ItemZoomPresentation.category(stack);
+                String mode = ItemZoomPresentation.mode(category);
+                if ("off".equals(mode)) return;
+                if (ItemZoomRenderTarget.render(renderSize, resolution.getScaleFactor(),
+                        () -> ItemZoomRenderer.render(stack, category, mode, renderSize))) {
+                    ItemZoomRenderTarget.composite(x, y, renderSize, appear);
+                } else {
+                    // If framebuffer support is disabled, retain a vanilla GUI-icon fallback.
+                    GlStateManager.pushMatrix();
+                    try {
+                        GlStateManager.translate(x, y, 0);
+                        ItemZoomRenderer.renderIcon(stack, renderSize);
+                    } finally {
+                        GlStateManager.popMatrix();
+                    }
                 }
 
                 RenderHelper.disableStandardItemLighting();
@@ -182,7 +240,11 @@ final class ItemZoomOverlay {
             } finally {
                 if (renderer != null) renderer.zLevel = oldZ;
                 RenderHelper.disableStandardItemLighting();
+                GlStateManager.matrixMode(GL11.GL_MODELVIEW);
                 GlStateManager.popMatrix();
+                GlStateManager.matrixMode(GL11.GL_PROJECTION);
+                GlStateManager.popMatrix();
+                GlStateManager.matrixMode(matrixMode);
             }
         }
     }
@@ -199,40 +261,12 @@ final class ItemZoomOverlay {
         }
     }
 
-    private static Bounds availableArea(GuiContainer container, int mouseX, int width, int height,
-                                        int gap) {
-        int left = container.getGuiLeft();
-        int right = left + container.getXSize();
-        int top = container.getGuiTop();
-        int bottom = top + container.getYSize();
-        int leftWidth = Math.max(0, left - gap);
-        int rightWidth = Math.max(0, width - right - gap);
-        boolean useLeft;
-        if ("left".equals(TooltipConfig.zoomOverlaySide)) {
-            useLeft = true;
-        } else if ("right".equals(TooltipConfig.zoomOverlaySide)) {
-            useLeft = false;
-        } else if (mouseX < left) {
-            useLeft = false;
-        } else if (mouseX > right) {
-            useLeft = true;
-        } else {
-            useLeft = leftWidth * 1.1F >= rightWidth;
-        }
-        if (useLeft && leftWidth > 0) return new Bounds(0, top, leftWidth, bottom - top);
-        if (rightWidth > 0) return new Bounds(right + gap, top, rightWidth, bottom - top);
-        return new Bounds(0, 0, width, height);
-    }
-
-    private static boolean allowed(ItemStack stack) {
+    static boolean allowed(ItemStack stack) {
         String id = stack.getItem().getRegistryName() == null ? ""
                 : stack.getItem().getRegistryName().toString();
         if (matches(TooltipConfig.zoomOverlayBlacklist, id)) return false;
         if (matches(TooltipConfig.zoomOverlayWhitelist, id)) return true;
-        if ("all".equals(TooltipConfig.zoomOverlayScope)) return true;
-        Object item = stack.getItem();
-        return item instanceof ItemTool || item instanceof ItemSword || item instanceof ItemArmor
-                || item instanceof ItemBow || item instanceof ItemShield;
+        return ItemZoomPresentation.inScope(ItemZoomPresentation.category(stack), TooltipConfig.zoomOverlayScope);
     }
 
     private static boolean matches(java.util.List<String> rules, String id) {
@@ -255,13 +289,4 @@ final class ItemZoomOverlay {
         return (float) ((cycle / 1_000_000_000.0D * degreesPerSecond) % 360.0D);
     }
 
-    private static final class Bounds {
-        final int left, top, width, height;
-        Bounds(int left, int top, int width, int height) {
-            this.left = left;
-            this.top = top;
-            this.width = width;
-            this.height = height;
-        }
-    }
 }

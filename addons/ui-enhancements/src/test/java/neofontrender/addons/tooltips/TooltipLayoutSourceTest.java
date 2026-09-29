@@ -33,7 +33,7 @@ class TooltipLayoutSourceTest {
     void shortLineUsesWholeScreenInsteadOfMouseSideAsWrapLimit() {
         TooltipVisualExtents extents = TooltipVisualExtents.calculate(
                 1.25F, 0.55F, 4.0F, 72, 0.0F, 2.0F);
-        assertEquals(178, TooltipLayout.screenWidthLimit(200, 5, extents));
+        assertEquals(178, TooltipLayout.screenWidthLimit(200, 5, 5, extents));
     }
 
     @Test

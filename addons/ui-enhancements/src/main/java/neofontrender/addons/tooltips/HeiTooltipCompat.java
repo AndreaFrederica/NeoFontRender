@@ -27,8 +27,13 @@ public final class HeiTooltipCompat {
         ItemStack active = stack == null ? ItemStack.EMPTY : stack;
         PANELS.get().push(new PanelState(active));
         // HEI owns this tooltip renderer and does not reliably publish Forge's standard
-        // RenderTooltipEvent.Pre. Feed the same stack to the deferred Item Zoom overlay.
+        // RenderTooltipEvent.Pre. Feed the same stack to the Item Zoom overlay.
         ItemZoomOverlay.capture(active);
+    }
+
+    public static void begin(ItemStack stack, int mouseX, int mouseY) {
+        begin(stack);
+        ItemZoomOverlay.beforeTooltip(stack, mouseX, mouseY);
     }
 
     public static void beginIfAbsent(ItemStack stack) {
@@ -40,6 +45,14 @@ public final class HeiTooltipCompat {
         if (info == null || info.ingredientCount <= 1) return;
         FontRenderer font = minecraft == null ? null : minecraft.fontRenderer;
         PANELS.get().push(new PanelState(info.stack, info.modName, font));
+    }
+
+    public static void beginCollapsed(Object renderer, Minecraft minecraft, int mouseX, int mouseY) {
+        int depth = PANELS.get().size();
+        beginCollapsed(renderer, minecraft);
+        if (PANELS.get().size() > depth) {
+            ItemZoomOverlay.beforeTooltip(PANELS.get().peek().stack, mouseX, mouseY);
+        }
     }
 
     public static void end() {

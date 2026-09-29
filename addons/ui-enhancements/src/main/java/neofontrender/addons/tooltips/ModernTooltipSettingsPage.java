@@ -123,6 +123,12 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                              },
                             Arrays.asList("left", "center", "right"),
                             value -> tr("gui.title_alignment." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_body_alignment", () -> tr("gui.body_alignment"),
+                            () -> TooltipConfig.bodyAlignment,
+                            value -> TooltipConfig.bodyAlignment =
+                                    TooltipConfig.normalizeAlignment(value, "left"),
+                            Arrays.asList("left", "center", "right"),
+                            value -> tr("gui.title_alignment." + value)).size(260, 24))
                     .add(c.dropdownText("tooltip_rarity_alignment", () -> tr("gui.rarity_alignment"),
                             () -> TooltipConfig.rarityAlignment,
                             value -> TooltipConfig.rarityAlignment = TooltipConfig.normalizeAlignment(value, "left"),
@@ -225,9 +231,87 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                      .add(c.toggleText(() -> tr("gui.preview_rarity"), () -> tr("tooltip.preview.rarity.enabled"),
                              () -> TooltipConfig.rarityEnabled,
                              value -> TooltipConfig.rarityEnabled = value))
-                     .add(c.toggleText(() -> tr("gui.preview_item_enabled"), () -> tr("tooltip.preview.item.enabled"),
+                    .add(c.toggleText(() -> tr("gui.preview_item_enabled"), () -> tr("tooltip.preview.item.enabled"),
                             () -> TooltipConfig.itemPreviewEnabled,
                             value -> TooltipConfig.itemPreviewEnabled = value))
+                    .add(c.toggleText(() -> tr("gui.zoom_overlay_enabled"), () -> tr("tooltip.zoom_overlay.enabled"),
+                            () -> TooltipConfig.zoomOverlayEnabled,
+                            value -> TooltipConfig.zoomOverlayEnabled = value))
+                    .add(c.dropdownText("tooltip_zoom_overlay_scope", () -> tr("gui.zoom_overlay_scope"),
+                            () -> TooltipConfig.zoomOverlayScope,
+                            value -> TooltipConfig.zoomOverlayScope = TooltipConfig.normalizeItemPreviewScope(value),
+                            Arrays.asList("tools", "all"), value -> tr("gui.preview_item_scope." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_zoom_overlay_block_mode", () -> tr("gui.zoom_overlay_block_mode"),
+                            () -> TooltipConfig.zoomOverlayBlockMode,
+                            value -> TooltipConfig.zoomOverlayBlockMode = value,
+                            Arrays.asList("off", "2d", "3d"), value -> tr("gui.zoom_overlay_mode." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_zoom_overlay_tool_mode", () -> tr("gui.zoom_overlay_tool_mode"),
+                            () -> TooltipConfig.zoomOverlayToolMode,
+                            value -> TooltipConfig.zoomOverlayToolMode = value,
+                            Arrays.asList("off", "2d", "3d"), value -> tr("gui.zoom_overlay_mode." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_zoom_overlay_equipment_mode", () -> tr("gui.zoom_overlay_equipment_mode"),
+                            () -> TooltipConfig.zoomOverlayEquipmentMode,
+                            value -> TooltipConfig.zoomOverlayEquipmentMode = value,
+                            Arrays.asList("off", "2d", "3d"), value -> tr("gui.zoom_overlay_mode." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_zoom_overlay_other_mode", () -> tr("gui.zoom_overlay_other_mode"),
+                            () -> TooltipConfig.zoomOverlayOtherMode,
+                            value -> TooltipConfig.zoomOverlayOtherMode = value,
+                            Arrays.asList("off", "2d", "3d"), value -> tr("gui.zoom_overlay_mode." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_zoom_overlay_armor_model", () -> tr("gui.zoom_overlay_armor_model"),
+                            () -> TooltipConfig.zoomOverlayArmorModel,
+                            value -> TooltipConfig.zoomOverlayArmorModel = value,
+                            Arrays.asList("follow", "armor_stand", "player"), value -> tr("gui.zoom_overlay_armor_model." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_zoom_overlay_armor_mode", () -> tr("gui.zoom_overlay_armor_mode"),
+                            () -> TooltipConfig.zoomOverlayArmorMode,
+                            value -> TooltipConfig.zoomOverlayArmorMode = value,
+                            Arrays.asList("follow", "single_piece", "full_set"), value -> tr("gui.zoom_overlay_armor_mode." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_zoom_overlay_motion", () -> tr("gui.zoom_overlay_motion"),
+                            () -> TooltipConfig.zoomOverlayMotion,
+                            value -> TooltipConfig.zoomOverlayMotion = value,
+                            Arrays.asList("spin", "sway"), value -> tr("gui.zoom_overlay_motion." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_zoom_overlay_side", () -> tr("gui.zoom_overlay_side"),
+                            () -> TooltipConfig.zoomOverlaySide,
+                            value -> TooltipConfig.zoomOverlaySide = TooltipConfig.normalizeZoomOverlaySide(value),
+                            Arrays.asList("auto", "left", "right"), value -> tr("gui.zoom_overlay_side." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_zoom_overlay_size", () -> tr("gui.zoom_overlay_size"),
+                            () -> Integer.toString(TooltipConfig.zoomOverlaySize),
+                            value -> TooltipConfig.zoomOverlaySize = Integer.parseInt(value),
+                            Arrays.asList("48", "64", "80", "88", "96", "112", "128", "144", "160", "192", "224", "256", "320", "384", "448", "512"), value -> value + " px").size(260, 24))
+                    .add(c.dropdownText("tooltip_zoom_overlay_layer", () -> tr("gui.zoom_overlay_layer"),
+                            () -> TooltipConfig.zoomOverlayLayer,
+                            value -> TooltipConfig.zoomOverlayLayer = TooltipConfig.normalizeZoomOverlayLayer(value),
+                            Arrays.asList("below_tooltip", "above_tooltip"),
+                            value -> tr("gui.zoom_overlay_layer." + value)).size(260, 24))
+                    .add(c.toggleText(() -> tr("gui.zoom_overlay_rotation"), () -> tr("tooltip.zoom_overlay.rotation.enabled"),
+                            () -> TooltipConfig.zoomOverlayRotation,
+                            value -> TooltipConfig.zoomOverlayRotation = value))
+                    .add(c.toggleText(() -> tr("gui.zoom_overlay_animation"), () -> tr("tooltip.zoom_overlay.animation.enabled"),
+                            () -> TooltipConfig.zoomOverlayAnimation,
+                            value -> TooltipConfig.zoomOverlayAnimation = value))
+                    .add(c.dropdownText("tooltip_zoom_overlay_animation_switch", () -> tr("gui.zoom_overlay_animation_switch"),
+                            () -> TooltipConfig.zoomOverlayAnimationSwitch,
+                            value -> TooltipConfig.zoomOverlayAnimationSwitch = TooltipConfig.normalizeZoomAnimationSwitch(value),
+                            Arrays.asList("continue", "restart", "instant"),
+                            value -> tr("gui.zoom_overlay_animation_switch." + value)).size(260, 24))
+                    .add(c.dropdownText("tooltip_zoom_overlay_animation_duration", () -> tr("gui.zoom_overlay_animation_duration"),
+                            () -> Integer.toString(TooltipConfig.zoomOverlayAnimationMillis),
+                            value -> TooltipConfig.zoomOverlayAnimationMillis = Integer.parseInt(value),
+                            Arrays.asList("0", "90", "120", "180", "240", "360", "500"), value -> value + " ms").size(260, 24))
+                    .add(c.toggleText(() -> tr("gui.zoom_overlay_measure_bounds"), () -> tr("tooltip.preview.measure_bounds"),
+                            () -> TooltipConfig.zoomOverlayMeasureBounds,
+                            value -> TooltipConfig.zoomOverlayMeasureBounds = value))
+                    .add(c.toggleText(() -> tr("gui.zoom_overlay_panel"), () -> tr("tooltip.zoom_overlay.panel.enabled"),
+                            () -> TooltipConfig.zoomOverlayPanel,
+                            value -> TooltipConfig.zoomOverlayPanel = value))
+                    .add(c.toggleText(() -> tr("gui.zoom_overlay_stack_size"), () -> tr("tooltip.zoom_overlay.show.stackSize"),
+                            () -> TooltipConfig.zoomOverlayShowStackSize,
+                            value -> TooltipConfig.zoomOverlayShowStackSize = value))
+                    .add(c.toggleText(() -> tr("gui.zoom_overlay_durability"), () -> tr("tooltip.zoom_overlay.show.durability"),
+                            () -> TooltipConfig.zoomOverlayShowDurability,
+                            value -> TooltipConfig.zoomOverlayShowDurability = value))
+                    .add(c.toggleText(() -> tr("gui.zoom_overlay_cooldown"), () -> tr("tooltip.zoom_overlay.show.cooldown"),
+                            () -> TooltipConfig.zoomOverlayShowCooldown,
+                            value -> TooltipConfig.zoomOverlayShowCooldown = value))
                     .add(c.dropdownText("tooltip_preview_item_scope", () -> tr("gui.preview_item_scope"),
                             () -> TooltipConfig.itemPreviewScope,
                             value -> TooltipConfig.itemPreviewScope = TooltipConfig.normalizeItemPreviewScope(value),
@@ -236,6 +320,9 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                     .add(c.toggleText(() -> tr("gui.preview_armor_enabled"), () -> tr("tooltip.preview.armor.enabled"),
                             () -> TooltipConfig.armorPreviewEnabled,
                             value -> TooltipConfig.armorPreviewEnabled = value))
+                    .add(c.toggleText(() -> tr("gui.preview_measure_bounds"), () -> tr("tooltip.preview.measure_bounds"),
+                            () -> TooltipConfig.previewMeasureBounds,
+                            value -> TooltipConfig.previewMeasureBounds = value))
                     .add(c.toggleText(() -> tr("gui.preview_animation"), () -> tr("tooltip.preview.animation.enabled"),
                             () -> TooltipConfig.previewAnimationEnabled,
                             value -> TooltipConfig.previewAnimationEnabled = value))
@@ -316,18 +403,27 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                     .add(c.dropdownText("tooltip_divider_alpha", () -> tr("gui.divider_alpha"),
                             () -> Integer.toString(TooltipConfig.dividerAlpha), value -> TooltipConfig.dividerAlpha = Integer.parseInt(value),
                             Arrays.asList("0", "64", "96", "128", "160", "176", "208", "255"), value -> value).size(260, 24))
-                    .add(c.dropdownText("tooltip_h_padding", () -> tr("gui.horizontal_padding"),
-                            () -> Integer.toString(TooltipConfig.horizontalPadding), value -> TooltipConfig.horizontalPadding = Integer.parseInt(value),
-                            integerValues(1, 12), value -> value).size(260, 24))
-                    .add(c.dropdownText("tooltip_v_padding", () -> tr("gui.vertical_padding"),
-                            () -> Integer.toString(TooltipConfig.verticalPadding), value -> TooltipConfig.verticalPadding = Integer.parseInt(value),
-                            integerValues(1, 12), value -> value).size(260, 24))
+                    .add(c.dropdownText("tooltip_left_padding", () -> tr("gui.left_padding"),
+                            () -> Integer.toString(TooltipConfig.leftPadding), value -> TooltipConfig.leftPadding = Integer.parseInt(value),
+                            integerValues(0, 24), value -> value).size(260, 24))
+                    .add(c.dropdownText("tooltip_right_padding", () -> tr("gui.right_padding"),
+                            () -> Integer.toString(TooltipConfig.rightPadding), value -> TooltipConfig.rightPadding = Integer.parseInt(value),
+                            integerValues(0, 24), value -> value).size(260, 24))
+                    .add(c.dropdownText("tooltip_top_padding", () -> tr("gui.top_padding"),
+                            () -> Integer.toString(TooltipConfig.topPadding), value -> TooltipConfig.topPadding = Integer.parseInt(value),
+                            integerValues(0, 24), value -> value).size(260, 24))
+                    .add(c.dropdownText("tooltip_bottom_padding", () -> tr("gui.bottom_padding"),
+                            () -> Integer.toString(TooltipConfig.bottomPadding), value -> TooltipConfig.bottomPadding = Integer.parseInt(value),
+                            integerValues(0, 24), value -> value).size(260, 24))
                     .add(c.dropdownText("tooltip_line_height", () -> tr("gui.line_height"),
                             () -> Integer.toString(TooltipConfig.lineHeight), value -> TooltipConfig.lineHeight = Integer.parseInt(value),
                             integerValues(8, 16), value -> value).size(260, 24))
-                    .add(c.dropdownText("tooltip_title_gap", () -> tr("gui.title_gap"),
-                            () -> Integer.toString(TooltipConfig.titleGap), value -> TooltipConfig.titleGap = Integer.parseInt(value),
-                            integerValues(0, 10), value -> value).size(260, 24))
+                    .add(c.dropdownText("tooltip_divider_top_margin", () -> tr("gui.divider_top_margin"),
+                            () -> Integer.toString(TooltipConfig.dividerTopMargin), value -> TooltipConfig.dividerTopMargin = Integer.parseInt(value),
+                            integerValues(0, 16), value -> value).size(260, 24))
+                    .add(c.dropdownText("tooltip_divider_bottom_margin", () -> tr("gui.divider_bottom_margin"),
+                            () -> Integer.toString(TooltipConfig.dividerBottomMargin), value -> TooltipConfig.dividerBottomMargin = Integer.parseInt(value),
+                            integerValues(0, 16), value -> value).size(260, 24))
                     .add(c.dropdownText("tooltip_cursor_offset", () -> tr("gui.cursor_offset"),
                             () -> Integer.toString(TooltipConfig.cursorOffset), value -> TooltipConfig.cursorOffset = Integer.parseInt(value),
                             Arrays.asList("0", "4", "8", "10", "12", "16", "20", "24", "32"), value -> value).size(260, 24))

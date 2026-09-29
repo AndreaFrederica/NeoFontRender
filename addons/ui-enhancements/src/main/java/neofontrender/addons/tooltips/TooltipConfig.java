@@ -38,6 +38,8 @@ final class TooltipConfig {
     static boolean rounded = true;
     /** Title text alignment: left, center or right. */
     static String titleAlignment = "center";
+    /** Ordinary body rows use the same measured text box, with a separate alignment policy. */
+    static String bodyAlignment = "left";
     /** Rarity row alignment is independent; left is the least surprising default. */
     static String rarityAlignment = "left";
     /** Vertical anchor used by the title icon: full header, title block or first title row. */
@@ -72,6 +74,7 @@ final class TooltipConfig {
     static String itemPreviewScope = "tools";
     static boolean armorPreviewEnabled = true;
     static boolean previewAnimationEnabled = true;
+    static boolean previewMeasureBounds = true;
     static int previewAnimationMillis = 180;
     static boolean previewEffectsEnabled = true;
     static boolean previewParticlesEnabled = true;
@@ -92,13 +95,49 @@ final class TooltipConfig {
     static int armorPreviewWidth = 40;
     static List<String> previewWhitelist = Collections.emptyList();
     static List<String> previewBlacklist = Collections.emptyList();
+    /** Item Zoom/Item Zoomer compatible enlarged hover overlay. */
+    static boolean zoomOverlayEnabled = false;
+    static String zoomOverlayScope = "tools";
+    static String zoomOverlayBlockMode = "3d";
+    static String zoomOverlayToolMode = "3d";
+    static String zoomOverlayEquipmentMode = "3d";
+    static String zoomOverlayOtherMode = "2d";
+    static String zoomOverlayArmorModel = "follow";
+    static String zoomOverlayArmorMode = "follow";
+    static String zoomOverlayMotion = "spin";
+    static String zoomOverlaySide = "auto";
+    static String zoomOverlayLayer = "below_tooltip";
+    static int zoomOverlaySize = 88;
+    static int zoomOverlayGap = 8;
+    static boolean zoomOverlayAnimation = true;
+    static boolean zoomOverlayMeasureBounds = true;
+    static String zoomOverlayAnimationSwitch = "continue";
+    static int zoomOverlayAnimationMillis = 180;
+    static boolean zoomOverlayRotation = true;
+    static float zoomOverlayRotationSpeed = 18.0F;
+    static boolean zoomOverlayShowStackSize = false;
+    static boolean zoomOverlayShowDurability = false;
+    static boolean zoomOverlayShowCooldown = false;
+    static boolean zoomOverlayPanel = false;
+    static boolean zoomOverlayBorder = true;
+    static int zoomOverlayPanelInset = 5;
+    static int zoomOverlayBackgroundColor = 0xC0101018;
+    static int zoomOverlayBorderColor = 0xD0AAB4C4;
+    static List<String> zoomOverlayWhitelist = Collections.emptyList();
+    static List<String> zoomOverlayBlacklist = Collections.emptyList();
     static int textColor = 0xFFFFFFFF;
     static int titleColor = 0xFFFFFFFF;
     static int dividerAlpha = 176;
-    static int horizontalPadding = 5;
-    static int verticalPadding = 5;
+    static int leftPadding = 5;
+    static int rightPadding = 5;
+    /** Insets are applied once, outside the measured content bounds. */
+    static int topPadding = 5;
+    static int bottomPadding = 5;
     static int lineHeight = 10;
-    static int titleGap = 3;
+    /** Space between the title block and the divider line. */
+    static int dividerTopMargin = 0;
+    /** Space between the divider line and the first body row. */
+    static int dividerBottomMargin = 3;
     static int cursorOffset = 12;
     static int maxWidth = 0;
     static int[] fillColors = DEFAULT_FILL.clone();
@@ -137,6 +176,7 @@ final class TooltipConfig {
         advancedNbtCharacterLimit = config.getInt("tooltip.advanced.nbtCharacterLimit", 0, 0, 100000);
         rounded = config.getBoolean("tooltip.rounded", true);
         titleAlignment = normalizeTitleAlignment(config.getString("tooltip.titleAlignment", "center"));
+        bodyAlignment = normalizeAlignment(config.getString("tooltip.bodyAlignment", "left"), "left");
         rarityAlignment = normalizeAlignment(config.getString("tooltip.rarityAlignment", "left"), "left");
         headerIconAlignment = normalizeHeaderIconAlignment(config.getString(
                 "tooltip.preview.icon.alignment", "header"));
@@ -177,6 +217,7 @@ final class TooltipConfig {
                 config.getString("tooltip.preview.item.scope", "tools"));
         armorPreviewEnabled = config.getBoolean("tooltip.preview.armor.enabled", true);
         previewAnimationEnabled = config.getBoolean("tooltip.preview.animation.enabled", true);
+        previewMeasureBounds = config.getBoolean("tooltip.preview.measureBounds", true);
         previewAnimationMillis = config.getInt("tooltip.preview.animation.durationMillis", 180, 0, 2000);
         previewEffectsEnabled = config.getBoolean("tooltip.preview.effects.enabled", true);
         previewParticlesEnabled = config.getBoolean("tooltip.preview.effects.particles", true);
@@ -197,13 +238,45 @@ final class TooltipConfig {
         armorPreviewWidth = config.getInt("tooltip.preview.armor.width", 40, 16, 128);
         previewWhitelist = config.getStringList("tooltip.preview.whitelist", Collections.emptyList());
         previewBlacklist = config.getStringList("tooltip.preview.blacklist", Collections.emptyList());
+        zoomOverlayEnabled = config.getBoolean("tooltip.zoomOverlay.enabled", false);
+        zoomOverlayScope = normalizeItemPreviewScope(config.getString("tooltip.zoomOverlay.scope", "tools"));
+        zoomOverlayBlockMode = normalizeZoomDisplayMode(config.getString("tooltip.zoomOverlay.block.mode", "3d"), "3d");
+        zoomOverlayToolMode = normalizeZoomDisplayMode(config.getString("tooltip.zoomOverlay.tool.mode", "3d"), "3d");
+        zoomOverlayEquipmentMode = normalizeZoomDisplayMode(config.getString("tooltip.zoomOverlay.equipment.mode", "3d"), "3d");
+        zoomOverlayOtherMode = normalizeZoomDisplayMode(config.getString("tooltip.zoomOverlay.other.mode", "2d"), "2d");
+        zoomOverlayArmorModel = normalizeZoomArmorModel(config.getString("tooltip.zoomOverlay.equipment.model", "follow"));
+        zoomOverlayArmorMode = normalizeZoomArmorMode(config.getString("tooltip.zoomOverlay.equipment.outfit", "follow"));
+        zoomOverlayMotion = normalizeZoomMotion(config.getString("tooltip.zoomOverlay.motion", "spin"));
+        zoomOverlaySide = normalizeZoomOverlaySide(config.getString("tooltip.zoomOverlay.side", "auto"));
+        zoomOverlayLayer = normalizeZoomOverlayLayer(config.getString("tooltip.zoomOverlay.layer", "below_tooltip"));
+        zoomOverlaySize = config.getInt("tooltip.zoomOverlay.size", 88, ItemZoomLayout.MIN_SIZE, ItemZoomLayout.MAX_SIZE);
+        zoomOverlayGap = config.getInt("tooltip.zoomOverlay.gap", 8, 2, 32);
+        zoomOverlayAnimation = config.getBoolean("tooltip.zoomOverlay.animation.enabled", true);
+        zoomOverlayMeasureBounds = config.getBoolean("tooltip.zoomOverlay.measureBounds", true);
+        zoomOverlayAnimationSwitch = normalizeZoomAnimationSwitch(config.getString("tooltip.zoomOverlay.animation.switch", "continue"));
+        zoomOverlayAnimationMillis = config.getInt("tooltip.zoomOverlay.animation.durationMillis", 180, 0, 2000);
+        zoomOverlayRotation = config.getBoolean("tooltip.zoomOverlay.rotation.enabled", true);
+        zoomOverlayRotationSpeed = (float) config.getDouble("tooltip.zoomOverlay.rotation.speed", 18.0D, -180.0D, 180.0D);
+        zoomOverlayShowStackSize = config.getBoolean("tooltip.zoomOverlay.show.stackSize", false);
+        zoomOverlayShowDurability = config.getBoolean("tooltip.zoomOverlay.show.durability", false);
+        zoomOverlayShowCooldown = config.getBoolean("tooltip.zoomOverlay.show.cooldown", false);
+        zoomOverlayPanel = config.getBoolean("tooltip.zoomOverlay.panel.enabled", false);
+        zoomOverlayBorder = config.getBoolean("tooltip.zoomOverlay.panel.border", true);
+        zoomOverlayPanelInset = config.getInt("tooltip.zoomOverlay.panel.inset", 5, 0, 24);
+        zoomOverlayBackgroundColor = parseColor(config.getString("tooltip.zoomOverlay.panel.background", "#C0101018"), 0xC0101018);
+        zoomOverlayBorderColor = parseColor(config.getString("tooltip.zoomOverlay.panel.borderColor", "#D0AAB4C4"), 0xD0AAB4C4);
+        zoomOverlayWhitelist = config.getStringList("tooltip.zoomOverlay.whitelist", Collections.emptyList());
+        zoomOverlayBlacklist = config.getStringList("tooltip.zoomOverlay.blacklist", Collections.emptyList());
         textColor = parseColor(config.getString("text.color", "#FFFFFFFF"), 0xFFFFFFFF);
         titleColor = parseColor(config.getString("text.titleColor", "#FFFFFFFF"), 0xFFFFFFFF);
         dividerAlpha = config.getInt("text.dividerAlpha", 176, 0, 255);
-        horizontalPadding = config.getInt("layout.horizontalPadding", 5, 1, 24);
-        verticalPadding = config.getInt("layout.verticalPadding", 5, 1, 24);
+        leftPadding = config.getInt("layout.leftPadding", 5, 0, 24);
+        rightPadding = config.getInt("layout.rightPadding", 5, 0, 24);
+        topPadding = config.getInt("layout.topPadding", 5, 0, 24);
+        bottomPadding = config.getInt("layout.bottomPadding", 5, 0, 24);
         lineHeight = config.getInt("layout.lineHeight", 10, 8, 24);
-        titleGap = config.getInt("layout.titleGap", 3, 0, 16);
+        dividerTopMargin = config.getInt("layout.dividerTopMargin", 0, 0, 16);
+        dividerBottomMargin = config.getInt("layout.dividerBottomMargin", 3, 0, 16);
         cursorOffset = config.getInt("layout.cursorOffset", 12, 0, 32);
         maxWidth = config.getInt("layout.maxWidth", 0, 0, 1024);
         fillColors = parseColors(config.getStringList("tooltip.fillColors", colorStrings(DEFAULT_FILL)), DEFAULT_FILL);
@@ -220,6 +293,11 @@ final class TooltipConfig {
         config.remove("tooltip.centerTitle");
         config.remove("tooltip.suppress.immersiveEngineering");
         config.remove("tooltip.suppress.enderCore");
+        config.remove("layout.titleGap");
+        config.remove("layout.horizontalPadding");
+        config.remove("layout.verticalPadding");
+        config.remove("layout.textTopPadding");
+        config.remove("layout.textBottomPadding");
         config.save();
     }
 
@@ -246,6 +324,7 @@ final class TooltipConfig {
                 .set("tooltip.advanced.nbtCharacterLimit", advancedNbtCharacterLimit)
                 .set("tooltip.rounded", rounded)
                 .set("tooltip.titleAlignment", titleAlignment)
+                .set("tooltip.bodyAlignment", bodyAlignment)
                 .set("tooltip.rarityAlignment", rarityAlignment)
                 .set("tooltip.preview.icon.alignment", headerIconAlignment)
                 .set("tooltip.titleBreak", titleBreak)
@@ -278,6 +357,7 @@ final class TooltipConfig {
                 .set("tooltip.preview.item.scope", itemPreviewScope)
                 .set("tooltip.preview.armor.enabled", armorPreviewEnabled)
                 .set("tooltip.preview.animation.enabled", previewAnimationEnabled)
+                .set("tooltip.preview.measureBounds", previewMeasureBounds)
                 .set("tooltip.preview.animation.durationMillis", previewAnimationMillis)
                 .set("tooltip.preview.effects.enabled", previewEffectsEnabled)
                 .set("tooltip.preview.effects.particles", previewParticlesEnabled)
@@ -298,13 +378,45 @@ final class TooltipConfig {
                 .set("tooltip.preview.armor.width", armorPreviewWidth)
                 .set("tooltip.preview.whitelist", previewWhitelist)
                 .set("tooltip.preview.blacklist", previewBlacklist)
+                .set("tooltip.zoomOverlay.enabled", zoomOverlayEnabled)
+                .set("tooltip.zoomOverlay.scope", zoomOverlayScope)
+                .set("tooltip.zoomOverlay.block.mode", zoomOverlayBlockMode)
+                .set("tooltip.zoomOverlay.tool.mode", zoomOverlayToolMode)
+                .set("tooltip.zoomOverlay.equipment.mode", zoomOverlayEquipmentMode)
+                .set("tooltip.zoomOverlay.other.mode", zoomOverlayOtherMode)
+                .set("tooltip.zoomOverlay.equipment.model", zoomOverlayArmorModel)
+                .set("tooltip.zoomOverlay.equipment.outfit", zoomOverlayArmorMode)
+                .set("tooltip.zoomOverlay.motion", zoomOverlayMotion)
+                .set("tooltip.zoomOverlay.side", zoomOverlaySide)
+                .set("tooltip.zoomOverlay.layer", zoomOverlayLayer)
+                .set("tooltip.zoomOverlay.size", zoomOverlaySize)
+                .set("tooltip.zoomOverlay.gap", zoomOverlayGap)
+                .set("tooltip.zoomOverlay.animation.enabled", zoomOverlayAnimation)
+                .set("tooltip.zoomOverlay.measureBounds", zoomOverlayMeasureBounds)
+                .set("tooltip.zoomOverlay.animation.switch", zoomOverlayAnimationSwitch)
+                .set("tooltip.zoomOverlay.animation.durationMillis", zoomOverlayAnimationMillis)
+                .set("tooltip.zoomOverlay.rotation.enabled", zoomOverlayRotation)
+                .set("tooltip.zoomOverlay.rotation.speed", zoomOverlayRotationSpeed)
+                .set("tooltip.zoomOverlay.show.stackSize", zoomOverlayShowStackSize)
+                .set("tooltip.zoomOverlay.show.durability", zoomOverlayShowDurability)
+                .set("tooltip.zoomOverlay.show.cooldown", zoomOverlayShowCooldown)
+                .set("tooltip.zoomOverlay.panel.enabled", zoomOverlayPanel)
+                .set("tooltip.zoomOverlay.panel.border", zoomOverlayBorder)
+                .set("tooltip.zoomOverlay.panel.inset", zoomOverlayPanelInset)
+                .set("tooltip.zoomOverlay.panel.background", colorString(zoomOverlayBackgroundColor))
+                .set("tooltip.zoomOverlay.panel.borderColor", colorString(zoomOverlayBorderColor))
+                .set("tooltip.zoomOverlay.whitelist", zoomOverlayWhitelist)
+                .set("tooltip.zoomOverlay.blacklist", zoomOverlayBlacklist)
                 .set("text.color", colorString(textColor))
                 .set("text.titleColor", colorString(titleColor))
                 .set("text.dividerAlpha", dividerAlpha)
-                .set("layout.horizontalPadding", horizontalPadding)
-                .set("layout.verticalPadding", verticalPadding)
+                .set("layout.leftPadding", leftPadding)
+                .set("layout.rightPadding", rightPadding)
+                .set("layout.topPadding", topPadding)
+                .set("layout.bottomPadding", bottomPadding)
                 .set("layout.lineHeight", lineHeight)
-                .set("layout.titleGap", titleGap)
+                .set("layout.dividerTopMargin", dividerTopMargin)
+                .set("layout.dividerBottomMargin", dividerBottomMargin)
                 .set("layout.cursorOffset", cursorOffset)
                 .set("layout.maxWidth", maxWidth)
                 .set("tooltip.fillColors", colorStrings(fillColors))
@@ -346,6 +458,8 @@ final class TooltipConfig {
                 .define("tooltip.rounded", true, "Draw rounded antialiased corners.")
                 .define("tooltip.titleAlignment", "center",
                         "Title text alignment: left, center or right.")
+                .define("tooltip.bodyAlignment", "left",
+                        "Ordinary tooltip text alignment: left, center or right.")
                 .define("tooltip.rarityAlignment", "left",
                         "Rarity row alignment: left, center or right.")
                 .define("tooltip.preview.icon.alignment", "header",
@@ -389,6 +503,7 @@ final class TooltipConfig {
                 .define("tooltip.preview.item.scope", "tools", "Item preview scope: tools or all.")
                 .define("tooltip.preview.armor.enabled", true, "Show 3D previews for armor items.")
                 .define("tooltip.preview.animation.enabled", true, "Animate preview appearance with a short fade and scale.")
+                .define("tooltip.preview.measureBounds", true, "Measure full-turn model bounds for tooltip layout. Special renderers are sampled once and cached.")
                 .define("tooltip.preview.animation.durationMillis", 180, "Preview appearance animation duration in milliseconds.")
                 .define("tooltip.preview.effects.enabled", true, "Draw decorative preview effects selected by JSON styles.")
                 .define("tooltip.preview.effects.particles", true, "Allow particle-style preview effects.")
@@ -410,13 +525,45 @@ final class TooltipConfig {
                 .define("tooltip.preview.armor.width", 40, "Width of an armor model preview.")
                 .define("tooltip.preview.whitelist", Collections.emptyList(), "Item IDs or namespace:* rules allowed to show previews.")
                 .define("tooltip.preview.blacklist", Collections.emptyList(), "Item IDs or namespace:* rules blocked from showing previews.")
+                .define("tooltip.zoomOverlay.enabled", false, "Show an enlarged item beside an inventory when a stack is hovered.")
+                .define("tooltip.zoomOverlay.scope", "tools", "Enlarged item scope: tools or all.")
+                .define("tooltip.zoomOverlay.block.mode", "3d", "Category presentation: off, 2d or 3d.")
+                .define("tooltip.zoomOverlay.tool.mode", "3d", "Category presentation: off, 2d or 3d.")
+                .define("tooltip.zoomOverlay.equipment.mode", "3d", "Category presentation: off, 2d or 3d.")
+                .define("tooltip.zoomOverlay.other.mode", "2d", "Category presentation: off, 2d or 3d.")
+                .define("tooltip.zoomOverlay.equipment.model", "follow", "Equipment model: follow, player or armor_stand.")
+                .define("tooltip.zoomOverlay.equipment.outfit", "follow", "Equipment outfit: follow, single_piece or full_set.")
+                .define("tooltip.zoomOverlay.motion", "spin", "Motion when enabled: spin or sway; 2D icons only sway.")
+                .define("tooltip.zoomOverlay.side", "auto", "Enlarged item side: auto, left or right.")
+                .define("tooltip.zoomOverlay.layer", "below_tooltip", "Overlap order: below_tooltip keeps the tooltip on top; above_tooltip keeps the enlarged item on top.")
+                .define("tooltip.zoomOverlay.size", 88, "Preview size in GUI pixels (32-512), reduced only to fit the available screen space.")
+                .define("tooltip.zoomOverlay.gap", 8, "Gap between the enlarged item and the container.")
+                .define("tooltip.zoomOverlay.animation.enabled", true, "Animate the enlarged item when its hovered stack changes.")
+                .define("tooltip.zoomOverlay.measureBounds", true, "Fit enlarged 3D models using measured rotation bounds, including equipment layers.")
+                .define("tooltip.zoomOverlay.animation.switch", "continue", "Rapid item switches: restart the appearance, continue its progress, or show the new item instantly.")
+                .define("tooltip.zoomOverlay.animation.durationMillis", 180, "Enlarged item appearance duration in milliseconds.")
+                .define("tooltip.zoomOverlay.rotation.enabled", true, "Rotate the enlarged item while it is visible.")
+                .define("tooltip.zoomOverlay.rotation.speed", 18.0D, "Enlarged item rotation speed in degrees per second.")
+                .define("tooltip.zoomOverlay.show.stackSize", false, "Show the stack count on the enlarged item.")
+                .define("tooltip.zoomOverlay.show.durability", false, "Show the durability bar on the enlarged item.")
+                .define("tooltip.zoomOverlay.show.cooldown", false, "Show the cooldown overlay on the enlarged item.")
+                .define("tooltip.zoomOverlay.panel.enabled", false, "Draw a panel behind the enlarged item.")
+                .define("tooltip.zoomOverlay.panel.border", true, "Draw a border around the enlarged item panel.")
+                .define("tooltip.zoomOverlay.panel.inset", 5, "Panel inset around the enlarged item.")
+                .define("tooltip.zoomOverlay.panel.background", "#C0101018", "ARGB enlarged item panel background color.")
+                .define("tooltip.zoomOverlay.panel.borderColor", "#D0AAB4C4", "ARGB enlarged item panel border color.")
+                .define("tooltip.zoomOverlay.whitelist", Collections.emptyList(), "Item IDs or namespace:* rules allowed for the enlarged overlay.")
+                .define("tooltip.zoomOverlay.blacklist", Collections.emptyList(), "Item IDs or namespace:* rules blocked from the enlarged overlay.")
                 .define("text.color", "#FFFFFFFF", "ARGB body text color.")
                 .define("text.titleColor", "#FFFFFFFF", "ARGB title text color.")
                 .define("text.dividerAlpha", 176, "Title divider alpha (0-255).")
-                .define("layout.horizontalPadding", 5, "Horizontal background padding.")
-                .define("layout.verticalPadding", 5, "Vertical background padding.")
+                .define("layout.leftPadding", 5, "Left inset from the content bounds.")
+                .define("layout.rightPadding", 5, "Right inset from the content bounds.")
+                .define("layout.topPadding", 5, "Top inset from the visible content bounds.")
+                .define("layout.bottomPadding", 5, "Bottom inset from the visible content bounds.")
                 .define("layout.lineHeight", 10, "Distance between text baselines.")
-                .define("layout.titleGap", 3, "Extra gap after the title.")
+                .define("layout.dividerTopMargin", 0, "Space between title text and the divider.")
+                .define("layout.dividerBottomMargin", 3, "Space between the divider and body text.")
                 .define("layout.cursorOffset", 12, "Distance from the mouse cursor.")
                 .define("layout.maxWidth", 0, "Maximum text width; zero uses Forge/screen limits.")
                 .define("tooltip.fillColors", colorStrings(DEFAULT_FILL), "Four ARGB colors: UL, UR, LR, LL.")
@@ -526,6 +673,47 @@ final class TooltipConfig {
         return "all".equalsIgnoreCase(value == null ? "" : value.trim()) ? "all" : "tools";
     }
 
+    static String normalizeZoomDisplayMode(String value, String fallback) {
+        return normalizeChoice(value, fallback, "off", "2d", "3d");
+    }
+
+    static String normalizeZoomArmorModel(String value) {
+        return normalizeChoice(value, "follow", "follow", "player", "armor_stand");
+    }
+
+    static String normalizeZoomArmorMode(String value) {
+        return normalizeChoice(value, "follow", "follow", "single_piece", "full_set");
+    }
+
+    static String normalizeZoomMotion(String value) {
+        return normalizeChoice(value, "spin", "spin", "sway");
+    }
+
+    static String normalizeZoomOverlayLayer(String value) {
+        return normalizeChoice(value, "below_tooltip", "below_tooltip", "above_tooltip");
+    }
+
+    static String normalizeZoomAnimationSwitch(String value) {
+        return normalizeChoice(value, "continue", "continue", "restart", "instant");
+    }
+
+    private static String normalizeChoice(String value, String fallback, String... choices) {
+        if (value != null) {
+            String normalized = value.trim().toLowerCase(Locale.ROOT);
+            for (String choice : choices) if (choice.equals(normalized)) return choice;
+        }
+        return fallback;
+    }
+
+    static String normalizeZoomOverlaySide(String value) {
+        if (value != null) {
+            String normalized = value.trim().toLowerCase(Locale.ROOT);
+            if ("left".equals(normalized) || "right".equals(normalized)
+                    || "auto".equals(normalized)) return normalized;
+        }
+        return "auto";
+    }
+
     static String normalizeTitleAlignment(String value) {
         return normalizeAlignment(value, "center");
     }
@@ -573,6 +761,7 @@ final class TooltipConfig {
         private final int originalAdvancedNbtCharacterLimit = advancedNbtCharacterLimit;
         private final boolean originalRounded = rounded;
         private final String originalTitleAlignment = titleAlignment;
+        private final String originalBodyAlignment = bodyAlignment;
         private final String originalRarityAlignment = rarityAlignment;
         private final String originalHeaderIconAlignment = headerIconAlignment;
         private final boolean originalTitleBreak = titleBreak;
@@ -608,7 +797,37 @@ final class TooltipConfig {
         private final int originalArmorPreviewWidth = armorPreviewWidth;
         private final List<String> originalPreviewWhitelist = new java.util.ArrayList<>(previewWhitelist);
         private final List<String> originalPreviewBlacklist = new java.util.ArrayList<>(previewBlacklist);
+        private final boolean originalZoomOverlayEnabled = zoomOverlayEnabled;
+        private final String originalZoomOverlayScope = zoomOverlayScope;
+        private final String originalZoomOverlayBlockMode = zoomOverlayBlockMode;
+        private final String originalZoomOverlayToolMode = zoomOverlayToolMode;
+        private final String originalZoomOverlayEquipmentMode = zoomOverlayEquipmentMode;
+        private final String originalZoomOverlayOtherMode = zoomOverlayOtherMode;
+        private final String originalZoomOverlayArmorModel = zoomOverlayArmorModel;
+        private final String originalZoomOverlayArmorMode = zoomOverlayArmorMode;
+        private final String originalZoomOverlayMotion = zoomOverlayMotion;
+        private final String originalZoomOverlaySide = zoomOverlaySide;
+        private final String originalZoomOverlayLayer = zoomOverlayLayer;
+        private final int originalZoomOverlaySize = zoomOverlaySize;
+        private final int originalZoomOverlayGap = zoomOverlayGap;
+        private final boolean originalZoomOverlayAnimation = zoomOverlayAnimation;
+        private final boolean originalZoomOverlayMeasureBounds = zoomOverlayMeasureBounds;
+        private final String originalZoomOverlayAnimationSwitch = zoomOverlayAnimationSwitch;
+        private final int originalZoomOverlayAnimationMillis = zoomOverlayAnimationMillis;
+        private final boolean originalZoomOverlayRotation = zoomOverlayRotation;
+        private final float originalZoomOverlayRotationSpeed = zoomOverlayRotationSpeed;
+        private final boolean originalZoomOverlayStackSize = zoomOverlayShowStackSize;
+        private final boolean originalZoomOverlayDurability = zoomOverlayShowDurability;
+        private final boolean originalZoomOverlayCooldown = zoomOverlayShowCooldown;
+        private final boolean originalZoomOverlayPanel = zoomOverlayPanel;
+        private final boolean originalZoomOverlayBorder = zoomOverlayBorder;
+        private final int originalZoomOverlayInset = zoomOverlayPanelInset;
+        private final int originalZoomOverlayBackground = zoomOverlayBackgroundColor;
+        private final int originalZoomOverlayBorderColor = zoomOverlayBorderColor;
+        private final List<String> originalZoomOverlayWhitelist = new java.util.ArrayList<>(zoomOverlayWhitelist);
+        private final List<String> originalZoomOverlayBlacklist = new java.util.ArrayList<>(zoomOverlayBlacklist);
         private final boolean originalPreviewAnimation = previewAnimationEnabled;
+        private final boolean originalPreviewMeasureBounds = previewMeasureBounds;
         private final int originalPreviewAnimationMillis = previewAnimationMillis;
         private final boolean originalPreviewEffects = previewEffectsEnabled;
         private final boolean originalPreviewParticles = previewParticlesEnabled;
@@ -628,10 +847,13 @@ final class TooltipConfig {
         private final int originalTextColor = textColor;
         private final int originalTitleColor = titleColor;
         private final int originalDividerAlpha = dividerAlpha;
-        private final int originalHorizontalPadding = horizontalPadding;
-        private final int originalVerticalPadding = verticalPadding;
+        private final int originalLeftPadding = leftPadding;
+        private final int originalRightPadding = rightPadding;
+        private final int originalTopPadding = topPadding;
+        private final int originalBottomPadding = bottomPadding;
         private final int originalLineHeight = lineHeight;
-        private final int originalTitleGap = titleGap;
+        private final int originalDividerTopMargin = dividerTopMargin;
+        private final int originalDividerBottomMargin = dividerBottomMargin;
         private final int originalCursorOffset = cursorOffset;
         private final int originalMaxWidth = maxWidth;
         private final int[] originalFill = fillColors.clone();
@@ -660,6 +882,7 @@ final class TooltipConfig {
             advancedNbtCharacterLimit = originalAdvancedNbtCharacterLimit;
             titleBreak = originalTitleBreak; adaptiveBorder = originalAdaptive;
             titleAlignment = originalTitleAlignment;
+            bodyAlignment = originalBodyAlignment;
             rarityAlignment = originalRarityAlignment;
             headerIconAlignment = originalHeaderIconAlignment;
             borderShading = originalBorderShading; borderCycleMillis = originalBorderCycleMillis;
@@ -686,7 +909,37 @@ final class TooltipConfig {
             armorPreviewWidth = originalArmorPreviewWidth;
             previewWhitelist = Collections.unmodifiableList(new java.util.ArrayList<>(originalPreviewWhitelist));
             previewBlacklist = Collections.unmodifiableList(new java.util.ArrayList<>(originalPreviewBlacklist));
+            zoomOverlayEnabled = originalZoomOverlayEnabled;
+            zoomOverlayScope = originalZoomOverlayScope;
+            zoomOverlayBlockMode = originalZoomOverlayBlockMode;
+            zoomOverlayToolMode = originalZoomOverlayToolMode;
+            zoomOverlayEquipmentMode = originalZoomOverlayEquipmentMode;
+            zoomOverlayOtherMode = originalZoomOverlayOtherMode;
+            zoomOverlayArmorModel = originalZoomOverlayArmorModel;
+            zoomOverlayArmorMode = originalZoomOverlayArmorMode;
+            zoomOverlayMotion = originalZoomOverlayMotion;
+            zoomOverlaySide = originalZoomOverlaySide;
+            zoomOverlayLayer = originalZoomOverlayLayer;
+            zoomOverlaySize = originalZoomOverlaySize;
+            zoomOverlayGap = originalZoomOverlayGap;
+            zoomOverlayAnimation = originalZoomOverlayAnimation;
+            zoomOverlayMeasureBounds = originalZoomOverlayMeasureBounds;
+            zoomOverlayAnimationSwitch = originalZoomOverlayAnimationSwitch;
+            zoomOverlayAnimationMillis = originalZoomOverlayAnimationMillis;
+            zoomOverlayRotation = originalZoomOverlayRotation;
+            zoomOverlayRotationSpeed = originalZoomOverlayRotationSpeed;
+            zoomOverlayShowStackSize = originalZoomOverlayStackSize;
+            zoomOverlayShowDurability = originalZoomOverlayDurability;
+            zoomOverlayShowCooldown = originalZoomOverlayCooldown;
+            zoomOverlayPanel = originalZoomOverlayPanel;
+            zoomOverlayBorder = originalZoomOverlayBorder;
+            zoomOverlayPanelInset = originalZoomOverlayInset;
+            zoomOverlayBackgroundColor = originalZoomOverlayBackground;
+            zoomOverlayBorderColor = originalZoomOverlayBorderColor;
+            zoomOverlayWhitelist = Collections.unmodifiableList(new java.util.ArrayList<>(originalZoomOverlayWhitelist));
+            zoomOverlayBlacklist = Collections.unmodifiableList(new java.util.ArrayList<>(originalZoomOverlayBlacklist));
             previewAnimationEnabled = originalPreviewAnimation;
+            previewMeasureBounds = originalPreviewMeasureBounds;
             previewAnimationMillis = originalPreviewAnimationMillis;
             previewEffectsEnabled = originalPreviewEffects;
             previewParticlesEnabled = originalPreviewParticles;
@@ -703,8 +956,13 @@ final class TooltipConfig {
             armorPlayerCopyHands = originalArmorPlayerCopyHands;
             armorPlayerSneaking = originalArmorPlayerSneaking;
             armorPlayerPose = originalArmorPlayerPose;
-            dividerAlpha = originalDividerAlpha; horizontalPadding = originalHorizontalPadding;
-            verticalPadding = originalVerticalPadding; lineHeight = originalLineHeight; titleGap = originalTitleGap;
+            dividerAlpha = originalDividerAlpha; leftPadding = originalLeftPadding;
+            rightPadding = originalRightPadding;
+            topPadding = originalTopPadding;
+            bottomPadding = originalBottomPadding;
+            lineHeight = originalLineHeight;
+            dividerTopMargin = originalDividerTopMargin;
+            dividerBottomMargin = originalDividerBottomMargin;
             cursorOffset = originalCursorOffset; maxWidth = originalMaxWidth;
             fillColors = originalFill.clone(); borderColors = originalBorderColors.clone();
             PROFILES.clear();

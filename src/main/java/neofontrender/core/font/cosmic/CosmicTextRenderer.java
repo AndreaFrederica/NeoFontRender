@@ -1,5 +1,7 @@
 package neofontrender.core.font.cosmic;
 
+import neofontrender.api.text.TextVisualBounds;
+
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
@@ -871,7 +873,8 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                 raster.advance(), fg.width() / scale, fg.height() / scale, fg.x(), fg.y(), scale,
                 fg.sdf() != null, argb, shadow == null ? 0 : shadow.width() / scale,
                 shadow == null ? 0 : shadow.height() / scale, shadow == null ? 0 : shadow.x(),
-                shadow == null ? 0 : shadow.y());
+                shadow == null ? 0 : shadow.y(),
+                shadow == null ? fg.bounds() : fg.bounds().union(shadow.bounds()));
     }
 
     private UploadedTexture uploadRgbaTexture(int[] pixels, int width, int height, float scale) {
@@ -1286,6 +1289,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
     }
 
     private static final class CosmicRenderedText implements TextRenderResult, AutoCloseable {
+        private final TextVisualBounds bounds;
         private java.util.function.Supplier<TextRenderResult> reload;
         private final String diagnosticText;
         private final ResourceLocation location;
@@ -1312,7 +1316,8 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                                    float advance, float width, float height, float offsetX,
                                    float offsetY, float scale, boolean sdf, int sdfArgb,
                                    float shadowWidth, float shadowHeight, float shadowOffsetX,
-                                   float shadowOffsetY) {
+                                   float shadowOffsetY, TextVisualBounds bounds) {
+            this.bounds = bounds;
             this.diagnosticText = diagnosticText;
             this.location = location;
             this.texture = texture;
@@ -1335,7 +1340,8 @@ public final class CosmicTextRenderer implements TextRenderBackend {
 
         private static CosmicRenderedText empty(float advance, float scale) {
             return new CosmicRenderedText(null, null, null, null, null, advance, 0.0F, 0.0F,
-                    0.0F, 0.0F, scale, false, 0, 0.0F, 0.0F, 0.0F, 0.0F);
+                    0.0F, 0.0F, scale, false, 0, 0.0F, 0.0F, 0.0F, 0.0F,
+                    TextVisualBounds.EMPTY);
         }
 
         @Override
@@ -1343,16 +1349,11 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             return advance;
         }
 
-        @Override public float visualLeft() { return shadowTexture == null ? offsetX : Math.min(offsetX, shadowOffsetX); }
-        @Override public float visualRight() {
-            return shadowTexture == null ? offsetX + width
-                    : Math.max(offsetX + width, shadowOffsetX + shadowWidth);
-        }
-        @Override public float visualTop() { return shadowTexture == null ? offsetY : Math.min(offsetY, shadowOffsetY); }
-        @Override public float visualBottom() {
-            return shadowTexture == null ? offsetY + height
-                    : Math.max(offsetY + height, shadowOffsetY + shadowHeight);
-        }
+        @Override public TextVisualBounds visualBounds() { return bounds; }
+        @Override public float visualLeft() { return bounds.left; }
+        @Override public float visualRight() { return bounds.right; }
+        @Override public float visualTop() { return bounds.top; }
+        @Override public float visualBottom() { return bounds.bottom; }
 
         private void touch() {
             lastAccessMillis = System.currentTimeMillis();
@@ -1699,33 +1700,18 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         }
 
         @Override
-        public float visualLeft() {
-            float left = 0.0F;
-            for (PositionedResult part : parts) left = Math.min(left, part.x + part.result.visualLeft());
-            return left;
+        public TextVisualBounds visualBounds() {
+            TextVisualBounds bounds = TextVisualBounds.EMPTY;
+            for (PositionedResult part : parts) {
+                bounds = bounds.union(part.result.visualBounds().translate(part.x, 0));
+            }
+            return bounds;
         }
 
-        @Override
-        public float visualRight() {
-            float right = advance;
-            for (PositionedResult part : parts) right = Math.max(right, part.x + part.result.visualRight());
-            return right;
-        }
-
-        @Override
-        public float visualTop() {
-            float top = 0.0F;
-            for (PositionedResult part : parts) top = Math.min(top, part.result.visualTop());
-            return top;
-        }
-
-        @Override
-        public float visualBottom() {
-            float bottom = 8.0F;
-            for (PositionedResult part : parts) bottom = Math.max(bottom, part.result.visualBottom());
-            return bottom;
-        }
-
+        @Override public float visualLeft() { return visualBounds().left; }
+        @Override public float visualRight() { return visualBounds().right; }
+        @Override public float visualTop() { return visualBounds().top; }
+        @Override public float visualBottom() { return visualBounds().bottom; }
         @Override
         public void draw(float x, float y, float alpha) {
             // Word composition must not multiply the expensive driver state queries/restores.

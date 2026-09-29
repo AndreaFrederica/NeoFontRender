@@ -56,6 +56,7 @@ public final class TooltipModule implements UiEnhancementModule {
             LOGGER.info("Registered Revo UI tooltip settings page: {}", NfrUiEnhancements.MOD_ID + ":tooltips");
         }
         MinecraftForge.EVENT_BUS.register(this);
+        MinecraftForge.EVENT_BUS.register(new ItemZoomOverlay());
         MinecraftForge.EVENT_BUS.register(new AdvancedTooltipHandler());
         MinecraftForge.EVENT_BUS.register(new ModernTooltipHandler());
     }
@@ -81,6 +82,7 @@ public final class TooltipModule implements UiEnhancementModule {
     @SubscribeEvent
     public void screenChanged(GuiOpenEvent event) {
         MicaBackdrop.invalidateScene();
+        ItemZoomOverlay.reset();
     }
 
     @SubscribeEvent

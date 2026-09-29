@@ -10,10 +10,10 @@ final class QuarkMapTooltipLayout {
 
     static Placement placeForTooltip(int screenWidth, int screenHeight, int tooltipContentX,
                                      int tooltipY, int tooltipContentWidth,
-                                     int horizontalPadding, int verticalPadding) {
-        int tooltipLeft = tooltipContentX - horizontalPadding;
-        int tooltipTop = tooltipY - verticalPadding;
-        int tooltipOuterWidth = tooltipContentWidth + horizontalPadding * 2;
+                                     int leftPadding, int rightPadding, int topPadding) {
+        int tooltipLeft = tooltipContentX - leftPadding;
+        int tooltipTop = tooltipY - topPadding;
+        int tooltipOuterWidth = tooltipContentWidth + leftPadding + rightPadding;
         return place(screenWidth, screenHeight, tooltipLeft, tooltipTop, tooltipOuterWidth);
     }
 

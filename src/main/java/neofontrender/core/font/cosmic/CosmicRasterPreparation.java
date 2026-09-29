@@ -2,6 +2,8 @@ package neofontrender.core.font.cosmic;
 
 import neofontrender.core.font.support.ModernShadowRasterizer;
 import neofontrender.core.font.support.ShadowRenderSpec;
+import neofontrender.core.font.support.FontPixelUtils;
+import neofontrender.api.text.TextVisualBounds;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -10,7 +12,7 @@ import java.nio.ByteOrder;
 final class CosmicRasterPreparation {
     record Options(float sizeRatio, float baselineOffset, boolean sdf, int distanceRange,
                    boolean modernShadow, int shadowArgb, ShadowRenderSpec shadow) {}
-    record Layer(int[] rgba, byte[] sdf, int width, int height, float x, float y) {
+    record Layer(int[] rgba, byte[] sdf, int width, int height, float x, float y, TextVisualBounds bounds) {
         long bytes() { return (rgba == null ? 0L : rgba.length * 4L) + (sdf == null ? 0L : sdf.length); }
     }
     record Raster(float advance, float scale, Layer foreground, Layer shadow) {
@@ -46,14 +48,17 @@ final class CosmicRasterPreparation {
                     : ModernShadowRasterizer.compose(pixels, width, height, scale,
                         spec.offsetX * options.sizeRatio, spec.offsetY * options.sizeRatio,
                         spec.blurRadius * options.sizeRatio, options.shadowArgb, spec.opacity, false);
-            Layer layer = new Layer(result.pixels, null, result.width, result.height,
-                    x - result.originX / scale, y - result.originY / scale);
+            float shadowX = x - result.originX / scale, shadowY = y - result.originY / scale;
+            Layer layer = new Layer(result.pixels, null, result.width, result.height, shadowX, shadowY,
+                    FontPixelUtils.visibleBounds(result.pixels, result.width, result.height,
+                            shadowX, shadowY, shadowX + result.width / scale, shadowY + result.height / scale));
             if (!sdf) return new Raster(advance, scale, layer, null);
             shadow = layer;
         }
         Layer foreground = new Layer(sdf ? null : pixels,
                 sdf ? CosmicSdfGenerator.generate(pixels, width, height, options.distanceRange) : null,
-                width, height, x, y);
+                width, height, x, y,
+                FontPixelUtils.visibleBounds(pixels, width, height, x, y, x + width / scale, y + height / scale));
         return new Raster(advance, scale, foreground, shadow);
     }
 }

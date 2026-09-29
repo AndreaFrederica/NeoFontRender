@@ -12,12 +12,12 @@ class ModernTooltipScrollBarTest {
         ModernTooltipScrollBar.Geometry geometry = ModernTooltipScrollBar.Geometry.calculate(
                 new Rectangle(100, 10, 14, 100), 24, 76, 0.5F);
 
-        assertEquals(104, geometry.trackLeft);
-        assertEquals(109, geometry.trackRight);
+        assertEquals(110, geometry.trackLeft);
+        assertEquals(113, geometry.trackRight);
         assertEquals(11, geometry.trackTop);
         assertEquals(109, geometry.trackBottom);
-        assertEquals(103, geometry.thumbLeft);
-        assertEquals(110, geometry.thumbRight);
+        assertEquals(110, geometry.thumbLeft);
+        assertEquals(113, geometry.thumbRight);
         assertEquals(48, geometry.thumbTop);
         assertEquals(72, geometry.thumbBottom);
 

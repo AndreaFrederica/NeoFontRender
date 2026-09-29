@@ -256,6 +256,7 @@ tasks.withType(JavaCompile).configureEach {
 test {
     useJUnitPlatform()
     systemProperty 'nfr.test.pregenJar', providers.gradleProperty('pregenCompatJar').getOrElse('')
+    systemProperty 'nfr.test.heiJar', providers.gradleProperty('heiCompatJar').getOrElse('')
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
 }
 

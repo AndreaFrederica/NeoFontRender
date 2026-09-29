@@ -34,10 +34,6 @@ final class TooltipDocumentRenderer {
         try {
             NfrTooltipApi.TooltipDocument document = NfrTooltipApi.finalizeDocument(source);
             if (document == null) return false;
-            // This path constructs RenderTooltipEvent.Pre as a value object and invokes the
-            // modern renderer directly, so Forge's event bus never reaches ItemZoomOverlay.
-            // Publish the hover stack through the shared overlay source instead.
-            ItemZoomOverlay.capture(document.stack);
             boolean diagnostic = false;
             if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
                 diagnostic = shouldDiagnostic();

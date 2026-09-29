@@ -1,27 +1,35 @@
 package neofontrender.addons.tooltips;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.item.ItemStack;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.Rectangle;
+import java.nio.FloatBuffer;
 
 /** Draws the modern UIE scrollbar skin over an optional foreign scrollbar model. */
 public final class ModernTooltipScrollBar {
     private static final int BORDER_SIZE = 1;
     private static final int MIN_MARKER_HEIGHT = 14;
+    private static final ThreadLocal<FloatBuffer> MODEL_VIEW =
+            ThreadLocal.withInitial(() -> BufferUtils.createFloatBuffer(16));
 
     private ModernTooltipScrollBar() {}
 
     public static boolean draw(Rectangle area, int visibleAmount, int hiddenAmount,
-                               float scrollOffset, ItemStack stack) {
+                               float scrollOffset, float emphasis) {
         if (area == null || area.width <= 0 || area.height <= 0 || hiddenAmount <= 0) return false;
 
         Geometry geometry = Geometry.calculate(area, visibleAmount, hiddenAmount, scrollOffset);
-        int accent = accentColor(stack);
-        int track = withAlpha(0xFF000000, 95);
-        int thumb = withAlpha(accent, 225);
-        int thumbEdge = withAlpha(accent, 150);
+        float active = Math.max(0.0F, Math.min(1.0F, emphasis));
+        // Follow the theme's readable foreground, without borrowing the saturated panel border.
+        int track = withAlpha(TooltipConfig.textColor, Math.round(12 + 12 * active));
+        int thumb = withAlpha(TooltipConfig.textColor, Math.round(100 + 75 * active));
+        float center = (geometry.thumbLeft + geometry.thumbRight) * 0.5F;
+        float halfWidth = Math.min(area.width, 3.0F + active) * 0.5F;
 
         boolean lighting = GL11.glIsEnabled(GL11.GL_LIGHTING);
         boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
@@ -29,10 +37,16 @@ public final class ModernTooltipScrollBar {
         boolean alpha = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
         boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
         boolean cull = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        int shadeModel = GL11.glGetInteger(GL11.GL_SHADE_MODEL);
+        int srcRgb = GL11.glGetInteger(org.lwjgl.opengl.GL14.GL_BLEND_SRC_RGB);
+        int dstRgb = GL11.glGetInteger(org.lwjgl.opengl.GL14.GL_BLEND_DST_RGB);
+        int srcAlpha = GL11.glGetInteger(org.lwjgl.opengl.GL14.GL_BLEND_SRC_ALPHA);
+        int dstAlpha = GL11.glGetInteger(org.lwjgl.opengl.GL14.GL_BLEND_DST_ALPHA);
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
         GlStateManager.disableTexture2D();
-        GlStateManager.enableAlpha();
+        // The faint track must survive Minecraft's usual alpha-test threshold.
+        GlStateManager.disableAlpha();
         GlStateManager.enableBlend();
         GlStateManager.disableCull();
         GlStateManager.tryBlendFuncSeparate(
@@ -43,16 +57,12 @@ public final class ModernTooltipScrollBar {
         GlStateManager.shadeModel(GL11.GL_SMOOTH);
         try {
             drawRounded(geometry.trackLeft, geometry.trackTop, geometry.trackRight,
-                    geometry.trackBottom, 2.0F, track);
-            drawRounded(geometry.thumbLeft, geometry.thumbTop, geometry.thumbRight,
-                    geometry.thumbBottom, 2.5F, thumb);
-            // A subtle edge keeps the thumb visible on very dark tooltip fills without bringing
-            // back the opaque, texture-heavy appearance of HEI's nine-slice marker.
-            ModernTooltipRenderer.drawRoundedBorder(geometry.thumbLeft, geometry.thumbTop,
-                    geometry.thumbRight, geometry.thumbBottom, 2.5F, 0.5F,
-                    new int[] {thumbEdge, thumbEdge, thumbEdge, thumbEdge});
+                    geometry.trackBottom, 1.5F, track);
+            drawRounded(center - halfWidth, geometry.thumbTop, center + halfWidth,
+                    geometry.thumbBottom, halfWidth, thumb);
         } finally {
-            GlStateManager.shadeModel(GL11.GL_FLAT);
+            GlStateManager.shadeModel(shadeModel);
+            GlStateManager.tryBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
             restoreLighting(lighting);
             restoreDepth(depth);
             restoreTexture(texture);
@@ -69,13 +79,24 @@ public final class ModernTooltipScrollBar {
         ModernTooltipRenderer.drawRoundedFill(left, top, right, bottom, radius, colors);
     }
 
-    private static int accentColor(ItemStack stack) {
-        if (TooltipConfig.adaptiveBorder && stack != null && !stack.isEmpty()) {
-            AdaptiveBorderColors.Result adaptive = AdaptiveBorderColors.compute(
-                    stack, stack.getDisplayName(), TooltipConfig.borderColors);
-            return adaptive.colors[0];
-        }
-        return TooltipConfig.borderColors[0];
+    /** HEI draws the bar in translated grid coordinates, including when the panel is pinned. */
+    public static boolean isHovered(Rectangle area, Minecraft minecraft) {
+        if (area == null || !Mouse.isCreated() || minecraft.displayWidth <= 0
+                || minecraft.displayHeight <= 0) return false;
+        FloatBuffer matrix = MODEL_VIEW.get();
+        matrix.clear();
+        GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, matrix);
+        ScaledResolution resolution = new ScaledResolution(minecraft);
+        double mouseX = Mouse.getX() * resolution.getScaledWidth_double() / minecraft.displayWidth;
+        double mouseY = (minecraft.displayHeight - Mouse.getY() - 1)
+                * resolution.getScaledHeight_double() / minecraft.displayHeight;
+        // HEI's grid applies translation; allow GUI scaling and rotation as well.
+        double determinant = matrix.get(0) * matrix.get(5) - matrix.get(4) * matrix.get(1);
+        if (Math.abs(determinant) < 1.0e-6) return false;
+        double x = mouseX - matrix.get(12);
+        double y = mouseY - matrix.get(13);
+        return area.contains((matrix.get(5) * x - matrix.get(4) * y) / determinant,
+                (matrix.get(0) * y - matrix.get(1) * x) / determinant);
     }
 
     private static int withAlpha(int color, int alpha) {
@@ -126,9 +147,11 @@ public final class ModernTooltipScrollBar {
                                   float scrollOffset) {
             int trackTop = area.y + BORDER_SIZE;
             int trackBottom = Math.max(trackTop + 1, area.y + area.height - BORDER_SIZE);
-            int trackWidth = Math.max(2, Math.min(5, area.width - 6));
-            int trackLeft = area.x + (area.width - trackWidth) / 2;
-            int trackRight = trackLeft + trackWidth;
+            int trackWidth = Math.max(1, Math.min(3, area.width));
+            // Hug the outer edge of HEI's hit area instead of centering in its wide gutter.
+            int outerInset = area.width > trackWidth ? 1 : 0;
+            int trackRight = area.x + area.width - outerInset;
+            int trackLeft = trackRight - trackWidth;
             int trackHeight = Math.max(1, trackBottom - trackTop);
             int total = Math.max(0, visibleAmount) + Math.max(0, hiddenAmount);
             int thumbHeight = total <= 0 ? trackHeight
@@ -139,7 +162,7 @@ public final class ModernTooltipScrollBar {
             float offset = Math.max(0.0F, Math.min(1.0F, scrollOffset));
             int thumbTop = trackTop + Math.round(travel * offset);
             return new Geometry(trackLeft, trackTop, trackRight, trackBottom,
-                    trackLeft - 1, thumbTop, trackRight + 1, thumbTop + thumbHeight);
+                    trackLeft, thumbTop, trackRight, thumbTop + thumbHeight);
         }
     }
 }

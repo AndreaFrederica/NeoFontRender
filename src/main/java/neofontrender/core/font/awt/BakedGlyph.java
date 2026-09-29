@@ -1,5 +1,7 @@
 package neofontrender.core.font.awt;
 
+import neofontrender.api.text.TextVisualBounds;
+
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
@@ -25,11 +27,20 @@ public class BakedGlyph {
     private final float up;
     private final float down;
     private final float rasterScale;
+    private final TextVisualBounds visibleBounds;
 
     public BakedGlyph(ResourceLocation textureLocation,
                       float u0, float u1, float v0, float v1,
                       float left, float right, float up, float down,
                       float rasterScale) {
+        this(textureLocation, u0, u1, v0, v1, left, right, up, down, rasterScale,
+                new TextVisualBounds(left, up, right, down));
+    }
+
+    public BakedGlyph(ResourceLocation textureLocation,
+                      float u0, float u1, float v0, float v1,
+                      float left, float right, float up, float down, float rasterScale,
+                      TextVisualBounds visibleBounds) {
         this.textureLocation = textureLocation;
         this.u0 = u0;
         this.u1 = u1;
@@ -40,6 +51,7 @@ public class BakedGlyph {
         this.up = up;
         this.down = down;
         this.rasterScale = rasterScale;
+        this.visibleBounds = visibleBounds;
     }
 
     public ResourceLocation getTextureLocation() {
@@ -51,19 +63,19 @@ public class BakedGlyph {
     }
 
     public float visualLeft() {
-        return left;
+        return visibleBounds.left;
     }
 
     public float visualRight() {
-        return right;
+        return visibleBounds.right;
     }
 
     public float visualTop() {
-        return up;
+        return visibleBounds.top;
     }
 
     public float visualBottom() {
-        return down;
+        return visibleBounds.bottom;
     }
 
     /**

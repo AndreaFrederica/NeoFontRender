@@ -51,6 +51,7 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(hei.contains("\"compat.MixinJeiIngredientRendererHover\""));
         assertTrue(hei.contains("\"compat.MixinHeiCollapsedGroupHover\""));
         assertTrue(hei.contains("\"compat.MixinJeiIngredientGridHover\""));
+        assertTrue(hei.contains("\"compat.MixinHeiIngredientPreviewHover\""));
         assertTrue(hei.contains("\"compat.MixinHeiTooltipRenderer\""));
         assertTrue(hei.contains("\"compat.MixinHeiCollapsedGroupTooltip\""));
         assertTrue(obscure.contains("\"required\": false"));

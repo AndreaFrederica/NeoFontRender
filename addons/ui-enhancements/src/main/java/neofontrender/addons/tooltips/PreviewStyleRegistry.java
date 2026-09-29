@@ -80,6 +80,8 @@ final class PreviewStyleRegistry implements IResourceManagerReloadListener {
     }
 
     private void reloadNow(IResourceManager manager) {
+        PreviewBoundsMeasurement.clear();
+        ItemZoomRenderer.clearModelCache();
         List<Definition> definitions = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         try {

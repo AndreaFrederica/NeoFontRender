@@ -258,10 +258,10 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         List<GlyphDraw> glyphs = new ArrayList<>();
         List<EffectDraw> effects = new ArrayList<>();
         float x = 0.0F;
-        float visualLeft = 0.0F;
-        float visualRight = 0.0F;
-        float visualTop = 0.0F;
-        float visualBottom = fontSize;
+        float visualLeft = Float.POSITIVE_INFINITY;
+        float visualRight = Float.NEGATIVE_INFINITY;
+        float visualTop = Float.POSITIVE_INFINITY;
+        float visualBottom = Float.NEGATIVE_INFINITY;
         float sizeRatio = fontSize / Math.max(1.0F, NeofontrenderConfig.fontSize());
         boolean glyphAnimation = structuredText != null && TextAnimationPlan.forText(structuredText,
                 TextAnimationRenderMode.AUTO).usesGlyphs();
@@ -314,11 +314,15 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
                                 info == null ? 0.0F : info.getAdvance(false), fontSize, animation));
                         for (TextAnimationSampler.Sample layer : animation.layers()) {
                             if (!layer.visible) continue;
+                            float slantTop = run.italic ? 1.0F - 0.25F * glyph.visualTop() : 0;
+                            float slantBottom = run.italic ? 1.0F - 0.25F * glyph.visualBottom() : 0;
                             visualLeft = Math.min(visualLeft,
-                                    glyphX + glyph.visualLeft() + (float) layer.x);
+                                    glyphX + glyph.visualLeft() + (float) layer.x
+                                            + Math.min(slantTop, slantBottom));
                             visualRight = Math.max(visualRight,
                                     glyphX + glyph.visualRight() + (float) layer.x
-                                            + (run.bold ? sizeRatio : 0.0F));
+                                            + (run.bold ? sizeRatio : 0.0F)
+                                            + Math.max(slantTop, slantBottom));
                             visualTop = Math.min(visualTop,
                                     glyph.visualTop() + (float) layer.y);
                             visualBottom = Math.max(visualBottom,
@@ -344,7 +348,15 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
                         run.argb));
             }
         }
-        visualRight = Math.max(visualRight, x);
+        for (EffectDraw effect : effects) {
+            visualLeft = Math.min(visualLeft, effect.left);
+            visualRight = Math.max(visualRight, effect.right);
+            visualTop = Math.min(visualTop, effect.top);
+            visualBottom = Math.max(visualBottom, effect.bottom);
+        }
+        if (!Float.isFinite(visualLeft)) {
+            visualLeft = visualRight = visualTop = visualBottom = 0;
+        }
         return new AwtRenderedText(glyphs, effects, x, visualLeft, visualRight,
                 visualTop, visualBottom);
     }

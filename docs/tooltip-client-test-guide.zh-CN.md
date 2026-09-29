@@ -173,3 +173,28 @@ F3+H 用于原版高级物品信息，不等于 F3 Tooltip 布局开关。外部
 | API 测试报告 | `D:\Projects\sfr\smoothfont-replacement\build\reports\tests\test\index.html` |
 
 如果 F3 再次卡死，记录触发时间并保留当次日志；卡死未必生成 crash-report。下一次启动会覆盖 latest.log，先将其复制到单独文件再重启。
+
+## 11. HEI 4.35 原料网格与现代滚动条（2026-09-28 补充）
+
+原版熔炉燃料即可触发，无需添加内容模组：
+
+1. 在 HEI 中查看木板用途，进入「燃料」分类。
+2. 点击配方窗口顶部的「燃料」文字标题，解除单个物品的用途筛选；不要点击放大镜。
+3. 找到「烧炼 1.5 个物品 / 300 刻」的燃料格并悬停。该组木制品超过 24 个，网格右侧应显示滚动条。
+4. 按住 Shift 固定提示框，再将鼠标移入网格，测试滚轮、拖动滑块、点击轨道，以及滚到顶部和底部。Shift 只负责固定，不负责展开网格。
+5. 开启 UIE 的现代提示框和「美化 HEI 自绘提示框」，确认网格保留、背景和滚动条变为现代样式。关闭后与 HEI 原样对照。
+6. 开启悬停动画中的「JEI/HEI 物品栏」，固定提示框后在网格物品之间移动鼠标，再移到空白处：高亮应沿用主物品栏的颜色与淡入淡出时间。滚动到新一组物品后不应残留旧格子的高亮；关闭该选项应恢复 HEI 原生高亮。
+
+HEI 配置 `misc.recipeIngredientPreviewEnabled` 必须为 `true`。如果只剩名称和「按住 SHIFT 固定此提示框」，关闭 UIE 现代提示框总开关后才出现网格，应检查 HEI 兼容注入。
+
+HEI 4.35 的 `drawHoveringTextAndItems` 返回 `Rectangle`，旧版返回 `void`。返回类型也是 Mixin 目标签名的一部分；只匹配旧签名会导致 UIE 取消 HEI 的 Pre 事件，连同网格和滚动条一起跳过。几何单测无法检出此问题，需对实际 HEI JAR 运行契约检查：
+
+```powershell
+.\gradlew.bat :addons:ui-enhancements:test `
+  --tests neofontrender.addons.compat.HeiBinaryContractTest `
+  --tests neofontrender.addons.tooltips.ModernTooltipScrollBarTest `
+  '-PheiCompatJar=D:/Projects/sfr/smoothfont-replacement/run/client/mods/HadEnoughItems_1.12.2-4.35.0.jar' `
+  --offline --console=plain
+```
+
+未提供 `heiCompatJar` 时契约检查会跳过。该检查核对方法签名、回调类型和重定向调用点；实际外观与拖拽仍须重启客户端后按上述步骤验收。

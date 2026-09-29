@@ -1,8 +1,9 @@
 package neofontrender.addons.tooltips;
 
+import neofontrender.api.text.TextVisualBounds;
+
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.item.ItemStack;
-import neofontrender.core.font.support.TooltipBoundsCompat;
 
 import java.util.List;
 
@@ -89,8 +90,8 @@ final class HeaderMetrics {
                 boolean compact = compactLines != null && i < compactLines.size()
                         && Boolean.TRUE.equals(compactLines.get(i));
                 float scale = profileScale * (compact ? 0.5F : 1.0F);
-                TooltipBoundsCompat.VerticalBounds bounds =
-                        TooltipBoundsCompat.measuredVerticalBounds(font, line, TooltipConfig.textShadow);
+                TextVisualBounds bounds = TooltipTextLine.measure(font, line,
+                        TooltipConfig.titleColor, TooltipConfig.textShadow).bounds;
                 float top = cursor + bounds.top * scale;
                 float bottom = cursor + bounds.bottom * scale;
                 visualTop = Math.min(visualTop, top);
@@ -108,9 +109,8 @@ final class HeaderMetrics {
                     rarityY += Math.max(1, advances.get(i));
                 }
                 rarityY -= TooltipHeaderLayout.RARITY_HEIGHT + TooltipHeaderLayout.RARITY_BOTTOM_GAP;
-                TooltipBoundsCompat.VerticalBounds rarityBounds =
-                        TooltipBoundsCompat.measuredVerticalBounds(font,
-                                TooltipHeaderLayout.rarityLabel(stack), TooltipConfig.textShadow);
+                TextVisualBounds rarityBounds =
+                        TooltipHeaderLayout.measureRarity(stack, font).bounds;
                 visualTop = Math.min(visualTop, rarityY + rarityBounds.top);
                 visualBottom = Math.max(visualBottom, rarityY + rarityBounds.bottom);
             }

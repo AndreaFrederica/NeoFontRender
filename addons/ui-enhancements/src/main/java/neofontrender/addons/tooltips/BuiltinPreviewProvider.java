@@ -1,8 +1,6 @@
 package neofontrender.addons.tooltips;
 
-import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemArmor;
 import net.minecraft.item.ItemBow;
 import net.minecraft.item.ItemFishingRod;
 import net.minecraft.item.ItemHoe;
@@ -47,20 +45,10 @@ final class BuiltinPreviewProvider implements NfrTooltipApi.DocumentProvider {
         }
         if (request == null && PreviewEquipment.armorSlot(stack) != null
                 && TooltipConfig.armorPreviewEnabled) {
-            EntityEquipmentSlot slot = PreviewEquipment.armorSlot(stack);
             String configuredModel = style == null ? TooltipConfig.armorPreviewModel
                     : style.armorModel(TooltipConfig.armorPreviewModel);
             String configuredMode = style == null ? TooltipConfig.armorPreviewMode
                     : style.armorMode(TooltipConfig.armorPreviewMode);
-            NfrTooltipApi.ArmorPreviewModel model = "player".equalsIgnoreCase(configuredModel)
-                    ? NfrTooltipApi.ArmorPreviewModel.PLAYER : NfrTooltipApi.ArmorPreviewModel.ARMOR_STAND;
-            // Elytra and other chest-slot items render through player-specific layers.
-            if (model == NfrTooltipApi.ArmorPreviewModel.ARMOR_STAND
-                    && !(item instanceof ItemArmor)) {
-                model = NfrTooltipApi.ArmorPreviewModel.PLAYER;
-            }
-            NfrTooltipApi.ArmorPreviewMode mode = "full_set".equalsIgnoreCase(configuredMode)
-                    ? NfrTooltipApi.ArmorPreviewMode.FULL_SET : NfrTooltipApi.ArmorPreviewMode.SINGLE_PIECE;
             float scale = style == null ? 30.0F : style.scale(30.0F);
             float pitch = style == null ? 25.0F : style.pitch(25.0F);
             float rotationSpeed = style == null ? 20.0F : style.rotationSpeed(20.0F);
@@ -69,16 +57,9 @@ final class BuiltinPreviewProvider implements NfrTooltipApi.DocumentProvider {
             int previewHeight = style == null ? 64 : style.height(64);
             List<String> effects = style == null || !TooltipConfig.previewEffectsEnabled
                     ? Collections.<String>emptyList() : style.effects;
-            if (mode == NfrTooltipApi.ArmorPreviewMode.FULL_SET) {
-                java.util.ArrayList<ItemStack> equipment = armorEquipment(stack, slot);
-                request = new NfrTooltipApi.ArmorPreviewRequest(stack, equipment, model, mode,
-                        scale, pitch, rotationSpeed, previewWidth, previewHeight, effects,
-                        style == null ? null : style.sound());
-            } else {
-                request = new NfrTooltipApi.ArmorPreviewRequest(stack, slot, model, mode,
-                        scale, pitch, rotationSpeed, previewWidth, previewHeight, effects,
-                        style == null ? null : style.sound());
-            }
+            request = PreviewEquipment.request(stack, configuredModel, configuredMode,
+                    scale, pitch, rotationSpeed, previewWidth, previewHeight, effects,
+                    style == null ? null : style.sound());
         } else if (request == null && TooltipConfig.itemPreviewEnabled
                 && ("all".equals(TooltipConfig.itemPreviewScope)
                 || isToolOrWeapon(stack) || style != null || explicitlyAllowed)) {
@@ -105,22 +86,6 @@ final class BuiltinPreviewProvider implements NfrTooltipApi.DocumentProvider {
                 .add(new NfrTooltipApi.PreviewNode(request))
                 .build();
         return Optional.of(document);
-    }
-
-    private static java.util.ArrayList<ItemStack> armorEquipment(ItemStack hovered,
-                                                                  EntityEquipmentSlot hoveredSlot) {
-        java.util.ArrayList<ItemStack> equipment = new java.util.ArrayList<>();
-        net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getMinecraft();
-        for (EntityEquipmentSlot equipmentSlot : EntityEquipmentSlot.values()) {
-            if (equipmentSlot.getSlotType() != EntityEquipmentSlot.Type.ARMOR) continue;
-            ItemStack value = minecraft.player == null
-                    ? ItemStack.EMPTY : minecraft.player.getItemStackFromSlot(equipmentSlot);
-            equipment.add(equipmentSlot == hoveredSlot
-                    ? (hovered == null ? ItemStack.EMPTY : hovered.copy())
-                    : (value == null ? ItemStack.EMPTY : value.copy()));
-        }
-        if (equipment.isEmpty()) equipment.add(hovered == null ? ItemStack.EMPTY : hovered.copy());
-        return equipment;
     }
 
     static boolean isToolOrWeapon(ItemStack stack) {

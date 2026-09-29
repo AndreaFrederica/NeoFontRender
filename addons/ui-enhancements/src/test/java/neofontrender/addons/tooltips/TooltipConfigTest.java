@@ -16,6 +16,48 @@ import java.util.List;
 
 class TooltipConfigTest {
     @Test
+    void measurementAndSwitchAnimationOptionsParticipateInSettingsRollback() {
+        assertEquals("continue", TooltipConfig.normalizeZoomAnimationSwitch(null));
+        assertEquals("continue", TooltipConfig.normalizeZoomAnimationSwitch("unknown"));
+        assertEquals("restart", TooltipConfig.normalizeZoomAnimationSwitch(" RESTART "));
+        assertEquals("instant", TooltipConfig.normalizeZoomAnimationSwitch("INSTANT"));
+        TooltipConfig.Snapshot original = TooltipConfig.snapshot();
+        try {
+            TooltipConfig.previewMeasureBounds = true;
+            TooltipConfig.zoomOverlayMeasureBounds = false;
+            TooltipConfig.zoomOverlayAnimationSwitch = "instant";
+            TooltipConfig.Snapshot saved = TooltipConfig.snapshot();
+            TooltipConfig.previewMeasureBounds = false;
+            TooltipConfig.zoomOverlayMeasureBounds = true;
+            TooltipConfig.zoomOverlayAnimationSwitch = "restart";
+            saved.restore();
+            assertTrue(TooltipConfig.previewMeasureBounds);
+            assertFalse(TooltipConfig.zoomOverlayMeasureBounds);
+            assertEquals("instant", TooltipConfig.zoomOverlayAnimationSwitch);
+        } finally {
+            original.restore();
+        }
+    }
+
+    @Test
+    void zoomOverlapOrderDefaultsSafelyAndParticipatesInSettingsRollback() {
+        assertEquals("below_tooltip", TooltipConfig.normalizeZoomOverlayLayer(null));
+        assertEquals("below_tooltip", TooltipConfig.normalizeZoomOverlayLayer("unknown"));
+        assertEquals("above_tooltip", TooltipConfig.normalizeZoomOverlayLayer(" ABOVE_TOOLTIP "));
+        assertEquals("below_tooltip", TooltipConfig.normalizeZoomOverlayLayer(" BELOW_TOOLTIP "));
+        TooltipConfig.Snapshot original = TooltipConfig.snapshot();
+        try {
+            TooltipConfig.zoomOverlayLayer = "above_tooltip";
+            TooltipConfig.Snapshot saved = TooltipConfig.snapshot();
+            TooltipConfig.zoomOverlayLayer = "below_tooltip";
+            saved.restore();
+            assertEquals("above_tooltip", TooltipConfig.zoomOverlayLayer);
+        } finally {
+            original.restore();
+        }
+    }
+
+    @Test
     void normalizesKnownAndUnknownStyles() {
         assertEquals("modernui", TooltipConfig.normalizeStyle("modernui"));
         assertEquals("mica", TooltipConfig.normalizeStyle("MICA"));
@@ -179,6 +221,21 @@ class TooltipConfigTest {
             assertEquals(100, wideRight + 40);
         } finally {
             TooltipConfig.titleAlignment = oldAlignment;
+        }
+    }
+
+    @Test
+    void bodyAlignmentUsesMeasuredWidthForTheFinalTextOrigin() {
+        String oldAlignment = TooltipConfig.bodyAlignment;
+        try {
+            TooltipConfig.bodyAlignment = "left";
+            assertEquals(0, TooltipHeaderLayout.bodyTextOffset(100, 20));
+            TooltipConfig.bodyAlignment = "center";
+            assertEquals(40, TooltipHeaderLayout.bodyTextOffset(100, 20));
+            TooltipConfig.bodyAlignment = "right";
+            assertEquals(80, TooltipHeaderLayout.bodyTextOffset(100, 20));
+        } finally {
+            TooltipConfig.bodyAlignment = oldAlignment;
         }
     }
 
