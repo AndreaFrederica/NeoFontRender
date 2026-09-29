@@ -84,7 +84,7 @@ object TiqianParagraphProvider : TextParagraphProvider {
         for (component in request.component()) {
             val text = component.unformattedComponentText
             if (text.isEmpty()) continue
-            val componentLayout = LayoutText.process(text)
+            val componentLayout = LayoutText.process(component.style.formattingCode + text)
             formatted.append('\u00a7').append('r')
                 .append(component.style.formattingCode)
                 .append(text)
@@ -123,9 +123,8 @@ object TiqianParagraphProvider : TextParagraphProvider {
                 if (overlapStart >= overlapEnd) continue
                 val localStart = overlapStart - segment.start
                 val localEnd = overlapEnd - segment.start
-                val display = segment.layout.visibleText().substring(localStart, localEnd)
                 val child = TextComponentString(segment.source.style.formattingCode +
-                        segment.layout.formattedDisplay(localStart, display))
+                        segment.layout.formattedRange(localStart, localEnd))
                     .setStyle(segment.source.style.createDeepCopy())
                 line.appendSibling(child)
                 line.`nfrUi$addComponentSpan`(

@@ -94,6 +94,23 @@ public final class LayoutText {
                 .append(Objects.requireNonNull(displayText, "displayText")).toString();
     }
 
+    /** Replays every style in a slice, retaining the original paragraph's gradient positions. */
+    public String formattedRange(int visibleStart, int visibleEnd) {
+        int start = clamp(visibleStart);
+        int end = Math.max(start, clamp(visibleEnd));
+        StringBuilder result = new StringBuilder();
+        while (start < end) {
+            State state = stateAt(start);
+            int next = start + Character.charCount(visibleText.codePointAt(start));
+            while (next < end && state.equals(stateAt(next))) {
+                next += Character.charCount(visibleText.codePointAt(next));
+            }
+            result.append("\u00a7r").append(formattedDisplay(start, visibleText.substring(start, next)));
+            start = next;
+        }
+        return result.toString();
+    }
+
     private void appendRgbMarker(StringBuilder target, int rgb) {
         // Re-emitted runs must use a protocol that is currently enabled. Prefer the compact
         // TiC PUA form when its compatibility switch is on; otherwise the hex-chat switch is

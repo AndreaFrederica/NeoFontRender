@@ -485,6 +485,8 @@ final class TooltipLayout {
             List<String> tiqian = CjkTypographyRenderer.wrap(
                     font, line, width, TooltipConfig.lineHeight);
             if (tiqian != null) return tiqian;
+            List<String> colored = neofontrender.core.font.linebreak.FormattedColorWrapping.wrap(font, line, width);
+            if (colored != null) return colored;
         }
         return hasInlineContent(font, line)
                 ? TextRenderRouteApi.wrap(font, line, width)

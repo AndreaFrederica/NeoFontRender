@@ -7,6 +7,10 @@ import neofontrender.api.text.StructuredTextApi;
 import neofontrender.api.text.StructuredTextRegistration;
 import neofontrender.core.font.pipeline.builtin.TinkersAntiqueSyntaxProvider;
 import neofontrender.text.StructuredText;
+import neofontrender.text.TextStyle;
+import neofontrender.text.pipeline.StructuredTextMiddleware;
+import neofontrender.text.pipeline.TextPipelinePlugin;
+import neofontrender.core.font.pipeline.builtin.HexChatStructuredMiddleware;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
@@ -18,6 +22,8 @@ import org.tiqian.linebreak.EnglishHyphenation;
 
 import java.util.Set;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Collection;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -299,6 +305,52 @@ class TiqianParagraphProviderTest {
                 run.formattedText().contains("\u00a7n")
                         && "<Nullpinter>".equals(TextFormatting.getTextWithoutFormattingCodes(
                                 run.formattedText()))));
+    }
+
+    @Test
+    void chatGradientKeepsEveryCharacterColorInBothRenderRunsAndExportedComponents() {
+        try (StructuredTextRegistration ignored = StructuredTextApi.register(new TextPipelinePlugin() {
+            @Override public String id() { return "test:tiqian_gradient"; }
+            @Override public Collection<? extends StructuredTextMiddleware> structuredMiddlewares() {
+                return List.of(new StructuredTextMiddleware() {
+                    @Override public String id() { return HexChatStructuredMiddleware.ID; }
+                    @Override public StructuredText process(StructuredText input) {
+                        return HexChatStructuredMiddleware.INSTANCE.process(input);
+                    }
+                });
+            }
+        })) {
+            String source = "\u00a7b输入速度: #FFFF00-7FFF00-40E0D0-00BFFF无限Infinity\u00a7r";
+            StructuredText expected = StructuredTextApi.parse(source);
+            for (int width : new int[] {45, 400}) {
+                List<ITextComponent> lines = TiqianParagraphProvider.INSTANCE.splitComponents(
+                        new TextParagraphProvider.ComponentRequest(new TextComponentString(source),
+                                width, 9, "zh_cn", false, true, TiqianParagraphProviderTest::measure,
+                                TextParagraphProvider.ComponentRequest.Surface.CHAT));
+                assertNotNull(lines);
+                List<TextStyle> expectedStyles = styles(expected);
+                List<TextStyle> exported = new ArrayList<>();
+                List<TextStyle> drawn = new ArrayList<>();
+                StringBuilder copied = new StringBuilder();
+                for (ITextComponent line : lines) {
+                    StructuredText parsed = StructuredTextApi.parse(line.getFormattedText());
+                    copied.append(parsed.plainText());
+                    exported.addAll(styles(parsed));
+                    for (TextParagraphProvider.Run run : ((PositionedTextLine) line).nfrUi$runs()) {
+                        drawn.addAll(styles(StructuredTextApi.parse(run.formattedText())));
+                    }
+                }
+                assertEquals(expected.plainText(), copied.toString());
+                assertEquals(expectedStyles, exported);
+                assertEquals(expectedStyles, drawn);
+            }
+        }
+    }
+
+    private static List<TextStyle> styles(StructuredText text) {
+        List<TextStyle> result = new ArrayList<>();
+        for (int i = 0; i < text.plainText().length(); i++) result.add(text.styleAt(i));
+        return result;
     }
 
     @Test

@@ -7,6 +7,21 @@
 - Keep the current renderer active while SFR fonts load asynchronously, and perform atlas upload,
   prewarming, disposal, and backend activation on Minecraft's client thread.
 
+## [uie/0.7.2]
+
+- Preserve RGB colors and gradients when Tabby chat and tooltips wrap onto multiple lines.
+- Keep every character's color in Tiqian's exported chat components, matching its positioned
+  render runs. Requires Revo Font 0.6.1 or newer.
+
+## [0.6.1]
+
+- Carry inline colors and text decorations across automatic and explicit line breaks, including
+  formatting resets and inherited component styles.
+- Preserve whole-paragraph RGB gradients when splitting formatted strings, without exposing
+  color markers or restarting gradients on continuation lines.
+- Prevent duplicate newline remainders, preserve mandatory breaks after soft wrapping, and
+  guarantee progress when a formatted glyph is wider than the available line.
+
 ## [uie/0.7.0]
 
 - Route UIE structured inline content and CJK paragraph layout through NFR's unified text-rendering

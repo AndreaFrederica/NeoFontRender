@@ -24,6 +24,7 @@ import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.FontRenderDiagnostics;
+import neofontrender.core.font.linebreak.FormattedColorWrapping;
 
 import java.nio.FloatBuffer;
 import java.util.Arrays;
@@ -186,6 +187,13 @@ public abstract class MixinFontRenderer {
                     NeofontrenderConfig.fixCjkLineBreak()));
             return;
         }
+    }
+
+    @Inject(method = "wrapFormattedStringToWidth", at = @At("HEAD"), cancellable = true)
+    private void sfr$wrapExtendedColors(String text, int width, CallbackInfoReturnable<String> cir) {
+        if (text == null || ScopedFontRenderBypass.isActive()) return;
+        List<String> lines = FormattedColorWrapping.wrap((FontRenderer) (Object) this, text, width);
+        if (lines != null) cir.setReturnValue(String.join("\n", lines));
     }
 
     @Inject(method = "drawSplitString", at = @At("HEAD"), cancellable = true)

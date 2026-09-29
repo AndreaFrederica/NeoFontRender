@@ -21,7 +21,10 @@ public final class CjkComponentLineWrapper {
         int widthLimit = Math.max(1, maxWidth);
         List<ITextComponent> pending = new ArrayList<>();
         for (ITextComponent component : text) {
-            pending.add(component);
+            String formatted = GuiUtilRenderComponents.removeTextColorsIfConfigured(
+                    component.getStyle().getFormattingCode() + component.getUnformattedComponentText(),
+                    forceTextColor);
+            pending.add(copyWithText(component, FormattedColorWrapping.prepare(formatted)));
         }
 
         List<ITextComponent> lines = new ArrayList<>();
@@ -30,20 +33,21 @@ public final class CjkComponentLineWrapper {
 
         for (int index = 0; index < pending.size(); index++) {
             ITextComponent source = pending.get(index);
-            String sourceText = source.getUnformattedComponentText();
+            String formatted = GuiUtilRenderComponents.removeTextColorsIfConfigured(
+                    source.getStyle().getFormattingCode() + source.getUnformattedComponentText(),
+                    forceTextColor);
             boolean endLine = false;
+            String newlineRemainder = null;
+            String wrappedRemainder = null;
 
-            int newline = sourceText.indexOf('\n');
+            int newline = formatted.indexOf('\n');
             if (newline >= 0) {
-                ITextComponent remainder = copyWithText(
-                        source, sourceText.substring(newline + 1));
-                pending.add(index + 1, remainder);
-                sourceText = sourceText.substring(0, newline);
+                newlineRemainder = FormattedColorWrapping.continuation(
+                        formatted.substring(0, newline), formatted.substring(newline + 1));
+                formatted = formatted.substring(0, newline);
                 endLine = true;
             }
 
-            String formatted = GuiUtilRenderComponents.removeTextColorsIfConfigured(
-                    source.getStyle().getFormattingCode() + sourceText, forceTextColor);
             int available = widthLimit - lineWidth;
             int formattedWidth = font.getStringWidth(formatted);
 
@@ -57,9 +61,8 @@ public final class CjkComponentLineWrapper {
                 }
 
                 int cut = font.sizeStringToWidth(formatted, Math.max(1, available));
-                if (cut <= 0) {
-                    cut = firstSafeBoundary(formatted);
-                }
+                // A formatting-only prefix is not progress, especially after carrying it forward.
+                cut = Math.max(cut, FormattedColorWrapping.firstSafeBoundary(formatted));
                 cut = Math.min(cut, formatted.length());
                 if (lineWidth > 0
                         && font.getStringWidth(formatted.substring(0, cut)) > available) {
@@ -76,11 +79,24 @@ public final class CjkComponentLineWrapper {
                     after = after.substring(1);
                 }
                 if (!after.isEmpty()) {
-                    pending.add(index + 1, copyWithText(source, after));
+                    wrappedRemainder = FormattedColorWrapping.continuation(before, after);
                 }
                 formatted = before;
                 formattedWidth = font.getStringWidth(formatted);
                 endLine = true;
+            }
+
+            // Commit remainders only after deciding not to retry this component on a fresh line.
+            if (wrappedRemainder != null && newlineRemainder != null) {
+                // The soft-wrapped tail must still end at the original mandatory break.
+                wrappedRemainder += "\n" + newlineRemainder;
+                newlineRemainder = null;
+            }
+            if (newlineRemainder != null) {
+                pending.add(index + 1, copyWithText(source, newlineRemainder));
+            }
+            if (wrappedRemainder != null) {
+                pending.add(index + 1, copyWithText(source, wrappedRemainder));
             }
 
             if (!formatted.isEmpty()) {
@@ -101,19 +117,5 @@ public final class CjkComponentLineWrapper {
 
     private static ITextComponent copyWithText(ITextComponent source, String text) {
         return new TextComponentString(text).setStyle(source.getStyle().createDeepCopy());
-    }
-
-    private static int firstSafeBoundary(String text) {
-        if (text.isEmpty()) {
-            return 0;
-        }
-        if (text.charAt(0) == '\u00A7' && text.length() > 1) {
-            return Math.min(text.length(), 2 + firstCodePointLength(text, 2));
-        }
-        return firstCodePointLength(text, 0);
-    }
-
-    private static int firstCodePointLength(String text, int index) {
-        return index >= text.length() ? 0 : Character.charCount(text.codePointAt(index));
     }
 }
