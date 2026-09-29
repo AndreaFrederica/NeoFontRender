@@ -10,6 +10,7 @@ on:
       - 'addons/ui-enhancements-server/**'
       - 'addons/electric-elytra/**'
       - '.gitmodules'
+      - 'external/ModularUI'
       - 'src/main/java/icyllis/arc3d/**'
       - 'src/main/java/neofontrender/api/**'
       - 'src/main/resources/META-INF/LICENSE-Arc3D.txt'
@@ -32,6 +33,7 @@ on:
       - 'addons/ui-enhancements-server/**'
       - 'addons/electric-elytra/**'
       - '.gitmodules'
+      - 'external/ModularUI'
       - 'src/main/java/icyllis/arc3d/**'
       - 'src/main/java/neofontrender/api/**'
       - 'src/main/resources/META-INF/LICENSE-Arc3D.txt'
@@ -70,7 +72,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build pinned ModularUI dependency
+      - name: Build ModularUI submodule dependency
         id: modularui
         uses: ./.github/actions/prepare-modularui
 

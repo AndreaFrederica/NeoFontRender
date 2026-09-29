@@ -1,11 +1,14 @@
 package neofontrender.addons.mixin;
 
 import org.junit.jupiter.api.Test;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.tree.ClassNode;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -197,6 +200,49 @@ class UiEnhancementsMixinConfigTest {
             assertFalse(bytecode.contains("net/minecraft/client/entity/EntityPlayerSP"));
         } catch (Exception error) {
             throw new AssertionError("Failed to inspect zoom mixin bytecode", error);
+        }
+    }
+
+    @Test
+    void droneMouseWheelGateDoesNotRedirectTheVanillaHotbarCall() {
+        String gateBytecode = bytecode(
+                "neofontrender/addons/mixin/MixinMinecraftDroneInputGate.class");
+        String cameraModuleBytecode = bytecode(
+                "neofontrender/addons/camera/CameraModule.class");
+
+        assertFalse(gateBytecode.contains("runTickMouse"));
+        assertFalse(gateBytecode.contains("changeCurrentItem"));
+        assertTrue(cameraModuleBytecode.contains("net/minecraftforge/client/event/MouseEvent"));
+        assertTrue(cameraModuleBytecode.contains("getDwheel"));
+        assertTrue(cameraModuleBytecode.contains("setCanceled"));
+    }
+
+    @Test
+    void droneWheelUsesOneHighestPriorityHandlerWithScreenAndFocusGuards() throws Exception {
+        try (InputStream stream = getClass().getClassLoader().getResourceAsStream(
+                "neofontrender/addons/camera/CameraModule.class")) {
+            assertNotNull(stream);
+            ClassNode camera = new ClassNode();
+            new ClassReader(stream).accept(camera, 0);
+            var handlers = camera.methods.stream()
+                    .filter(method -> method.desc.equals("(Lnet/minecraftforge/client/event/MouseEvent;)V"))
+                    .filter(method -> method.visibleAnnotations != null && method.visibleAnnotations.stream()
+                            .anyMatch(annotation -> annotation.desc.endsWith("/SubscribeEvent;")))
+                    .toList();
+            assertEquals(1, handlers.size(), "Merging camera fixes must not duplicate wheel subscriptions");
+            var handler = handlers.getFirst();
+            var subscription = handler.visibleAnnotations.stream()
+                    .filter(annotation -> annotation.desc.endsWith("/SubscribeEvent;")).findFirst().orElseThrow();
+            assertNotNull(subscription.values);
+            int priority = subscription.values.indexOf("priority");
+            assertTrue(priority >= 0);
+            assertEquals("HIGHEST", ((String[]) subscription.values.get(priority + 1))[1]);
+            var fields = new java.util.HashSet<String>();
+            for (var instruction : handler.instructions) {
+                if (instruction instanceof org.objectweb.asm.tree.FieldInsnNode field) fields.add(field.name);
+            }
+            assertTrue(fields.containsAll(java.util.List.of("player", "world", "currentScreen", "inGameHasFocus")),
+                    "The wheel gate must preserve the in-world, closed-screen and focus guards");
         }
     }
 

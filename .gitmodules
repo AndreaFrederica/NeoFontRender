@@ -4,3 +4,6 @@
 [submodule "addons/typst-renderer/vendor/typst"]
 	path = addons/typst-renderer/vendor/typst
 	url = https://github.com/typst/typst.git
+[submodule "external/ModularUI"]
+	path = external/ModularUI
+	url = https://github.com/AndreaFrederica/ModularUI.git

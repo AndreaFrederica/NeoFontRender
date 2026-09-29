@@ -3,6 +3,7 @@ package neofontrender.addons.camera;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.network.FMLNetworkEvent;
@@ -68,7 +69,8 @@ public final class CameraModule implements UiEnhancementModule {
         MinecraftForge.EVENT_BUS.register(this);
     }
 
-    @SubscribeEvent
+    /** Avoid owning Minecraft's hotbar redirect so inventory mods can compose with this gate. */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void mouseInput(MouseEvent event) {
         if (event.getDwheel() == 0) return;
         Minecraft minecraft = Minecraft.getMinecraft();
