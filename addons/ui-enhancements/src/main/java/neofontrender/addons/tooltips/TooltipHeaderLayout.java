@@ -195,6 +195,15 @@ final class TooltipHeaderLayout {
         int top = y - ICON_FRAME_INSET;
         int right = left + ICON_FRAME_SIZE;
         int bottom = top + ICON_FRAME_SIZE;
+        drawDecoration(left, top, right, bottom,
+                TooltipConfig.headerIconRounded ? TooltipConfig.headerIconCornerRadius : 0.0F,
+                TooltipConfig.headerIconBackgroundEnabled, TooltipConfig.headerIconFrameEnabled,
+                animatedColor(TooltipConfig.headerIconBackgroundColor, appearance),
+                animatedColor(iconFrameColor(stack), appearance));
+    }
+
+    static void drawDecoration(int left, int top, int right, int bottom, float radius,
+                               boolean background, boolean frame, int fill, int border) {
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
         GlStateManager.enableBlend();
@@ -203,27 +212,23 @@ final class TooltipHeaderLayout {
                 GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
                 GlStateManager.SourceFactor.ONE,
                 GlStateManager.DestFactor.ZERO);
-        int fill = animatedColor(TooltipConfig.headerIconBackgroundColor, appearance);
-        int border = animatedColor(iconFrameColor(stack), appearance);
-        float radius = TooltipConfig.headerIconRounded
-                ? TooltipConfig.headerIconCornerRadius : 0.0F;
-        if (radius > 0.0F) drawRoundedDecoration(left, top, right, bottom, radius, fill, border);
-        else drawSquareDecoration(left, top, right, bottom, fill, border);
+        if (radius > 0.0F) drawRoundedDecoration(left, top, right, bottom, radius, fill, border, background, frame);
+        else drawSquareDecoration(left, top, right, bottom, fill, border, background, frame);
     }
 
     private static void drawRoundedDecoration(int left, int top, int right, int bottom,
-                                              float radius, int fill, int border) {
+                                              float radius, int fill, int border, boolean background, boolean frame) {
         boolean cullEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
         GlStateManager.disableTexture2D();
         GlStateManager.disableAlpha();
         GlStateManager.disableCull();
         GlStateManager.shadeModel(GL11.GL_SMOOTH);
         try {
-            if (TooltipConfig.headerIconBackgroundEnabled) {
+            if (background) {
                 ModernTooltipRenderer.drawRoundedFill(left, top, right, bottom, radius,
                         solidColors(fill));
             }
-            if (TooltipConfig.headerIconFrameEnabled) {
+            if (frame) {
                 ModernTooltipRenderer.drawRoundedBorder(left, top, right, bottom, radius,
                         1.0F, solidColors(border));
             }
@@ -237,11 +242,11 @@ final class TooltipHeaderLayout {
     }
 
     private static void drawSquareDecoration(int left, int top, int right, int bottom,
-                                             int fill, int border) {
-        if (TooltipConfig.headerIconBackgroundEnabled) {
+                                             int fill, int border, boolean background, boolean frame) {
+        if (background) {
             Gui.drawRect(left, top, right, bottom, fill);
         }
-        if (TooltipConfig.headerIconFrameEnabled) {
+        if (frame) {
             Gui.drawRect(left, top, right, top + 1, border);
             Gui.drawRect(left, bottom - 1, right, bottom, border);
             Gui.drawRect(left, top, left + 1, bottom, border);
@@ -254,8 +259,11 @@ final class TooltipHeaderLayout {
     }
 
     private static int iconFrameColor(ItemStack stack) {
-        int configured = TooltipConfig.headerIconFrameColor;
-        if (!TooltipConfig.headerIconFrameRarityColor) return configured;
+        return frameColor(stack, TooltipConfig.headerIconFrameColor, TooltipConfig.headerIconFrameRarityColor);
+    }
+
+    static int frameColor(ItemStack stack, int configured, boolean followRarity) {
+        if (!followRarity) return configured;
         EnumRarity rarity = stack == null || stack.isEmpty() ? null : stack.getRarity();
         int rgb;
         if (rarity == EnumRarity.UNCOMMON) rgb = 0x00FFFF55;

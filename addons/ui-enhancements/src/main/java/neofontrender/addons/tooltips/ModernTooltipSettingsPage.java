@@ -7,6 +7,7 @@ import neofontrender.api.client.settings.NfrSettingsPageSession;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
 import neofontrender.client.gui.component.base.NfrLabeledTextField;
 import neofontrender.client.gui.component.base.NfrStringValue;
+import neofontrender.client.gui.component.base.NfrSectionDivider;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
 import neofontrender.client.gui.views.NfrContentView;
 import neofontrender.addons.ui.NfrUiEnhancements;
@@ -64,6 +65,8 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             value -> TooltipConfig.profile(profileId).offsetY = value,
                             -12.0F, 12.0F, 0.1F));
             NfrOptionsGrid grid = c.grid()
+                    .add(new NfrSectionDivider(tr("gui.section.general")).size(260, 22))
+                    .add(new NfrSectionDivider(tr("gui.section.behavior"), 2).size(260, 20))
                     .add(c.toggleText(() -> tr("gui.enabled"), () -> tr("tooltip.enabled"),
                             () -> TooltipConfig.enabled, value -> TooltipConfig.enabled = value))
                     .add(c.toggleText(() -> tr("gui.advanced"), () -> tr("tooltip.advanced.enabled"),
@@ -114,6 +117,8 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             Arrays.asList("", "blue italic", "gray italic", "dark_gray italic",
                                     "aqua italic", "gold italic", "blue", "gray"),
                             ModernTooltipSettingsPage::modNameFormatLabel).size(260, 24))
+                    .add(new NfrSectionDivider(tr("gui.section.layout")).size(260, 22))
+                    .add(new NfrSectionDivider(tr("gui.section.alignment"), 2).size(260, 20))
                     .add(c.toggleText(() -> tr("gui.rounded"), () -> "",
                             () -> TooltipConfig.rounded, value -> TooltipConfig.rounded = value))
                     .add(c.dropdownText("tooltip_title_alignment", () -> tr("gui.title_alignment"),
@@ -175,6 +180,8 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                     .add(c.dropdownText("tooltip_aa_width", () -> tr("gui.aa_width"),
                             () -> number(TooltipConfig.antialiasWidth), value -> TooltipConfig.antialiasWidth = Float.parseFloat(value),
                             Arrays.asList("0", "0.35", "0.55", "0.75", "1", "1.5"), value -> value).size(260, 24))
+                     .add(new NfrSectionDivider(tr("gui.section.header")).size(260, 22))
+                     .add(new NfrSectionDivider(tr("gui.section.text"), 2).size(260, 20))
                      .add(c.toggleText(() -> tr("gui.text_shadow"), () -> "",
                              () -> TooltipConfig.textShadow, value -> TooltipConfig.textShadow = value))
                      .add(c.toggleText(() -> tr("gui.preview_header_icon"), () -> tr("tooltip.preview.icon.enabled"),
@@ -228,6 +235,8 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                              value -> TooltipConfig.headerIconAnimationMillis = Integer.parseInt(value),
                              Arrays.asList("0", "90", "120", "180", "240", "360", "500"),
                              value -> value + " ms").size(260, 24))
+                     .add(new NfrSectionDivider(tr("gui.section.previews")).size(260, 22))
+                     .add(new NfrSectionDivider(tr("gui.section.zoom"), 2).size(260, 20))
                      .add(c.toggleText(() -> tr("gui.preview_rarity"), () -> tr("tooltip.preview.rarity.enabled"),
                              () -> TooltipConfig.rarityEnabled,
                              value -> TooltipConfig.rarityEnabled = value))
@@ -320,6 +329,41 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                     .add(c.toggleText(() -> tr("gui.preview_armor_enabled"), () -> tr("tooltip.preview.armor.enabled"),
                             () -> TooltipConfig.armorPreviewEnabled,
                             value -> TooltipConfig.armorPreviewEnabled = value))
+                    .add(c.dropdownText("tooltip_preview_alignment", () -> tr("gui.preview_alignment"),
+                            () -> TooltipConfig.sideAlignment,
+                            value -> TooltipConfig.sideAlignment = TooltipConfig.normalizeSideAlignment(value),
+                            Arrays.asList("top", "center"),
+                            value -> tr("gui.preview_alignment." + value)).size(260, 24))
+                     .add(c.toggleText(() -> tr("gui.preview_panel_frame"),
+                             () -> tr("tooltip.preview.panel.frame.enabled"),
+                             () -> TooltipConfig.previewPanelFrameEnabled,
+                             value -> TooltipConfig.previewPanelFrameEnabled = value))
+                     .add(c.toggleText(() -> tr("gui.preview_panel_frame_rarity"),
+                             () -> tr("tooltip.preview.panel.frame.rarityColor"),
+                             () -> TooltipConfig.previewPanelFrameRarityColor,
+                             value -> TooltipConfig.previewPanelFrameRarityColor = value))
+                     .add(colorPicker(c, "tooltip_preview_panel_frame_color",
+                             "gui.preview_panel_frame_color",
+                             () -> TooltipConfig.previewPanelFrameColor,
+                             value -> TooltipConfig.previewPanelFrameColor = value))
+                     .add(c.toggleText(() -> tr("gui.preview_panel_background"),
+                             () -> tr("tooltip.preview.panel.background.enabled"),
+                             () -> TooltipConfig.previewPanelBackgroundEnabled,
+                             value -> TooltipConfig.previewPanelBackgroundEnabled = value))
+                     .add(colorPicker(c, "tooltip_preview_panel_background_color",
+                             "gui.preview_panel_background_color",
+                             () -> TooltipConfig.previewPanelBackgroundColor,
+                             value -> TooltipConfig.previewPanelBackgroundColor = value))
+                     .add(c.toggleText(() -> tr("gui.preview_panel_rounded"),
+                             () -> tr("tooltip.preview.panel.rounded"),
+                             () -> TooltipConfig.previewPanelRounded,
+                             value -> TooltipConfig.previewPanelRounded = value))
+                     .add(c.dropdownText("tooltip_preview_panel_corner_radius",
+                             () -> tr("gui.preview_panel_corner_radius"),
+                             () -> number(TooltipConfig.previewPanelCornerRadius),
+                             value -> TooltipConfig.previewPanelCornerRadius = Float.parseFloat(value),
+                             Arrays.asList("0", "1", "2", "3", "4", "5", "6", "8", "9"),
+                             value -> value + " px").size(260, 24))
                     .add(c.toggleText(() -> tr("gui.preview_measure_bounds"), () -> tr("tooltip.preview.measure_bounds"),
                             () -> TooltipConfig.previewMeasureBounds,
                             value -> TooltipConfig.previewMeasureBounds = value))
@@ -424,13 +468,19 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                     .add(c.dropdownText("tooltip_divider_bottom_margin", () -> tr("gui.divider_bottom_margin"),
                             () -> Integer.toString(TooltipConfig.dividerBottomMargin), value -> TooltipConfig.dividerBottomMargin = Integer.parseInt(value),
                             integerValues(0, 16), value -> value).size(260, 24))
-                    .add(c.dropdownText("tooltip_cursor_offset", () -> tr("gui.cursor_offset"),
-                            () -> Integer.toString(TooltipConfig.cursorOffset), value -> TooltipConfig.cursorOffset = Integer.parseInt(value),
-                            Arrays.asList("0", "4", "8", "10", "12", "16", "20", "24", "32"), value -> value).size(260, 24))
+                    .add(new NfrSectionDivider(tr("gui.section.positioning")).size(260, 22))
+                    .add(new NfrSectionDivider(tr("gui.section.cursor_anchor"), 2).size(260, 20))
+                    .add(c.decimalSlider(() -> tr("gui.cursor_offset_x"),
+                            () -> (float) TooltipConfig.cursorOffsetX,
+                            value -> TooltipConfig.cursorOffsetX = Math.round(value), -32.0F, 32.0F, 1.0F))
+                    .add(c.decimalSlider(() -> tr("gui.cursor_offset_y"),
+                            () -> (float) TooltipConfig.cursorOffsetY,
+                            value -> TooltipConfig.cursorOffsetY = Math.round(value), -32.0F, 32.0F, 1.0F))
                     .add(c.dropdownText("tooltip_max_width", () -> tr("gui.max_width"),
                             () -> Integer.toString(TooltipConfig.maxWidth), value -> TooltipConfig.maxWidth = Integer.parseInt(value),
                             Arrays.asList("0", "80", "120", "160", "200", "240", "320"),
                             value -> "0".equals(value) ? tr("gui.unlimited") : value).size(260, 24))
+                    .add(new NfrSectionDivider(tr("gui.section.colors")).size(260, 22))
                     .add(cornerColorPicker(c, "tooltip_fill_ul", "gui.fill_color", 0, TooltipConfig.fillColors))
                     .add(cornerColorPicker(c, "tooltip_fill_ur", "gui.fill_color", 1, TooltipConfig.fillColors))
                     .add(cornerColorPicker(c, "tooltip_fill_lr", "gui.fill_color", 2, TooltipConfig.fillColors))

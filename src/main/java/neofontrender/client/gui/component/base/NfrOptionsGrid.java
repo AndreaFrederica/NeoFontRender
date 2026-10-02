@@ -27,12 +27,12 @@ public final class NfrOptionsGrid extends ParentWidget<NfrOptionsGrid> implement
 
     public int preferredHeight(int width) {
         int columns = columns(width);
-        int rows = rows(columns);
         int height = 0;
-        for (int row = 0; row < rows; row++) {
-            height += rowHeight(row, columns);
+        List<List<IWidget>> rows = visibleRows(columns);
+        for (List<IWidget> row : rows) {
+            height += rowHeight(row);
         }
-        return height + Math.max(0, rows - 1) * gap;
+        return height + Math.max(0, rows.size() - 1) * gap;
     }
 
     @Override
@@ -40,42 +40,58 @@ public final class NfrOptionsGrid extends ParentWidget<NfrOptionsGrid> implement
         int width = getArea().w();
         int columns = columns(width);
         int laidOutWidth = expandItems ? Math.max(0, (width - gap * (columns - 1)) / columns) : itemWidth;
-        List<IWidget> children = getChildren();
-        int[] rowOffsets = rowOffsets(columns);
-        int index = 0;
-        for (IWidget widget : children) {
-            int column = index % columns;
-            int row = index / columns;
-            int x = column * (laidOutWidth + gap);
-            NfrLayout.place(widget, x, rowOffsets[row],
-                    Math.min(laidOutWidth, Math.max(0, width - x)), preferredItemHeight(widget));
-            index++;
+        List<List<IWidget>> rows = visibleRows(columns);
+        int y = 0;
+        for (List<IWidget> row : rows) {
+            int rowHeight = rowHeight(row);
+            if (row.size() == 1 && row.get(0) instanceof NfrFullRowWidget) {
+                NfrLayout.place(row.get(0), 0, y, Math.max(0, width), rowHeight);
+            } else {
+                for (int column = 0; column < row.size(); column++) {
+                    IWidget widget = row.get(column);
+                    int x = column * (laidOutWidth + gap);
+                    NfrLayout.place(widget, x, y,
+                            Math.min(laidOutWidth, Math.max(0, width - x)), preferredItemHeight(widget));
+                }
+            }
+            y += rowHeight + gap;
         }
         return true;
     }
-
-    private int[] rowOffsets(int columns) {
-        int rows = rows(columns);
-        int[] offsets = new int[rows];
-        for (int row = 1; row < rows; row++) {
-            offsets[row] = offsets[row - 1] + rowHeight(row - 1, columns) + gap;
+    private List<List<IWidget>> visibleRows(int columns) {
+        List<List<IWidget>> rows = new java.util.ArrayList<>();
+        List<IWidget> current = new java.util.ArrayList<>();
+        for (IWidget widget : visibleChildren()) {
+            if (widget instanceof NfrFullRowWidget) {
+                if (!current.isEmpty()) {
+                    rows.add(current);
+                    current = new java.util.ArrayList<>();
+                }
+                List<IWidget> fullRow = new java.util.ArrayList<>();
+                fullRow.add(widget);
+                rows.add(fullRow);
+            } else {
+                current.add(widget);
+                if (current.size() == columns) {
+                    rows.add(current);
+                    current = new java.util.ArrayList<>();
+                }
+            }
         }
-        return offsets;
+        if (!current.isEmpty()) rows.add(current);
+        return rows;
     }
 
-    private int rows(int columns) {
-        return (getChildren().size() + columns - 1) / columns;
-    }
-
-    private int rowHeight(int row, int columns) {
-        List<IWidget> children = getChildren();
-        int start = row * columns;
-        int end = Math.min(children.size(), start + columns);
+    private int rowHeight(List<IWidget> children) {
         int height = itemHeight;
-        for (int i = start; i < end; i++) {
-            height = Math.max(height, preferredItemHeight(children.get(i)));
+        for (IWidget child : children) {
+            height = Math.max(height, preferredItemHeight(child));
         }
         return height;
+    }
+
+    private List<IWidget> visibleChildren() {
+        return getChildren();
     }
 
     private int preferredItemHeight(IWidget widget) {

@@ -21,8 +21,11 @@ final class VanillaPassthroughLayout implements TextRenderRouteLayout {
         this.font = font;
         this.source = source;
         this.structured = structured;
-        this.advance = ScopedFontRenderBypass.isActive() ? 0.0F
-                : ScopedFontRenderBypass.call(() -> (float) font.getStringWidth(source));
+        // The bypass is the vanilla forwarding boundary. It is safe even when this
+        // layout was created from a re-entrant route lookup, and must still measure
+        // the text so dependent mods never observe a synthetic zero width.
+        this.advance = ScopedFontRenderBypass.call(
+                () -> (float) font.getStringWidth(source));
     }
 
     @Override public String routeId() { return VanillaPassthroughTextRoute.ID; }

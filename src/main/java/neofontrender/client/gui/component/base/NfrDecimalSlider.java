@@ -48,6 +48,7 @@ public final class NfrDecimalSlider extends SliderWidget implements IFocusedWidg
                 .build());
         background(new Rectangle().color(0xB0000000));
         hoverBackground(new Rectangle().color(0xB8333333));
+        NfrSettingsSearch.register(this, label, "slider");
     }
 
     @Override

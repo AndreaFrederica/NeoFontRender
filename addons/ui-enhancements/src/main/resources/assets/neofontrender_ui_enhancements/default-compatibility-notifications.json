@@ -11,6 +11,12 @@
       "enabled": true,
       "showOnce": true,
       "priority": 90
+    },
+    {
+      "modid": "colouredtooltips",
+      "enabled": true,
+      "showOnce": true,
+      "priority": 110
     }
   ]
 }

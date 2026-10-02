@@ -226,7 +226,25 @@ final class TooltipVisualPlan {
         return sideLayout().height;
     }
 
+    static int panelInset() {
+        return TooltipConfig.previewPanelFrameEnabled || TooltipConfig.previewPanelBackgroundEnabled ? 3 : 0;
+    }
+
     void drawSide(int x, int y, FontRenderer font) {
+        drawSide(x, y, font, ItemStack.EMPTY);
+    }
+
+    void drawSide(int x, int y, FontRenderer font, ItemStack stack) {
+        if (panelInset() > 0 && sideWidth() > 4 && sideHeight() > 0) {
+            try (ModernTooltipRenderer.CallerGlState ignored = ModernTooltipRenderer.CallerGlState.capture()) {
+                TooltipHeaderLayout.drawDecoration(x, y, x + sideWidth() - 4, y + sideHeight(),
+                        TooltipConfig.previewPanelRounded ? TooltipConfig.previewPanelCornerRadius : 0,
+                        TooltipConfig.previewPanelBackgroundEnabled, TooltipConfig.previewPanelFrameEnabled,
+                        TooltipConfig.previewPanelBackgroundColor,
+                        TooltipHeaderLayout.frameColor(stack, TooltipConfig.previewPanelFrameColor,
+                                TooltipConfig.previewPanelFrameRarityColor));
+            }
+        }
         for (SidePlacement placement : sideLayout().placements) {
             placement.block.draw(x + placement.x, y + placement.y, font);
         }
@@ -238,6 +256,7 @@ final class TooltipVisualPlan {
 
     private SideLayout sideLayout() {
         if (sideLayoutCache != null) return sideLayoutCache;
+        if (sideBlocks.isEmpty()) return new SideLayout(0, 0, Collections.emptyList());
         List<TooltipLayoutEngine.Node> cells = new ArrayList<>();
         List<TooltipLayoutEngine.Leaf> leaves = new ArrayList<>();
         for (TooltipVisualBlock block : sideBlocks) {
@@ -246,7 +265,8 @@ final class TooltipVisualPlan {
             cells.add(leaf);
         }
         TooltipLayoutEngine.Wrap wrap = new TooltipLayoutEngine.Wrap(
-                sideWidthLimit, 0, 4, TooltipLayoutEngine.Insets.none(), cells);
+                sideWidthLimit, 0, 4, new TooltipLayoutEngine.Insets(
+                        panelInset(), panelInset(), panelInset(), panelInset()), cells);
         TooltipLayoutEngine.Measurement measurement = wrap.measure(TooltipLayoutEngine.Constraints.unbounded());
         wrap.place(new TooltipLayoutEngine.Rect(0, 0, measurement.width, measurement.height));
         List<SidePlacement> placements = new ArrayList<>();
@@ -367,7 +387,7 @@ final class TooltipVisualPlan {
     TooltipVisualPlan constrain(int maxWidth) {
         TooltipVisualPlan constrained = new TooltipVisualPlan(afterLines.size());
         int budget = Math.max(5, Math.max(4, maxWidth) / 2);
-        int blockBudget = Math.max(1, budget - 4);
+        int blockBudget = Math.max(1, budget - 4 - 2 * panelInset());
         constrained.sideWidthLimit = budget;
         for (TooltipVisualBlock block : sideBlocks) {
             constrained.sideBlocks.add(block.constrain(blockBudget));

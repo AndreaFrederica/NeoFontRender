@@ -150,12 +150,12 @@ final class ModernTooltipRenderer {
         int titleCount = Math.max(0, Math.min(layout.titleLines, layout.lines.size()));
         HeaderMetrics header = content.header;
         if (sideWidth > 0 && layout.visualPlan != null) {
-            outline(layout.x, layout.y, layout.x + sideWidth,
-                    layout.y + layout.visualPlan.sideHeight(), 0xD0FF9E4D);
+            outline(layout.x, content.sideY, layout.x + sideWidth,
+                    content.sideY + layout.visualPlan.sideHeight(), 0xD0FF9E4D);
             debugLines.add("preview flow " + sideWidth + "x" + layout.visualPlan.sideHeight());
             for (TooltipVisualPlan.SidePlacement placement : layout.visualPlan.sidePlacements()) {
                 int left = layout.x + placement.x;
-                int top = layout.y + placement.y;
+                int top = content.sideY + placement.y;
                 outline(left, top, left + placement.block.width(),
                         top + placement.block.height(), 0xE0FFCF66);
                 debugLines.add(placement.block.debugLabel() + " "
@@ -170,7 +170,7 @@ final class ModernTooltipRenderer {
         }
         if (TooltipHeaderLayout.hasIcon(stack)) {
             int iconX = layout.x + sideWidth;
-            int iconY = layout.y + header.iconY;
+            int iconY = content.textTop + header.iconY;
             int iconInset = TooltipHeaderLayout.iconDecorationInset();
             int iconBoxSize = TooltipHeaderLayout.iconDecorationSize();
             outline(iconX - iconInset, iconY - iconInset,
@@ -254,8 +254,8 @@ final class ModernTooltipRenderer {
         if (titleCount > 0) {
             int headerX = layout.x + sideWidth;
             int headerWidth = Math.max(1, layout.width - sideWidth);
-            outline(headerX, layout.y, headerX + headerWidth,
-                    layout.y + header.headerHeight, 0xE0FFFFFF);
+            outline(headerX, content.textTop, headerX + headerWidth,
+                    content.textTop + header.headerHeight, 0xE0FFFFFF);
             debugLines.add("header " + headerWidth + "x" + header.headerHeight);
             debugLines.add("header title alignment=" + TooltipConfig.titleAlignment
                     + " icon anchor=" + TooltipConfig.headerIconAlignment
@@ -537,11 +537,11 @@ final class ModernTooltipRenderer {
     private static void drawRetainedContent(TooltipLayout layout, FontRenderer font, ItemStack stack) {
         TooltipContentLayout content = TooltipContentLayout.build(layout, font, stack);
         if (layout.visualPlan != null && content.sideWidth > 0) {
-            layout.visualPlan.drawSide(layout.x, layout.y, font);
+            layout.visualPlan.drawSide(layout.x, content.sideY, font, stack);
         }
         if (content.header.headerHeight > 0 && TooltipHeaderLayout.hasIcon(stack)) {
             TooltipHeaderLayout.drawIcon(stack, layout.x + content.sideWidth,
-                    layout.y + content.header.iconY);
+                    content.textTop + content.header.iconY);
         }
         for (TooltipContentLayout.Row row : content.rows) {
             String line = layout.lines.get(row.index);

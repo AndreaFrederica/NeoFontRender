@@ -283,3 +283,7 @@ neofontrender.gui.licenses.section.40_audio=Audio engine and bundled dependencie
 neofontrender.gui.licenses.section.50_controller=Controller runtime, native libraries and assets
 neofontrender.gui.licenses.section.60_typst_assets=Typst fonts and asset notices
 neofontrender.gui.licenses.section.70_typst_native=Typst native dependency tree (including build / platform items)
+neofontrender.gui.section.pipeline=Text pipeline
+neofontrender.gui.section.sdf=SDF font edges
+neofontrender.gui.section.raster=Rasterization and filtering
+neofontrender.gui.section.signs=Sign rendering

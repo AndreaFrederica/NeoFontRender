@@ -17,17 +17,19 @@ import java.util.List;
 final class TooltipContentLayout {
     final int sideWidth;
     final int sideHeight;
+    final int sideY, textTop;
     final HeaderMetrics header;
     final TooltipTextLine rarity;
     final float rarityX, rarityY;
     final List<Row> rows;
     final List<BlockPlacement> blocks;
 
-    private TooltipContentLayout(int sideWidth, int sideHeight, HeaderMetrics header,
+    private TooltipContentLayout(int sideWidth, int sideHeight, int sideY, int textTop, HeaderMetrics header,
                                  List<Row> rows, List<BlockPlacement> blocks,
                                  TooltipTextLine rarity, float rarityX, float rarityY) {
         this.sideWidth = sideWidth;
         this.sideHeight = sideHeight;
+        this.sideY = sideY; this.textTop = textTop;
         this.header = header;
         this.rarity = rarity; this.rarityX = rarityX; this.rarityY = rarityY;
         this.rows = Collections.unmodifiableList(rows);
@@ -43,8 +45,11 @@ final class TooltipContentLayout {
                 layout.rawLineAdvances, layout.y, font, layout.lines,
                 layout.profile().textScale, layout.compactLines);
         int contentWidth = Math.max(1, layout.width - sideWidth);
-        int rowY = layout.y;
-        int textY = layout.y + header.textOffset;
+        int textHeight = TooltipLayout.textFlowHeight(layout.lineAdvances, titleCount, layout.lines, plan);
+        int textTop = layout.y + TooltipLayout.verticalOffset(textHeight, sideHeight);
+        int sideY = layout.y + TooltipLayout.verticalOffset(sideHeight, textHeight);
+        int rowY = textTop;
+        int textY = textTop + header.textOffset;
         List<Row> rows = new ArrayList<>(layout.lines.size());
         List<BlockPlacement> blocks = new ArrayList<>();
         for (int i = 0; i < layout.lines.size(); i++) {
@@ -97,7 +102,7 @@ final class TooltipContentLayout {
             rarityY = lastTitle.textY + Math.max(0, lastTitle.height
                     - TooltipHeaderLayout.RARITY_HEIGHT - TooltipHeaderLayout.RARITY_BOTTOM_GAP);
         }
-        return new TooltipContentLayout(sideWidth, sideHeight, header, rows, blocks, rarity, rarityX, rarityY);
+        return new TooltipContentLayout(sideWidth, sideHeight, sideY, textTop, header, rows, blocks, rarity, rarityX, rarityY);
     }
 
     private static boolean hasContentAfterTitle(List<String> lines, int titleLines,

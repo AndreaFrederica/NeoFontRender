@@ -16,6 +16,41 @@ import java.util.List;
 
 class TooltipConfigTest {
     @Test
+    void previewPanelAndAlignmentParticipateInSettingsRollback() {
+        assertEquals("top", TooltipConfig.normalizeSideAlignment(null));
+        assertEquals("top", TooltipConfig.normalizeSideAlignment("unknown"));
+        assertEquals("center", TooltipConfig.normalizeSideAlignment(" CENTER "));
+        TooltipConfig.Snapshot original = TooltipConfig.snapshot();
+        try {
+            TooltipConfig.sideAlignment = "center";
+            TooltipConfig.previewPanelFrameEnabled = true;
+            TooltipConfig.previewPanelFrameRarityColor = false;
+            TooltipConfig.previewPanelFrameColor = 0x80443322;
+            TooltipConfig.previewPanelBackgroundEnabled = true;
+            TooltipConfig.previewPanelBackgroundColor = 0x20112233;
+            TooltipConfig.previewPanelRounded = false;
+            TooltipConfig.previewPanelCornerRadius = 8;
+            TooltipConfig.Snapshot saved = TooltipConfig.snapshot();
+            original.restore();
+            saved.restore();
+            assertEquals("center", TooltipConfig.sideAlignment);
+            assertTrue(TooltipConfig.previewPanelFrameEnabled);
+            assertFalse(TooltipConfig.previewPanelFrameRarityColor);
+            assertEquals(0x80443322, TooltipConfig.previewPanelFrameColor);
+            assertTrue(TooltipConfig.previewPanelBackgroundEnabled);
+            assertEquals(0x20112233, TooltipConfig.previewPanelBackgroundColor);
+            assertFalse(TooltipConfig.previewPanelRounded);
+            assertEquals(8, TooltipConfig.previewPanelCornerRadius);
+            assertEquals(0x80443322, TooltipHeaderLayout.frameColor(ItemStack.EMPTY,
+                    TooltipConfig.previewPanelFrameColor, false));
+            assertEquals(0x80AAB4C4, TooltipHeaderLayout.frameColor(ItemStack.EMPTY,
+                    TooltipConfig.previewPanelFrameColor, true));
+        } finally {
+            original.restore();
+        }
+    }
+
+    @Test
     void measurementAndSwitchAnimationOptionsParticipateInSettingsRollback() {
         assertEquals("continue", TooltipConfig.normalizeZoomAnimationSwitch(null));
         assertEquals("continue", TooltipConfig.normalizeZoomAnimationSwitch("unknown"));

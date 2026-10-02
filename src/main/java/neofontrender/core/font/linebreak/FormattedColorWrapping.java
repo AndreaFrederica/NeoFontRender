@@ -32,7 +32,8 @@ public final class FormattedColorWrapping {
     public static List<String> wrap(FontRenderer font, String source, int width) {
         String prepared = prepare(source);
         if (prepared == source) return null;
-        return CjkComponentLineWrapper.wrap(new TextComponentString(prepared), width, font, true, true)
+        return CjkComponentLineWrapper.wrap(new TextComponentString(prepared), width, font, true, true,
+                CjkComponentLineWrapper::routeSizeToWidth)
                 .stream().map(component -> component.getFormattedText()).collect(Collectors.toList());
     }
 

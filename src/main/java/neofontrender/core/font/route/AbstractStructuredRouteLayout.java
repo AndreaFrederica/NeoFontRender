@@ -111,7 +111,11 @@ abstract class AbstractStructuredRouteLayout implements TextRenderRouteLayout {
             int start = boundaries.get(index - 1);
             int end = boundaries.get(index);
             int codePoint = plain.codePointAt(start);
-            if (codePoint == '\n') return text.sourceMap().sourceStart(start);
+            // The vanilla wrapper consumes the returned prefix and recursively
+            // processes the remainder. Returning sourceStart(start) for a
+            // leading newline returns zero and makes it recurse forever. The
+            // newline itself belongs to the consumed prefix.
+            if (codePoint == '\n') return text.sourceMap().sourceEnd(end);
             if (codePoint == ' ' || cjkLineBreak && providerBreaks.contains(start)) {
                 breakPlain = start;
             }

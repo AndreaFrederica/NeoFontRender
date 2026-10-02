@@ -18,7 +18,22 @@ layout.json
 # gradle
 build
 .gradle
+.gradle-brilliant/
 .dependencies/
+
+# local compiler/decompiler output and diagnostics
+.kotlin/
+.tmp-*/
+ref/
+*.log
+*.log.gz
+*.class
+*.pdb
+/ac-gl.txt
+/ot-gl.txt
+/com/cleanroommc/modularui/markup/MuiProtocolXmlParser.class
+/net/minecraft/
+.out-of-code-insights/
 
 # Rust native build output; Cargo.lock remains tracked for reproducible JNI binaries.
 native/**/target/

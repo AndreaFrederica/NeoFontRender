@@ -37,7 +37,6 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(legendary.contains("\"required\": false"));
         assertTrue(legendary.contains("\"compat.MixinLegendaryTooltipEvents\""));
         assertTrue(legendary.contains("\"compat.MixinLegendaryTooltipDecor\""));
-        String salutation = config("mixins.neofontrender_ui_enhancements_salutation.json");
         String quark = config("mixins.neofontrender_ui_enhancements_quark.json");
         String shoulderSurfing = config(
                 "mixins.neofontrender_ui_enhancements_shouldersurfing.json");
@@ -64,8 +63,6 @@ class UiEnhancementsMixinConfigTest {
         assertFalse(obscure.contains("\"compat.MixinObscureTextComponent\""));
         assertFalse(obscure.contains("\"compat.MixinObscureHeaderComponent\""));
         assertFalse(obscure.contains("\"compat.MixinObscureTooltipHelper\""));
-        assertTrue(salutation.contains("\"required\": false"));
-        assertTrue(salutation.contains("\"compat.MixinSalutationAdvancedTabCompleter\""));
         assertTrue(quark.contains("\"required\": false"));
         assertTrue(quark.contains("\"compat.MixinQuarkEnchantedBooksShowItems\""));
         assertTrue(quark.contains("\"compat.MixinQuarkFoodTooltip\""));

@@ -62,6 +62,25 @@ public final class ChatCommandCompletionController {
         INSTANCE.updateAfterKey(field, keyCode);
     }
 
+    /** Ends the completion session when the owning chat screen is closed. */
+    public static void onChatClosed(GuiTextField field) {
+        INSTANCE.close(field);
+    }
+
+    /**
+     * Whether GuiChat's own Tab completer must be bypassed for this input. This is
+     * intentionally based on the input itself rather than ChatKeyBindings' transient
+     * event flag: some GuiChat subclasses reach keyTyped after Forge has already reset
+     * that flag, while their inherited native completer still runs.
+     */
+    public static boolean shouldBlockNativeTab(GuiTextField field, int keyCode) {
+        return keyCode == Keyboard.KEY_TAB
+                && enabled(field)
+                && field.isFocused()
+                && field.getCursorPosition() > 0
+                && field.getText().startsWith("/");
+    }
+
     public static void setCompletions(GuiTextField field, String[] values) {
         INSTANCE.acceptCompletions(field, values);
     }
@@ -75,7 +94,26 @@ public final class ChatCommandCompletionController {
     private boolean handle(GuiTextField field, int keyCode) {
         State state = state(field, false);
         if (!enabled(field) || !field.isFocused()) return false;
-        if (state == null) return false;
+        if (state == null) {
+            // A command-open chat can start with "/" already in the field, so no character
+            // event has created the UIE state yet. Claim Tab before GuiChat's native completer
+            // sees it; otherwise the native completer inserts its first value and UIE starts a
+            // separate cycle only from keyTyped's return hook, making the next Tab repeat the
+            // same candidate.
+            if (keyCode == Keyboard.KEY_TAB && field.getCursorPosition() > 0
+                    && field.getText().startsWith("/")) {
+                state = state(field, true);
+                request(field, true);
+                // Client command completions are synchronous. If request() created a cycle from
+                // those values, consume this very Tab now; only a server-only completion has to
+                // wait for its real response.
+                if (state.cycle != null && !state.cycle.values().isEmpty()) {
+                    handleTab(field, state);
+                }
+                return true;
+            }
+            return false;
+        }
         if (keyCode == Keyboard.KEY_TAB) {
             // Cycling needs the candidate list to outlive the popup. The cycle is owned by State, so
             // committing (which dismisses the popup) no longer strands Tab on an empty list, which is
@@ -85,10 +123,10 @@ public final class ChatCommandCompletionController {
                     debug("tab selected=" + state.cycle.selected() + " n=" + state.cycle.values().size()
                             + " text=[" + field.getText() + "]");
                 }
-                state.commit(state.cycle.selected());
-                // PREGEN drives its own completer index, so it must not advance on top of a commit.
-                if (!CommandCompletionOptions.PREGEN.equals(state.engine)) state.moveCycle(1);
-                if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) debug("tab advanced to=" + state.cycle.selected());
+                // A freshly built cycle has no highlighted row yet. Treat the first Tab as
+                // selecting its first candidate; otherwise commit(-1) is a no-op and the first
+                // Tab only initializes the highlight for the second press.
+                handleTab(field, state);
                 return true;
             }
             // No cycle yet: ask for candidates. Logged because "Tab does nothing" can mean either
@@ -101,6 +139,9 @@ public final class ChatCommandCompletionController {
             // A Tab while awaiting candidates must not start vanilla's untracked second request.
             if (slashPrefix) {
                 request(field, true);
+                if (state.cycle != null && !state.cycle.values().isEmpty()) {
+                    handleTab(field, state);
+                }
                 return true;
             }
             return false;
@@ -112,6 +153,13 @@ public final class ChatCommandCompletionController {
         }
         if (CommandCompletionOptions.HIDDEN.equals(state.display)) return false;
         if (keyCode == Keyboard.KEY_RETURN || keyCode == Keyboard.KEY_NUMPADENTER) {
+            // Tab already inserted the highlighted row. Enter must then reach GuiChat so the
+            // completed command is sent; treating it as another completion commit swallowed the
+            // send action and made the chat appear stuck after Tab.
+            if (state.selectedMatchesInput(field)) {
+                state.dismiss();
+                return false;
+            }
             if (state.cycle.selected() >= 0) {
                 state.commit(state.cycle.selected());
                 request(field);
@@ -130,6 +178,23 @@ public final class ChatCommandCompletionController {
         return false;
     }
 
+    /** Commits the candidate represented by the current highlight and leaves that highlight on it. */
+    private void handleTab(GuiTextField field, State state) {
+        if (state.cycle == null || state.cycle.values().isEmpty()) return;
+        int selected = state.tabIndex(field);
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
+            debug("tab committing index=" + selected
+                    + " value=[" + state.cycle.values().get(selected) + "]");
+        }
+        state.commit(selected);
+        // The committed value is the value currently in the input, so it must remain highlighted.
+        // The next Tab advances only when it sees that the input still equals this value.
+        state.openPopup();
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
+            debug("tab highlighted=" + state.cycle.selected());
+        }
+    }
+
     private void updateAfterKey(GuiTextField field, int keyCode) {
         if (!enabled(field)) return;
         if (keyCode == Keyboard.KEY_ESCAPE || keyCode == Keyboard.KEY_RETURN
@@ -142,9 +207,8 @@ public final class ChatCommandCompletionController {
             debug("afterKey key=" + keyCode + " text=[" + field.getText()
                     + "] cursor=" + field.getCursorPosition());
         }
-        // Typing does not end the cycle here: beginRequest() drops it as soon as the edited text
-        // starts a different token. Ending it on every keystroke would re-break cycling, because
-        // the Tab that follows a completion arrives before the next server response does.
+        // Keep the current panel visible while the newer prefix is being queried. The response
+        // path replaces it only when the actual completion state changes.
         request(field, false);
     }
 
@@ -204,7 +268,25 @@ public final class ChatCommandCompletionController {
                         + failure.getClass().getName());
             }
         }
-        state.beginRequest(prefix, tokenRange(text, cursor), clientValues);
+        TokenRange range = tokenRange(text, cursor);
+        state.beginRequest(prefix, range, clientValues);
+        if (clientValues != null && clientValues.length > 0) {
+            CommandCompletionCandidates.Merge local =
+                    CommandCompletionCandidates.merge(EMPTY_VALUES, clientValues);
+            List<String> next = CommandCompletionOptions.PREGEN.equals(state.engine)
+                    && state.bridge != null
+                    ? state.bridge.candidates(field, local) : local.styledValues();
+            String current = text.substring(range.start, range.end);
+            if (!next.isEmpty()) {
+                CommandCompletionPresentation.rememberRootCandidates(prefix, next);
+                state.resetCycle(range.tokens(current), plainOf(next), next, current, prefix);
+                state.openPopup();
+                if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) {
+                    debug("client cycle built n=" + next.size() + " range="
+                            + range.start + "-" + range.end);
+                }
+            }
+        }
         if (CommandCompletionOptions.PREGEN.equals(state.engine) && state.bridge != null) {
             state.bridge.request(field);
         } else {
@@ -251,8 +333,7 @@ public final class ChatCommandCompletionController {
             // The committed word is still the whole token and the response does not contain it, which
             // is what a prefix-filtered server list looks like once an option is complete. Keep the
             // candidates this cycle started from instead of replacing them with a one-entry list.
-            if (!valuesContain(values, current)) return;
-            values = appendValue(values, current);
+            if (!valuesContain(values, current)) values = appendValue(values, current);
         }
         CommandCompletionCandidates.Merge merged = CommandCompletionCandidates.merge(values, accepted.clientValues);
         List<String> next = pregenEngine ? state.bridge.candidates(field, merged) : merged.styledValues();
@@ -267,7 +348,10 @@ public final class ChatCommandCompletionController {
             state.dismiss();
             return;
         }
-        if (!pregenEngine) next.removeIf(value -> sameCandidate(value, current));
+        // Once a cycle exists, keep the value currently in the input in the list. The selected
+        // row is the value that was actually inserted; removing it and advancing the highlight
+        // made the popup claim that the next row was current.
+        if (!pregenEngine && !state.isCycling()) next.removeIf(value -> sameCandidate(value, current));
         if (next.isEmpty()) {
             if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG) debug("dismiss: no candidates after filtering current=[" + current + "]");
             state.dismiss();
@@ -277,7 +361,7 @@ public final class ChatCommandCompletionController {
             debug("cycle built n=" + next.size() + " range=" + range.start + "-" + range.end);
         }
         List<String> plain = plainOf(next);
-        state.resetCycle(range.tokens(current), plain, next);
+        state.resetCycle(range.tokens(current), plain, next, current, accepted.prefix);
         state.openPopup();
     }
 
@@ -346,6 +430,18 @@ public final class ChatCommandCompletionController {
         return plain.startsWith("/") ? plain.substring(1) : plain;
     }
 
+    /**
+     * Chooses the row for a Tab press. A row that is already present in the input advances to the
+     * next row; a manually highlighted row is committed as-is. Keeping this decision pure makes
+     * the distinction between "current" and "next" testable without a live GuiTextField.
+     */
+    static int nextTabIndex(List<String> plainValues, int selected, String currentToken) {
+        if (plainValues == null || plainValues.isEmpty()) return -1;
+        if (selected < 0 || selected >= plainValues.size()) return 0;
+        return sameCandidate(currentToken, plainValues.get(selected))
+                ? (selected + 1) % plainValues.size() : selected;
+    }
+
     static int wordStart(String text, int cursor) {
         int start = Math.max(0, Math.min(cursor, text == null ? 0 : text.length()));
         if (text == null) return start;
@@ -394,7 +490,7 @@ public final class ChatCommandCompletionController {
         int row = layout == null ? -1 : layout.rowAt(mouseX(), mouseY());
         if (row < 0 || state.first + row >= values.size()) return;
         state.commit(state.first + row);
-        state.moveCycle(1);
+        state.openPopup();
         request(field);
         event.setCanceled(true);
     }
@@ -456,7 +552,7 @@ public final class ChatCommandCompletionController {
      * can be compared against server responses without being confused by the source color codes.
      */
     static final class Cycle {
-        private final TokenRange range;
+        private TokenRange range;
         private final List<String> plain;
         private final List<String> display;
         private int selected = -1;
@@ -468,10 +564,15 @@ public final class ChatCommandCompletionController {
         }
 
         TokenRange range() { return range; }
+        void setRange(TokenRange range) { this.range = range; }
         List<String> values() { return display; }
         List<String> plainValues() { return plain; }
         int selected() { return selected; }
         void onCommit() { if (selected < 0 && !display.isEmpty()) selected = 0; }
+
+        void select(int index) {
+            if (index >= 0 && index < display.size()) selected = index;
+        }
 
         /** Moves the highlight only; {@link State#moveCycle} owns keeping the viewport in step. */
         void move(int delta) {
@@ -486,12 +587,17 @@ public final class ChatCommandCompletionController {
     private static final class State {
         /** Live Tab cycle; survives popup dismissal and is owned across responses. */
         private Cycle cycle;
+        /** Prefix whose request supplied the current cycle; retained across a local Tab commit. */
+        private String cyclePrefix;
         private ChatSuggestionPopup.Layout layout;
         private String engine = CommandCompletionOptions.UIE;
         private String display = CommandCompletionOptions.UIE;
         private boolean active;
         private PregenCompletionBridge bridge;
         private int first;
+        /** Last candidate snapshot sent to the presentation layer; unchanged state is reused. */
+        private List<String> presentedValues;
+        private int presentedSelected = Integer.MIN_VALUE;
         private final RequestTracker requests = new RequestTracker();
         private final WeakReference<GuiTextField> owner;
 
@@ -529,13 +635,15 @@ public final class ChatCommandCompletionController {
         }
 
         private void beginRequest(String prefix, TokenRange range, String[] nextClientValues) {
-            // A delimiter starts a distinct candidate set, so the old cycle no longer applies.
+            // A new token has different semantics and must discard the old panel immediately.
+            // Within one token, retain the old panel until the response supplies a replacement;
+            // this prevents a clear/rebuild on every typed character.
             if (cycle != null && cycle.range().start != range.start) dismiss();
             requests.beginRequest(prefix, nextClientValues);
         }
 
         private Request acceptResponse(String currentPrefix) {
-            return requests.acceptResponse(currentPrefix);
+            return requests.acceptResponse(currentPrefix, cyclePrefix);
         }
 
         /**
@@ -543,24 +651,75 @@ public final class ChatCommandCompletionController {
          * resolves to exactly the same candidates (the common case while Tab cycling, where a
          * prefix-filtered server reply comes back narrower than the list the cycle started from).
          */
-        private void resetCycle(TokenRange range, List<String> plain, List<String> display) {
+        private void resetCycle(TokenRange range, List<String> plain, List<String> display,
+                                String currentToken, String requestPrefix) {
             if (cycle != null && cycle.range().equals(range) && cycle.plainValues().equals(plain)) {
+                cyclePrefix = requestPrefix;
                 openPopup();
                 return;
             }
+            String previous = cycle == null || cycle.selected() < 0
+                    || !cycle.range().equals(range)
+                    ? null : cycle.plainValues().get(cycle.selected());
             cycle = new Cycle(range, plain, display);
+            cyclePrefix = requestPrefix;
+            String selectedValue = currentToken;
+            if (selectedValue == null || !containsCandidate(plain, selectedValue)) {
+                selectedValue = previous;
+            }
+            if (selectedValue != null) {
+                for (int i = 0; i < plain.size(); i++) {
+                    if (sameCandidate(plain.get(i), selectedValue)) {
+                        cycle.select(i);
+                        break;
+                    }
+                }
+            }
             first = 0;
+        }
+
+        private static boolean containsCandidate(List<String> values, String candidate) {
+            if (candidate == null) return false;
+            for (String value : values) if (sameCandidate(value, candidate)) return true;
+            return false;
         }
 
         /** Shows the popup for the current cycle without disturbing the cycle itself. */
         private void openPopup() {
             if (cycle == null) return;
             clampFirst();
-            CommandCompletionPresentation.update(owner.get(), cycle.values(), cycle.selected());
+            List<String> values = cycle.values();
+            int selected = cycle.selected();
+            if (presentedValues != null && presentedSelected == selected
+                    && presentedValues.equals(values)) return;
+            presentedValues = new ArrayList<>(values);
+            presentedSelected = selected;
+            CommandCompletionPresentation.update(owner.get(), values, selected);
         }
 
         private boolean isCycling() {
             return cycle != null;
+        }
+
+        /** Returns the row Tab should commit, advancing only after the current row was inserted. */
+        private int tabIndex(GuiTextField field) {
+            if (cycle == null || cycle.values().isEmpty()) return -1;
+            int selected = cycle.selected();
+            if (selected < 0) return 0;
+            String text = field == null ? "" : field.getText();
+            int cursor = field == null ? 0 : Math.max(0, Math.min(field.getCursorPosition(), text.length()));
+            TokenRange range = tokenRange(text, cursor);
+            String current = text.substring(range.start, range.end);
+            return nextTabIndex(cycle.plainValues(), selected, current);
+        }
+
+        private boolean selectedMatchesInput(GuiTextField field) {
+            if (cycle == null || cycle.selected() < 0 || field == null) return false;
+            String text = field.getText();
+            int cursor = Math.max(0, Math.min(field.getCursorPosition(), text.length()));
+            TokenRange range = tokenRange(text, cursor);
+            String current = text.substring(range.start, range.end);
+            return sameCandidate(current, cycle.plainValues().get(cycle.selected()));
         }
 
         /**
@@ -576,7 +735,7 @@ public final class ChatCommandCompletionController {
             if (cycle == null) return;
             cycle.move(delta);
             clampFirst();
-            CommandCompletionPresentation.update(owner.get(), cycle.values(), cycle.selected());
+            openPopup();
         }
 
         private TokenRange committedRange() {
@@ -586,9 +745,12 @@ public final class ChatCommandCompletionController {
         /** Ends the cycle: the popup closes and the candidate list is discarded. */
         private void dismiss() {
             cycle = null;
+            cyclePrefix = null;
             layout = null;
             requests.deactivate();
             first = 0;
+            presentedValues = null;
+            presentedSelected = Integer.MIN_VALUE;
             CommandCompletionPresentation.clear(owner.get());
         }
 
@@ -603,9 +765,10 @@ public final class ChatCommandCompletionController {
             if (index < 0 || index >= values.size()) return;
             GuiTextField field = owner.get();
             if (field == null) return;
+            cycle.select(index);
             if (CommandCompletionOptions.PREGEN.equals(engine) && bridge != null
                     && bridge.commit(field, values, index)) {
-                cycle.onCommit();
+                cycle.setRange(tokenRange(field.getText(), field.getCursorPosition()));
                 layout = null;
                 CommandCompletionPresentation.clear(field);
                 return;
@@ -617,8 +780,8 @@ public final class ChatCommandCompletionController {
             field.setCursorPosition(range.start);
             field.setSelectionPos(range.end);
             field.writeText(insertion);
+            cycle.setRange(tokenRange(field.getText(), field.getCursorPosition()));
             // The committed token keeps its range, so the response for it cannot collapse the list.
-            cycle.onCommit();
             layout = null;
             CommandCompletionPresentation.clear(field);
         }
@@ -641,11 +804,16 @@ public final class ChatCommandCompletionController {
             activeRequestId = request.id;
         }
 
-        Request acceptResponse(String currentPrefix) {
+        Request acceptResponse(String currentPrefix, String compatiblePrefix) {
             Request request = pendingRequests.pollFirst();
             if (request == null || request.id != activeRequestId
-                    || !request.prefix.equals(currentPrefix)) return null;
+                    || (!request.prefix.equals(currentPrefix)
+                    && !request.prefix.equals(compatiblePrefix))) return null;
             return request;
+        }
+
+        Request acceptResponse(String currentPrefix) {
+            return acceptResponse(currentPrefix, null);
         }
 
         void resetPrefix() {
@@ -654,6 +822,11 @@ public final class ChatCommandCompletionController {
 
         void deactivate() {
             activeRequestId = -1;
+            // Closing the input (for example by deleting back to an empty string) ends
+            // the request session. Reopening the same prefix must be allowed to request
+            // candidates again; retaining lastRequest makes the next "/" look deduplicated,
+            // leaving cycle == null until a later Tab forces a request.
+            lastRequest = "";
         }
     }
 

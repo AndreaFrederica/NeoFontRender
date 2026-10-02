@@ -53,13 +53,21 @@ final class PreviewBoundsMeasurement {
             boolean rotating = rotationSpeed(request) != 0;
             if (request instanceof NfrTooltipApi.ItemPreviewRequest) {
                 NfrTooltipApi.ItemPreviewRequest item = (NfrTooltipApi.ItemPreviewRequest) request;
-                bounds = PreviewModelBounds.baked(model, yaw -> {
-                    Matrix4f pose = TooltipPreviewRenderers.itemModelTransform(item, yaw);
-                    pose.m03 += cell.width() * (stack.getItem() instanceof ItemShield ? 0.50F : 0.46F);
-                    pose.m13 += cell.height() * 0.52F;
-                    return pose;
-                }, rotating);
-                if (bounds != null) bounds = bounds.pad(2);
+                // Generated items contain transparent full-sprite front/back quads. Their
+                // geometric envelope grossly overestimates a diagonal sword's silhouette.
+                if (model != null && !model.isGui3d()) {
+                    bounds = probe(cell, rotating, false, (yaw, pose) ->
+                            TooltipPreviewRenderers.renderRaw(request, 0, 0, cell, 1, yaw, pose));
+                }
+                if (bounds == null) {
+                    bounds = PreviewModelBounds.baked(model, yaw -> {
+                        Matrix4f pose = TooltipPreviewRenderers.itemModelTransform(item, yaw);
+                        pose.m03 += cell.width() * (stack.getItem() instanceof ItemShield ? 0.50F : 0.46F);
+                        pose.m13 += cell.height() * 0.52F;
+                        return pose;
+                    }, rotating);
+                    if (bounds != null) bounds = bounds.pad(2);
+                }
             }
             if (bounds == null) {
                 boolean swing = request instanceof NfrTooltipApi.ArmorPreviewRequest

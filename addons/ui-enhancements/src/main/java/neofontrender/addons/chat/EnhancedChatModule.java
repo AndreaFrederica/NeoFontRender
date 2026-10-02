@@ -9,7 +9,6 @@ import neofontrender.addons.inline.TextPipelineMiddleware;
 import neofontrender.addons.inline.EmbeddedContentConfig;
 import neofontrender.addons.inline.EmbeddedContentLaboratorySettings;
 import speiger.src.salutation.Salutation;
-import speiger.src.salutation.client.ClientHandler;
 
 public final class EnhancedChatModule implements UiEnhancementModule {
     @Override
@@ -21,8 +20,8 @@ public final class EnhancedChatModule implements UiEnhancementModule {
         EmbeddedContentConfig.load();
         TextPipelineMiddleware.initialize();
         ChatStyleConfig.load();
+        // Keep Salutation's command/translation facade initialized; its copied client UI was removed.
         Salutation.initialize();
-        if (!ExternalChatCompat.salutationLoaded()) ClientHandler.INSTANCE.init();
         ChatHistoryManager.INSTANCE.initialize();
         if (!ExternalChatCompat.tabbyChatLoaded()) TabbyChat.getInstance().init();
     }

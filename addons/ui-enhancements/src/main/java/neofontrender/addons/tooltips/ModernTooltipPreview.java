@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -20,9 +21,19 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import neofontrender.addons.cursor.CursorSvgRasterizer;
 
 /** Large live preview for the selected tooltip profile. */
 final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
+    private static final ResourceLocation CURSOR_SVG =
+            new ResourceLocation("neofontrender_ui_enhancements", "textures/gui/tooltip_cursor.svg");
+    private static final int CURSOR_HOTSPOT_X = 2;
+    private static final int CURSOR_HOTSPOT_Y = 2;
+    private static final int CURSOR_SIZE = 16;
+    private static DynamicTexture cursorTexture;
+    private static ResourceLocation cursorTextureLocation;
     private final Supplier<String> profileId;
     private final Supplier<String> previewItemId;
 
@@ -140,6 +151,7 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
                         profile.textScale, profile.offsetX, profile.offsetY);
                 font.drawString(values, 10, Math.max(10, height - 14), 0xFF8292A5);
             }
+            if (!mapPreview) drawCursorGuide(panelLeft, panelTop, stageScale);
         } finally {
             if (lighting) GlStateManager.enableLighting(); else GlStateManager.disableLighting();
             if (depth) GlStateManager.enableDepth(); else GlStateManager.disableDepth();
@@ -148,6 +160,33 @@ final class ModernTooltipPreview extends Widget<ModernTooltipPreview> {
             if (alpha) GlStateManager.enableAlpha(); else GlStateManager.disableAlpha();
             if (cull) GlStateManager.enableCull(); else GlStateManager.disableCull();
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        }
+    }
+
+    /** Shows the reference cursor used by the live tooltip placement preview. */
+    private static void drawCursorGuide(int panelLeft, int panelTop, float scale) {
+        int mouseX = Math.round(panelLeft - TooltipConfig.cursorOffsetX * scale);
+        int mouseY = Math.round(panelTop - TooltipConfig.cursorOffsetY * scale);
+        if (!ensureCursorTexture()) return;
+        Minecraft.getMinecraft().getTextureManager().bindTexture(cursorTextureLocation);
+        int size = Math.max(10, Math.round(CURSOR_SIZE * scale));
+        int hotspotX = Math.round(CURSOR_HOTSPOT_X * scale);
+        int hotspotY = Math.round(CURSOR_HOTSPOT_Y * scale);
+        Gui.drawModalRectWithCustomSizedTexture(mouseX - hotspotX, mouseY - hotspotY,
+                0, 0, size, size, 24, 24);
+    }
+
+    private static boolean ensureCursorTexture() {
+        if (cursorTextureLocation != null) return true;
+        try (InputStream input = Minecraft.getMinecraft().getResourceManager()
+                .getResource(CURSOR_SVG).getInputStream()) {
+            BufferedImage image = CursorSvgRasterizer.rasterize(input);
+            cursorTexture = new DynamicTexture(image);
+            cursorTextureLocation = Minecraft.getMinecraft().getTextureManager()
+                    .getDynamicTextureLocation("nfr_tooltip_cursor", cursorTexture);
+            return true;
+        } catch (Exception error) {
+            return false;
         }
     }
 

@@ -18,8 +18,6 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
             "mixins.neofontrender_ui_enhancements_legendary_tooltips.json";
     static final String OBSCURE_TOOLTIPS_CONFIG =
             "mixins.neofontrender_ui_enhancements_obscure_tooltips.json";
-    static final String SALUTATION_CONFIG =
-            "mixins.neofontrender_ui_enhancements_salutation.json";
     static final String QUARK_CONFIG =
             "mixins.neofontrender_ui_enhancements_quark.json";
     static final String SHOULDER_SURFING_CONFIG =
@@ -37,7 +35,7 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
 
     @Override
     public List<String> getMixinConfigs() {
-        return Arrays.asList(PREGEN_CONFIG, HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, LEGENDARY_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG,
+        return Arrays.asList(PREGEN_CONFIG, HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, LEGENDARY_TOOLTIPS_CONFIG, QUARK_CONFIG,
                 SHOULDER_SURFING_CONFIG, SHOULDER_SURFING_TCONSTRUCT_CONFIG,
                 SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG, BETTER_COMBAT_CONFIG,
                 THAUMCRAFT_CONFIG, CLEANROOM_COMMAND_SUGGESTIONS_CONFIG);
@@ -65,15 +63,6 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
         if (OBSCURE_TOOLTIPS_CONFIG.equals(config)) {
             return context.isModPresent("obscure_tooltips")
                     && classResourcePresent("dev/obscuria/tooltips/client/TooltipEventHandler.class");
-        }
-        if (SALUTATION_CONFIG.equals(config)) {
-            return context.isModPresent("salutation")
-                    && classResourcePresent(
-                            "speiger/src/salutation/client/ClientHandler.class")
-                    && classResourcePresent(
-                            "speiger/src/salutation/client/gui/chat/AdvancedTabCompleter.class")
-                    && classResourcePresent(
-                            "speiger/src/salutation/client/gui/chat/ChatScreen.class");
         }
         if (QUARK_CONFIG.equals(config)) {
             return context.isModPresent("quark")

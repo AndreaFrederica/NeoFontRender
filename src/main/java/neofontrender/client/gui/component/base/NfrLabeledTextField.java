@@ -30,6 +30,7 @@ public final class NfrLabeledTextField extends ParentWidget<NfrLabeledTextField>
                 .build());
         child(label);
         child(field);
+        NfrSettingsSearch.register(this, () -> text, "text", "field");
     }
 
     @Override

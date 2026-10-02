@@ -36,6 +36,9 @@ import java.util.List;
 @Mixin(FontRenderer.class)
 public abstract class MixinFontRenderer {
 
+    /** Prevents vanilla's recursive wrapping implementation from re-entering our hook. */
+    private static final ThreadLocal<Integer> SFR_WRAP_DEPTH = ThreadLocal.withInitial(() -> 0);
+
     @Shadow public float posX;
     @Shadow public float posY;
     @Shadow public int FONT_HEIGHT;
@@ -191,9 +194,15 @@ public abstract class MixinFontRenderer {
 
     @Inject(method = "wrapFormattedStringToWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$wrapExtendedColors(String text, int width, CallbackInfoReturnable<String> cir) {
-        if (text == null || ScopedFontRenderBypass.isActive()) return;
-        List<String> lines = FormattedColorWrapping.wrap((FontRenderer) (Object) this, text, width);
-        if (lines != null) cir.setReturnValue(String.join("\n", lines));
+        if (text == null || ScopedFontRenderBypass.isActive()
+                || SFR_WRAP_DEPTH.get() > 0) return;
+        SFR_WRAP_DEPTH.set(1);
+        try {
+            List<String> lines = FormattedColorWrapping.wrap((FontRenderer) (Object) this, text, width);
+            if (lines != null) cir.setReturnValue(String.join("\n", lines));
+        } finally {
+            SFR_WRAP_DEPTH.remove();
+        }
     }
 
     @Inject(method = "drawSplitString", at = @At("HEAD"), cancellable = true)

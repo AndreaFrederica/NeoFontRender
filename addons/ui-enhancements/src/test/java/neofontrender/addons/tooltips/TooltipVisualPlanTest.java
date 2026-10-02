@@ -12,6 +12,63 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 class TooltipVisualPlanTest {
     @Test
+    void previewPanelReservesInsetsWhenWrappingAndEmptyPlansStayEmpty() {
+        TooltipConfig.Snapshot original = TooltipConfig.snapshot();
+        try {
+            TooltipConfig.previewPanelFrameEnabled = true;
+            TooltipConfig.previewPanelBackgroundEnabled = false;
+            TooltipVisualPlan empty = new TooltipVisualPlan(1);
+            assertEquals(0, empty.sideWidth());
+            assertEquals(0, empty.sideHeight());
+            TooltipVisualPlan plan = new TooltipVisualPlan(1);
+            plan.addSide(new StubBlock(30, 10));
+            plan.addSide(new StubBlock(30, 12));
+            TooltipVisualPlan constrained = plan.constrain(140);
+            // 3 px padding and the existing 4 px text gap force the second model down.
+            assertEquals(40, constrained.sideWidth());
+            assertEquals(32, constrained.sideHeight());
+            assertEquals(3, constrained.sidePlacements().get(0).x);
+            assertEquals(3, constrained.sidePlacements().get(0).y);
+            assertEquals(17, constrained.sidePlacements().get(1).y);
+            TooltipConfig.previewPanelFrameEnabled = false;
+            TooltipConfig.previewPanelBackgroundEnabled = true;
+            assertEquals(40, plan.constrain(140).sideWidth());
+            TooltipConfig.previewPanelBackgroundEnabled = false;
+            assertEquals(68, plan.constrain(140).sideWidth());
+        } finally {
+            original.restore();
+        }
+    }
+
+    @Test
+    void verticalCenteringAccountsForInlineBlocksAndOnlyMovesTheShorterColumn() {
+        TooltipConfig.Snapshot original = TooltipConfig.snapshot();
+        try {
+            TooltipConfig.titleBreak = true;
+            TooltipConfig.dividerTopMargin = 0;
+            TooltipConfig.dividerBottomMargin = 3;
+            TooltipConfig.previewPanelFrameEnabled = false;
+            TooltipConfig.previewPanelBackgroundEnabled = false;
+            TooltipVisualPlan plan = new TooltipVisualPlan(3);
+            plan.addSide(new StubBlock(30, 64));
+            plan.addAfter(1, new StubBlock(40, 100));
+            int textHeight = TooltipLayout.textFlowHeight(Arrays.asList(22, 10, 10), 1,
+                    Arrays.asList("Sword", "Details", "Mod"), plan);
+            assertEquals(146, textHeight);
+            TooltipConfig.sideAlignment = "top";
+            assertEquals(0, TooltipLayout.verticalOffset(64, textHeight));
+            TooltipConfig.sideAlignment = "center";
+            assertEquals(41, TooltipLayout.verticalOffset(64, textHeight));
+            assertEquals(0, TooltipLayout.verticalOffset(textHeight, 64));
+            assertEquals(16, TooltipLayout.verticalOffset(32, 64));
+            assertEquals(0, TooltipLayout.verticalOffset(64, 64));
+            assertEquals(0, TooltipLayout.verticalOffset(textHeight, 0));
+        } finally {
+            original.restore();
+        }
+    }
+
+    @Test
     void remapsVisualToTheLastWrappedPartOfItsSourceLine() {
         TooltipVisualPlan source = new TooltipVisualPlan(3);
         StubBlock block = new StubBlock(45, 10);

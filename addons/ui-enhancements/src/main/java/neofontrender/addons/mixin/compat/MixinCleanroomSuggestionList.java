@@ -41,4 +41,12 @@ public abstract class MixinCleanroomSuggestionList {
             ci.cancel();
         }
     }
+
+    @Inject(method = "drawGhostText", at = @At("HEAD"), cancellable = true,
+            require = 1, remap = false)
+    private void nfrUi$suppressGhostText(CallbackInfo ci) {
+        if (CleanroomCommandCompletionCompat.suppressCleanroomSuggestions(commandBlockMode)) {
+            ci.cancel();
+        }
+    }
 }

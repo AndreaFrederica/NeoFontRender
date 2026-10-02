@@ -273,7 +273,6 @@ public class TextBox extends GuiComponent implements ChatInput {
             yPos += (int) Math.ceil(layout.height()) + 2;
         }
         drawCommandGhost(lastTextAdvance, lastTextX, lastTextY);
-
     }
 
     /** Shows source literally while the caret is editing any recognized syntax span. */
@@ -402,16 +401,6 @@ public class TextBox extends GuiComponent implements ChatInput {
         return fr.getStringWidth(line.legacyText());
     }
 
-    private static int commandColorAt(
-            List<ColoredRange> colors, int sourceIndex, int baseColor) {
-        for (ColoredRange range : colors) {
-            if (sourceIndex >= range.start && sourceIndex < range.end) {
-                return (baseColor & 0xFF000000) | (range.color & 0xFFFFFF);
-            }
-        }
-        return baseColor;
-    }
-
     private void drawCommandGhost(float lineAdvance, int textX, int textY) {
         String suffix = CommandCompletionPresentation.ghostSuffix(textField.getTextField());
         if (suffix.isEmpty()) return;
@@ -421,6 +410,16 @@ public class TextBox extends GuiComponent implements ChatInput {
         } else {
             fr.drawString(suffix, x, textY, 0xFF808080, false);
         }
+    }
+
+    private static int commandColorAt(
+            List<ColoredRange> colors, int sourceIndex, int baseColor) {
+        for (ColoredRange range : colors) {
+            if (sourceIndex >= range.start && sourceIndex < range.end) {
+                return (baseColor & 0xFF000000) | (range.color & 0xFFFFFF);
+            }
+        }
+        return baseColor;
     }
 
     private void drawSpellingDecorations(ITextComponent line, TextRenderRouteLayout layout,

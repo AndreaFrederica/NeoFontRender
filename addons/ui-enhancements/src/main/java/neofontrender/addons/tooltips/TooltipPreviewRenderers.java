@@ -485,7 +485,12 @@ final class TooltipPreviewRenderers {
                 GlStateManager.color(1.0F, 1.0F, 1.0F, animation);
                 RenderHelper.enableStandardItemLighting();
                 float centerX = x + size.width() * 0.46F;
-                GlStateManager.translate(centerX, y + size.height() - 7.0F, 500.0F);
+                // Armor stand coordinates use the feet as the entity origin.  Keep that
+                // origin on the bottom edge of the logical preview cell; the bounds pass
+                // then moves/scales the complete rendered silhouette (including oversized
+                // helmet geometry) into the cell.  The old -7 offset put the head outside
+                // the cell before fitting and clipped the top of large helmets.
+                GlStateManager.translate(centerX, y + size.height(), 500.0F);
                 GlStateManager.scale(-request.scale() * animation, -request.scale() * animation,
                         request.scale() * animation);
                 GlStateManager.rotate(request.pitch(), 1.0F, 0.0F, 0.0F);
@@ -607,7 +612,9 @@ final class TooltipPreviewRenderers {
                 GlStateManager.color(1.0F, 1.0F, 1.0F, animation);
                 RenderHelper.enableStandardItemLighting();
                 setPreviewYaw(entity, 180.0F + spin);
-                GlStateManager.translate(x + size.width() * 0.46F, y + size.height() - 7.0F, 500.0F);
+                // Match the armor-stand anchor: the player entity origin is at its feet,
+                // so fitting must see the whole model before it is centered in the cell.
+                GlStateManager.translate(x + size.width() * 0.46F, y + size.height(), 500.0F);
                 GlStateManager.scale(-request.scale() * animation, -request.scale() * animation,
                         request.scale() * animation);
                 GlStateManager.rotate(request.pitch(), 1.0F, 0.0F, 0.0F);

@@ -148,12 +148,16 @@ final class TooltipLayout {
         TooltipConfig.Profile activeProfile = profile == null ? TooltipConfig.profile("vanilla") : profile;
         int leftPadding = TooltipConfig.leftPadding;
         int rightPadding = TooltipConfig.rightPadding;
-        int cursorOffset = TooltipConfig.cursorOffset;
+        int cursorOffsetX = TooltipConfig.cursorOffsetX;
+        int cursorOffsetY = TooltipConfig.cursorOffsetY;
         TooltipVisualExtents extents = TooltipVisualExtents.current();
         List<Integer> lineWidths = measureLineWidths(font, source,
                 flagsFor(source.size(), compactSource), activeProfile.textScale);
         int width = visualPlanContentWidth(lineWidths, null, event.getStack(), 1, font);
-        int x = event.getX() + cursorOffset;
+        // x/y are content origins, while the user-facing cursor offset describes the
+        // outer panel border. Account for the configured panel inset here so offset 0
+        // really means that the border begins at the cursor.
+        int x = event.getX() + cursorOffsetX + leftPadding;
         boolean wrap = false;
 
         int screenWidthLimit = screenWidthLimit(
@@ -169,7 +173,7 @@ final class TooltipLayout {
             width = screenWidthLimit;
             wrap = true;
         } else if (x + width + rightPadding > event.getScreenWidth()) {
-            x = event.getX() - cursorOffset - rightPadding - width;
+            x = event.getX() - cursorOffsetX - rightPadding - width;
         }
         if (event.getMaxWidth() > 0 && width > event.getMaxWidth()) {
             width = event.getMaxWidth();
@@ -207,8 +211,8 @@ final class TooltipLayout {
                     activeProfile.textScale);
             width = visualPlanContentWidth(lineWidths, visualPlan, event.getStack(), titleLines, font);
             x = event.getX() > event.getScreenWidth() / 2
-                    ? event.getX() - cursorOffset - rightPadding - width
-                    : event.getX() + cursorOffset;
+                    ? event.getX() - cursorOffsetX - rightPadding - width
+                    : event.getX() + cursorOffsetX + leftPadding;
         }
 
         List<Integer> rawLineAdvances = lineAdvances(font, lines, compactLines,
@@ -218,7 +222,9 @@ final class TooltipLayout {
         int height = contentFlowHeight(lineAdvances, titleLines, lines, visualPlan);
         int[] visualBounds = visualBounds(font, lines, compactLines, lineAdvances,
                 titleLines, activeProfile.textScale, activeProfile.offsetY, visualPlan, event.getStack(), rawLineAdvances);
-        int y = event.getY() - cursorOffset;
+        // Positive Y offset places the tooltip above the cursor, matching the old
+        // symmetric behavior while allowing horizontal and vertical gaps to differ.
+        int y = event.getY() + cursorOffsetY + TooltipConfig.topPadding - visualBounds[0];
         y = Math.max(TooltipConfig.topPadding + extents.top - visualBounds[0], Math.min(y,
                 event.getScreenHeight() - visualBounds[1] - TooltipConfig.bottomPadding - extents.bottom));
         x = Math.max(leftPadding + extents.left, Math.min(x,
@@ -316,7 +322,10 @@ final class TooltipLayout {
                                       TooltipVisualPlan visualPlan, ItemStack stack, List<Integer> rawAdvances) {
         float top = Float.POSITIVE_INFINITY;
         float bottom = Float.NEGATIVE_INFINITY;
-        float baseline = 0.0F;
+        int textHeight = textFlowHeight(lineAdvances, titleLines, lines, visualPlan);
+        int sideHeight = visualPlan == null ? 0 : visualPlan.sideHeight();
+        int textOffset = verticalOffset(textHeight, sideHeight);
+        float baseline = textOffset;
         int titleCount = Math.max(0, Math.min(titleLines, lines.size()));
         HeaderMetrics header = HeaderMetrics.measure(stack, titleCount, lineAdvances,
                 rawAdvances, 0, font, lines, profileScale, compactLines);
@@ -363,13 +372,14 @@ final class TooltipLayout {
             }
         }
         if (TooltipHeaderLayout.hasIcon(stack)) {
-            top = Math.min(top, header.iconY - TooltipHeaderLayout.iconDecorationInset());
-            bottom = Math.max(bottom, header.iconY + TooltipHeaderLayout.ICON_SIZE
+            top = Math.min(top, textOffset + header.iconY - TooltipHeaderLayout.iconDecorationInset());
+            bottom = Math.max(bottom, textOffset + header.iconY + TooltipHeaderLayout.ICON_SIZE
                     + TooltipHeaderLayout.iconDecorationInset());
         }
         if (visualPlan != null && visualPlan.sideHeight() > 0) {
-            top = Math.min(top, 0.0F);
-            bottom = Math.max(bottom, visualPlan.sideHeight());
+            int sideOffset = verticalOffset(sideHeight, textHeight);
+            top = Math.min(top, sideOffset);
+            bottom = Math.max(bottom, sideOffset + sideHeight);
         }
         if (!Float.isFinite(top) || !Float.isFinite(bottom) || bottom <= top) {
             return roundedVisualBounds(0, Math.max(1, baseline));
@@ -389,13 +399,20 @@ final class TooltipLayout {
 
     private static int contentFlowHeight(List<Integer> lineAdvances, int titleLines,
                                          List<String> lines, TooltipVisualPlan visualPlan) {
-        int textHeight = lineAdvances == null ? 0
-                : lineAdvances.stream().mapToInt(Integer::intValue).sum();
-        int visualHeight = visualPlan == null ? 0 : visualPlan.totalHeight();
-        int planHeight = visualPlan == null ? 0 : visualPlan.contentHeight();
-        if (hasContentAfterTitle(lines, titleLines, visualPlan)) textHeight += dividerSpacing();
-        int height = Math.max(textHeight + visualHeight, planHeight);
-        return Math.max(1, height);
+        return Math.max(1, Math.max(textFlowHeight(lineAdvances, titleLines, lines, visualPlan),
+                visualPlan == null ? 0 : visualPlan.sideHeight()));
+    }
+
+    static int textFlowHeight(List<Integer> lineAdvances, int titleLines,
+                              List<String> lines, TooltipVisualPlan visualPlan) {
+        int height = lineAdvances == null ? 0 : lineAdvances.stream().mapToInt(Integer::intValue).sum();
+        if (visualPlan != null) height += visualPlan.totalHeight();
+        if (hasContentAfterTitle(lines, titleLines, visualPlan)) height += dividerSpacing();
+        return Math.max(0, height);
+    }
+
+    static int verticalOffset(int height, int otherHeight) {
+        return "center".equals(TooltipConfig.sideAlignment) ? Math.max(0, (otherHeight - height) / 2) : 0;
     }
 
     private static int visualPlanContentWidth(List<Integer> lineWidths,

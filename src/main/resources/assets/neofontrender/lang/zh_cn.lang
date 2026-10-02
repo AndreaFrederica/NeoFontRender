@@ -283,3 +283,7 @@ neofontrender.gui.licenses.section.40_audio=音频引擎及内置依赖
 neofontrender.gui.licenses.section.50_controller=手柄运行时、原生库与资源
 neofontrender.gui.licenses.section.60_typst_assets=Typst 字体与资源许可
 neofontrender.gui.licenses.section.70_typst_native=Typst 原生依赖树（含构建与平台条件项）
+neofontrender.gui.section.pipeline=文字管线
+neofontrender.gui.section.sdf=SDF 字体边缘
+neofontrender.gui.section.raster=栅格化与过滤
+neofontrender.gui.section.signs=告示牌渲染

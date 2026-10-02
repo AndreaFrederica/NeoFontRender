@@ -70,6 +70,14 @@ final class TooltipConfig {
     static boolean headerIconAnimationEnabled = true;
     static int headerIconAnimationMillis = 180;
     static boolean rarityEnabled = true;
+    static String sideAlignment = "top";
+    static boolean previewPanelFrameEnabled = false;
+    static boolean previewPanelFrameRarityColor = true;
+    static int previewPanelFrameColor = 0xD0AAB4C4;
+    static boolean previewPanelBackgroundEnabled = false;
+    static int previewPanelBackgroundColor = 0x80101018;
+    static boolean previewPanelRounded = true;
+    static float previewPanelCornerRadius = 3.0F;
     static boolean itemPreviewEnabled = true;
     static String itemPreviewScope = "tools";
     static boolean armorPreviewEnabled = true;
@@ -138,7 +146,10 @@ final class TooltipConfig {
     static int dividerTopMargin = 0;
     /** Space between the divider line and the first body row. */
     static int dividerBottomMargin = 3;
-    static int cursorOffset = 12;
+    /** Legacy symmetric cursor gap retained for config compatibility. */
+    static int cursorOffset = 0;
+    static int cursorOffsetX = 0;
+    static int cursorOffsetY = 0;
     static int maxWidth = 0;
     static int[] fillColors = DEFAULT_FILL.clone();
     static int[] borderColors = DEFAULT_BORDER.clone();
@@ -212,6 +223,14 @@ final class TooltipConfig {
         headerIconAnimationMillis = config.getInt(
                 "tooltip.preview.icon.animation.durationMillis", 180, 0, 2000);
         rarityEnabled = config.getBoolean("tooltip.preview.rarity.enabled", true);
+        sideAlignment = normalizeSideAlignment(config.getString("tooltip.preview.alignment", "top"));
+        previewPanelFrameEnabled = config.getBoolean("tooltip.preview.panel.frame.enabled", false);
+        previewPanelFrameRarityColor = config.getBoolean("tooltip.preview.panel.frame.rarityColor", true);
+        previewPanelFrameColor = parseColor(config.getString("tooltip.preview.panel.frame.color", "#D0AAB4C4"), 0xD0AAB4C4);
+        previewPanelBackgroundEnabled = config.getBoolean("tooltip.preview.panel.background.enabled", false);
+        previewPanelBackgroundColor = parseColor(config.getString("tooltip.preview.panel.background.color", "#80101018"), 0x80101018);
+        previewPanelRounded = config.getBoolean("tooltip.preview.panel.rounded", true);
+        previewPanelCornerRadius = (float) config.getDouble("tooltip.preview.panel.cornerRadius", 3.0D, 0.0D, 9.0D);
         itemPreviewEnabled = config.getBoolean("tooltip.preview.item.enabled", true);
         itemPreviewScope = normalizeItemPreviewScope(
                 config.getString("tooltip.preview.item.scope", "tools"));
@@ -277,7 +296,9 @@ final class TooltipConfig {
         lineHeight = config.getInt("layout.lineHeight", 10, 8, 24);
         dividerTopMargin = config.getInt("layout.dividerTopMargin", 0, 0, 16);
         dividerBottomMargin = config.getInt("layout.dividerBottomMargin", 3, 0, 16);
-        cursorOffset = config.getInt("layout.cursorOffset", 12, 0, 32);
+        cursorOffset = config.getInt("layout.cursorOffset", 0, 0, 64);
+        cursorOffsetX = config.getInt("layout.cursorOffsetX", cursorOffset, -64, 64);
+        cursorOffsetY = config.getInt("layout.cursorOffsetY", cursorOffset, -64, 64);
         maxWidth = config.getInt("layout.maxWidth", 0, 0, 1024);
         fillColors = parseColors(config.getStringList("tooltip.fillColors", colorStrings(DEFAULT_FILL)), DEFAULT_FILL);
         borderColors = parseColors(config.getStringList("tooltip.borderColors", colorStrings(DEFAULT_BORDER)), DEFAULT_BORDER);
@@ -353,6 +374,14 @@ final class TooltipConfig {
                 .set("tooltip.preview.icon.animation.enabled", headerIconAnimationEnabled)
                 .set("tooltip.preview.icon.animation.durationMillis", headerIconAnimationMillis)
                 .set("tooltip.preview.rarity.enabled", rarityEnabled)
+                .set("tooltip.preview.alignment", sideAlignment)
+                .set("tooltip.preview.panel.frame.enabled", previewPanelFrameEnabled)
+                .set("tooltip.preview.panel.frame.rarityColor", previewPanelFrameRarityColor)
+                .set("tooltip.preview.panel.frame.color", colorString(previewPanelFrameColor))
+                .set("tooltip.preview.panel.background.enabled", previewPanelBackgroundEnabled)
+                .set("tooltip.preview.panel.background.color", colorString(previewPanelBackgroundColor))
+                .set("tooltip.preview.panel.rounded", previewPanelRounded)
+                .set("tooltip.preview.panel.cornerRadius", previewPanelCornerRadius)
                 .set("tooltip.preview.item.enabled", itemPreviewEnabled)
                 .set("tooltip.preview.item.scope", itemPreviewScope)
                 .set("tooltip.preview.armor.enabled", armorPreviewEnabled)
@@ -418,6 +447,8 @@ final class TooltipConfig {
                 .set("layout.dividerTopMargin", dividerTopMargin)
                 .set("layout.dividerBottomMargin", dividerBottomMargin)
                 .set("layout.cursorOffset", cursorOffset)
+                .set("layout.cursorOffsetX", cursorOffsetX)
+                .set("layout.cursorOffsetY", cursorOffsetY)
                 .set("layout.maxWidth", maxWidth)
                 .set("tooltip.fillColors", colorStrings(fillColors))
                 .set("tooltip.borderColors", colorStrings(borderColors));
@@ -499,6 +530,14 @@ final class TooltipConfig {
                 .define("tooltip.preview.icon.animation.durationMillis", 180,
                         "Item title icon appearance animation duration in milliseconds.")
                 .define("tooltip.preview.rarity.enabled", true, "Show the item rarity label below the tooltip title.")
+                .define("tooltip.preview.alignment", "top", "Side preview and text vertical alignment: top or center.")
+                .define("tooltip.preview.panel.frame.enabled", false, "Draw a frame around the side preview area.")
+                .define("tooltip.preview.panel.frame.rarityColor", true, "Use the item rarity color for the preview area frame.")
+                .define("tooltip.preview.panel.frame.color", "#D0AAB4C4", "Preview area frame ARGB color.")
+                .define("tooltip.preview.panel.background.enabled", false, "Draw a background behind the side preview area.")
+                .define("tooltip.preview.panel.background.color", "#80101018", "Preview area background ARGB color.")
+                .define("tooltip.preview.panel.rounded", true, "Use rounded corners for the preview area.")
+                .define("tooltip.preview.panel.cornerRadius", 3.0D, "Preview area corner radius in GUI pixels.")
                 .define("tooltip.preview.item.enabled", true, "Show rotating 3D item previews.")
                 .define("tooltip.preview.item.scope", "tools", "Item preview scope: tools or all.")
                 .define("tooltip.preview.armor.enabled", true, "Show 3D previews for armor items.")
@@ -564,7 +603,9 @@ final class TooltipConfig {
                 .define("layout.lineHeight", 10, "Distance between text baselines.")
                 .define("layout.dividerTopMargin", 0, "Space between title text and the divider.")
                 .define("layout.dividerBottomMargin", 3, "Space between the divider and body text.")
-                .define("layout.cursorOffset", 12, "Distance from the mouse cursor.")
+                .define("layout.cursorOffset", 0, "Legacy symmetric distance from the mouse cursor.")
+                .define("layout.cursorOffsetX", 0, "Horizontal tooltip distance from the mouse cursor; negative values move it toward the cursor.")
+                .define("layout.cursorOffsetY", 0, "Vertical tooltip distance from the mouse cursor; positive values move it downward.")
                 .define("layout.maxWidth", 0, "Maximum text width; zero uses Forge/screen limits.")
                 .define("tooltip.fillColors", colorStrings(DEFAULT_FILL), "Four ARGB colors: UL, UR, LR, LL.")
                 .define("tooltip.borderColors", colorStrings(DEFAULT_BORDER), "Four ARGB colors: UL, UR, LR, LL.");
@@ -727,6 +768,10 @@ final class TooltipConfig {
         return fallback;
     }
 
+    static String normalizeSideAlignment(String value) {
+        return value != null && "center".equalsIgnoreCase(value.trim()) ? "center" : "top";
+    }
+
     static String normalizeHeaderIconAlignment(String value) {
         if (value != null) {
             String normalized = value.trim().toLowerCase(Locale.ROOT);
@@ -790,6 +835,14 @@ final class TooltipConfig {
         private final boolean originalHeaderIconAnimationEnabled = headerIconAnimationEnabled;
         private final int originalHeaderIconAnimationMillis = headerIconAnimationMillis;
         private final boolean originalRarityEnabled = rarityEnabled;
+        private final String originalSideAlignment = sideAlignment;
+        private final boolean originalPreviewPanelFrameEnabled = previewPanelFrameEnabled;
+        private final boolean originalPreviewPanelFrameRarityColor = previewPanelFrameRarityColor;
+        private final int originalPreviewPanelFrameColor = previewPanelFrameColor;
+        private final boolean originalPreviewPanelBackgroundEnabled = previewPanelBackgroundEnabled;
+        private final int originalPreviewPanelBackgroundColor = previewPanelBackgroundColor;
+        private final boolean originalPreviewPanelRounded = previewPanelRounded;
+        private final float originalPreviewPanelCornerRadius = previewPanelCornerRadius;
         private final boolean originalItemPreviewEnabled = itemPreviewEnabled;
         private final String originalItemPreviewScope = itemPreviewScope;
         private final boolean originalArmorPreviewEnabled = armorPreviewEnabled;
@@ -855,6 +908,8 @@ final class TooltipConfig {
         private final int originalDividerTopMargin = dividerTopMargin;
         private final int originalDividerBottomMargin = dividerBottomMargin;
         private final int originalCursorOffset = cursorOffset;
+        private final int originalCursorOffsetX = cursorOffsetX;
+        private final int originalCursorOffsetY = cursorOffsetY;
         private final int originalMaxWidth = maxWidth;
         private final int[] originalFill = fillColors.clone();
         private final int[] originalBorderColors = borderColors.clone();
@@ -902,6 +957,14 @@ final class TooltipConfig {
             headerIconAnimationMillis = originalHeaderIconAnimationMillis;
             rarityEnabled = originalRarityEnabled;
             textColor = originalTextColor; titleColor = originalTitleColor;
+            sideAlignment = originalSideAlignment;
+            previewPanelFrameEnabled = originalPreviewPanelFrameEnabled;
+            previewPanelFrameRarityColor = originalPreviewPanelFrameRarityColor;
+            previewPanelFrameColor = originalPreviewPanelFrameColor;
+            previewPanelBackgroundEnabled = originalPreviewPanelBackgroundEnabled;
+            previewPanelBackgroundColor = originalPreviewPanelBackgroundColor;
+            previewPanelRounded = originalPreviewPanelRounded;
+            previewPanelCornerRadius = originalPreviewPanelCornerRadius;
             itemPreviewEnabled = originalItemPreviewEnabled;
             itemPreviewScope = originalItemPreviewScope;
             armorPreviewEnabled = originalArmorPreviewEnabled;
@@ -963,7 +1026,10 @@ final class TooltipConfig {
             lineHeight = originalLineHeight;
             dividerTopMargin = originalDividerTopMargin;
             dividerBottomMargin = originalDividerBottomMargin;
-            cursorOffset = originalCursorOffset; maxWidth = originalMaxWidth;
+            cursorOffset = originalCursorOffset;
+            cursorOffsetX = originalCursorOffsetX;
+            cursorOffsetY = originalCursorOffsetY;
+            maxWidth = originalMaxWidth;
             fillColors = originalFill.clone(); borderColors = originalBorderColors.clone();
             PROFILES.clear();
             for (Map.Entry<String, Profile> entry : originalProfiles.entrySet()) {

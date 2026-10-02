@@ -6,10 +6,10 @@ import java.io.InputStream;
 import neofontrender.addons.inline.SvgRasterizer;
 
 /** Sandboxed static SVG-to-ARGB adapter kept separate from the cursor service API. */
-final class CursorSvgRasterizer {
+public final class CursorSvgRasterizer {
     private CursorSvgRasterizer() {}
 
-    static BufferedImage rasterize(InputStream input) throws IOException {
+    public static BufferedImage rasterize(InputStream input) throws IOException {
         return SvgRasterizer.rasterize(input, false, 128);
     }
 }

@@ -134,6 +134,28 @@ class ChatCommandCompletionControllerTest {
         assertNull(tracker.acceptResponse("/time"));
     }
 
+    @Test
+    void requestTrackerAcceptsTheOriginalResponseAfterLocalTabCommittedIt() {
+        ChatCommandCompletionController.RequestTracker tracker =
+                new ChatCommandCompletionController.RequestTracker();
+        tracker.beginRequest("/", new String[] {"/give"});
+
+        ChatCommandCompletionController.Request accepted =
+                tracker.acceptResponse("/give", "/");
+        assertTrue(accepted != null);
+        assertEquals("/", accepted.prefix);
+    }
+
+    @Test
+    void requestTrackerAllowsTheSamePrefixAfterTheSessionCloses() {
+        ChatCommandCompletionController.RequestTracker tracker =
+                new ChatCommandCompletionController.RequestTracker();
+        tracker.beginRequest("/", new String[0]);
+        tracker.deactivate();
+
+        assertTrue(tracker.shouldRequest("/"));
+    }
+
     /**
      * Tab inserts a full option, so the next response for that same word is prefix-filtered down to
      * nothing. Keeping the list alive is what lets Tab keep walking the other options.
@@ -237,6 +259,29 @@ class ChatCommandCompletionControllerTest {
 
         assertEquals(Arrays.asList("creative", "survival", "adventure", "spectator", "creative"),
                 Arrays.asList(inserted));
+    }
+
+    @Test
+    void aFreshCycleTreatsTheFirstTabAsItsFirstCandidate() {
+        ChatCommandCompletionController.Cycle cycle = newCycle();
+
+        assertEquals(-1, cycle.selected());
+        cycle.onCommit();
+
+        assertEquals(0, cycle.selected());
+        assertEquals("creative", cycle.values().get(cycle.selected()));
+    }
+
+    @Test
+    void tabKeepsTheInsertedCandidateHighlightedBeforeAdvancing() {
+        List<String> candidates = Arrays.asList("/creative", "/survival", "/adventure");
+
+        // A cycle with no highlight chooses its first candidate.
+        assertEquals(0, ChatCommandCompletionController.nextTabIndex(candidates, -1, "/"));
+        // Once the first candidate is in the input, the next Tab advances to the second.
+        assertEquals(1, ChatCommandCompletionController.nextTabIndex(candidates, 0, "/creative"));
+        // If arrows selected another row, Tab commits that highlighted row as-is.
+        assertEquals(2, ChatCommandCompletionController.nextTabIndex(candidates, 2, "/creative"));
     }
 
     @Test

@@ -4,11 +4,13 @@ import neofontrender.build.BuildFeatures;
 import neofontrender.api.text.gl.TextGlComponentApi;
 import neofontrender.api.text.postprocess.TextPostProcessApi;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
+import neofontrender.client.gui.component.base.NfrSectionDivider;
 import neofontrender.client.gui.component.business.NfrPipelineInfoPanel;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
 import neofontrender.client.gui.component.business.NfrSdfPreview;
 import neofontrender.client.gui.model.NfrSettingsDraft;
 import neofontrender.core.font.support.FontRenderTuning;
+import net.minecraft.client.resources.I18n;
 
 /** Advanced pipeline route with a live pipeline summary. */
 public final class NfrAdvancedSettingsView extends NfrContentView<NfrAdvancedSettingsView> {
@@ -26,6 +28,7 @@ public final class NfrAdvancedSettingsView extends NfrContentView<NfrAdvancedSet
     private static NfrOptionsGrid options(NfrSettingsDraft d, NfrSettingsControls c) {
         Runnable draftOnly = () -> { };
         NfrOptionsGrid options = c.grid()
+                .add(new NfrSectionDivider(I18n.format("neofontrender.gui.section.pipeline"), 1).size(260, 22))
                 .add(c.toggle("neofontrender.gui.option.pipeline", "neofontrender.tooltip.pipeline",
                         () -> d.enhancedTextPipeline, value -> d.enhancedTextPipeline = value))
                 .add(c.toggle("neofontrender.gui.option.shader", "neofontrender.tooltip.shader",
@@ -33,6 +36,7 @@ public final class NfrAdvancedSettingsView extends NfrContentView<NfrAdvancedSet
                 .add(c.toggle("neofontrender.gui.option.vanilla_formatting", "neofontrender.tooltip.vanilla_formatting",
                         () -> d.vanillaFormattingCompatibility,
                         value -> d.vanillaFormattingCompatibility = value))
+                .add(new NfrSectionDivider(I18n.format("neofontrender.gui.section.sdf"), 2).size(260, 20))
                 .add(c.toggle("neofontrender.gui.option.sdf", "neofontrender.tooltip.sdf",
                         () -> d.sdfEnabled, value -> d.sdfEnabled = value, draftOnly))
                 .add(c.sdfDistanceRange(draftOnly))

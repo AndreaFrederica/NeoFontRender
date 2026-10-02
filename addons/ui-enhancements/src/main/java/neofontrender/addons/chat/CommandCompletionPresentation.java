@@ -33,6 +33,7 @@ public final class CommandCompletionPresentation {
                 && EnhancedChatConfigAccess.commandCompletionEnabled();
     }
 
+    /** Stores the candidate row that the input renderer should preview as a ghost suffix. */
     public static void update(GuiTextField field, List<String> candidates, int selected) {
         if (!enabled(field) || candidates == null || candidates.isEmpty()) {
             clear(field);
@@ -57,6 +58,7 @@ public final class CommandCompletionPresentation {
         if (field != null) SNAPSHOTS.remove(field);
     }
 
+    /** Returns the suffix of the selected candidate that is not already typed. */
     public static String ghostSuffix(GuiTextField field) {
         if (!enabled(field) || CommandCompletionOptions.HIDDEN.equals(CommandCompletionOptions.display())) return "";
         Snapshot snapshot = SNAPSHOTS.get(field);
@@ -162,6 +164,11 @@ public final class CommandCompletionPresentation {
         }
     }
 
+    private static boolean startsWithIgnoreCase(String value, String prefix) {
+        return prefix.length() <= value.length()
+                && value.regionMatches(true, 0, prefix, 0, prefix.length());
+    }
+
     static void rememberRootCandidates(String input, List<String> candidates) {
         refreshKnownCommands();
         if (input == null || !input.startsWith("/") || containsWhitespace(input)) return;
@@ -185,11 +192,6 @@ public final class CommandCompletionPresentation {
         for (String command : ClientCommandHandler.instance.getCommands().keySet()) {
             KNOWN_COMMANDS.add(command.toLowerCase(Locale.ROOT));
         }
-    }
-
-    private static boolean startsWithIgnoreCase(String value, String prefix) {
-        return prefix.length() <= value.length()
-                && value.regionMatches(true, 0, prefix, 0, prefix.length());
     }
 
     private static boolean containsWhitespace(String value) {
@@ -237,4 +239,5 @@ public final class CommandCompletionPresentation {
             this.selected = selected;
         }
     }
+
 }
