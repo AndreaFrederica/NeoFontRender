@@ -2,10 +2,20 @@
 
 ## [Unreleased]
 
+## [0.7.2]
+
 - Preserve destination alpha across Cosmic and SFR/AWT text draws so transparent glyph padding
   cannot punch holes in offscreen framebuffers such as Xaero's entity-name minimap layer.
 - Keep the current renderer active while SFR fonts load asynchronously, and perform atlas upload,
   prewarming, disposal, and backend activation on Minecraft's client thread.
+
+## [uie/0.8.3]
+
+- Load bundled UI translations through Minecraft's locale resource parser so localization conflict
+  trackers receive the correct `neofontrender_ui_enhancements` resource domain.
+- Expose detached camera proxies as minimal living entities so Actinium and similar renderers can
+  capture camera state without an invalid `EntityLivingBase` cast.
+- Align the runtime mod version with the packaged UIE version and require exactly Revo Font 0.7.2.
 
 ## [uie/0.7.2]
 
