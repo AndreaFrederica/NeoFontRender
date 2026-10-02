@@ -32,6 +32,7 @@ public final class NfrTabbySettingsBridge {
         GeneralSettings g = settings.general;
         AdvancedSettings a = settings.advanced;
         defineGlobal(f);
+        ChatLayoutMemoryController.load();
         g.logChat.set(f.getBoolean("chat.tabby.general.logChat", true));
         g.splitLog.set(f.getBoolean("chat.tabby.general.splitLog", true));
         g.timestampChat.set(f.getBoolean("chat.tabby.general.timestampChat", false));

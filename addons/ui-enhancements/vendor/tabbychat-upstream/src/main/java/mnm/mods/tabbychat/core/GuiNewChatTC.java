@@ -89,6 +89,8 @@ public class GuiNewChatTC extends GuiNewChat implements ChatScreen {
 //            return;
 
         ChatBox chatbox = chat.getChatBox();
+        // This also detects GUI/chat scale changes and settles resolution profiles without disk IO per frame.
+        neofontrender.addons.chat.ChatLayoutMemoryController.frame(chatbox);
         float scale = chatbox.getScale();
 
         GlStateManager.popMatrix(); // ignore what GuiIngame did.

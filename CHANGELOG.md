@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.7.3]
+
+- Add reusable full-row settings cards with stable grid sizing for addon management pages.
+
+## [uie/0.8.4]
+
+- Align the three TabbyChat window controls using equal hit areas and centered icons.
+- Add localized hover explanations for keeping chat input open and resizing the chat window.
+- Defer TabbyChat wrapping during resize hit-testing and cache Tiqian component wrapping to keep
+  window resizing responsive with long chat histories.
+- Add opt-in TabbyChat layout memory per resolution, GUI scale and chat scale, with a dedicated
+  management page and reusable NFR settings cards. Restore bounds before screen clamping and
+  persist settled resize changes or completed drags.
+- Require exactly Revo Font 0.7.3 for the shared settings card component.
+
 ## [0.7.2]
 
 - Preserve destination alpha across Cosmic and SFR/AWT text draws so transparent glyph padding

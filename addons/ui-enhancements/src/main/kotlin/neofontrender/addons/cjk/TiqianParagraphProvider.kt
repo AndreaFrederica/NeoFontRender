@@ -51,6 +51,14 @@ object TiqianParagraphProvider : TextParagraphProvider {
         ): Boolean = size > CACHE_LIMIT
     }
 
+    private val componentCache = object : LinkedHashMap<ComponentCacheKey, BuiltLayout>(
+        CACHE_LIMIT + 1, 0.75f, true,
+    ) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<ComponentCacheKey, BuiltLayout>,
+        ): Boolean = size > CACHE_LIMIT
+    }
+
     override fun id(): String = "neofontrender_ui_enhancements:tiqian"
 
     override fun priority(): Int = 100
@@ -96,10 +104,23 @@ object TiqianParagraphProvider : TextParagraphProvider {
 
         val parsed = LayoutText.process(formatted.toString())
         if (!containsCjk(parsed.visibleText())) return null
-        val built = buildLayout(
-            parsed, request.maxWidth(), request.lineHeight(), request.measurer(), request.surface(),
+        val cacheKey = ComponentCacheKey(
+            formatted.toString(), request.maxWidth(), request.lineHeight(),
+            normalizeLanguage(request.languageCode()), metricProbe(request.measurer()),
+            parsed.fingerprint(), request.removeLeadingSpace(), request.forceTextColor(), request.surface(),
         )
-        return built.visibleLines.mapIndexed { lineIndex, range ->
+        val built = synchronized(componentCache) { componentCache[cacheKey] }
+            ?: buildLayout(parsed, request.maxWidth(), request.lineHeight(), request.measurer(), request.surface())
+                .also { synchronized(componentCache) { componentCache[cacheKey] = it } }
+        return exportComponents(parsed, segments, built, request)
+    }
+
+    private fun exportComponents(
+        parsed: LayoutText,
+        segments: List<ComponentSegment>,
+        built: BuiltLayout,
+        request: TextParagraphProvider.ComponentRequest,
+    ): List<ITextComponent> = built.visibleLines.mapIndexed { lineIndex, range ->
             var start = range.start
             if (request.removeLeadingSpace() && start < range.end && parsed.visibleText()[start] == ' ') {
                 start++
@@ -133,10 +154,10 @@ object TiqianParagraphProvider : TextParagraphProvider {
             }
             line
         }.ifEmpty { listOf(TextComponentString("")) }
-    }
 
     fun clearCache() {
         synchronized(cache) { cache.clear() }
+        synchronized(componentCache) { componentCache.clear() }
     }
 
     private fun enabledFor(languageCode: String): Boolean =
@@ -391,6 +412,18 @@ object TiqianParagraphProvider : TextParagraphProvider {
         val language: String,
         val metricProbe: Int,
         val layoutFingerprint: Int,
+    )
+
+    private data class ComponentCacheKey(
+        val formattedText: String,
+        val maxWidth: Int,
+        val lineHeight: Int,
+        val language: String,
+        val metricProbe: Int,
+        val layoutFingerprint: Int,
+        val removeLeadingSpace: Boolean,
+        val forceTextColor: Boolean,
+        val surface: TextParagraphProvider.ComponentRequest.Surface,
     )
 
     private fun styleRanges(parsed: LayoutText): List<Pair<TextRange, LayoutText.State>> {

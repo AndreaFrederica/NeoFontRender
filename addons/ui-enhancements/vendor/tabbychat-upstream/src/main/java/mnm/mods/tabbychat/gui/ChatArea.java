@@ -81,6 +81,8 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
     private Map<Message, CachedRow> nfrUi$rowCache = new IdentityHashMap<>();
     private ChatPixelScrollLayout.Index nfrUi$pixelIndex;
     private boolean nfrUi$layoutDirty = true;
+    /** Width changes are deferred while the resize handle is dragged. */
+    private boolean nfrUi$allowResizeReflow;
     private int nfrUi$splitWidth = Integer.MIN_VALUE;
     private boolean nfrUi$splitPrivate;
     private int nfrUi$layoutFeatureMask = -1;
@@ -152,6 +154,10 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
 
     @Override
     public void drawComponent(int mouseX, int mouseY) {
+        // Mouse events can arrive several times before one render frame. Reflow once here,
+        // after the final drag geometry for this frame has been applied, instead of doing it
+        // from every child hit-test during handleMouseInput().
+        nfrUi$prepareForRender();
         // Clip drawing to this area so scrolled lines or bubbles cannot bleed past its
         // top/left edge (TabbyChat only limits the visible row count, it never clips).
         boolean clipped = beginClip();
@@ -414,11 +420,38 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         this.nfrUi$layoutDirty = true;
     }
 
+    /**
+     * Allows the renderer to commit a deferred width change exactly once per frame.
+     * During a resize drag getLocation() is also queried by mouse hit testing; rebuilding
+     * the entire history from those queries makes multiple mouse events per frame expensive.
+     */
+    public void nfrUi$prepareForRender() {
+        boolean previous = nfrUi$allowResizeReflow;
+        nfrUi$allowResizeReflow = true;
+        try {
+            getChat();
+        } finally {
+            nfrUi$allowResizeReflow = previous;
+        }
+    }
+
+    private boolean nfrUi$isResizeDragging() {
+        return getParent().map(parent -> parent instanceof ChatBox
+                && ((ChatBox) parent).isLayoutDragging()).orElse(false);
+    }
+
     public List<Message> getChat() {
         boolean privateView = isPrivateView();
         int width = chatTextWidth(privateView);
-        if (channel != null && (dirty || width != nfrUi$splitWidth
-                || privateView != nfrUi$splitPrivate)) {
+        boolean widthChanged = width != nfrUi$splitWidth || privateView != nfrUi$splitPrivate;
+        if (channel != null && (dirty || widthChanged)) {
+            if (widthChanged && nfrUi$isResizeDragging() && !nfrUi$allowResizeReflow
+                    && nfrUi$splitWidth != Integer.MIN_VALUE) {
+                // Keep the last valid wrapping while the pointer is moving. The draw pass
+                // calls nfrUi$prepareForRender() after the final geometry update for the frame.
+                ensureLayoutCache();
+                return this.messages;
+            }
             this.dirty = false;
             this.nfrUi$splitWidth = width;
             this.nfrUi$splitPrivate = privateView;
