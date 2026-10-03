@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.7.4]
+
+- Keep modern font measurement and rendering on one raster scale, including routed vanilla
+  measurements and single-character width queries.
+
+## [uie/0.8.5]
+
+- Require exactly Revo Font 0.7.4 for the shared settings card component.
+
 ## [0.7.3]
 
 - Add reusable full-row settings cards with stable grid sizing for addon management pages.

@@ -125,8 +125,25 @@ public abstract class MixinFontRenderer {
             return;
         }
 
-        if (FontManager.INSTANCE.isTextBackendActive()) {
-            cir.setReturnValue((int) Math.ceil(sfr$getCharWidthFloat(character == 160 ? ' ' : character, this.boldStyle)));
+        TextRenderBackend modernBackend = FontManager.INSTANCE.getModernTextBackend();
+        if (modernBackend != null && modernBackend.isReady()) {
+            FontRenderTuning.updateFromCurrentGlState(false);
+            try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                    FontRenderTuning.effectiveRasterScale(NeofontrenderConfig.fontOversample()))) {
+                char normalized = character == 160 ? ' ' : character;
+                if (normalized == 167) {
+                    cir.setReturnValue(-1);
+                } else if (Character.isHighSurrogate(normalized)
+                        || Character.isLowSurrogate(normalized)) {
+                    // FontRenderer receives UTF-16 code units here; the paired code point is
+                    // measured by getStringWidth instead of charging either half separately.
+                    cir.setReturnValue(0);
+                } else {
+                    String value = String.valueOf(normalized);
+                    cir.setReturnValue((int) Math.ceil(modernBackend.measure(
+                            value, this.boldStyle, false)));
+                }
+            }
             return;
         }
 
@@ -233,22 +250,6 @@ public abstract class MixinFontRenderer {
         return minecraft == null || minecraft.getLanguageManager() == null
                 || minecraft.getLanguageManager().getCurrentLanguage() == null
                 ? "" : minecraft.getLanguageManager().getCurrentLanguage().getLanguageCode();
-    }
-
-    private float sfr$getCharWidthFloat(int codePoint, boolean bold) {
-        if (codePoint == 167) {
-            return -1.0F;
-        }
-        if (Character.isHighSurrogate((char) codePoint) || Character.isLowSurrogate((char) codePoint)) {
-            return 0.0F;
-        }
-        if (FontManager.INSTANCE.isTextBackendActive()) {
-            TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
-            return backend == null ? 0.0F
-                    : backend.measure(new String(Character.toChars(codePoint == 160 ? ' ' : codePoint)), bold, false);
-        }
-        GlyphInfo info = FontManager.INSTANCE.getDefaultFontSet().getGlyphInfo(codePoint == 160 ? ' ' : codePoint);
-        return info == null ? 0.0F : info.getAdvance(bold);
     }
 
     private boolean sfr$isAnyActive() {

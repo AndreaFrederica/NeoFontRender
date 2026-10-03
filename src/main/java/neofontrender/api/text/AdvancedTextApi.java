@@ -24,9 +24,13 @@ public final class AdvancedTextApi {
         if (backend == null || !backend.isReady()) return ModernTextLayout.EMPTY;
         FontRenderTuning.updateFromCurrentGlState(shadow);
         TextPostProcessPipeline.initialize();
-        return TextPostProcessPipeline.renderStructured(backend,
-                StructuredTextRuntime.parse(text), color, spec.size(), shadow,
-                ShadowRenderSpec.fromConfig());
+        try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                FontRenderTuning.effectiveRasterScale(
+                        neofontrender.core.config.NeofontrenderConfig.fontOversample()))) {
+            return TextPostProcessPipeline.renderStructured(backend,
+                    StructuredTextRuntime.parse(text), color, spec.size(), shadow,
+                    ShadowRenderSpec.fromConfig());
+        }
     }
 
     public static float measureFormatted(String text, int color, boolean shadow,
@@ -34,9 +38,14 @@ public final class AdvancedTextApi {
         if (text == null || text.isEmpty() || spec == null
                 || spec.backend() == FontRenderBackend.VANILLA) return 0.0F;
         TextRenderBackend backend = FontManager.INSTANCE.getScopedTextBackend(spec);
-        return backend == null || !backend.isReady() ? 0.0F
-                : backend.measureStructuredAtSize(StructuredTextRuntime.parse(text),
-                color, shadow, spec.size());
+        if (backend == null || !backend.isReady()) return 0.0F;
+        FontRenderTuning.updateFromCurrentGlState(shadow);
+        try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                FontRenderTuning.effectiveRasterScale(
+                        neofontrender.core.config.NeofontrenderConfig.fontOversample()))) {
+            return backend.measureStructuredAtSize(StructuredTextRuntime.parse(text),
+                    color, shadow, spec.size());
+        }
     }
 
     public static float drawFormatted(String text, float x, float y, int color, boolean shadow,
@@ -56,12 +65,16 @@ public final class AdvancedTextApi {
         TextPostProcessPipeline.initialize();
         float alpha = ((color >>> 24) & 255) == 0 ? 1.0F : ((color >>> 24) & 255) / 255.0F;
         int lineY = y;
-        for (String line : wrap(backend, text, width, color, spec.size())) {
-            ModernTextLayout result = TextPostProcessPipeline.renderStructured(
-                    backend, StructuredTextRuntime.parse(line), color, spec.size(), false,
-                    ShadowRenderSpec.fromConfig());
-            result.draw(x, lineY, alpha);
-            lineY += Math.max(1, Math.round(spec.size() + 1.0F));
+        try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                FontRenderTuning.effectiveRasterScale(
+                        neofontrender.core.config.NeofontrenderConfig.fontOversample()))) {
+            for (String line : wrap(backend, text, width, color, spec.size())) {
+                ModernTextLayout result = TextPostProcessPipeline.renderStructured(
+                        backend, StructuredTextRuntime.parse(line), color, spec.size(), false,
+                        ShadowRenderSpec.fromConfig());
+                result.draw(x, lineY, alpha);
+                lineY += Math.max(1, Math.round(spec.size() + 1.0F));
+            }
         }
         return true;
     }

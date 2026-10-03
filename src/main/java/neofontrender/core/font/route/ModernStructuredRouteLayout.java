@@ -8,6 +8,7 @@ import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.postprocess.TextPostProcessPipeline;
+import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.ShadowRenderSpec;
 import neofontrender.text.InlineSpan;
 import neofontrender.text.StructuredText;
@@ -17,25 +18,30 @@ import neofontrender.text.animation.TextAnimationFrame;
 final class ModernStructuredRouteLayout extends AbstractStructuredRouteLayout {
     private final TextRenderBackend backend;
     private final float drawOffset;
+    /** The raster bucket captured when this layout's logical advance was measured. */
+    private final float rasterScale;
 
     ModernStructuredRouteLayout(TextRenderRouteRequest request, TextRenderBackend backend) {
-        this(request, backend, inlineGeometry(request, request.fontSize(),
+        this(request, backend, snapshotRasterScale(request), inlineGeometry(request, request.fontSize(),
                 Math.max(1, request.font().FONT_HEIGHT)));
     }
 
     private ModernStructuredRouteLayout(TextRenderRouteRequest request, TextRenderBackend backend,
-                                        InlineGeometry geometry) {
+                                        float rasterScale, InlineGeometry geometry) {
         super(ModernStructuredTextRoute.ID, request,
-                backend.measureStructuredAtSize(request.structuredText(), request.argb(), false,
-                        request.fontSize()),
+                measureAtRasterScale(request, backend, rasterScale),
                 geometry.height);
         this.backend = backend;
         this.drawOffset = geometry.drawOffset;
+        this.rasterScale = rasterScale;
     }
 
     @Override
     float measure(StructuredText text) {
-        return backend.measureStructuredAtSize(text, request.argb(), false, request.fontSize());
+        try (FontRenderTuning.RasterScaleScope ignored =
+                     FontRenderTuning.pinRasterScale(rasterScale)) {
+            return backend.measureStructuredAtSize(text, request.argb(), false, request.fontSize());
+        }
     }
 
     @Override
@@ -57,23 +63,33 @@ final class ModernStructuredRouteLayout extends AbstractStructuredRouteLayout {
 
     @Override
     public TextVisualBounds visualBounds() {
-        boolean shadow = shadowEnabled();
-        boolean modernShadow = shadow && NeofontrenderConfig.modernShadowEnabled();
-        TextVisualBounds bounds = foreground(modernShadow)
-                .resultForPostProcess().visualBounds();
-        if (shadow && !modernShadow) {
-            TextRenderResult shadowResult = backend.renderStructuredAtSize(request.structuredText(),
-                    request.argb(), true, request.fontSize());
-            float offset = NeofontrenderConfig.shadowLength();
-            bounds = bounds.union(shadowResult.visualBounds().translate(offset, offset));
+        FontRenderTuning.updateFromCurrentGlState(request.shadow());
+        try (FontRenderTuning.RasterScaleScope ignored =
+                     FontRenderTuning.pinRasterScale(this.rasterScale)) {
+            boolean shadow = shadowEnabled();
+            boolean modernShadow = shadow && NeofontrenderConfig.modernShadowEnabled();
+            TextVisualBounds bounds = foreground(modernShadow)
+                    .resultForPostProcess().visualBounds();
+            if (shadow && !modernShadow) {
+                TextRenderResult shadowResult = backend.renderStructuredAtSize(request.structuredText(),
+                        request.argb(), true, request.fontSize());
+                float offset = NeofontrenderConfig.shadowLength();
+                bounds = bounds.union(shadowResult.visualBounds().translate(offset, offset));
+            }
+            return bounds.translate(0, drawOffset);
         }
-        return bounds.translate(0, drawOffset);
     }
 
     @Override
     public void draw(float x, float y) {
-        try (TextAnimationFrame.Scope ignored = TextAnimationFrame.openAutomatic(
-                request.source(), x, y + drawOffset)) {
+        // Direct route users (notably the chat completion popup) do not pass through
+        // FontRenderer.drawString(), where the GL text context is normally refreshed.  Refresh it
+        // here and pin the selected bucket so all layers of this draw use one raster geometry.
+        FontRenderTuning.updateFromCurrentGlState(request.shadow());
+        try (FontRenderTuning.RasterScaleScope ignored =
+                     FontRenderTuning.pinRasterScale(this.rasterScale);
+             TextAnimationFrame.Scope animation = TextAnimationFrame.openAutomatic(
+                     request.source(), x, y + drawOffset)) {
             boolean shadowEnabled = shadowEnabled();
             boolean modernShadow = shadowEnabled && NeofontrenderConfig.modernShadowEnabled();
             if (shadowEnabled && !modernShadow) {
@@ -85,6 +101,21 @@ final class ModernStructuredRouteLayout extends AbstractStructuredRouteLayout {
             }
             ModernTextLayout layout = foreground(modernShadow);
             layout.draw(x, y + drawOffset);
+        }
+    }
+
+    private static float snapshotRasterScale(TextRenderRouteRequest request) {
+        FontRenderTuning.updateFromCurrentGlState(request.shadow());
+        return FontRenderTuning.effectiveRasterScale(NeofontrenderConfig.fontOversample());
+    }
+
+    private static float measureAtRasterScale(TextRenderRouteRequest request,
+                                              TextRenderBackend backend,
+                                              float rasterScale) {
+        try (FontRenderTuning.RasterScaleScope ignored =
+                     FontRenderTuning.pinRasterScale(rasterScale)) {
+            return backend.measureStructuredAtSize(request.structuredText(), request.argb(), false,
+                    request.fontSize());
         }
     }
 }

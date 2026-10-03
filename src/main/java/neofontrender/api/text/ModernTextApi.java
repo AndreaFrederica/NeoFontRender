@@ -2,6 +2,7 @@ package neofontrender.api.text;
 
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.backend.TextRenderBackend;
+import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.ShadowRenderSpec;
 import neofontrender.core.font.postprocess.TextPostProcessPipeline;
@@ -85,15 +86,24 @@ public final class ModernTextApi {
         if (backend == null || !backend.isReady()) return ModernTextLayout.EMPTY;
         float logicalSize = sanitizeSize(fontSize);
         ShadowRenderSpec effectiveSpec = spec == null ? ShadowRenderSpec.fromConfig() : spec;
-        ModernTextLayout initial = TextPostProcessPipeline.renderStructured(
-                backend, structured, argb, logicalSize, shadow, effectiveSpec);
+        ModernTextLayout initial;
+        try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                FontRenderTuning.effectiveRasterScale(NeofontrenderConfig.fontOversample()))) {
+            initial = TextPostProcessPipeline.renderStructured(
+                    backend, structured, argb, logicalSize, shadow, effectiveSpec);
+        }
         if (!structured.animated()) return initial;
         // Public layouts may be retained by callers (unlike the immediate-mode route). Rebuild
         // the post-processed result for every draw so pulse, shake, and other time effects keep
         // advancing instead of freezing at layout creation time.
-        return ModernTextLayout.withDynamicResult(initial, () ->
-                TextPostProcessPipeline.renderStructured(backend, structured, argb,
-                        logicalSize, shadow, effectiveSpec).resultForPostProcess());
+        return ModernTextLayout.withDynamicResult(initial, () -> {
+            FontRenderTuning.updateFromCurrentGlState(shadow);
+            try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                    FontRenderTuning.effectiveRasterScale(NeofontrenderConfig.fontOversample()))) {
+                return TextPostProcessPipeline.renderStructured(backend, structured, argb,
+                        logicalSize, shadow, effectiveSpec).resultForPostProcess();
+            }
+        });
     }
 
     public static ModernTextLayout layout(String text, float fontSize, int argb) {
@@ -144,8 +154,12 @@ public final class ModernTextApi {
         if (backend == null || !backend.isReady()) return ModernTextLayout.EMPTY;
         float logicalSize = sanitizeSize(fontSize);
         StructuredText structured = StructuredTextRuntime.parse(text);
-        return new ModernTextLayout(backend.renderStructuredAtSize(
-                structured, argb, true, logicalSize), alpha(argb));
+        FontRenderTuning.updateFromCurrentGlState(true);
+        try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                FontRenderTuning.effectiveRasterScale(NeofontrenderConfig.fontOversample()))) {
+            return new ModernTextLayout(backend.renderStructuredAtSize(
+                    structured, argb, true, logicalSize), alpha(argb));
+        }
     }
 
     /** Produces only the legacy shadow-colored raster using caller-owned preview settings. */
@@ -156,9 +170,13 @@ public final class ModernTextApi {
         if (backend == null || !backend.isReady()) return ModernTextLayout.EMPTY;
         float logicalSize = sanitizeSize(fontSize);
         StructuredText structured = StructuredTextRuntime.parse(text);
-        return new ModernTextLayout(backend.renderStructuredShadowSourceAtSize(
-                structured, argb, logicalSize,
-                spec == null ? ShadowRenderSpec.fromConfig() : spec), alpha(argb));
+        FontRenderTuning.updateFromCurrentGlState(true);
+        try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                FontRenderTuning.effectiveRasterScale(NeofontrenderConfig.fontOversample()))) {
+            return new ModernTextLayout(backend.renderStructuredShadowSourceAtSize(
+                    structured, argb, logicalSize,
+                    spec == null ? ShadowRenderSpec.fromConfig() : spec), alpha(argb));
+        }
     }
 
     public static float measureFormatted(
@@ -167,8 +185,11 @@ public final class ModernTextApi {
         TextRenderBackend backend = FontManager.INSTANCE.getModernTextBackend();
         if (backend == null || !backend.isReady()) return 0.0F;
         FontRenderTuning.updateFromCurrentGlState(shadow);
-        return backend.measureStructuredAtSize(StructuredTextRuntime.parse(text), argb,
-                shadow, sanitizeSize(fontSize));
+        try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                FontRenderTuning.effectiveRasterScale(NeofontrenderConfig.fontOversample()))) {
+            return backend.measureStructuredAtSize(StructuredTextRuntime.parse(text), argb,
+                    shadow, sanitizeSize(fontSize));
+        }
     }
 
     public static float measureFormatted(
@@ -177,8 +198,11 @@ public final class ModernTextApi {
         FontRenderTuning.updateFromCurrentGlState(shadow);
         TextRenderBackend backend = FontManager.INSTANCE.getModernTextBackend();
         if (backend == null || !backend.isReady()) return 0.0F;
-        return backend.measureStructuredAtSize(StructuredTextRuntime.parse(text), argb,
-                shadow, sanitizeSize(fontSize));
+        try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                FontRenderTuning.effectiveRasterScale(NeofontrenderConfig.fontOversample()))) {
+            return backend.measureStructuredAtSize(StructuredTextRuntime.parse(text), argb,
+                    shadow, sanitizeSize(fontSize));
+        }
     }
 
     public static float measure(String text, float fontSize) {

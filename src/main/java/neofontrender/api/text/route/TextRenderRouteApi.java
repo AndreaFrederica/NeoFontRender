@@ -4,6 +4,7 @@ import net.minecraft.client.gui.FontRenderer;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.pipeline.StructuredTextRuntime;
 import neofontrender.core.font.route.TextRenderRoutes;
+import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.ScopedFontRenderBypass;
 import neofontrender.text.edit.SourceEditProjection;
 
@@ -59,11 +60,24 @@ public final class TextRenderRouteApi {
         if (ScopedFontRenderBypass.isActive() || Boolean.TRUE.equals(ACTIVE.get())) {
             return TextRenderRoutes.passthrough(font, text, argb, shadow, "reentrant_bypass");
         }
+        // The modern route's logical metrics are tied to the raster bucket used to render them.
+        // Capture that bucket before looking in the layout cache so a layout measured under one
+        // GUI/world transform cannot be reused under another one.
+        // The configured oversample is also part of the metric contract in manual mode.  AWT
+        // metrics are obtained from a font derived at size * oversample, so changing that value
+        // can change the floating-point advance even when adaptive selection is disabled.  Keep
+        // one key shape for both modes and only refresh GL state when the adaptive selector needs
+        // it.
+        if (NeofontrenderConfig.adaptiveRasterScale()) {
+            FontRenderTuning.updateFromCurrentGlState(shadow);
+        }
+        int rasterScaleBits = Float.floatToIntBits(
+                FontRenderTuning.effectiveRasterScale(NeofontrenderConfig.fontOversample()));
         long revision = REVISION.get();
         long structuredRevision = StructuredTextRuntime.revision();
         CacheKey cacheKey = new CacheKey(text, argb, shadow,
                 Float.floatToIntBits(NeofontrenderConfig.fontSize()), revision,
-                structuredRevision);
+                structuredRevision, rasterScaleBits);
         TextRenderRouteLayout cached = cached(font, cacheKey);
         if (cached != null) {
             lastRoute = new RouteInfo(cached.routeId(), "cached", 0,
@@ -281,15 +295,17 @@ public final class TextRenderRouteApi {
         final int fontSizeBits;
         final long revision;
         final long structuredRevision;
+        final int rasterScaleBits;
 
         CacheKey(String source, int argb, boolean shadow, int fontSizeBits, long revision,
-                 long structuredRevision) {
+                 long structuredRevision, int rasterScaleBits) {
             this.source = source;
             this.argb = argb;
             this.shadow = shadow;
             this.fontSizeBits = fontSizeBits;
             this.revision = revision;
             this.structuredRevision = structuredRevision;
+            this.rasterScaleBits = rasterScaleBits;
         }
 
         @Override public boolean equals(Object other) {
@@ -298,11 +314,13 @@ public final class TextRenderRouteApi {
             CacheKey key = (CacheKey) other;
             return argb == key.argb && shadow == key.shadow && fontSizeBits == key.fontSizeBits
                     && revision == key.revision && structuredRevision == key.structuredRevision
+                    && rasterScaleBits == key.rasterScaleBits
                     && source.equals(key.source);
         }
 
         @Override public int hashCode() {
-            return Objects.hash(source, argb, shadow, fontSizeBits, revision, structuredRevision);
+            return Objects.hash(source, argb, shadow, fontSizeBits, revision, structuredRevision,
+                    rasterScaleBits);
         }
     }
 
