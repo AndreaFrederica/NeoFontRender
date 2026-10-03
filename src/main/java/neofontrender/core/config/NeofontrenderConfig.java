@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import neofontrender.NeoFontRender;
 import neofontrender.api.color.TextColorPaletteCodec;
 import neofontrender.api.color.TextColorPaletteRegistry;
+import neofontrender.api.client.font.BuiltinFontRegistry;
 import neofontrender.core.font.support.FontFileResolver;
 import neofontrender.core.font.support.ShadowColorRemapRules;
 import neofontrender.core.font.support.ShadowColorPolicy;
@@ -35,16 +36,23 @@ public final class NeofontrenderConfig {
     private static final String DEFAULT_TEXT_COLOR_PALETTE =
             "000000,0000AA,00AA00,00AAAA,AA0000,AA00AA,FFAA00,AAAAAA,"
                     + "555555,5555FF,55FF55,55FFFF,FF5555,FF55FF,FFFF55,FFFFFF";
+    private static final List<String> DEFAULT_BRILLIANT_BINDINGS = Collections.unmodifiableList(Arrays.asList(
+            "g=FF986B31|FFFCE670|FFFCE670|neofontrender:textures/particles/glow.png|FFFCE670|100|200|2-4|1-360|0-1",
+            "s=FF4C5E6F|FFD5EAF8|00000000|neofontrender:textures/particles/glow.png|FFD5EAF8|100|200|2-4|1-360|0-1",
+            "q=FF60241E|FFE77B49|00000000",
+            "v=FFFFFFFF|00000000|00000000|neofontrender:textures/particles/glow_2.png|FFFF4433|20|200|1-2|0-360|0-1"));
     private static Path configPath;
     private static volatile CommentedFileConfig config;
     private static volatile boolean loaded;
     private static volatile boolean earlyLoadFailed;
     private static volatile Snapshot cached = Snapshot.defaults();
     private static volatile boolean cachedDebugRenderStats;
-    private static final List<BuiltinFont> BUILTIN_FONTS = Collections.unmodifiableList(Arrays.asList(
-            new BuiltinFont("Noto Sans SC", DEFAULT_FONT),
-            new BuiltinFont("Noto Color Emoji", "neofontrender:fonts/noto_color_emoji_regular.ttf")
-    ));
+    static {
+        BuiltinFontRegistry.register("neofontrender:noto_sans_sc", "Noto Sans SC",
+                DEFAULT_FONT, true);
+        BuiltinFontRegistry.register("neofontrender:noto_color_emoji", "Noto Color Emoji",
+                "neofontrender:fonts/noto_color_emoji_regular.ttf", true);
+    }
 
     public static boolean isLoaded() {
         return loaded;
@@ -106,8 +114,8 @@ public final class NeofontrenderConfig {
         addFontNames(fonts, primaryFontLocation());
         fonts.addAll(fontFallbacks());
         if (builtinFallbacksEnabled()) {
-            for (BuiltinFont font : builtinFonts()) {
-                fonts.add(font.location);
+            for (BuiltinFontRegistry.Entry font : builtinFonts()) {
+                if (font.defaultFallback()) fonts.add(font.location());
             }
         }
         if (fonts.isEmpty()) {
@@ -238,8 +246,8 @@ public final class NeofontrenderConfig {
         return cached.builtinFallbacks;
     }
 
-    public static List<BuiltinFont> builtinFonts() {
-        return BUILTIN_FONTS;
+    public static List<BuiltinFontRegistry.Entry> builtinFonts() {
+        return BuiltinFontRegistry.entries();
     }
 
     // ===================== Shadow =====================
@@ -394,6 +402,25 @@ public final class NeofontrenderConfig {
         return cached.shaderTextPipeline;
     }
 
+    public static boolean vanillaFormattingCompatibility() {
+        return cached.vanillaFormattingCompatibility;
+    }
+
+    /** Enables the source-compatible Brilliant Text effect layer on modern renderers. */
+    public static boolean brilliantTextEnabled() {
+        return cached.brilliantTextEnabled;
+    }
+
+    /** Configured Brilliant Text bindings in the original char=color|outline|glow|particle form. */
+    public static List<String> brilliantTextBindings() {
+        if (config == null) return DEFAULT_BRILLIANT_BINDINGS;
+        Object value = config.get("brilliant.bindings");
+        if (!(value instanceof List)) return DEFAULT_BRILLIANT_BINDINGS;
+        List<String> result = new ArrayList<>();
+        for (Object entry : (List<?>) value) if (entry != null && !entry.toString().trim().isEmpty()) result.add(entry.toString());
+        return result.isEmpty() ? DEFAULT_BRILLIANT_BINDINGS : Collections.unmodifiableList(result);
+    }
+
     public static float renderingBrightness() {
         return cached.renderingBrightness;
     }
@@ -467,6 +494,18 @@ public final class NeofontrenderConfig {
         return cached.textCacheTtlSeconds;
     }
 
+    public static int monospaceCharacterCacheMaxEntries() {
+        return cached.monospaceCharacterCacheMaxEntries;
+    }
+
+    public static boolean asyncFontRendering() {
+        return cached.asyncFontRendering;
+    }
+
+    public static boolean monospaceCharacterCache() {
+        return cached.monospaceCharacterCache;
+    }
+
     public static int measureCacheMaxEntries() {
         return cached.measureCacheMaxEntries;
     }
@@ -511,6 +550,34 @@ public final class NeofontrenderConfig {
     public static boolean laboratoryTextUndoRedo() {
         return cached.laboratoryTextUndoRedo;
     }
+    public static boolean laboratoryBrilliantAnyPosition() { return cached.laboratoryBrilliantAnyPosition; }
+
+    /** Allow TextAnimator tags, including typewriter, to start after a chat prefix. */
+    public static boolean laboratoryTextAnimatorAnyPosition() {
+        return cached.laboratoryTextAnimatorAnyPosition;
+    }
+
+    /** Enables the standalone TextAnimator compatibility provider. */
+    public static boolean laboratoryTextAnimatorEnabled() { return cached.laboratoryTextAnimatorEnabled; }
+
+    /** TextAnimator effect filter: all, none, or no_rainbow. */
+    public static String laboratoryTextAnimatorEffects() { return cached.laboratoryTextAnimatorEffects; }
+
+    /** Typewriter characters per second, clamped to the original 1..9 option range. */
+    public static int laboratoryTextAnimatorTypewriterSpeed() { return cached.laboratoryTextAnimatorTypewriterSpeed; }
+
+    /** Typewriter progression mode: by_char or by_word. */
+    public static String laboratoryTextAnimatorTypewriterMode() { return cached.laboratoryTextAnimatorTypewriterMode; }
+
+    /** Default minimum pulse brightness used when a pulse tag omits base/a or min/max. */
+    public static float laboratoryTextAnimatorPulseMinimum() {
+        return cached.laboratoryTextAnimatorPulseMinimum;
+    }
+
+    /** Default maximum pulse brightness used when a pulse tag omits base/a or min/max. */
+    public static float laboratoryTextAnimatorPulseMaximum() {
+        return cached.laboratoryTextAnimatorPulseMaximum;
+    }
 
     public static boolean compatModernSplash() {
         return cached.compatModernSplash;
@@ -522,6 +589,21 @@ public final class NeofontrenderConfig {
 
     public static boolean compatThaumcraftTooltip() {
         return cached.compatThaumcraftTooltip;
+    }
+
+    /** Allow the global nova easter egg when FancyMenu is installed (on by default). */
+    public static boolean compatFancyMenu() {
+        return cached.compatFancyMenu;
+    }
+
+    /** Whether to draw NFR's own label on vanilla and supported custom title screens. */
+    public static boolean showMainMenuBranding() {
+        return cached.showMainMenuBranding;
+    }
+
+    /** Allow the global nova easter egg when Custom Main Menu is installed (on by default). */
+    public static boolean compatCustomMainMenu() {
+        return cached.compatCustomMainMenu;
     }
 
     /** auto, vanilla, runtime, custom, or an API-registered provider id. */
@@ -732,6 +814,46 @@ public final class NeofontrenderConfig {
     public static void setLaboratoryTextUndoRedo(boolean value) {
         setValue("laboratory.textUndoRedo", value);
     }
+    public static void setLaboratoryBrilliantAnyPosition(boolean value) {
+        setValue("laboratory.brilliantAnyPosition", value);
+    }
+
+    public static void setLaboratoryTextAnimatorAnyPosition(boolean value) {
+        setValue("laboratory.textAnimator.anyPosition", value);
+    }
+
+    public static void setLaboratoryTextAnimatorEnabled(boolean value) {
+        setValue("laboratory.textAnimator.enabled", value);
+    }
+
+    public static void setLaboratoryTextAnimatorEffects(String value) {
+        String normalized = value == null ? "all" : value.trim().toLowerCase(Locale.ROOT);
+        if (!"none".equals(normalized) && !"no_rainbow".equals(normalized)) normalized = "all";
+        setValue("laboratory.textAnimator.effects", normalized);
+    }
+
+    public static void setLaboratoryTextAnimatorTypewriterSpeed(int value) {
+        setValue("laboratory.textAnimator.typewriterSpeed", Math.max(1, Math.min(9, value)));
+    }
+
+    public static void setLaboratoryTextAnimatorTypewriterMode(String value) {
+        String normalized = value == null ? "by_char" : value.trim().toLowerCase(Locale.ROOT);
+        if (!"by_word".equals(normalized)) normalized = "by_char";
+        setValue("laboratory.textAnimator.typewriterMode", normalized);
+    }
+
+    public static void setLaboratoryTextAnimatorPulseMinimum(float value) {
+        setValue("laboratory.textAnimator.pulseMinimum", clampBrightness(value, 0.0F, 1.0F));
+    }
+
+    public static void setLaboratoryTextAnimatorPulseMaximum(float value) {
+        setValue("laboratory.textAnimator.pulseMaximum", clampBrightness(value, 0.0F, 1.0F));
+    }
+
+    private static float clampBrightness(float value, float minimum, float maximum) {
+        if (!Float.isFinite(value)) return minimum;
+        return Math.max(minimum, Math.min(maximum, value));
+    }
 
     public static void setCompatModernSplash(boolean value) {
         setValue("compat.modernsplash.enabled", value);
@@ -743,6 +865,18 @@ public final class NeofontrenderConfig {
 
     public static void setCompatThaumcraftTooltip(boolean value) {
         setValue("compat.thaumcraft.tooltip.enabled", value);
+    }
+
+    public static void setCompatFancyMenu(boolean value) {
+        setValue("compat.fancymenu.novaBranding", value);
+    }
+
+    public static void setShowMainMenuBranding(boolean value) {
+        setValue("ui.showMainMenuBranding", value);
+    }
+
+    public static void setCompatCustomMainMenu(boolean value) {
+        setValue("compat.custommainmenu.novaBranding", value);
     }
 
     public static void setTextColorPaletteProvider(String value) {
@@ -846,6 +980,14 @@ public final class NeofontrenderConfig {
         setValue("rendering.shaderTextPipeline", value);
     }
 
+    public static void setVanillaFormattingCompatibility(boolean value) {
+        setValue("rendering.vanillaFormattingCompatibility", value);
+    }
+
+    public static void setBrilliantTextEnabled(boolean value) {
+        setValue("brilliant.enabled", value);
+    }
+
     public static void setRenderingBrightness(float value) {
         setValue("rendering.brightness", value);
     }
@@ -920,6 +1062,18 @@ public final class NeofontrenderConfig {
 
     public static void setTextCacheTtlSeconds(float value) {
         setValue("performance.textCacheTtlSeconds", value);
+    }
+
+    public static void setMonospaceCharacterCacheMaxEntries(int value) {
+        setValue("performance.monospaceCharacterCacheMaxEntries", Math.max(1, Math.min(262144, value)));
+    }
+
+    public static void setAsyncFontRendering(boolean value) {
+        setValue("performance.asyncFontRendering", value);
+    }
+
+    public static void setMonospaceCharacterCache(boolean value) {
+        setValue("performance.monospaceCharacterCache", value);
     }
 
     public static void setMeasureCacheMaxEntries(int value) {
@@ -1136,9 +1290,14 @@ public final class NeofontrenderConfig {
             w.write("smoothShadowThreshold = 24.0\n");
             w.write("enhancedTextPipeline = false\n");
             w.write("shaderTextPipeline = false\n");
+            w.write("vanillaFormattingCompatibility = true\n");
             w.write("brightness = 0.0\n");
             w.write("brightnessAuto = true\n");
             w.write("forceBlendForText = true\n");
+            w.write("\n");
+            w.write("[brilliant]\n");
+            w.write("enabled = true\n");
+            w.write("bindings = [\"g=FF986B31|FFFCE670|FFFCE670|neofontrender:textures/particles/glow.png|FFFCE670|100|200|2-4|1-360|0-1\", \"s=FF4C5E6F|FFD5EAF8|00000000|neofontrender:textures/particles/glow.png|FFD5EAF8|100|200|2-4|1-360|0-1\", \"q=FF60241E|FFE77B49|00000000\", \"v=FFFFFFFF|00000000|00000000|neofontrender:textures/particles/glow_2.png|FFFF4433|20|200|1-2|0-360|0-1\"]\n");
             w.write("\n");
             w.write("[performance]\n");
             w.write("asyncInit = true\n");
@@ -1155,6 +1314,9 @@ public final class NeofontrenderConfig {
             w.write("textCacheMinEntries = 256\n");
             w.write("textCacheMaxEntries = 2048\n");
             w.write("textCacheTtlSeconds = 300.0\n");
+            w.write("asyncFontRendering = false\n");
+            w.write("monospaceCharacterCache = false\n");
+            w.write("monospaceCharacterCacheMaxEntries = 16384\n");
             w.write("measureCacheMaxEntries = 4096\n");
             w.write("\n");
             w.write("[input]\n");
@@ -1165,13 +1327,26 @@ public final class NeofontrenderConfig {
             w.write("cjkLineBreak = true\n");
             w.write("\n");
             w.write("[laboratory]\n");
+            w.write("brilliantAnyPosition = false\n");
             w.write("hexChat = false\n");
             w.write("hexChatResetStyles = true\n");
             w.write("textUndoRedo = false\n");
+            w.write("[laboratory.textAnimator]\n");
+            w.write("enabled = true\n");
+            w.write("anyPosition = true\n");
+            w.write("effects = \"all\"\n");
+            w.write("typewriterSpeed = 5\n");
+            w.write("typewriterMode = \"by_char\"\n");
+            w.write("pulseMinimum = 0.6\n");
+            w.write("pulseMaximum = 1.0\n");
             w.write("\n");
+            w.write("[ui]\n");
+            w.write("showMainMenuBranding = true\n\n");
             w.write("[compat]\n");
             w.write("modernsplash.enabled = true\n");
             w.write("tinkersantique.enabled = true\n");
+            w.write("custommainmenu.novaBranding = true\n");
+            w.write("fancymenu.novaBranding = true\n");
             w.write("colorPalette.provider = \"auto\"\n");
             w.write("colorPalette.custom = \"" + DEFAULT_TEXT_COLOR_PALETTE + "\"\n");
             w.write("\n");
@@ -1237,10 +1412,22 @@ public final class NeofontrenderConfig {
         config.setComment("laboratory.textUndoRedo", "Enable per-field undo/redo history in vanilla and ModularUI text inputs (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z).");
         config.setComment("laboratory.hexChat", "Experimental #RRGGBB chat rendering for the Cosmic text backend.");
         config.setComment("laboratory.hexChatResetStyles", "Match RGB Chat Vintage by clearing bold/italic/etc. when a #RGB marker starts a new color run.");
+        config.setComment("laboratory.brilliantAnyPosition", "Allow Brilliant Text format codes to start in the middle of a line.");
+        config.setComment("laboratory.textAnimator", "TextAnimator compatibility settings.");
+        config.setComment("laboratory.textAnimator.enabled", "Enable the independent TextAnimator compatibility provider.");
+        config.setComment("laboratory.textAnimator.anyPosition", "Allow TextAnimator tags to start in the middle of a line, such as after a chat sender prefix.");
+        config.setComment("laboratory.textAnimator.effects", "TextAnimator effect filter: all, none, or no_rainbow.");
+        config.setComment("laboratory.textAnimator.typewriterSpeed", "Typewriter speed option from the original mod (1-9).");
+        config.setComment("laboratory.textAnimator.typewriterMode", "Typewriter progression mode: by_char or by_word.");
+        config.setComment("laboratory.textAnimator.pulseMinimum", "Default minimum brightness for pulse tags without explicit parameters (0.0-1.0).");
+        config.setComment("laboratory.textAnimator.pulseMaximum", "Default maximum brightness for pulse tags without explicit parameters (0.0-1.0).");
         config.setComment("compat", "Compatibility options for third-party mods.");
+        config.setComment("ui.showMainMenuBranding", "Show NFR's main-menu brand label on vanilla, CMM and FancyMenu title screens. Independent of the nova name switches; no restart required.");
         config.setComment("compat.modernsplash.enabled", "Allow the loading-screen font override to patch ModernSplash when it is installed. Requires splash.enabled and a restart.");
         config.setComment("compat.tinkersantique.enabled", "Handle Tinkers' Construct / TinkersAntique custom PUA color markers (\\uE700-\\uE7FF) as invisible color-change characters instead of rendering them as glyphs.");
         config.setComment("compat.thaumcraft.tooltip.enabled", "Use UIE's modern tooltip renderer for Thaumcraft 6 custom tooltips and decode its @@ compact lines.");
+        config.setComment("compat.custommainmenu.novaBranding", "Keep the nova brand easter egg when Custom Main Menu is installed. On by default; custom menu layout is independent of the brand name. Requires a restart for the mod-list name and keybind labels.");
+        config.setComment("compat.fancymenu.novaBranding", "Keep the nova brand easter egg when FancyMenu is installed. On by default; custom menu layout is independent of the brand name. Requires a restart for the mod-list name and keybind labels.");
         config.setComment("compat.colorPalette.provider", "Legacy text color palette: auto, vanilla, runtime, custom, or an API-registered provider id. Runtime reads the final FontRenderer.colorCode modified by other mods.");
         config.setComment("compat.colorPalette.custom", "Custom palette as 16 or 32 comma-separated RRGGBB values. Sixteen entries derive Minecraft-style shadow colors; 32 entries set them explicitly.");
         config.setComment("splash", "Forge loading-screen font replacement options.");
@@ -1272,6 +1459,7 @@ public final class NeofontrenderConfig {
         config.setComment("rendering.smoothShadowThreshold", "Minimum effective font resolution where shadow text is allowed to use smooth filtering.");
         config.setComment("rendering.enhancedTextPipeline", "Use a dedicated text draw pipeline that forces straight-alpha blending and restores previous GL state after rendering. Keep this OFF for color emoji; it can alter emoji colors.");
         config.setComment("rendering.shaderTextPipeline", "Use a tiny fixed-pipeline-compatible shader to compensate thin anti-aliased glyph edges. Automatically falls back if shader compilation fails.");
+        config.setComment("rendering.vanillaFormattingCompatibility", "Match Minecraft FontRenderer behavior for unknown section-sign formatting codes, including consuming the code pair and resetting styles.");
         config.setComment("rendering.brightness", "Text edge compensation strength used by the enhanced shader pipeline. 0 disables extra alpha boost; 3 is close to SmoothFont-style defaults.");
         config.setComment("rendering.brightnessAuto", "Automatically detect brightness compensation from sample glyph rasterization. When true, rendering.brightness is ignored.");
         config.setComment("rendering.forceBlendForText", "Force GL_BLEND on for anti-aliased replacement text when Minecraft disables it for bitmap-font rendering.");
@@ -1290,6 +1478,9 @@ public final class NeofontrenderConfig {
         config.setComment("performance.textCacheMinEntries", "Minimum number of rendered Cosmic text textures kept when TTL cleanup runs.");
         config.setComment("performance.textCacheMaxEntries", "Maximum number of rendered Cosmic text textures kept in the LRU cache.");
         config.setComment("performance.textCacheTtlSeconds", "Seconds before an unused Cosmic text texture can be evicted. 0 disables TTL cleanup.");
+        config.setComment("performance.monospaceCharacterCacheMaxEntries", "Separate LRU limit for character textures and character measurements (each). Allocated on demand; font/style/color/size variants count separately. Larger limits can use substantial GPU memory at high oversampling.");
+        config.setComment("performance.asyncFontRendering", "Opt-in Cosmic background shaping, rasterization, shadows/SDF and character probes. Exact width measurement and GL uploads remain on the render thread. Pending text uses the vanilla font; a separate native engine uses extra memory. Queue: 128 jobs, ready data: 32 MiB.");
+        config.setComment("performance.monospaceCharacterCache", "Opt-in Cosmic character caching for fixed-width ASCII, CJK or tabular digits. Validates actual shaping to preserve ligatures and kerning; other text keeps word caching.");
         config.setComment("performance.measureCacheMaxEntries", "Maximum number of Cosmic text measurements kept in memory.");
         config.setComment("input", "Input behavior tweaks.");
         config.setComment("input.allowSignPaste", "Allow Ctrl+V paste in the vanilla sign editor. This is intentionally config-file only.");
@@ -1339,9 +1530,20 @@ public final class NeofontrenderConfig {
         private final boolean laboratoryHexChat;
         private final boolean laboratoryHexChatResetStyles;
         private final boolean laboratoryTextUndoRedo;
+        private final boolean laboratoryBrilliantAnyPosition;
+        private final boolean laboratoryTextAnimatorEnabled;
+        private final boolean laboratoryTextAnimatorAnyPosition;
+        private final String laboratoryTextAnimatorEffects;
+        private final int laboratoryTextAnimatorTypewriterSpeed;
+        private final String laboratoryTextAnimatorTypewriterMode;
+        private final float laboratoryTextAnimatorPulseMinimum;
+        private final float laboratoryTextAnimatorPulseMaximum;
         private final boolean compatModernSplash;
         private final boolean compatTinkersAntique;
         private final boolean compatThaumcraftTooltip;
+        private final boolean compatCustomMainMenu;
+        private final boolean compatFancyMenu;
+        private final boolean showMainMenuBranding;
         private final boolean splashFontOverrideEnabled;
         private final int fontStyle;
         private final int fontVariableWeight;
@@ -1397,6 +1599,8 @@ public final class NeofontrenderConfig {
         private final float smoothShadowThreshold;
         private final boolean enhancedTextPipeline;
         private final boolean shaderTextPipeline;
+        private final boolean vanillaFormattingCompatibility;
+        private final boolean brilliantTextEnabled;
         private final float renderingBrightness;
         private final boolean renderingBrightnessAuto;
         private final boolean forceBlendForText;
@@ -1414,6 +1618,9 @@ public final class NeofontrenderConfig {
         private final int textCacheMinEntries;
         private final int textCacheMaxEntries;
         private final float textCacheTtlSeconds;
+        private final int monospaceCharacterCacheMaxEntries;
+        private final boolean asyncFontRendering;
+        private final boolean monospaceCharacterCache;
         private final int measureCacheMaxEntries;
 
         private Snapshot() {
@@ -1427,9 +1634,20 @@ public final class NeofontrenderConfig {
             laboratoryHexChat = false;
             laboratoryHexChatResetStyles = true;
             laboratoryTextUndoRedo = false;
+            laboratoryBrilliantAnyPosition = false;
+            laboratoryTextAnimatorEnabled = true;
+            laboratoryTextAnimatorAnyPosition = true;
+            laboratoryTextAnimatorEffects = "all";
+            laboratoryTextAnimatorTypewriterSpeed = 5;
+            laboratoryTextAnimatorTypewriterMode = "by_char";
+            laboratoryTextAnimatorPulseMinimum = 0.6F;
+            laboratoryTextAnimatorPulseMaximum = 1.0F;
             compatModernSplash = true;
             compatTinkersAntique = true;
             compatThaumcraftTooltip = true;
+            compatCustomMainMenu = true;
+            compatFancyMenu = true;
+            showMainMenuBranding = true;
             splashFontOverrideEnabled = true;
             fontStyle = 0;
             fontVariableWeight = 0;
@@ -1485,6 +1703,8 @@ public final class NeofontrenderConfig {
             smoothShadowThreshold = 24.0F;
             enhancedTextPipeline = false;
             shaderTextPipeline = false;
+            vanillaFormattingCompatibility = true;
+            brilliantTextEnabled = true;
             renderingBrightness = 0.0F;
             renderingBrightnessAuto = true;
             forceBlendForText = true;
@@ -1502,6 +1722,9 @@ public final class NeofontrenderConfig {
             textCacheMinEntries = 256;
             textCacheMaxEntries = 2048;
             textCacheTtlSeconds = 300.0F;
+            monospaceCharacterCacheMaxEntries = 16384;
+            asyncFontRendering = false;
+            monospaceCharacterCache = false;
             measureCacheMaxEntries = 4096;
         }
 
@@ -1516,9 +1739,25 @@ public final class NeofontrenderConfig {
             laboratoryHexChat = config.getOrElse("laboratory.hexChat", false);
             laboratoryHexChatResetStyles = config.getOrElse("laboratory.hexChatResetStyles", true);
             laboratoryTextUndoRedo = config.getOrElse("laboratory.textUndoRedo", false);
+            laboratoryBrilliantAnyPosition = config.getOrElse("laboratory.brilliantAnyPosition", false);
+            laboratoryTextAnimatorEnabled = config.getOrElse("laboratory.textAnimator.enabled", true);
+            laboratoryTextAnimatorAnyPosition = config.getOrElse("laboratory.textAnimator.anyPosition", true);
+            laboratoryTextAnimatorEffects = normalizeTextAnimatorEffects(
+                    config.getOrElse("laboratory.textAnimator.effects", "all"));
+            laboratoryTextAnimatorTypewriterSpeed = Math.max(1, Math.min(9,
+                    getInt(config, "laboratory.textAnimator.typewriterSpeed", 5)));
+            laboratoryTextAnimatorTypewriterMode = normalizeTextAnimatorTypewriterMode(
+                    config.getOrElse("laboratory.textAnimator.typewriterMode", "by_char"));
+            laboratoryTextAnimatorPulseMinimum = getFloat(config,
+                    "laboratory.textAnimator.pulseMinimum", 0.6F);
+            laboratoryTextAnimatorPulseMaximum = Math.max(laboratoryTextAnimatorPulseMinimum,
+                    getFloat(config, "laboratory.textAnimator.pulseMaximum", 1.0F));
             compatModernSplash = config.getOrElse("compat.modernsplash.enabled", true);
             compatTinkersAntique = config.getOrElse("compat.tinkersantique.enabled", true);
             compatThaumcraftTooltip = config.getOrElse("compat.thaumcraft.tooltip.enabled", true);
+            compatCustomMainMenu = config.getOrElse("compat.custommainmenu.novaBranding", true);
+            compatFancyMenu = config.getOrElse("compat.fancymenu.novaBranding", true);
+            showMainMenuBranding = config.getOrElse("ui.showMainMenuBranding", true);
             splashFontOverrideEnabled = config.getOrElse("splash.enabled", true);
             fontStyle = config.getOrElse("font.style", 0);
             fontVariableWeight = Math.max(0, Math.min(1000, getInt(config, "font.variableWeight", 0)));
@@ -1579,6 +1818,8 @@ public final class NeofontrenderConfig {
             smoothShadowThreshold = getFloat(config, "rendering.smoothShadowThreshold", 24.0F);
             enhancedTextPipeline = config.getOrElse("rendering.enhancedTextPipeline", false);
             shaderTextPipeline = config.getOrElse("rendering.shaderTextPipeline", false);
+            vanillaFormattingCompatibility = config.getOrElse("rendering.vanillaFormattingCompatibility", true);
+            brilliantTextEnabled = config.getOrElse("brilliant.enabled", true);
             renderingBrightness = getFloat(config, "rendering.brightness", 0.0F);
             renderingBrightnessAuto = config.getOrElse("rendering.brightnessAuto", true);
             forceBlendForText = config.getOrElse("rendering.forceBlendForText", true);
@@ -1596,6 +1837,9 @@ public final class NeofontrenderConfig {
             textCacheMinEntries = Math.max(0, getInt(config, "performance.textCacheMinEntries", 256));
             textCacheMaxEntries = Math.max(1, getInt(config, "performance.textCacheMaxEntries", 2048));
             textCacheTtlSeconds = Math.max(0.0F, getFloat(config, "performance.textCacheTtlSeconds", 300.0F));
+            monospaceCharacterCacheMaxEntries = Math.max(1, Math.min(262144, getInt(config, "performance.monospaceCharacterCacheMaxEntries", 16384)));
+            asyncFontRendering = config.getOrElse("performance.asyncFontRendering", false);
+            monospaceCharacterCache = config.getOrElse("performance.monospaceCharacterCache", false);
             measureCacheMaxEntries = Math.max(1, getInt(config, "performance.measureCacheMaxEntries", 4096));
         }
 
@@ -1809,27 +2053,20 @@ public final class NeofontrenderConfig {
         return ShadowColorPolicy.normalizeMode(value);
     }
 
+    private static String normalizeTextAnimatorEffects(String value) {
+        String mode = value == null ? "all" : value.trim().toLowerCase(Locale.ROOT);
+        return "none".equals(mode) || "no_rainbow".equals(mode) ? mode : "all";
+    }
+
+    private static String normalizeTextAnimatorTypewriterMode(String value) {
+        return "by_word".equals(value == null ? "" : value.trim().toLowerCase(Locale.ROOT))
+                ? "by_word" : "by_char";
+    }
+
     public static void reload() {
         if (config != null) {
             config.load();
         }
     }
 
-    public static final class BuiltinFont {
-        private final String displayName;
-        private final String location;
-
-        private BuiltinFont(String displayName, String location) {
-            this.displayName = displayName;
-            this.location = location;
-        }
-
-        public String displayName() {
-            return displayName;
-        }
-
-        public String location() {
-            return location;
-        }
-    }
 }

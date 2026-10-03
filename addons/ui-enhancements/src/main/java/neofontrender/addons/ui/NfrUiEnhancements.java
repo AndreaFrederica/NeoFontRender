@@ -16,6 +16,7 @@ import neofontrender.addons.scrolling.SmoothScrollingModule;
 import neofontrender.addons.input.TextInputModule;
 import neofontrender.addons.effects.ScreenEffectsModule;
 import neofontrender.addons.chat.EnhancedChatModule;
+import neofontrender.addons.server.UiEnhancementsServerConfig;
 import neofontrender.addons.hud.HudBarsModule;
 import neofontrender.addons.loading.WorldLoadingModule;
 import neofontrender.addons.loading.ResourceReloadModule;
@@ -28,6 +29,7 @@ import neofontrender.addons.cjk.CjkTypographyModule;
 import neofontrender.addons.camera.CameraModule;
 import neofontrender.addons.navigation.UiNavigationModule;
 import neofontrender.addons.outlines.BlockOutlinesModule;
+import neofontrender.addons.inline.EmbeddedContentFonts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -46,16 +48,17 @@ import java.util.List;
 public final class NfrUiEnhancements {
     public static final String MOD_ID = "neofontrender_ui_enhancements";
     public static final String MOD_NAME = "Revo UI";
-    public static final String VERSION = "0.6.0";
+    public static final String VERSION = "0.8.5";
     public static final String DEPENDENCIES =
-            "required-after:" + Tags.MOD_ID + "@[" + Tags.VERSION + ",);"
-                    + "required-after:modularui@[3.2.0-nfr.1,);"
+            "required-after:" + Tags.MOD_ID + "@[" + Tags.VERSION + "];"
+                    + "required-after:modularui@[3.2.0-nfr.2,);"
                     + "after:applecore;after:chunkpregenerator;after:classicbar;after:jei;"
                     + "after:legendarytooltips;after:obscure_tooltips;after:optifine;after:quark";
     public static final Logger LOGGER = LogManager.getLogger(MOD_NAME);
 
     private static final List<UiEnhancementModule> MODULES = Arrays.asList(
             new UiNavigationModule(),
+            new neofontrender.addons.audio.AudioModule(),
             new SmoothScrollingModule(),
             new CjkTypographyModule(),
             new TextInputModule(),
@@ -78,6 +81,8 @@ public final class NfrUiEnhancements {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        UiEnhancementsServerConfig.load(event.getModConfigurationDirectory());
+        EmbeddedContentFonts.register();
         UiEnhancementsConfig.open();
         UiEnhancementsInfoContributions.register();
         MODULES.forEach(UiEnhancementModule::preInit);

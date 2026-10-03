@@ -26,6 +26,14 @@ public final class FontRenderTuning {
     private static final float[] MODELVIEW = new float[16];
     private static final float[] PROJECTION = new float[16];
     private static volatile DrawContext currentContext;
+    /**
+     * The backend may render several layers (foreground, legacy shadow and inline content) as
+     * one logical draw.  Keep those layers on the same raster bucket even when a caller enters
+     * through the route API instead of FontRenderer.drawString().
+     */
+    private static final ThreadLocal<Float> PINNED_RASTER_SCALE = new ThreadLocal<>();
+    private static final ThreadLocal<Integer> FRACTIONAL_POSITION_DEPTH =
+            ThreadLocal.withInitial(() -> 0);
 
     private FontRenderTuning() {
     }
@@ -72,6 +80,10 @@ public final class FontRenderTuning {
     }
 
     public static float rasterScale(float configuredOversample) {
+        Float pinned = PINNED_RASTER_SCALE.get();
+        if (pinned != null && Float.isFinite(pinned) && pinned > 0.0F) {
+            return pinned;
+        }
         float configured = clamp(configuredOversample, 1.0F, 16.0F);
         if (!NeofontrenderConfig.adaptiveRasterScale()) {
             return configured;
@@ -80,6 +92,39 @@ public final class FontRenderTuning {
         float max = adaptiveRasterMax(min);
         float target = currentDrawContext().roundedPixelScale() * 2.0F;
         return rasterScaleBucket(clamp(target, min, max), configured);
+    }
+
+    /** Returns the effective raster bucket used by one logical text layout. */
+    public static float effectiveRasterScale(float configuredOversample) {
+        return Math.max(1.0F, rasterScale(configuredOversample));
+    }
+
+    /**
+     * Pins the effective raster scale for one complete modern text draw.  The scope is nested so
+     * a caller that already owns a frame snapshot is restored correctly after a route draw.
+     */
+    public static RasterScaleScope pinRasterScale(float rasterScale) {
+        float safe = clamp(rasterScale, 1.0F, 64.0F);
+        Float previous = PINNED_RASTER_SCALE.get();
+        PINNED_RASTER_SCALE.set(safe);
+        return new RasterScaleScope(previous);
+    }
+
+    public static final class RasterScaleScope implements AutoCloseable {
+        private final Float previous;
+        private boolean closed;
+
+        private RasterScaleScope(Float previous) {
+            this.previous = previous;
+        }
+
+        @Override
+        public void close() {
+            if (closed) return;
+            closed = true;
+            if (previous == null) PINNED_RASTER_SCALE.remove();
+            else PINNED_RASTER_SCALE.set(previous);
+        }
     }
 
     public static float rasterScaleBucket(float rasterScale, float configuredOversample) {
@@ -174,7 +219,7 @@ public final class FontRenderTuning {
             if (mc != null && mc.displayWidth > 0 && mc.displayHeight > 0) {
                 return Math.max(1, new ScaledResolution(mc).getScaleFactor());
             }
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException | LinkageError ignored) {
         }
         return 1.0F;
     }
@@ -221,6 +266,7 @@ public final class FontRenderTuning {
     }
 
     public static float alignToPixel(float value) {
+        if (FRACTIONAL_POSITION_DEPTH.get() > 0) return value;
         DrawContext context = currentDrawContext();
         if (NeofontrenderConfig.adaptiveRasterScale() && (!context.orthographic() || context.rotation())) {
             return value;
@@ -230,6 +276,27 @@ public final class FontRenderTuning {
             return value;
         }
         return Math.round(value * scale) / scale;
+    }
+
+    /** Keeps animated glyph translations sub-pixel precise during their draw call. */
+    public static FractionalPositionScope allowFractionalPosition() {
+        FRACTIONAL_POSITION_DEPTH.set(FRACTIONAL_POSITION_DEPTH.get() + 1);
+        return new FractionalPositionScope();
+    }
+
+    public static final class FractionalPositionScope implements AutoCloseable {
+        private boolean closed;
+
+        private FractionalPositionScope() {}
+
+        @Override
+        public void close() {
+            if (closed) return;
+            closed = true;
+            int depth = FRACTIONAL_POSITION_DEPTH.get() - 1;
+            if (depth <= 0) FRACTIONAL_POSITION_DEPTH.remove();
+            else FRACTIONAL_POSITION_DEPTH.set(depth);
+        }
     }
 
     private static void applyLodBias() {

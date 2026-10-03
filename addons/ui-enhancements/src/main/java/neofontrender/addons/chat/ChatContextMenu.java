@@ -11,7 +11,7 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
-import neofontrender.addons.api.inline.InlineGlyph;
+import neofontrender.api.text.pipeline.InlineContent;
 import neofontrender.addons.tooltips.AddonI18n;
 
 import java.util.ArrayList;
@@ -80,7 +80,7 @@ public final class ChatContextMenu {
         open(next, mouseX, mouseY);
     }
 
-    public void openImage(InlineGlyph glyph, int mouseX, int mouseY) {
+    public void openImage(InlineContent glyph, int mouseX, int mouseY) {
         if (glyph == null) return;
         List<Item> next = new ArrayList<>();
         next.add(item("copy_image", glyph::copyImageToClipboard));

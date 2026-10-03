@@ -5,10 +5,11 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.renderer.GlStateManager;
+import neofontrender.api.text.route.TextRenderRouteApi;
+import neofontrender.api.text.route.TextRenderRouteLayout;
+import neofontrender.addons.mixin.AccessorGuiTextFieldNavigation;
 
 import java.util.List;
-import neofontrender.addons.api.inline.InlineTextEngine;
-import neofontrender.addons.api.inline.InlineTextLayout;
 
 /** Shared suggestion popup used by Salutation command completion and @player completion. */
 public final class ChatSuggestionPopup {
@@ -16,6 +17,16 @@ public final class ChatSuggestionPopup {
     public static final int MAX_VISIBLE = 10;
 
     private ChatSuggestionPopup() {}
+
+    static Layout uniformLayout(int x, int y, int width, int height, int rows, int rowHeight) {
+        int[] offsets = new int[Math.max(0, rows)];
+        int[] heights = new int[offsets.length];
+        for (int i = 0; i < offsets.length; i++) {
+            offsets[i] = i * rowHeight;
+            heights[i] = rowHeight;
+        }
+        return new Layout(x, y, width, height, offsets, heights);
+    }
 
     public static Layout draw(GuiTextField input, List<String> candidates, int first, int selected,
                               ExternalChatCompat.InputGeometry tabbyGeometry,
@@ -33,19 +44,20 @@ public final class ChatSuggestionPopup {
 
         Minecraft minecraft = Minecraft.getMinecraft();
         int maxTextWidth = 0;
-        InlineTextLayout[] visibleLayouts = new InlineTextLayout[rows];
+        TextRenderRouteLayout[] visibleLayouts = new TextRenderRouteLayout[rows];
         int[] rowOffsets = new int[rows];
         int[] rowHeights = new int[rows];
         int contentHeight = 0;
         for (int row = 0; row < rows; row++) {
             String candidate = candidates.get(safeFirst + row);
-            InlineTextLayout candidateLayout = InlineTextEngine.layout(font, candidate);
+            TextRenderRouteLayout candidateLayout = TextRenderRouteApi.layout(
+                    font, candidate, 0xFFFFFFFF, true);
             visibleLayouts[row] = candidateLayout;
             rowOffsets[row] = contentHeight;
-            rowHeights[row] = Math.max(ROW_HEIGHT, candidateLayout.height() + 4);
+            rowHeights[row] = Math.max(ROW_HEIGHT, Math.round(candidateLayout.height()) + 4);
             contentHeight += rowHeights[row];
-            int visualWidth = candidateLayout.width();
-            if (candidateLayout.hasGlyphs()) {
+            int visualWidth = Math.round(candidateLayout.advance());
+            if (candidateLayout.hasInlineContent()) {
                 visualWidth += 4 + font.getStringWidth(candidateLabel(candidate));
             }
             maxTextWidth = Math.max(maxTextWidth, visualWidth);
@@ -63,8 +75,13 @@ public final class ChatSuggestionPopup {
         String beforeCursor = input.getText().substring(0, Math.max(0, cursor));
         int wordStart = beforeCursor.length();
         while (wordStart > 0 && !Character.isWhitespace(beforeCursor.charAt(wordStart - 1))) wordStart--;
-        int prefixWidth = Math.round(InlineTextEngine.width(font,
-                beforeCursor.substring(0, wordStart)) * scale);
+        int visibleStart = tabbyGeometry == null
+                ? Math.max(0, Math.min(beforeCursor.length(),
+                ((AccessorGuiTextFieldNavigation) input).nfrUi$getLineScrollOffset()))
+                : 0;
+        int anchorStart = Math.max(wordStart, visibleStart);
+        int prefixWidth = Math.round(TextRenderRouteApi.width(font,
+                beforeCursor.substring(visibleStart, anchorStart)) * scale);
         int panelX = Math.max(0, Math.min(inputX + Math.min(prefixWidth, inputWidth),
                 minecraft.currentScreen.width - panelWidth));
         int panelY = inputY - panelHeight - 3;
@@ -105,13 +122,26 @@ public final class ChatSuggestionPopup {
                 ChatHeadRenderer.renderCandidate(candidateText, 3, rowY + 3, 1.0F);
             }
             int textX = 4 + contentOffset;
-            InlineTextLayout candidateLayout = visibleLayouts[row];
-            candidateLayout.draw(font, textX, rowY + 2, textColor, true);
-            if (candidateLayout.hasGlyphs()) {
+            TextRenderRouteLayout candidateLayout = visibleLayouts[row];
+            if (candidateLayout.handled()) candidateLayout.draw(textX, rowY + 2);
+            else font.drawStringWithShadow(candidateText, textX, rowY + 2, textColor);
+            if (candidateLayout.hasInlineContent()) {
                 String label = candidateLabel(candidateText);
                 font.drawStringWithShadow(label,
-                        textX + candidateLayout.width() + 4, rowY + 3, textColor);
+                        textX + Math.round(candidateLayout.advance()) + 4, rowY + 3, textColor);
             }
+        }
+        if (candidates.size() > rows) {
+            int trackTop = 1;
+            int trackHeight = Math.max(1, panelHeight - 2);
+            int thumbHeight = Math.max(ROW_HEIGHT,
+                    trackHeight * rows / candidates.size());
+            thumbHeight = Math.min(trackHeight, thumbHeight);
+            int maxFirst = Math.max(1, candidates.size() - rows);
+            int thumbY = trackTop + (trackHeight - thumbHeight) * safeFirst / maxFirst;
+            int barX = panelWidth - 2;
+            Gui.drawRect(barX, trackTop, panelWidth, trackTop + trackHeight, 0x80333333);
+            Gui.drawRect(barX, thumbY, panelWidth, thumbY + thumbHeight, 0xE0A0A0A0);
         }
         GlStateManager.enableDepth();
         GlStateManager.popMatrix();

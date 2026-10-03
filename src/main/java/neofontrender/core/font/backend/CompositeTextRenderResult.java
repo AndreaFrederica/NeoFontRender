@@ -30,25 +30,28 @@ public final class CompositeTextRenderResult implements TextRenderResult {
         if (results == null || results.isEmpty()) return TextRenderResult.EMPTY;
         List<Piece> pieces = new ArrayList<>(results.size());
         float cursor = 0.0F;
-        float left = 0.0F;
-        float right = 0.0F;
+        float left = Float.POSITIVE_INFINITY;
+        float right = Float.NEGATIVE_INFINITY;
         float top = Float.POSITIVE_INFINITY;
         float bottom = Float.NEGATIVE_INFINITY;
         for (TextRenderResult result : results) {
             if (result == null) continue;
             pieces.add(new Piece(result, cursor));
-            left = Math.min(left, cursor + result.visualLeft());
-            right = Math.max(right, cursor + result.visualRight());
-            top = Math.min(top, result.visualTop());
-            bottom = Math.max(bottom, result.visualBottom());
+            if (!result.visualBounds().isEmpty()) {
+                left = Math.min(left, cursor + result.visualLeft());
+                right = Math.max(right, cursor + result.visualRight());
+                top = Math.min(top, result.visualTop());
+                bottom = Math.max(bottom, result.visualBottom());
+            }
             cursor += result.advance();
         }
         if (pieces.isEmpty()) return TextRenderResult.EMPTY;
+        if (!Float.isFinite(left)) left = right = 0.0F;
         if (!Float.isFinite(top)) top = 0.0F;
         if (!Float.isFinite(bottom)) bottom = 0.0F;
         return new CompositeTextRenderResult(
                 Collections.unmodifiableList(pieces), cursor, left,
-                Math.max(right, cursor), top, bottom);
+                right, top, bottom);
     }
 
     @Override

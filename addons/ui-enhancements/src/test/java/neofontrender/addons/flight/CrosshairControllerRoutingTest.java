@@ -25,4 +25,24 @@ class CrosshairControllerRoutingTest {
         assertFalse(ModCrosshairRouting.shouldRenderFlightAim(true, false, true));
         assertFalse(ModCrosshairRouting.shouldRenderFlightAim(true, true, false));
     }
+
+    @Test
+    void crosshairEventCancellationIsIndependentForGroundAndFlight() {
+        boolean originalGround = CrosshairConfig.cancelCrosshairEventOnGround;
+        boolean originalFlight = CrosshairConfig.cancelCrosshairEventDuringFlight;
+        try {
+            CrosshairConfig.cancelCrosshairEventOnGround = true;
+            CrosshairConfig.cancelCrosshairEventDuringFlight = false;
+            assertTrue(CrosshairEventPolicy.shouldCancel(false));
+            assertFalse(CrosshairEventPolicy.shouldCancel(true));
+
+            CrosshairConfig.cancelCrosshairEventOnGround = false;
+            CrosshairConfig.cancelCrosshairEventDuringFlight = true;
+            assertFalse(CrosshairEventPolicy.shouldCancel(false));
+            assertTrue(CrosshairEventPolicy.shouldCancel(true));
+        } finally {
+            CrosshairConfig.cancelCrosshairEventOnGround = originalGround;
+            CrosshairConfig.cancelCrosshairEventDuringFlight = originalFlight;
+        }
+    }
 }

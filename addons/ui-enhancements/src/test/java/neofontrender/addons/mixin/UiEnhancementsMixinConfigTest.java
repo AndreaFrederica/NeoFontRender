@@ -1,11 +1,14 @@
 package neofontrender.addons.mixin;
 
 import org.junit.jupiter.api.Test;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.tree.ClassNode;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,10 +21,22 @@ class UiEnhancementsMixinConfigTest {
     }
 
     @Test
+    void startupDoesNotReferenceTheObsoleteTextDependencySynchronizer() {
+        String loader = bytecode(
+                "neofontrender/addons/mixin/UiEnhancementsMixinLoader.class");
+
+        assertFalse(loader.contains(
+                "ContainedDependencySynchronizer"));
+    }
+
+    @Test
     void optionalCompatMixinsAreLateAndNonRequired() {
         String hei = config("mixins.neofontrender_ui_enhancements_hei.json");
         String obscure = config("mixins.neofontrender_ui_enhancements_obscure_tooltips.json");
-        String salutation = config("mixins.neofontrender_ui_enhancements_salutation.json");
+        String legendary = config("mixins.neofontrender_ui_enhancements_legendary_tooltips.json");
+        assertTrue(legendary.contains("\"required\": false"));
+        assertTrue(legendary.contains("\"compat.MixinLegendaryTooltipEvents\""));
+        assertTrue(legendary.contains("\"compat.MixinLegendaryTooltipDecor\""));
         String quark = config("mixins.neofontrender_ui_enhancements_quark.json");
         String shoulderSurfing = config(
                 "mixins.neofontrender_ui_enhancements_shouldersurfing.json");
@@ -31,19 +46,26 @@ class UiEnhancementsMixinConfigTest {
                 "mixins.neofontrender_ui_enhancements_shouldersurfing_matteroverdrive.json");
         String betterCombat = config(
                 "mixins.neofontrender_ui_enhancements_bettercombat.json");
+        String cleanroomCommandSuggestions = config(
+                "mixins.neofontrender_ui_enhancements_cleanroom_command_suggestions.json");
 
         assertTrue(hei.contains("\"required\": false"));
         assertTrue(hei.contains("\"compat.MixinJeiIngredientRendererHover\""));
         assertTrue(hei.contains("\"compat.MixinHeiCollapsedGroupHover\""));
         assertTrue(hei.contains("\"compat.MixinJeiIngredientGridHover\""));
+        assertTrue(hei.contains("\"compat.MixinHeiIngredientPreviewHover\""));
         assertTrue(hei.contains("\"compat.MixinHeiTooltipRenderer\""));
         assertTrue(hei.contains("\"compat.MixinHeiCollapsedGroupTooltip\""));
         assertTrue(obscure.contains("\"required\": false"));
-        assertTrue(obscure.contains("\"compat.MixinObscureHeaderComponent\""));
-        assertTrue(obscure.contains("\"compat.MixinObscureTooltipState\""));
-        assertTrue(salutation.contains("\"required\": false"));
-        assertTrue(salutation.contains("\"compat.MixinSalutationAdvancedTabCompleter\""));
+        assertTrue(obscure.contains("\"compat.MixinObscureTooltipEventHandler\""));
+        assertFalse(obscure.contains("\"compat.MixinObscureTooltipRenderer\""));
+        assertFalse(obscure.contains("\"compat.MixinObscureTooltipState\""));
+        assertFalse(obscure.contains("\"compat.MixinObscureTextComponent\""));
+        assertFalse(obscure.contains("\"compat.MixinObscureHeaderComponent\""));
+        assertFalse(obscure.contains("\"compat.MixinObscureTooltipHelper\""));
         assertTrue(quark.contains("\"required\": false"));
+        assertTrue(quark.contains("\"compat.MixinQuarkEnchantedBooksShowItems\""));
+        assertTrue(quark.contains("\"compat.MixinQuarkFoodTooltip\""));
         assertTrue(quark.contains("\"compat.MixinQuarkMapTooltip\""));
         assertTrue(shoulderSurfing.contains("\"required\": false"));
         assertTrue(shoulderSurfing.contains(
@@ -59,6 +81,20 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(betterCombat.contains("\"required\": false"));
         assertTrue(betterCombat.contains(
                 "\"compat.MixinBetterCombatShoulderCrosshair\""));
+        assertTrue(cleanroomCommandSuggestions.contains("\"required\": false"));
+        assertTrue(cleanroomCommandSuggestions.contains(
+                "\"compat.MixinCleanroomSuggestionList\""));
+        assertTrue(cleanroomCommandSuggestions.contains(
+                "\"compat.MixinCleanroomSuggestionUpdater\""));
+
+        String loader = bytecode(
+                "neofontrender/addons/compat/UiEnhancementsCompatMixinLoader.class");
+        assertTrue(loader.contains(
+                "mixins.neofontrender_ui_enhancements_cleanroom_command_suggestions.json"));
+        assertTrue(loader.contains(
+                "com/cleanroommc/client/chat/suggestion/SuggestionUpdater.class"));
+        assertTrue(loader.contains(
+                "com/cleanroommc/client/chat/suggestion/SuggestionList.class"));
     }
 
     @Test
@@ -89,6 +125,8 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinGlStateManagerCameraTransparency\""));
         assertTrue(config.contains("\"MixinRenderPlayerFlightRoll\""));
         assertTrue(config.contains("\"MixinRenderGlobalBlockOutlines\""));
+        assertFalse(config.contains("\"MixinGuiBossOverlayFlightHud\""));
+        assertFalse(config.contains("\"MixinGuiIngameForgeFlightHud\""));
         assertTrue(config.contains("\"MixinGuiIngameForgeCrosshair\""));
         assertTrue(config.contains("\"InvokerGuiIngameCrosshair\""));
         assertTrue(config.contains("\"AccessorGuiChatFeatures\""));
@@ -119,6 +157,12 @@ class UiEnhancementsMixinConfigTest {
     }
 
     @Test
+    void armorPreviewInvokerIsInTheClientConfig() {
+        String config = config("mixins.neofontrender_ui_enhancements.json");
+        assertTrue(config.contains("\"InvokerEntityArmorStandPreview\""));
+    }
+
+    @Test
     void movementInputStateIsAccessedOnItsDeclaringSuperclass() {
         String config = config("mixins.neofontrender_ui_enhancements.json");
         String gateBytecode = bytecode(
@@ -132,15 +176,15 @@ class UiEnhancementsMixinConfigTest {
     }
 
     @Test
-    void cameraPresentationUsesRequiredTargetedInjections() {
+    void cameraPresentationModifiesTheComputedDistance() {
         String bytecode = bytecode(
                 "neofontrender/addons/mixin/MixinEntityRendererCameraPresentation.class");
 
         assertTrue(bytecode.contains("orientCamera"));
-        assertTrue(bytecode.contains("thirdPersonDistancePrev"));
         assertTrue(bytecode.contains("suppressesVanillaThirdPersonDisplacement"));
-        assertTrue(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/Redirect;"));
-        assertTrue(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/ModifyConstant;"));
+        assertTrue(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/ModifyVariable;"));
+        assertFalse(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/Redirect;"));
+        assertFalse(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/ModifyConstant;"));
     }
 
     @Test
@@ -153,6 +197,49 @@ class UiEnhancementsMixinConfigTest {
             assertFalse(bytecode.contains("net/minecraft/client/entity/EntityPlayerSP"));
         } catch (Exception error) {
             throw new AssertionError("Failed to inspect zoom mixin bytecode", error);
+        }
+    }
+
+    @Test
+    void droneMouseWheelGateDoesNotRedirectTheVanillaHotbarCall() {
+        String gateBytecode = bytecode(
+                "neofontrender/addons/mixin/MixinMinecraftDroneInputGate.class");
+        String cameraModuleBytecode = bytecode(
+                "neofontrender/addons/camera/CameraModule.class");
+
+        assertFalse(gateBytecode.contains("runTickMouse"));
+        assertFalse(gateBytecode.contains("changeCurrentItem"));
+        assertTrue(cameraModuleBytecode.contains("net/minecraftforge/client/event/MouseEvent"));
+        assertTrue(cameraModuleBytecode.contains("getDwheel"));
+        assertTrue(cameraModuleBytecode.contains("setCanceled"));
+    }
+
+    @Test
+    void droneWheelUsesOneHighestPriorityHandlerWithScreenAndFocusGuards() throws Exception {
+        try (InputStream stream = getClass().getClassLoader().getResourceAsStream(
+                "neofontrender/addons/camera/CameraModule.class")) {
+            assertNotNull(stream);
+            ClassNode camera = new ClassNode();
+            new ClassReader(stream).accept(camera, 0);
+            var handlers = camera.methods.stream()
+                    .filter(method -> method.desc.equals("(Lnet/minecraftforge/client/event/MouseEvent;)V"))
+                    .filter(method -> method.visibleAnnotations != null && method.visibleAnnotations.stream()
+                            .anyMatch(annotation -> annotation.desc.endsWith("/SubscribeEvent;")))
+                    .toList();
+            assertEquals(1, handlers.size(), "Merging camera fixes must not duplicate wheel subscriptions");
+            var handler = handlers.getFirst();
+            var subscription = handler.visibleAnnotations.stream()
+                    .filter(annotation -> annotation.desc.endsWith("/SubscribeEvent;")).findFirst().orElseThrow();
+            assertNotNull(subscription.values);
+            int priority = subscription.values.indexOf("priority");
+            assertTrue(priority >= 0);
+            assertEquals("HIGHEST", ((String[]) subscription.values.get(priority + 1))[1]);
+            var fields = new java.util.HashSet<String>();
+            for (var instruction : handler.instructions) {
+                if (instruction instanceof org.objectweb.asm.tree.FieldInsnNode field) fields.add(field.name);
+            }
+            assertTrue(fields.containsAll(java.util.List.of("player", "world", "currentScreen", "inGameHasFocus")),
+                    "The wheel gate must preserve the in-world, closed-screen and focus guards");
         }
     }
 

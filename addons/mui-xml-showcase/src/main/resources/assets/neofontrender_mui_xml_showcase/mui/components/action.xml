@@ -1,0 +1,5 @@
+<mui:component-root xmlns:mui="urn:mui">
+    <mui:button class="action-button ${kind}" id="${id}">
+        <mui:text class="action-label" text="${label}"/>
+    </mui:button>
+</mui:component-root>

@@ -12,11 +12,12 @@ import java.util.List;
  * lives outside the configured Mixin package, whose classes LaunchWrapper is forbidden to load.
  */
 public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
+    static final String PREGEN_CONFIG = "mixins.neofontrender_ui_enhancements_pregenerator.json";
     static final String HEI_CONFIG = "mixins.neofontrender_ui_enhancements_hei.json";
+    static final String LEGENDARY_TOOLTIPS_CONFIG =
+            "mixins.neofontrender_ui_enhancements_legendary_tooltips.json";
     static final String OBSCURE_TOOLTIPS_CONFIG =
             "mixins.neofontrender_ui_enhancements_obscure_tooltips.json";
-    static final String SALUTATION_CONFIG =
-            "mixins.neofontrender_ui_enhancements_salutation.json";
     static final String QUARK_CONFIG =
             "mixins.neofontrender_ui_enhancements_quark.json";
     static final String SHOULDER_SURFING_CONFIG =
@@ -29,18 +30,30 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
             "mixins.neofontrender_ui_enhancements_bettercombat.json";
     static final String THAUMCRAFT_CONFIG =
             "mixins.neofontrender_ui_enhancements_thaumcraft.json";
+    static final String CLEANROOM_COMMAND_SUGGESTIONS_CONFIG =
+            "mixins.neofontrender_ui_enhancements_cleanroom_command_suggestions.json";
 
     @Override
     public List<String> getMixinConfigs() {
-        return Arrays.asList(HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, SALUTATION_CONFIG, QUARK_CONFIG,
+        return Arrays.asList(PREGEN_CONFIG, HEI_CONFIG, OBSCURE_TOOLTIPS_CONFIG, LEGENDARY_TOOLTIPS_CONFIG, QUARK_CONFIG,
                 SHOULDER_SURFING_CONFIG, SHOULDER_SURFING_TCONSTRUCT_CONFIG,
                 SHOULDER_SURFING_MATTER_OVERDRIVE_CONFIG, BETTER_COMBAT_CONFIG,
-                THAUMCRAFT_CONFIG);
+                THAUMCRAFT_CONFIG, CLEANROOM_COMMAND_SUGGESTIONS_CONFIG);
     }
 
     @Override
     public boolean shouldMixinConfigQueue(Context context) {
         String config = context.mixinConfig();
+        if (PREGEN_CONFIG.equals(config)) {
+            return context.isModPresent("chunkpregenerator")
+                    && classResourcePresent("pregenerator/impl/client/ClientHandler.class")
+                    && classResourcePresent("pregenerator/impl/client/gui/chat/ChatScreen$Completor.class")
+                    && classResourcePresent("carbonconfiglib/config/ConfigEntry$BoolValue.class");
+        }
+        if (LEGENDARY_TOOLTIPS_CONFIG.equals(config)) {
+            return context.isModPresent("legendarytooltips")
+                    && classResourcePresent("com/anthonyhilyard/legendarytooltips/render/TooltipDecor.class");
+        }
         if (HEI_CONFIG.equals(config)) {
             return context.isModPresent("jei")
                     && classResourcePresent("mezz/jei/gui/TooltipRenderer.class")
@@ -48,17 +61,8 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
                     && classResourcePresent("mezz/jei/render/IngredientRenderer.class");
         }
         if (OBSCURE_TOOLTIPS_CONFIG.equals(config)) {
-            return classResourcePresent("dev/obscuria/tooltips/client/TooltipState.class")
-                    && classResourcePresent("dev/obscuria/tooltips/client/component/HeaderComponent.class");
-        }
-        if (SALUTATION_CONFIG.equals(config)) {
-            return context.isModPresent("salutation")
-                    && classResourcePresent(
-                            "speiger/src/salutation/client/ClientHandler.class")
-                    && classResourcePresent(
-                            "speiger/src/salutation/client/gui/chat/AdvancedTabCompleter.class")
-                    && classResourcePresent(
-                            "speiger/src/salutation/client/gui/chat/ChatScreen.class");
+            return context.isModPresent("obscure_tooltips")
+                    && classResourcePresent("dev/obscuria/tooltips/client/TooltipEventHandler.class");
         }
         if (QUARK_CONFIG.equals(config)) {
             return context.isModPresent("quark")
@@ -88,7 +92,17 @@ public final class UiEnhancementsCompatMixinLoader implements ILateMixinLoader {
             return context.isModPresent("thaumcraft")
                     && classResourcePresent(
                             "thaumcraft/client/gui/GuiResearchBrowser.class")
-                    && classResourcePresent("thaumcraft/client/lib/UtilsFX.class");
+                    && classResourcePresent("thaumcraft/client/lib/UtilsFX.class")
+                    && classResourcePresent(
+                            "thaumcraft/client/lib/events/RenderEventHandler.class")
+                    && classResourcePresent(
+                            "thaumcraft/client/lib/events/HudHandler.class");
+        }
+        if (CLEANROOM_COMMAND_SUGGESTIONS_CONFIG.equals(config)) {
+            return classResourcePresent(
+                    "com/cleanroommc/client/chat/suggestion/SuggestionUpdater.class")
+                    && classResourcePresent(
+                    "com/cleanroommc/client/chat/suggestion/SuggestionList.class");
         }
         return false;
     }

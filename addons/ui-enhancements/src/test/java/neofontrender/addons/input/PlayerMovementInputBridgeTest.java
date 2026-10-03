@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlayerMovementInputBridgeTest {
     @Test
-    void preservesSignedAnalogMovementAndButtonActions() {
+    void preservesSignedAnalogMovementAndVanillaJumpState() {
         Map<InputAction, InputValue> values = new EnumMap<>(InputAction.class);
         values.put(InputAction.PLAYER_MOVE_FORWARD, InputValue.axis(0.72F));
         values.put(InputAction.PLAYER_MOVE_STRAFE, InputValue.axis(-0.35F));
@@ -27,12 +27,24 @@ class PlayerMovementInputBridgeTest {
         InputFrame frame = InputApi.publish(context(1L), values);
 
         PlayerMovementInputBridge.State state = PlayerMovementInputBridge.resolve(
-                frame, 0.0F, 0.0F, false, false, false);
+                frame, 0.0F, 0.0F, true, false, false);
 
         assertEquals(0.72F, state.forward, 1.0E-6F);
         assertEquals(-0.35F, state.strafe, 1.0E-6F);
         assertTrue(state.jump);
         assertFalse(state.sneak);
+    }
+
+    @Test
+    void ignoresStalePhysicalJumpFrameWhenVanillaTickReleasedJump() {
+        Map<InputAction, InputValue> values = new EnumMap<>(InputAction.class);
+        values.put(InputAction.PLAYER_JUMP, InputValue.button(true, false, false));
+        InputFrame frame = InputApi.publish(context(11L), values);
+
+        PlayerMovementInputBridge.State state = PlayerMovementInputBridge.resolve(
+                frame, 0.0F, 0.0F, false, false, false);
+
+        assertFalse(state.jump);
     }
 
     @Test

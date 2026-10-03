@@ -3,7 +3,7 @@ package neofontrender.addons.chat;
 import neofontrender.addons.ui.UiEnhancementsConfig;
 import neofontrender.api.config.NfrConfigFile;
 
-final class EnhancedChatConfig {
+public final class EnhancedChatConfig {
     static boolean enabled = true;
     static boolean tabbedChat = true;
     static boolean extendedHistory = true;
@@ -14,6 +14,8 @@ final class EnhancedChatConfig {
     static boolean logRestoredHistory = false;
     static boolean messageSearch = true;
     static boolean commandCompletion = true;
+    static String completionEngine = "uie";
+    static String completionDisplay = "uie";
     static boolean sourceClassification = true;
     static String playerSourcePattern = "";
     static String serverSourcePattern = "";
@@ -37,12 +39,21 @@ final class EnhancedChatConfig {
     static String pinnedTabs = "";
     static boolean persistentChatHud = false;
     static boolean closeChatOnDetach = false;
+    static boolean serverHeads = true;
+    static String serverAvatar = "rack";
+    static boolean serverHeadGroupFirst = false;
+    static boolean playerHeadGroupFirst = false;
     static boolean playerHeads = true;
     static boolean headShadow = true;
     static boolean itemIcons = true;
     static boolean copySelection = true;
     static boolean copyFormattingCodes = false;
     static boolean ampersandFormatting = false;
+    static boolean allowSectionSignInput = false;
+    static boolean sourcePreview = true;
+
+    public static boolean allowSectionSignInput() { return allowSectionSignInput; }
+    public static boolean sourcePreviewEnabled() { return sourcePreview; }
     static boolean animateMessages = true;
     static int messageAnimationDuration = 150;
     static float messageAnimationDistance = 7.0F;
@@ -70,6 +81,8 @@ final class EnhancedChatConfig {
                 .define("chat.search", true, "Search and filter the current chat history with Ctrl+F.")
                 .define("chat.commandCompletion", true,
                         "Show command completions in Salutation and embedded TabbyChat inputs.")
+                .define("chat.commandCompletionEngine", "uie", "Completion engine for integrated chat: uie or pregenerator. Missing adapters fall back to UIE.")
+                .define("chat.commandCompletionDisplay", "uie", "Independent suggestion display: uie, pregenerator, or hidden. Hidden retains Tab completion.")
                 .define("chat.sources.enabled", true, "Classify messages as player, server or private messages.")
                 .define("chat.sources.playerPattern", "", "Regex overriding messages to the player source.")
                 .define("chat.sources.serverPattern", "", "Regex overriding messages to the server source.")
@@ -93,12 +106,18 @@ final class EnhancedChatConfig {
                 .define("chat.tabs.pinned", "", "Comma-separated channel names pinned to the front of the tab tray, in priority order.")
                 .define("chat.hud.persistent", false, "Keep the expanded TabbyChat window visible in the HUD.")
                 .define("chat.hud.closeOnDetach", false, "Close the current chat screen immediately after detaching it to the HUD.")
+                .define("chat.serverHeads", true, "Display server message avatars independently of player heads.")
+                .define("chat.serverAvatar", "rack", "Server avatar: rack, tower, storage, narrow.")
+                .define("chat.playerHeadGroupFirst", false, "Show only the first avatar in consecutive messages from the same player.")
+                .define("chat.serverHeadGroupFirst", false, "Show only the first avatar in consecutive server messages.")
                 .define("chat.playerHeads", true, "Display cached player heads next to chat messages.")
                 .define("chat.playerHeadShadow", true, "Draw a one-pixel shadow behind chat heads.")
                 .define("chat.itemIcons", true, "Display item icons beside SHOW_ITEM chat components.")
                 .define("chat.copySelection", true, "Copy chat text by dragging over it while chat is open.")
                 .define("chat.copyFormattingCodes", false, "Include Minecraft formatting codes in copied text.")
                 .define("chat.copyAmpersandFormatting", false, "Write copied formatting codes with & instead of section signs.")
+                .define("chat.input.allowSectionSign", false, "Allow the section sign in vanilla, TabbyChat and Salutation chat inputs.")
+                .define("chat.input.sourcePreview", true, "Reveal recognized formatting source while the caret edits it.")
                 .define("chat.animation.messages", true, "Animate newly received messages.")
                 .define("chat.animation.messageDuration", 150, "Message entrance duration in milliseconds.")
                 .define("chat.animation.messageDistance", 7.0D, "Message entrance distance in GUI pixels.")
@@ -121,6 +140,8 @@ final class EnhancedChatConfig {
         logRestoredHistory = file.getBoolean("chat.logRestoredHistory", false);
         messageSearch = file.getBoolean("chat.search", true);
         commandCompletion = file.getBoolean("chat.commandCompletion", true);
+        completionEngine = file.getString("chat.commandCompletionEngine", "uie");
+        completionDisplay = file.getString("chat.commandCompletionDisplay", "uie");
         sourceClassification = file.getBoolean("chat.sources.enabled", true);
         playerSourcePattern = file.getString("chat.sources.playerPattern", "");
         serverSourcePattern = file.getString("chat.sources.serverPattern", "");
@@ -135,22 +156,27 @@ final class EnhancedChatConfig {
         mentionSound = file.getString("chat.mentions.sound", "minecraft:entity.experience_orb.pickup");
         privateMessageCommand = file.getString("chat.privateMessageCommand", "/msg {player}");
         privateCommandBlock = file.getBoolean("chat.privateCommandBlock", true);
-        boolean legacyKeepOpen = file.getBoolean("chat.tabby.layout.keepChatOpen", false);
-        keepOpenPublic = file.getBoolean("chat.keepOpen.public", legacyKeepOpen);
-        keepOpenPlayer = file.getBoolean("chat.keepOpen.player", legacyKeepOpen);
-        keepOpenServer = file.getBoolean("chat.keepOpen.server", legacyKeepOpen);
-        keepOpenPrivate = file.getBoolean("chat.keepOpen.private", legacyKeepOpen);
-        keepOpenCustom = file.getBoolean("chat.keepOpen.custom", legacyKeepOpen);
+        keepOpenPublic = file.getBoolean("chat.keepOpen.public", false);
+        keepOpenPlayer = file.getBoolean("chat.keepOpen.player", false);
+        keepOpenServer = file.getBoolean("chat.keepOpen.server", false);
+        keepOpenPrivate = file.getBoolean("chat.keepOpen.private", false);
+        keepOpenCustom = file.getBoolean("chat.keepOpen.custom", false);
         verticalTabs = file.getBoolean("chat.tabs.vertical", false);
         pinnedTabs = file.getString("chat.tabs.pinned", "");
         persistentChatHud = file.getBoolean("chat.hud.persistent", false);
         closeChatOnDetach = file.getBoolean("chat.hud.closeOnDetach", false);
+        serverHeads = file.getBoolean("chat.serverHeads", true);
+        serverAvatar = file.getString("chat.serverAvatar", "rack");
+        playerHeadGroupFirst = file.getBoolean("chat.playerHeadGroupFirst", false);
+        serverHeadGroupFirst = file.getBoolean("chat.serverHeadGroupFirst", false);
         playerHeads = file.getBoolean("chat.playerHeads", true);
         headShadow = file.getBoolean("chat.playerHeadShadow", true);
         itemIcons = file.getBoolean("chat.itemIcons", true);
         copySelection = file.getBoolean("chat.copySelection", true);
         copyFormattingCodes = file.getBoolean("chat.copyFormattingCodes", false);
         ampersandFormatting = file.getBoolean("chat.copyAmpersandFormatting", false);
+        allowSectionSignInput = file.getBoolean("chat.input.allowSectionSign", false);
+        sourcePreview = file.getBoolean("chat.input.sourcePreview", true);
         animateMessages = file.getBoolean("chat.animation.messages", true);
         messageAnimationDuration = file.getInt("chat.animation.messageDuration", 150, 10, 1000);
         messageAnimationDistance = (float) file.getDouble("chat.animation.messageDistance", 7.0D, 0.0D, 32.0D);
@@ -175,6 +201,8 @@ final class EnhancedChatConfig {
                 .set("chat.logRestoredHistory", logRestoredHistory)
                 .set("chat.search", messageSearch)
                 .set("chat.commandCompletion", commandCompletion)
+                .set("chat.commandCompletionEngine", completionEngine)
+                .set("chat.commandCompletionDisplay", completionDisplay)
                 .set("chat.sources.enabled", sourceClassification)
                 .set("chat.sources.playerPattern", playerSourcePattern)
                 .set("chat.sources.serverPattern", serverSourcePattern)
@@ -198,12 +226,18 @@ final class EnhancedChatConfig {
                 .set("chat.tabs.pinned", pinnedTabs)
                 .set("chat.hud.persistent", persistentChatHud)
                 .set("chat.hud.closeOnDetach", closeChatOnDetach)
+                .set("chat.serverHeads", serverHeads)
+                .set("chat.serverAvatar", serverAvatar)
+                .set("chat.playerHeadGroupFirst", playerHeadGroupFirst)
+                .set("chat.serverHeadGroupFirst", serverHeadGroupFirst)
                 .set("chat.playerHeads", playerHeads)
                 .set("chat.playerHeadShadow", headShadow)
                 .set("chat.itemIcons", itemIcons)
                 .set("chat.copySelection", copySelection)
                 .set("chat.copyFormattingCodes", copyFormattingCodes)
                 .set("chat.copyAmpersandFormatting", ampersandFormatting)
+                .set("chat.input.allowSectionSign", allowSectionSignInput)
+                .set("chat.input.sourcePreview", sourcePreview)
                 .set("chat.animation.messages", animateMessages)
                 .set("chat.animation.messageDuration", messageAnimationDuration)
                 .set("chat.animation.messageDistance", messageAnimationDistance)

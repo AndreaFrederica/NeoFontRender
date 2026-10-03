@@ -5,20 +5,23 @@ import net.minecraftforge.common.MinecraftForge;
 import neofontrender.addons.ui.UiEnhancementModule;
 import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 import neofontrender.addons.chat.network.SelfMessageCapability;
-import neofontrender.addons.inline.InlineGlyphMiddleware;
+import neofontrender.addons.inline.TextPipelineMiddleware;
+import neofontrender.addons.inline.EmbeddedContentConfig;
+import neofontrender.addons.inline.EmbeddedContentLaboratorySettings;
 import speiger.src.salutation.Salutation;
-import speiger.src.salutation.client.ClientHandler;
 
 public final class EnhancedChatModule implements UiEnhancementModule {
     @Override
     public void preInit() {
         SelfMessageCapability.initialize();
+        ClientChatPolicy.initialize();
         EnhancedChatConfig.load();
         EmojiAndImageConfig.load();
-        InlineGlyphMiddleware.initialize();
+        EmbeddedContentConfig.load();
+        TextPipelineMiddleware.initialize();
         ChatStyleConfig.load();
+        // Keep Salutation's command/translation facade initialized; its copied client UI was removed.
         Salutation.initialize();
-        if (!ExternalChatCompat.salutationLoaded()) ClientHandler.INSTANCE.init();
         ChatHistoryManager.INSTANCE.initialize();
         if (!ExternalChatCompat.tabbyChatLoaded()) TabbyChat.getInstance().init();
     }
@@ -26,10 +29,12 @@ public final class EnhancedChatModule implements UiEnhancementModule {
     @Override
     public void init() {
         NfrSettingsPageRegistry.register(new EnhancedChatSettingsPage());
+        EmbeddedContentLaboratorySettings.register();
         NfrSettingsPageRegistry.register(new EmojiAndImageSettingsPage());
         NfrSettingsPageRegistry.register(new ChatRulesSettingsPage());
         if (!ExternalChatCompat.tabbyChatLoaded()) NfrSettingsPageRegistry.register(new TabbedChatSettingsPage());
         if (!ExternalChatCompat.tabbyChatLoaded()) NfrSettingsPageRegistry.register(new ChatStyleSettingsPage());
+        if (!ExternalChatCompat.tabbyChatLoaded()) NfrSettingsPageRegistry.register(new ChatLayoutMemorySettingsPage());
         MinecraftForge.EVENT_BUS.register(ChatHistoryManager.INSTANCE);
         MinecraftForge.EVENT_BUS.register(ChatMessageProcessor.INSTANCE);
         MinecraftForge.EVENT_BUS.register(ChatCopyController.INSTANCE);

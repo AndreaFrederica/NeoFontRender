@@ -5,23 +5,44 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import com.cleanroommc.modularui.api.text.MuiTextBackends;
 import neofontrender.NeoFontRender;
 import neofontrender.common.CommonProxy;
+import neofontrender.client.integration.NfrMuiTextBackend;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.splash.ModernSplashDetector;
 import neofontrender.splash.SplashCompat;
+import neofontrender.api.text.StructuredTextApi;
+import neofontrender.core.font.pipeline.builtin.HexChatStructuredMiddleware;
+import neofontrender.core.font.pipeline.builtin.TinkersAntiqueSyntaxProvider;
+import neofontrender.text.pipeline.TextPipelinePlugin;
+
 
 public class ClientProxy extends CommonProxy {
 
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         NeoFontRender.LOGGER.info("ClientProxy preInit");
+        StructuredTextApi.register(TinkersAntiqueSyntaxProvider.INSTANCE);
+        StructuredTextApi.register(new TextPipelinePlugin() {
+            @Override public String id() { return "neofontrender:builtins"; }
+
+            @Override
+            public java.util.Collection<? extends
+                    neofontrender.text.pipeline.StructuredTextMiddleware> structuredMiddlewares() {
+                return java.util.Collections.singletonList(HexChatStructuredMiddleware.INSTANCE);
+            }
+        });
         super.preInit(event);
     }
 
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+
+        // MUI remains independent of NFR. NFR registers its implementation on
+        // the client after the required MUI dependency has been loaded.
+        MuiTextBackends.register(new NfrMuiTextBackend());
 
         if (!NeofontrenderConfig.isLoaded()) {
             NeofontrenderConfig.load();

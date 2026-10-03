@@ -5,6 +5,7 @@ import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import neofontrender.client.gui.component.base.NfrLabeledTextField;
 import neofontrender.client.gui.component.base.NfrLayout;
+import neofontrender.client.gui.component.base.NfrSettingsSearch;
 
 /** Complete font-editing form used inside the Font settings view. */
 public final class NfrFontForm extends ParentWidget<NfrFontForm> implements ILayoutWidget {
@@ -55,9 +56,17 @@ public final class NfrFontForm extends ParentWidget<NfrFontForm> implements ILay
     }
 
     public int preferredHeight() {
-        int fields = 5 + (cosmic ? cosmicFields.length : 0);
-        return fields * (FIELD_HEIGHT + GAP) + (cosmic ? 32 : 0)
-                + 24 + GAP * 2 + 150;
+        int rows = 0;
+        if (visible(fontName)) rows++;
+        if (visible(fontPath)) rows++;
+        if (visible(fallbacks)) rows++;
+        if (visible(shadowMasks)) rows++;
+        if (cosmic) for (IWidget field : cosmicFields) if (visible(field)) rows++;
+        if (visible(variantOnly)) rows++;
+        if (visible(metrics)) rows++;
+        if (visible(oversample)) rows++;
+        if (visible(preview)) rows++;
+        return rows == 0 ? 0 : rows * (FIELD_HEIGHT + GAP) + 150;
     }
 
     @Override
@@ -65,21 +74,34 @@ public final class NfrFontForm extends ParentWidget<NfrFontForm> implements ILay
         int width = getArea().w();
         int height = getArea().h();
         int y = 0;
-        y = placeField(fontName, width, y);
-        y = placeField(fontPath, width, y);
-        y = placeField(fallbacks, width, y);
-        y = placeField(shadowMasks, width, y);
+        y = placeIfVisible(fontName, width, y);
+        y = placeIfVisible(fontPath, width, y);
+        y = placeIfVisible(fallbacks, width, y);
+        y = placeIfVisible(shadowMasks, width, y);
         if (cosmic) {
-            for (IWidget field : cosmicFields) y = placeField(field, width, y);
-            NfrLayout.place(variantOnly, 0, y, width, 24);
-            y += 24 + GAP;
+            for (IWidget field : cosmicFields) y = placeIfVisible(field, width, y);
+            if (visible(variantOnly)) {
+                NfrLayout.place(variantOnly, 0, y, width, 24);
+                y += 24 + GAP;
+            }
         }
-        y = placeField(metrics, width, y);
-        int sliderHeight = 24;
-        NfrLayout.place(oversample, 0, y, width, sliderHeight);
-        y += sliderHeight + GAP;
-        NfrLayout.place(preview, 0, y, width, Math.max(0, height - y));
+        y = placeIfVisible(metrics, width, y);
+        if (visible(oversample)) {
+            int sliderHeight = 24;
+            NfrLayout.place(oversample, 0, y, width, sliderHeight);
+            y += sliderHeight + GAP;
+        }
+        if (visible(preview)) NfrLayout.place(preview, 0, y, width, Math.max(0, height - y));
         return true;
+    }
+
+    private static int placeIfVisible(IWidget field, int width, int y) {
+        if (!visible(field)) return y;
+        return placeField(field, width, y);
+    }
+
+    private static boolean visible(IWidget widget) {
+        return NfrSettingsSearch.matches(widget);
     }
 
     private static int placeField(IWidget field, int width, int y) {

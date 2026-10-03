@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="110" viewBox="0 0 180 110">
+  <g id="skeletal-formula" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path id="carbon-skeleton" d="M55 10 H105 L132 55 L105 100 H55 L28 55 Z"/>
+    <g id="aromatic-double-bonds" data-bond-order="2" stroke-width="3">
+      <line x1="61" y1="22" x2="99" y2="22"/>
+      <line x1="116" y1="57" x2="98" y2="87"/>
+      <line x1="50" y1="88" x2="34" y2="59"/>
+    </g>
+  </g>
+</svg>

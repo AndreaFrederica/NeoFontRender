@@ -23,6 +23,14 @@ public final class EnhancedChatConfigAccess {
         return EnhancedChatConfig.enabled && EnhancedChatConfig.commandCompletion;
     }
 
+    public static boolean sourcePreviewEnabled() {
+        return EnhancedChatConfig.enabled && EnhancedChatConfig.sourcePreview;
+    }
+
+    public static boolean allowSectionSignInput() {
+        return EnhancedChatConfig.enabled && EnhancedChatConfig.allowSectionSignInput;
+    }
+
     static boolean tabbedChatEnabled(boolean externalTabbyLoaded) {
         return EnhancedChatConfig.enabled && EnhancedChatConfig.tabbedChat && !externalTabbyLoaded;
     }

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="165" viewBox="0 0 260 165">
+  <style>
+    .bond { fill: none; stroke: #ffffff; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+    .double { fill: none; stroke: #ffffff; stroke-width: 3; stroke-linecap: round; }
+    .atom { fill: #9ee7ff; font: bold 20px SansSerif; }
+  </style>
+  <g id="skeletal-formula">
+    <path id="benzene-ring" class="bond" d="M92 46 H137 L160 86 L137 126 H92 L69 86 Z"/>
+    <g id="aromatic-double-bonds" class="double" data-bond-order="2">
+      <line x1="98" y1="58" x2="131" y2="58"/>
+      <line x1="144" y1="87" x2="129" y2="114"/>
+      <line x1="87" y1="114" x2="73" y2="89"/>
+    </g>
+
+    <path id="carboxyl-attachment" class="bond" d="M69 86 L38 86 L14 108"/>
+    <g id="carboxyl-carbonyl" class="double" data-bond-order="2">
+      <line x1="34" y1="82" x2="34" y2="49"/>
+      <line x1="43" y1="82" x2="43" y2="49"/>
+    </g>
+    <text class="atom" x="30" y="43">O</text>
+    <text class="atom" x="0" y="124">OH</text>
+
+    <path id="acetoxy-attachment" class="bond" d="M92 46 L78 22 M62 18 L40 18 L18 32"/>
+    <text class="atom" x="62" y="25">O</text>
+    <g id="acetoxy-carbonyl" class="double" data-bond-order="2">
+      <line x1="36" y1="15" x2="36" y2="1"/>
+      <line x1="45" y1="15" x2="45" y2="1"/>
+    </g>
+    <text class="atom" x="34" y="14">O</text>
+  </g>
+  <text x="181" y="88" fill="#ffffff" font-family="SansSerif" font-size="15">aspirin</text>
+</svg>
