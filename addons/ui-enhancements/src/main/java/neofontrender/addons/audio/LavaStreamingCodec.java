@@ -21,7 +21,10 @@ public final class LavaStreamingCodec implements ICodec {
         volatile boolean cancelled;
         volatile long duration;
         volatile String error = "";
-        Request(Path file, long offset) { this.file = file; this.offset = offset; }
+        final long generation;
+        volatile boolean errorEventQueued;
+        Request(Path file, long offset) { this(file, offset, 0); }
+        Request(Path file, long offset, long generation) { this.file = file; this.offset = offset; this.generation = generation; }
     }
     private LavaPcmStream decoder;
     private Request request;
