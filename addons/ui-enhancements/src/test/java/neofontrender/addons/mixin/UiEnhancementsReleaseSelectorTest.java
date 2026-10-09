@@ -49,6 +49,8 @@ class UiEnhancementsReleaseSelectorTest {
             "mixins.neofontrender_ui_enhancements-refmap.json";
     private static final String EXPECTED_CLEANROOM_MCP_JAR_SHA256 =
             "F833BB8552A51103F09AED3410030E7818A73359F0878DB6208A451B290D8B71";
+    private static final String EXPECTED_CAMERA_API2_BASELINE_SHA256 =
+            "945E5B96014490F9179C9A304C70B03A1B5D28A7D6753813DE0FE09B0354F264";
     private static final String EXPECTED_PROFILE_ID = "QuE-Eng_Step-B0";
 
     @Test
@@ -58,10 +60,13 @@ class UiEnhancementsReleaseSelectorTest {
         Path devJar = configuredPath("uie.devJar");
         Path releaseJar = configuredPath("uie.releaseJar");
         Path cleanroomMcpJar = configuredPath("uie.cleanroomMcpJar");
+        Path cameraApi2Baseline = configuredPath("uie.api2BaselineJar");
         Path cleanroomClientRoot = configuredPath("uie.cleanroomClientRoot");
         Path cleanroomProfileJson = configuredPath("uie.cleanroomProfileJson");
         Path mcpSrg = configuredPath("uie.mcpSrg");
         assertEquals(EXPECTED_CLEANROOM_MCP_JAR_SHA256, sha256(cleanroomMcpJar));
+        assertEquals(EXPECTED_CAMERA_API2_BASELINE_SHA256, sha256(cameraApi2Baseline),
+                "The compatibility comparison must use the frozen API2 artifact");
 
         Selector dev = selector(devJar);
         Selector release = selector(releaseJar);
@@ -80,7 +85,9 @@ class UiEnhancementsReleaseSelectorTest {
                 dev.methodSelectors(), MCP_DO_RENDER);
         assertSrgMappingTargetsTheExactMcpMethod(mcpSrg);
         assertCleanroomClientInput(cleanroomClientRoot, cleanroomProfileJson);
+        assertFlightApi10(devJar);
         assertFlightApi10(releaseJar);
+        assertCameraApi3AndRetainedApi2Abi(devJar, releaseJar, cameraApi2Baseline);
 
         assertRefmapRetainsValidAdjacentRootMapping(devJar);
         assertRefmapRetainsValidAdjacentRootMapping(releaseJar);
@@ -200,6 +207,159 @@ class UiEnhancementsReleaseSelectorTest {
                             && method.desc.equals("(" + attitude + attitude + ")" + owner)),
                     "API10 must expose the body-plus-head model-up-Y factory");
         }
+    }
+
+    private static void assertCameraApi3AndRetainedApi2Abi(Path devJar, Path releaseJar,
+                                                           Path api2Baseline) throws Exception {
+        assertCameraApi3(devJar);
+        assertCameraApi3(releaseJar);
+        try (JarFile baseline = new JarFile(api2Baseline.toFile());
+             JarFile dev = new JarFile(devJar.toFile());
+             JarFile release = new JarFile(releaseJar.toFile())) {
+            List<JarEntry> api2Types = baseline.stream()
+                    .filter(entry -> entry.getName().startsWith("neofontrender/addons/api/camera/")
+                            && entry.getName().endsWith(".class"))
+                    .toList();
+            assertTrue(!api2Types.isEmpty(), "Frozen API2 artifact has no camera API classes");
+            for (JarEntry baselineEntry : api2Types) {
+                String name = baselineEntry.getName();
+                JarEntry devEntry = dev.getJarEntry(name);
+                JarEntry releaseEntry = release.getJarEntry(name);
+                assertNotNull(devEntry, "API3 dev artifact removed API2 type " + name);
+                assertNotNull(releaseEntry, "API3 release artifact removed API2 type " + name);
+                ClassNode baselineType = readClass(baseline, baselineEntry);
+                Set<String> baselineAbi = publicAbi(baselineType);
+                Set<String> devAbi = publicAbi(readClass(dev, devEntry));
+                Set<String> releaseAbi = publicAbi(readClass(release, releaseEntry));
+                assertTrue(devAbi.containsAll(baselineAbi),
+                        "API3 dev artifact removed API2 ABI in " + name + ": "
+                                + missingAbi(baselineAbi, devAbi));
+                assertTrue(releaseAbi.containsAll(baselineAbi),
+                        "API3 release artifact removed API2 ABI in " + name + ": "
+                                + missingAbi(baselineAbi, releaseAbi));
+                Set<String> expectedAdditions = name.equals(
+                        "neofontrender/addons/api/camera/CameraApi.class")
+                        ? API3_CAMERA_API_ADDITIONS : Set.of();
+                assertEquals(expectedAdditions, addedAbi(baselineAbi, devAbi),
+                        "Unexpected public API3 additions in dev " + name);
+                assertEquals(expectedAdditions, addedAbi(baselineAbi, releaseAbi),
+                        "Unexpected public API3 additions in release " + name);
+            }
+        }
+        try (JarFile dev = new JarFile(devJar.toFile());
+             JarFile release = new JarFile(releaseJar.toFile())) {
+            assertCameraEyeAnchorApi(dev);
+            assertCameraEyeAnchorApi(release);
+        }
+    }
+
+    private static final Set<String> API3_CAMERA_API_ADDITIONS = Set.of(
+            "method:clearEyeAnchorSampleCache()V:41",
+            "method:sampleEyeAnchor(Lneofontrender/addons/api/camera/CameraEyeAnchorContext;)"
+                    + "Lneofontrender/addons/api/camera/CameraEyeAnchor;:41",
+            "method:registerEyeAnchorProvider(Lneofontrender/addons/api/camera/CameraEyeAnchorProvider;)"
+                    + "Lneofontrender/addons/api/camera/CameraRegistration;:9");
+
+    private static void assertCameraApi3(Path artifact) throws Exception {
+        try (JarFile archive = new JarFile(artifact.toFile())) {
+            JarEntry apiEntry = archive.getJarEntry("neofontrender/addons/api/camera/CameraApi.class");
+            assertNotNull(apiEntry, "Missing CameraApi in " + artifact);
+            ClassNode api = readClass(archive, apiEntry);
+            List<Object> versions = api.fields.stream()
+                    .filter(field -> field.name.equals("API_VERSION") && field.desc.equals("I"))
+                    .map(field -> field.value).toList();
+            assertEquals(List.of(3), versions,
+                    "The built artifact must publish Camera API3");
+            assertTrue(api.methods.stream().anyMatch(method -> method.name.equals("sampleEyeAnchor")
+                            && method.desc.equals("(Lneofontrender/addons/api/camera/CameraEyeAnchorContext;)"
+                            + "Lneofontrender/addons/api/camera/CameraEyeAnchor;")),
+                    "Camera API3 must package its accepted-eye sampling entrypoint");
+            assertTrue(api.methods.stream().anyMatch(method -> method.name.equals("registerEyeAnchorProvider")
+                            && method.desc.equals("(Lneofontrender/addons/api/camera/CameraEyeAnchorProvider;)"
+                            + "Lneofontrender/addons/api/camera/CameraRegistration;")),
+                    "Camera API3 must package its accepted-eye registration entrypoint");
+            assertTrue(api.methods.stream().anyMatch(method -> method.name.equals("clearEyeAnchorSampleCache")
+                            && method.desc.equals("()V")),
+                    "Camera API3 must package the client-world sample cache lifecycle boundary");
+        }
+    }
+
+    private static void assertCameraEyeAnchorApi(JarFile archive) throws Exception {
+        String vector = "Lneofontrender/addons/api/camera/CameraVector;";
+        assertPublicApiType(archive, "CameraEyeAnchor",
+                Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
+                Set.of("type:0", "field:x:D:17", "field:y:D:17", "field:z:D:17",
+                        "method:<init>(DDD)V:1", "method:toCameraVector()" + vector + ":1"));
+        assertPublicApiType(archive, "CameraEyeAnchorContext",
+                Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
+                Set.of("type:0",
+                        "method:<init>(Lnet/minecraft/client/entity/EntityPlayerSP;JFL"
+                                + "neofontrender/addons/api/camera/CameraVector;)V:1",
+                        "method:player()Lnet/minecraft/client/entity/EntityPlayerSP;:1",
+                        "method:sampleId()J:1", "method:partialTicks()F:1",
+                        "method:nativeEye()" + vector + ":1"));
+        assertPublicApiType(archive, "CameraEyeAnchorProvider",
+                Opcodes.ACC_PUBLIC | Opcodes.ACC_INTERFACE | Opcodes.ACC_ABSTRACT,
+                Set.of("type:512",
+                        "method:id()Lnet/minecraft/util/ResourceLocation;:1025",
+                        "method:priority()I:1",
+                        "method:anchor(Lneofontrender/addons/api/camera/CameraEyeAnchorContext;)"
+                                + "Lneofontrender/addons/api/camera/CameraEyeAnchor;:1025"));
+    }
+
+    private static void assertPublicApiType(JarFile archive, String simpleName,
+                                            int expectedAccess, Set<String> expectedAbi)
+            throws Exception {
+        String name = "neofontrender/addons/api/camera/" + simpleName;
+        JarEntry entry = archive.getJarEntry(name + ".class");
+        assertNotNull(entry, "Missing API3 type " + name + " in " + archive.getName());
+        ClassNode type = readClass(archive, entry);
+        int publicTypeMask = Opcodes.ACC_PUBLIC | Opcodes.ACC_PROTECTED | Opcodes.ACC_FINAL
+                | Opcodes.ACC_INTERFACE | Opcodes.ACC_ABSTRACT;
+        assertEquals(expectedAccess, type.access & publicTypeMask,
+                "Unexpected public type modifiers in " + name);
+        assertEquals(expectedAbi, publicAbi(type), "Unexpected public API3 surface in " + name);
+    }
+
+    private static ClassNode readClass(JarFile archive, JarEntry entry) throws Exception {
+        ClassNode type = new ClassNode(Opcodes.ASM9);
+        try (InputStream input = archive.getInputStream(entry)) {
+            new ClassReader(input).accept(type,
+                    ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+        }
+        return type;
+    }
+
+    private static Set<String> publicAbi(ClassNode type) {
+        Set<String> members = new HashSet<>();
+        int classKind = Opcodes.ACC_INTERFACE | Opcodes.ACC_ENUM | Opcodes.ACC_ANNOTATION;
+        members.add("type:" + (type.access & classKind));
+        type.fields.stream().filter(field -> (field.access & (Opcodes.ACC_PUBLIC
+                        | Opcodes.ACC_PROTECTED)) != 0)
+                .forEach(field -> members.add("field:" + field.name + ":" + field.desc + ":"
+                        + (field.access & (Opcodes.ACC_PUBLIC | Opcodes.ACC_PROTECTED
+                        | Opcodes.ACC_STATIC | Opcodes.ACC_FINAL | Opcodes.ACC_VOLATILE
+                        | Opcodes.ACC_TRANSIENT))));
+        type.methods.stream().filter(method -> (method.access & (Opcodes.ACC_PUBLIC
+                        | Opcodes.ACC_PROTECTED)) != 0
+                        && !method.name.equals("<clinit>"))
+                .forEach(method -> members.add("method:" + method.name + method.desc + ":"
+                        + (method.access & (Opcodes.ACC_PUBLIC | Opcodes.ACC_PROTECTED
+                        | Opcodes.ACC_STATIC | Opcodes.ACC_FINAL | Opcodes.ACC_ABSTRACT
+                        | Opcodes.ACC_SYNCHRONIZED | Opcodes.ACC_NATIVE))));
+        return members;
+    }
+
+    private static Set<String> missingAbi(Set<String> baseline, Set<String> candidate) {
+        Set<String> missing = new HashSet<>(baseline);
+        missing.removeAll(candidate);
+        return missing;
+    }
+
+    private static Set<String> addedAbi(Set<String> baseline, Set<String> candidate) {
+        Set<String> added = new HashSet<>(candidate);
+        added.removeAll(baseline);
+        return added;
     }
 
     private static Selector selector(Path jar) throws Exception {

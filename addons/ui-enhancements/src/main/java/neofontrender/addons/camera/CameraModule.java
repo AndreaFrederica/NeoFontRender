@@ -177,7 +177,11 @@ public final class CameraModule implements UiEnhancementModule {
     @SubscribeEvent
     public void worldUnload(WorldEvent.Unload event) {
         if (event.getWorld() != null && event.getWorld().isRemote) {
-            closeInteractiveSession();
+            try {
+                closeInteractiveSession();
+            } finally {
+                CameraApi.clearEyeAnchorSampleCache();
+            }
             commandEdges.clear();
             CameraRuntime.releaseApiViewProxy();
             VanillaInputBridge.reset();
@@ -187,7 +191,11 @@ public final class CameraModule implements UiEnhancementModule {
 
     @SubscribeEvent
     public void disconnected(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
-        closeInteractiveSession();
+        try {
+            closeInteractiveSession();
+        } finally {
+            CameraApi.clearEyeAnchorSampleCache();
+        }
         commandEdges.clear();
         CameraRuntime.releaseApiViewProxy();
         VanillaInputBridge.reset();

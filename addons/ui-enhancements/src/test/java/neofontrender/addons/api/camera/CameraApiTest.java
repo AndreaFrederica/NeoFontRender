@@ -261,6 +261,16 @@ class CameraApiTest {
     }
 
     @Test
+    void backendOverrideActivatedByFrameSamplingIsObserved() {
+        CameraFrame base = new CameraFrame(116L, 0.0F, CameraAttitude.IDENTITY,
+                CameraAttitude.IDENTITY, new CameraVector(0.0D, 0.0D, 0.0D),
+                new CameraVector(0.0D, 0.0D, 0.0D), false);
+        CameraApi.installBackend(new TestBackend(base, true));
+        assertTrue(CameraApi.isRenderOverrideActive(),
+                "sampling a frame can establish a same-sample backend render override");
+    }
+
+    @Test
     void frameCallbackFailureIsLoggedAndPropagatedWithoutFallback() {
         CameraFrame base = new CameraFrame(114L, 0.0F, CameraAttitude.IDENTITY,
                 CameraAttitude.IDENTITY, new CameraVector(0.0D, 0.0D, 0.0D),
@@ -302,15 +312,26 @@ class CameraApiTest {
 
     private static final class TestBackend implements CameraApi.Backend {
         private final CameraFrame frame;
+        private final boolean overrideAfterFrameSample;
+        private boolean frameSampled;
         private CameraFrame appliedFrame;
         private boolean uiViewProxy;
-        private TestBackend(CameraFrame frame) { this.frame = frame; }
-        @Override public CameraFrame getFrame(float partialTicks) { return frame; }
+        private TestBackend(CameraFrame frame) { this(frame, false); }
+        private TestBackend(CameraFrame frame, boolean overrideAfterFrameSample) {
+            this.frame = frame;
+            this.overrideAfterFrameSample = overrideAfterFrameSample;
+        }
+        @Override public CameraFrame getFrame(float partialTicks) {
+            frameSampled = true;
+            return frame;
+        }
         @Override public CameraSession acquire(CameraRigRequest request) { return null; }
         @Override public boolean isDroneActive() { return false; }
         @Override public boolean isFreeLookActive() { return false; }
         @Override public boolean isShoulderActive() { return false; }
-        @Override public boolean isRenderOverrideActive() { return false; }
+        @Override public boolean isRenderOverrideActive() {
+            return overrideAfterFrameSample && frameSampled;
+        }
         @Override public void setDronePose(CameraVector position, CameraAttitude attitude) {}
         @Override public void clearDronePose() {}
         @Override public int viewportWidth() { return 800; }

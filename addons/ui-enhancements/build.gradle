@@ -152,6 +152,9 @@ dependencies {
         testRuntimeOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
     }
     testImplementation 'org.lwjgl:lwjgl:3.4.1'
+    // The 1.12 mapped WorldClient initializer resolves legacy OpenGLException from the
+    // exact Cleanroom 0.6.8 profile sidecar; this is test-only and is never packaged.
+    testRuntimeOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -312,12 +315,21 @@ tasks.register('verifyUiEnhancementsReleaseSelector', Test) {
         if (!actualMcpJar.isFile()) {
             throw new GradleException("The selected Cleanroom MCP JAR is missing: ${actualMcpJar}")
         }
+        String api2BaselinePath = providers.gradleProperty('uie.api2BaselineJar').orNull
+        if (api2BaselinePath == null || api2BaselinePath.isBlank()) {
+            throw new GradleException('Set -Puie.api2BaselineJar to the frozen API2 artifact for the API3 compatibility selector.')
+        }
+        File api2BaselineJar = file(api2BaselinePath).canonicalFile
+        if (!api2BaselineJar.isFile()) {
+            throw new GradleException("The frozen API2 baseline JAR is missing: ${api2BaselineJar}")
+        }
         if (!mcpSrg.isFile()) {
             throw new GradleException("The selected MCP-to-SRG mapping is missing: ${mcpSrg}")
         }
         systemProperty 'uie.devJar', tasks.named('jar').get().archiveFile.get().asFile.canonicalPath
-        systemProperty 'uie.releaseJar', layout.buildDirectory
-                .file("libs/neofontrender-ui-enhancements-${project.version}.jar").get().asFile.canonicalPath
+        systemProperty 'uie.releaseJar', tasks.named('remapJar').get()
+                .archiveFile.get().asFile.canonicalPath
+        systemProperty 'uie.api2BaselineJar', api2BaselineJar.canonicalPath
         systemProperty 'uie.cleanroomMcpJar', actualMcpJar.canonicalPath
         systemProperty 'uie.cleanroomClientRoot', file(clientRoot).canonicalPath
         systemProperty 'uie.cleanroomProfileJson', actualProfile.canonicalPath
