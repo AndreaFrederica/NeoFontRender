@@ -143,6 +143,7 @@ dependencies {
 
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
     testImplementation 'com.h2database:h2:2.3.232'
+    testImplementation 'org.ow2.asm:asm-analysis:9.10.1'
     testImplementation project(':')
     testRuntimeOnly files(nfrShadedRuntimeJar)
     if (localModularUiPath) {
@@ -324,18 +325,66 @@ tasks.register('verifyUiEnhancementsReleaseSelector', Test) {
     }
 }
 
+String hostProbeArchiveDirectory = providers.gradleProperty('uie.hostProbeArchiveDirectory').orNull
+if (hostProbeArchiveDirectory != null && !hostProbeArchiveDirectory.isBlank()) {
+    tasks.named('remapJar').configure {
+        if (!(delegate instanceof org.gradle.api.tasks.bundling.AbstractArchiveTask)) {
+            throw new GradleException("Cannot isolate remapJar output for host probe; unexpected task type ${delegate.class.name}")
+        }
+        destinationDirectory.set(file(hostProbeArchiveDirectory))
+    }
+}
+
+tasks.register('verifyCapturedCleanroom068CameraHooks', JavaExec) {
+    group = 'verification'
+    description = 'Runs the camera ASM verifier over already captured Cleanroom host-transformed classes without launching FML.'
+    dependsOn tasks.named('testClasses')
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'neofontrender.addons.mixin.Cleanroom068MixinTransformProbe'
+    outputs.upToDateWhen { false }
+    doFirst {
+        String entityRendererValue = providers.gradleProperty('uie.capturedEntityRendererClass').orNull
+        String activeRenderInfoValue = providers.gradleProperty('uie.capturedActiveRenderInfoClass').orNull
+        if (entityRendererValue == null || entityRendererValue.isBlank()) {
+            throw new GradleException('Set -Puie.capturedEntityRendererClass to a previously captured transformed EntityRenderer.class.')
+        }
+        File entityRendererClass = file(entityRendererValue).canonicalFile
+        if (!entityRendererClass.isFile()) {
+            throw new GradleException("Captured transformed EntityRenderer class does not exist: ${entityRendererClass}")
+        }
+        if (activeRenderInfoValue == null || activeRenderInfoValue.isBlank()) {
+            args('--verify-captured-entity-renderer-camera', entityRendererClass.absolutePath)
+        } else {
+            File activeRenderInfoClass = file(activeRenderInfoValue).canonicalFile
+            if (!activeRenderInfoClass.isFile()) {
+                throw new GradleException("Captured transformed ActiveRenderInfo class does not exist: ${activeRenderInfoClass}")
+            }
+            args('--verify-captured-camera-hooks', entityRendererClass.absolutePath,
+                    activeRenderInfoClass.absolutePath)
+        }
+    }
+}
+
 tasks.register('probeCleanroom068MixinTransform', JavaExec) {
     group = 'verification'
-    description = 'Runs the actual Cleanroom 0.6.8 FML/Mixin transform seam in an isolated probe directory.'
-    dependsOn tasks.named('testClasses'), tasks.named('remapJar'), rootProject.tasks.named('shadowJar')
+    description = 'Runs the actual Cleanroom/FML/Mixin camera transform seam in an isolated probe directory.'
+    dependsOn tasks.named('testClasses'), tasks.named('remapJar')
+    if (!providers.gradleProperty('uie.rootCoreJar').isPresent()) {
+        dependsOn rootProject.tasks.named('shadowJar')
+    }
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
     mainClass = 'neofontrender.addons.mixin.Cleanroom068MixinTransformProbe'
     systemProperty 'mixin.debug.verbose', 'true'
     outputs.upToDateWhen { false }
     doFirst {
-        String hostCleanroomVersion = providers.gradleProperty('cleanroom_version').get()
+        String buildCleanroomVersion = providers.gradleProperty('cleanroom_version').get()
+        String hostCleanroomVersion = providers.gradleProperty('uie.hostProbeTargetCleanroom').orElse('0.6.8-alpha').get()
+        if (buildCleanroomVersion != '0.6.13-alpha') {
+            throw new GradleException("Current UIE candidate must be built against Cleanroom 0.6.13-alpha; found ${buildCleanroomVersion}")
+        }
         if (hostCleanroomVersion != '0.6.8-alpha') {
-            throw new GradleException("Cleanroom host probe requires -Pcleanroom_version=0.6.8-alpha; found ${hostCleanroomVersion}")
+            throw new GradleException("This host probe target is the user's Cleanroom 0.6.8-alpha runtime; found ${hostCleanroomVersion}")
         }
         if (rootProject.version.toString() != '0.7.4' || project.version.toString() != '0.8.5') {
             throw new GradleException("Unexpected NFR/UIE versions for the host probe: core=${rootProject.version}, UIE=${project.version}")
@@ -379,9 +428,14 @@ tasks.register('probeCleanroom068MixinTransform', JavaExec) {
         }
         File versionJar = new File(profileJson.parentFile, "${profileJarName}.jar").canonicalFile
         File clientLibraries = new File(clientRoot, 'libraries').canonicalFile
-        File clientMods = new File(clientRoot, 'mods').canonicalFile
+        String clientModsValue = providers.gradleProperty('uie.hostProbeModsDirectory').orNull
+        File clientMods = (clientModsValue == null || clientModsValue.isBlank()
+                ? new File(clientRoot, 'mods') : file(clientModsValue)).canonicalFile
         if (!versionJar.isFile() || !clientLibraries.isDirectory() || !clientMods.isDirectory()) {
             throw new GradleException("The selected actual client is incomplete: versionJar=${versionJar}, libraries=${clientLibraries}, mods=${clientMods}")
+        }
+        if (!clientMods.toPath().startsWith(clientRoot.toPath())) {
+            throw new GradleException("The selected host mods must come from the isolated r6 client root: ${clientMods}")
         }
 
         File releaseJar = file(releaseJarValue).canonicalFile
@@ -420,13 +474,17 @@ tasks.register('probeCleanroom068MixinTransform', JavaExec) {
             throw new GradleException("The profile-library fallback root must be isolated from the client and probe roots: ${profileLibraryFallbackRoot}")
         }
 
+        Set<String> profileCoordinates = (profile.libraries ?: []).collect { it.name?.toString() }
+                .findAll { it != null } as Set<String>
+        String cleanroomCoordinate = "com.cleanroommc:cleanroom:${hostCleanroomVersion}"
         List<Map<String, String>> requiredCoordinates = [
-                [name: 'com.cleanroommc:cleanroom:0.6.8-alpha'],
+                [name: cleanroomCoordinate],
                 [name: 'com.cleanroommc:cleanmix:0.7.0'],
                 [name: 'com.cleanroommc:mixinextras-common:0.5.5']
         ]
-        Set<String> profileCoordinates = (profile.libraries ?: []).collect { it.name?.toString() }
-                .findAll { it != null } as Set<String>
+        if (requiredCoordinates.any { it.name == null }) {
+            throw new GradleException("The selected host profile omits a required Cleanroom/FML runtime coordinate: ${profileCoordinates}")
+        }
         requiredCoordinates.each { required ->
             if (!profileCoordinates.contains(required.name)) {
                 throw new GradleException("The selected host profile omits required runtime library ${required.name}: ${profileJson}")

@@ -25,14 +25,22 @@ import java.util.stream.Stream;
 import java.util.jar.JarFile;
 
 import neofontrender.addons.compat.YsmClassAbi;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TypeInsnNode;
+import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.analysis.Analyzer;
+import org.objectweb.asm.tree.analysis.Frame;
+import org.objectweb.asm.tree.analysis.SourceInterpreter;
+import org.objectweb.asm.tree.analysis.SourceValue;
 
 /**
  * One-shot test entry point for the actual Cleanroom 0.6.8 client libraries and remap pipeline.
@@ -43,6 +51,10 @@ public final class Cleanroom068MixinTransformProbe {
             "net.minecraft.client.renderer.entity.RenderPlayer";
     private static final String YSM_RENDERER =
             "com.elfmcys.yesstevemodel.geckolib3.geo.GeoReplacedEntityRenderer";
+    private static final String ENTITY_RENDERER =
+            "net.minecraft.client.renderer.EntityRenderer";
+    private static final String ACTIVE_RENDER_INFO =
+            "net.minecraft.client.renderer.ActiveRenderInfo";
     private static final String FML_TWEAKER =
             "net.minecraftforge.fml.common.launcher.FMLTweaker";
     private static final Map<String, byte[]> TRANSFORMED_BYTES = new ConcurrentHashMap<>();
@@ -50,6 +62,20 @@ public final class Cleanroom068MixinTransformProbe {
     private Cleanroom068MixinTransformProbe() {}
 
     public static void main(String[] arguments) throws Throwable {
+        if (arguments.length == 2 && "--verify-captured-entity-renderer-camera".equals(arguments[0])) {
+            ClassNode renderer = readCapturedClass(Path.of(arguments[1]), ENTITY_RENDERER);
+            verifyEntityRendererCameraHooks(renderer);
+            System.out.println("OFFLINE_CAPTURED_ENTITY_RENDERER_CAMERA=PASS");
+            return;
+        }
+        if (arguments.length == 3 && "--verify-captured-camera-hooks".equals(arguments[0])) {
+            ClassNode renderer = readCapturedClass(Path.of(arguments[1]), ENTITY_RENDERER);
+            verifyEntityRendererCameraHooks(renderer);
+            ClassNode activeRenderInfo = readCapturedClass(Path.of(arguments[2]), ACTIVE_RENDER_INFO);
+            verifyActiveRenderInfoCameraHook(activeRenderInfo);
+            System.out.println("OFFLINE_CAPTURED_CAMERA_HOOKS=PASS");
+            return;
+        }
         if (arguments.length == 3 && "--verify-captured-hooks".equals(arguments[0])) {
             verifyCapturedHookBytecode(Path.of(arguments[1]), Path.of(arguments[2]));
             return;
@@ -57,7 +83,9 @@ public final class Cleanroom068MixinTransformProbe {
         if (arguments.length != 9) {
             throw new IllegalArgumentException("Expected clientJar, ysmJar-or-dash, gameDir, assetsDir, "
                     + "profile, ysmPresent, ysmEnabled, stagedReleaseJar, stagedCoreJar, "
-                    + "or --verify-captured-hooks vanillaClass ysmClass");
+                    + "or --verify-captured-hooks vanillaClass ysmClass, "
+                    + "--verify-captured-entity-renderer-camera EntityRenderer.class, or "
+                    + "--verify-captured-camera-hooks EntityRenderer.class ActiveRenderInfo.class");
         }
         Path clientJar = Path.of(arguments[0]).toAbsolutePath().normalize();
         boolean ysmPresent = parseBooleanArgument(arguments[5], "ysmPresent");
@@ -146,6 +174,26 @@ public final class Cleanroom068MixinTransformProbe {
         System.out.println("EXPECTED_EARLY_CONFIG_DIR=" + actualConfigPath);
 
         installTransformedBytecodeObserver(launchLoader);
+
+        stage("transform patched EntityRenderer camera seam");
+        Class<?> entityRenderer = Class.forName(ENTITY_RENDERER, false, (ClassLoader) launchLoader);
+        requireDefinedBy(entityRenderer, (ClassLoader) launchLoader);
+        ClassNode entityRendererClass = capturedClass(ENTITY_RENDERER);
+        persistCapturedClass(gameDir.resolve("captured-classes"), ENTITY_RENDERER);
+        verifyEntityRendererCameraHooks(entityRendererClass);
+        System.out.println("TRANSFORMED=" + ENTITY_RENDERER);
+        System.out.println("TRANSFORMED_HOOKS=" + methodNames(entityRendererClass));
+        System.out.println("TARGET_CODESOURCE=" + codeSource(entityRenderer));
+
+        stage("transform patched ActiveRenderInfo camera-origin consumer");
+        Class<?> activeRenderInfo = Class.forName(ACTIVE_RENDER_INFO, false, (ClassLoader) launchLoader);
+        requireDefinedBy(activeRenderInfo, (ClassLoader) launchLoader);
+        ClassNode activeRenderInfoClass = capturedClass(ACTIVE_RENDER_INFO);
+        persistCapturedClass(gameDir.resolve("captured-classes"), ACTIVE_RENDER_INFO);
+        verifyActiveRenderInfoCameraHook(activeRenderInfoClass);
+        System.out.println("TRANSFORMED=" + ACTIVE_RENDER_INFO);
+        System.out.println("TRANSFORMED_HOOKS=" + methodNames(activeRenderInfoClass));
+        System.out.println("TARGET_CODESOURCE=" + codeSource(activeRenderInfo));
 
         stage("transform vanilla RenderPlayer");
         Class<?> renderPlayer = Class.forName(RENDER_PLAYER, false, (ClassLoader) launchLoader);
@@ -594,7 +642,8 @@ public final class Cleanroom068MixinTransformProbe {
     private static boolean isCaptureTarget(String name) {
         if (name == null) return false;
         String binaryName = name.replace('/', '.');
-        return RENDER_PLAYER.equals(binaryName) || YSM_RENDERER.equals(binaryName);
+        return RENDER_PLAYER.equals(binaryName) || YSM_RENDERER.equals(binaryName)
+                || ENTITY_RENDERER.equals(binaryName) || ACTIVE_RENDER_INFO.equals(binaryName);
     }
 
     private static ClassNode capturedClass(String binaryName) {
@@ -689,6 +738,411 @@ public final class Cleanroom068MixinTransformProbe {
                 call -> call.name.startsWith("handler$")
                         && call.name.endsWith("$nfrUi$applyLongitudinalRoll"));
         printCallGraph(player, Set.of("func_76986_a", "func_77043_a"));
+    }
+
+    private static void verifyEntityRendererCameraHooks(ClassNode renderer) throws Exception {
+        MethodNode orientCamera = findMappedMethod(renderer,
+                List.of("orientCamera", "func_78467_g"), "(F)V");
+        List<MethodInsnNode> eventPosts = invocations(orientCamera,
+                "net/minecraftforge/fml/common/eventhandler/EventBus", "post",
+                "(Lnet/minecraftforge/fml/common/eventhandler/Event;)Z");
+        if (eventPosts.isEmpty()) {
+            throw new IllegalStateException("Transformed EntityRenderer.orientCamera(F)V omitted "
+                    + "the actual Forge EventBus.post call");
+        }
+        MethodInsnNode firstEventPost = eventPosts.getFirst();
+
+        MethodInsnNode beginHandlerCall = findInvocation(orientCamera,
+                call -> call.owner.equals(renderer.name)
+                        && call.name.contains("nfrUi$beginNativeCameraRenderSample"));
+        if (beginHandlerCall == null
+                || instructionIndex(orientCamera, beginHandlerCall)
+                >= instructionIndex(orientCamera, firstEventPost)) {
+            throw new IllegalStateException("The actual sample-begin handler is not invoked before "
+                    + "the first CameraSetup EventBus.post in transformed orientCamera");
+        }
+        MethodNode beginHandler = findMethod(renderer, beginHandlerCall.name, beginHandlerCall.desc);
+        MethodInsnNode beginRuntimeCall = requireInvocation(beginHandler,
+                "neofontrender/addons/camera/CameraRuntime", "beginNativeCameraRenderSample", "(F)V");
+        requireCallArgumentFromLocal(renderer, orientCamera, beginHandlerCall,
+                "F", 0, 1, Opcodes.FLOAD);
+        requireCallArgumentFromLocal(renderer, beginHandler, beginRuntimeCall,
+                "F", 0, 1, Opcodes.FLOAD);
+
+        MethodInsnNode captureHandlerCall = findInvocation(orientCamera,
+                call -> call.owner.equals(renderer.name)
+                        && call.name.contains("nfrUi$captureNativeCameraAnchor"));
+        if (captureHandlerCall == null
+                || instructionIndex(orientCamera, captureHandlerCall)
+                >= instructionIndex(orientCamera, firstEventPost)) {
+            throw new IllegalStateException("Actual EntityRenderer.orientCamera did not invoke the "
+                    + "captured native-anchor handler before EventBus.post; calls=" + calls(orientCamera));
+        }
+        MethodNode captureHandler = findMethod(renderer, captureHandlerCall.name, captureHandlerCall.desc);
+        MethodInsnNode captureRuntimeCall = requireInvocation(captureHandler,
+                "neofontrender/addons/camera/CameraRuntime",
+                "captureNativeCameraAnchor",
+                "(Lnet/minecraft/entity/Entity;FF)V");
+        requireCallArgumentFromLocal(renderer, orientCamera, captureHandlerCall,
+                "Lnet/minecraft/entity/Entity;", 2, Opcodes.ALOAD);
+        requireCallArgumentFromLocal(renderer, orientCamera, captureHandlerCall,
+                "F", 0, 1, Opcodes.FLOAD);
+        requireCallArgumentFromLocal(renderer, orientCamera, captureHandlerCall,
+                "F", 1, 3, Opcodes.FLOAD);
+        requireCallArgumentFromLocal(renderer, captureHandler, captureRuntimeCall,
+                "Lnet/minecraft/entity/Entity;", 3, Opcodes.ALOAD);
+        requireCallArgumentFromLocal(renderer, captureHandler, captureRuntimeCall,
+                "F", 0, 1, Opcodes.FLOAD);
+        requireCallArgumentFromLocal(renderer, captureHandler, captureRuntimeCall,
+                "F", 1, 4, Opcodes.FLOAD);
+
+        MethodInsnNode distanceHandlerCall = findInvocation(orientCamera,
+                call -> call.owner.equals(renderer.name)
+                        && call.name.contains("nfrUi$zeroDetachedCameraDistance"));
+        if (distanceHandlerCall == null) {
+            throw new IllegalStateException("Transformed EntityRenderer.orientCamera omitted the "
+                    + "native third-person distance ModifyVariable call; calls=" + calls(orientCamera));
+        }
+        MethodNode distanceHandler = findMethod(renderer, distanceHandlerCall.name, distanceHandlerCall.desc);
+        requireInvocation(distanceHandler, "neofontrender/addons/camera/CameraRuntime",
+                "suppressesVanillaThirdPersonDisplacement", "()Z");
+        requireInvocation(distanceHandler, "neofontrender/addons/camera/CameraPresentationPolicy",
+                "vanillaThirdPersonDistance", "(DZ)D");
+        requireCallArgumentFromLocal(renderer, orientCamera, distanceHandlerCall,
+                "D", 0, 10, Opcodes.DLOAD);
+        verifyModifiedDoubleStore(renderer, orientCamera, distanceHandlerCall, 10);
+
+        System.out.println("CAMERA_HOST_ENTITY_RENDERER_BINDING=PASS"
+                + "|beginHandlerBeforeEventPost=true"
+                + "|eventPosts=" + eventPosts.size()
+                + "|captureHandler=" + captureHandlerCall.name + captureHandlerCall.desc
+                + "|captureEntityLocal=2|captureEyeHeightLocal=3"
+                + "|nativeDistanceHandler=" + distanceHandlerCall.name + distanceHandlerCall.desc);
+        printCallGraph(renderer, Set.of(orientCamera.name));
+    }
+
+    private static void verifyActiveRenderInfoCameraHook(ClassNode activeRenderInfo) throws Exception {
+        String projectDescriptor = "(Lnet/minecraft/entity/Entity;D)Lnet/minecraft/util/math/Vec3d;";
+        MethodNode projectView = findUniqueMethodByDescriptor(activeRenderInfo, projectDescriptor);
+        List<MethodInsnNode> handlerCalls = invocations(projectView, call ->
+                call.owner.equals(activeRenderInfo.name)
+                        && call.name.contains("nfrUi$alignNativeCameraOrigin"));
+        long returns = instructionCount(projectView, Opcodes.ARETURN);
+        List<MethodInsnNode> cancellationChecks = invocations(projectView,
+                "org/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable",
+                "isCancelled", "()Z");
+        List<MethodInsnNode> canceledReturnReads = invocations(projectView,
+                "org/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable",
+                "getReturnValue", "()Ljava/lang/Object;");
+        if (handlerCalls.isEmpty() || cancellationChecks.size() != handlerCalls.size()
+                || canceledReturnReads.size() != handlerCalls.size()
+                || returns != handlerCalls.size() * 2L) {
+            throw new IllegalStateException("ActiveRenderInfo RETURN injection does not form the actual "
+                    + "cancellable-return split (one handler, isCancelled/getReturnValue branch, and "
+                    + "two resulting ARETURNs per original return): handlerCalls=" + handlerCalls.size()
+                    + ", cancellationChecks=" + cancellationChecks.size()
+                    + ", canceledReturnReads=" + canceledReturnReads.size()
+                    + ", transformedAreturns=" + returns + ", calls=" + calls(projectView));
+        }
+        for (int index = 0; index < handlerCalls.size(); index++) {
+            MethodInsnNode call = handlerCalls.get(index);
+            requireCallArgumentFromLocal(activeRenderInfo, projectView, call,
+                    "Lnet/minecraft/entity/Entity;", 0, Opcodes.ALOAD);
+            requireCallArgumentFromLocal(activeRenderInfo, projectView, call, "D", 1, Opcodes.DLOAD);
+            if (instructionIndex(projectView, call)
+                    >= instructionIndex(projectView, cancellationChecks.get(index))
+                    || instructionIndex(projectView, cancellationChecks.get(index))
+                    >= instructionIndex(projectView, canceledReturnReads.get(index))) {
+                throw new IllegalStateException("ActiveRenderInfo RETURN handler is not followed by its "
+                        + "actual cancellation check and replacement-value return branch: calls="
+                        + calls(projectView));
+            }
+        }
+        MethodNode handler = findMethod(activeRenderInfo,
+                handlerCalls.getFirst().name, handlerCalls.getFirst().desc);
+        MethodInsnNode alignCall = requireInvocation(handler,
+                "neofontrender/addons/camera/CameraRuntime",
+                "alignActiveRenderInfoPosition",
+                "(Lnet/minecraft/entity/Entity;DLnet/minecraft/util/math/Vec3d;)Lnet/minecraft/util/math/Vec3d;");
+        int handlerEntityLocal = parameterLocalIndex(handler,
+                "Lnet/minecraft/entity/Entity;", 0);
+        int handlerPartialTicksLocal = parameterLocalIndex(handler, "D", 0);
+        int cirLocal = parameterLocalIndex(handler,
+                "Lorg/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable;", 0);
+        requireCallArgumentFromLocal(activeRenderInfo, handler, alignCall,
+                "Lnet/minecraft/entity/Entity;", 0, handlerEntityLocal, Opcodes.ALOAD);
+        requireCallArgumentFromLocal(activeRenderInfo, handler, alignCall,
+                "D", 0, handlerPartialTicksLocal, Opcodes.DLOAD);
+        MethodInsnNode getReturnValue = requireInvocation(handler,
+                "org/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable",
+                "getReturnValue", "()Ljava/lang/Object;");
+        MethodInsnNode setReturnValue = requireInvocation(handler,
+                "org/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable",
+                "setReturnValue", "(Ljava/lang/Object;)V");
+        requireCallReceiverFromLocal(activeRenderInfo, handler, getReturnValue,
+                cirLocal, Opcodes.ALOAD);
+        requireCallReceiverFromLocal(activeRenderInfo, handler, setReturnValue,
+                cirLocal, Opcodes.ALOAD);
+        if (instructionIndex(handler, getReturnValue) >= instructionIndex(handler, alignCall)
+                || instructionIndex(handler, alignCall) >= instructionIndex(handler, setReturnValue)) {
+            throw new IllegalStateException("ActiveRenderInfo return handler does not read the original "
+                    + "CallbackInfoReturnable value, align it, then submit the result: calls="
+                    + calls(handler));
+        }
+        AbstractInsnNode cast = previousExecutable(alignCall);
+        AbstractInsnNode originalReturnRead = cast == null ? null : previousExecutable(cast);
+        if (!(cast instanceof TypeInsnNode typeInsn)
+                || cast.getOpcode() != Opcodes.CHECKCAST
+                || !"net/minecraft/util/math/Vec3d".equals(typeInsn.desc)
+                || originalReturnRead != getReturnValue) {
+            throw new IllegalStateException("ActiveRenderInfo align call is not fed by the original "
+                    + "CallbackInfoReturnable<Vec3d> value: calls=" + calls(handler));
+        }
+        System.out.println("CAMERA_HOST_ACTIVE_RENDER_INFO_BINDING=PASS"
+                + "|projectView=" + projectView.name + projectView.desc
+                + "|returnHandlerCalls=" + handlerCalls.size()
+                + "|cancellableReturnSplits=" + returns
+                + "|entityLocal=" + parameterLocalIndex(projectView,
+                        "Lnet/minecraft/entity/Entity;", 0)
+                + "|partialTicksLocal=" + parameterLocalIndex(projectView, "D", 0)
+                + "|handlerEntityLocal=" + handlerEntityLocal
+                + "|handlerPartialTicksLocal=" + handlerPartialTicksLocal
+                + "|returnValueLocal=" + cirLocal);
+        printCallGraph(activeRenderInfo, Set.of(projectView.name));
+    }
+
+    private static int parameterLocalIndex(MethodNode method, String descriptor, int occurrence) {
+        Type[] arguments = Type.getArgumentTypes(method.desc);
+        int local = (method.access & Opcodes.ACC_STATIC) == 0 ? 1 : 0;
+        int foundOccurrences = 0;
+        for (Type argument : arguments) {
+            if (argument.getDescriptor().equals(descriptor)
+                    && foundOccurrences++ == occurrence) {
+                return local;
+            }
+            local += argument.getSize();
+        }
+        throw new IllegalStateException("Method " + method.name + method.desc
+                + " has no parameter " + descriptor + " occurrence " + occurrence);
+    }
+
+    private static void requireCallReceiverFromLocal(ClassNode owner, MethodNode target,
+                                                     MethodInsnNode call, int local,
+                                                     int loadOpcode) throws Exception {
+        Analyzer<SourceValue> analyzer = new Analyzer<>(new SourceInterpreter());
+        Frame<SourceValue>[] frames = analyzer.analyze(owner.name, target);
+        Frame<SourceValue> frame = frames[instructionIndex(target, call)];
+        int stackIndex = frame.getStackSize() - Type.getArgumentTypes(call.desc).length - 1;
+        if (stackIndex < 0 || stackIndex >= frame.getStackSize()) {
+            throw new IllegalStateException("Invalid receiver stack for " + call.owner + "."
+                    + call.name + call.desc + " in " + target.name + target.desc);
+        }
+        SourceValue receiver = frame.getStack(stackIndex);
+        boolean correctLocal = receiver.insns.stream().anyMatch(instruction ->
+                instruction instanceof VarInsnNode load
+                        && load.var == local && load.getOpcode() == loadOpcode);
+        if (!correctLocal) {
+            throw new IllegalStateException("Transformed call " + call.owner + "." + call.name
+                    + call.desc + " receiver is not loaded from expected local " + local
+                    + "; sources=" + receiver.insns);
+        }
+    }
+
+    private static AbstractInsnNode previousExecutable(AbstractInsnNode instruction) {
+        AbstractInsnNode previous = instruction.getPrevious();
+        while (previous != null && previous.getOpcode() < 0) previous = previous.getPrevious();
+        return previous;
+    }
+
+    private static void verifyModifiedDoubleStore(ClassNode owner, MethodNode target,
+                                                   MethodInsnNode handlerCall,
+                                                   int expectedLocal) throws Exception {
+        AbstractInsnNode nextExecutable = handlerCall.getNext();
+        while (nextExecutable != null && nextExecutable.getOpcode() < 0) {
+            nextExecutable = nextExecutable.getNext();
+        }
+        if (!(nextExecutable instanceof VarInsnNode store)
+                || store.getOpcode() != Opcodes.DSTORE || store.var != expectedLocal) {
+            throw new IllegalStateException("The actual native distance handler return is not stored back "
+                    + "to expected orientCamera double local " + expectedLocal + "; following="
+                    + (nextExecutable == null ? "end-of-method" : nextExecutable.getClass().getSimpleName()
+                    + " opcode=" + nextExecutable.getOpcode() + (nextExecutable instanceof VarInsnNode variable
+                    ? " local=" + variable.var : "")));
+        }
+        Analyzer<SourceValue> analyzer = new Analyzer<>(new SourceInterpreter());
+        Frame<SourceValue>[] frames = analyzer.analyze(owner.name, target);
+        int storeIndex = target.instructions.indexOf(nextExecutable);
+        Frame<SourceValue> storeFrame = frames[storeIndex];
+        if (storeFrame == null || storeFrame.getStackSize() == 0) {
+            throw new IllegalStateException("Could not inspect the real operand stack at the native-distance "
+                    + "double local store");
+        }
+        SourceValue storedValue = null;
+        for (int stackIndex = storeFrame.getStackSize() - 1; stackIndex >= 0; stackIndex--) {
+            SourceValue candidate = storeFrame.getStack(stackIndex);
+            if (candidate != null && candidate.getSize() == Type.DOUBLE_TYPE.getSize()) {
+                storedValue = candidate;
+                break;
+            }
+        }
+        if (storedValue == null) {
+            throw new IllegalStateException("The native-distance DSTORE has no double operand "
+                    + "in its actual transformed stack frame");
+        }
+        boolean comesFromHandler = storedValue.insns.stream().anyMatch(instruction ->
+                instruction instanceof MethodInsnNode call
+                        && call.owner.equals(owner.name)
+                        && call.name.equals(handlerCall.name)
+                        && call.desc.equals(handlerCall.desc));
+        if (!comesFromHandler) {
+            throw new IllegalStateException("The transformed distance handler does not supply the value "
+                    + "stored to orientCamera local " + expectedLocal + "; producers=" + storedValue.insns);
+        }
+    }
+
+    private static MethodNode findMethod(ClassNode owner, String name, String descriptor) {
+        List<MethodNode> matches = owner.methods.stream()
+                .filter(method -> method.name.equals(name) && method.desc.equals(descriptor)).toList();
+        if (matches.size() != 1) {
+            throw new IllegalStateException(owner.name + " expected exactly one method " + name
+                    + descriptor + ", found=" + matches.stream().map(method ->
+                    method.name + method.desc).toList());
+        }
+        return matches.getFirst();
+    }
+
+    private static MethodNode findMappedMethod(ClassNode owner, List<String> names,
+                                               String descriptor) {
+        List<MethodNode> matches = owner.methods.stream()
+                .filter(method -> names.contains(method.name) && method.desc.equals(descriptor)).toList();
+        if (matches.size() != 1) {
+            throw new IllegalStateException(owner.name + " expected exactly one mapped method "
+                    + names + descriptor + ", found=" + matches.stream().map(method ->
+                    method.name + method.desc).toList() + ", observed=" + methodNames(owner));
+        }
+        return matches.getFirst();
+    }
+
+    private static MethodNode findUniqueMethodByDescriptor(ClassNode owner, String descriptor) {
+        List<MethodNode> matches = owner.methods.stream()
+                .filter(method -> method.desc.equals(descriptor)).toList();
+        if (matches.size() != 1) {
+            throw new IllegalStateException(owner.name + " expected one host method with descriptor "
+                    + descriptor + ", found=" + matches.stream().map(method ->
+                    method.name + method.desc).toList());
+        }
+        return matches.getFirst();
+    }
+
+    private static MethodInsnNode requireInvocation(MethodNode method, String owner,
+                                                     String name, String descriptor) {
+        List<MethodInsnNode> matches = invocations(method,
+                call -> call.owner.equals(owner) && call.name.equals(name)
+                        && call.desc.equals(descriptor));
+        if (matches.isEmpty()) {
+            throw new IllegalStateException("Transformed method " + method.name + method.desc
+                    + " omitted actual invocation " + owner + "." + name + descriptor
+                    + "; calls=" + calls(method));
+        }
+        return matches.getFirst();
+    }
+
+    private static MethodInsnNode findInvocation(MethodNode method,
+                                                 Predicate<MethodInsnNode> predicate) {
+        return invocations(method, predicate).stream().findFirst().orElse(null);
+    }
+
+    private static List<MethodInsnNode> invocations(MethodNode method,
+                                                    String owner, String name, String descriptor) {
+        return invocations(method, call -> call.owner.equals(owner) && call.name.equals(name)
+                && call.desc.equals(descriptor));
+    }
+
+    private static List<MethodInsnNode> invocations(MethodNode method,
+                                                    Predicate<MethodInsnNode> predicate) {
+        List<MethodInsnNode> matches = new ArrayList<>();
+        for (AbstractInsnNode instruction = method.instructions.getFirst(); instruction != null;
+             instruction = instruction.getNext()) {
+            if (instruction instanceof MethodInsnNode call && predicate.test(call)) matches.add(call);
+        }
+        return matches;
+    }
+
+    private static long instructionCount(MethodNode method, int opcode) {
+        return Stream.of(method.instructions.toArray()).filter(instruction ->
+                instruction.getOpcode() == opcode).count();
+    }
+
+    private static int instructionIndex(MethodNode method, AbstractInsnNode instruction) {
+        int index = method.instructions.indexOf(instruction);
+        if (index < 0) throw new IllegalStateException("Instruction is not in " + method.name + method.desc);
+        return index;
+    }
+
+    private static void requireCallArgumentFromLocal(ClassNode owner, MethodNode target,
+                                                     MethodInsnNode call, String argumentDescriptor,
+                                                     int local, int loadOpcode) throws Exception {
+        requireCallArgumentFromLocal(owner, target, call, argumentDescriptor,
+                0, local, loadOpcode);
+    }
+
+    private static void requireCallArgumentFromLocal(ClassNode owner, MethodNode target,
+                                                     MethodInsnNode call, String argumentDescriptor,
+                                                     int descriptorOccurrence, int local,
+                                                     int loadOpcode) throws Exception {
+        SourceValue value = callArgumentSource(owner, target, call,
+                argumentDescriptor, descriptorOccurrence);
+        boolean correctLocal = value.insns.stream().anyMatch(instruction ->
+                instruction instanceof VarInsnNode load
+                        && load.var == local && load.getOpcode() == loadOpcode);
+        if (!correctLocal) {
+            throw new IllegalStateException("Transformed call " + call.owner + "." + call.name
+                    + call.desc + " argument " + argumentDescriptor + " occurrence "
+                    + descriptorOccurrence + " is not loaded from expected local " + local
+                    + "; sources=" + value.insns);
+        }
+    }
+
+    private static SourceValue callArgumentSource(ClassNode owner, MethodNode target,
+                                                  MethodInsnNode call, String argumentDescriptor,
+                                                  int descriptorOccurrence) throws Exception {
+        Analyzer<SourceValue> analyzer = new Analyzer<>(new SourceInterpreter());
+        Frame<SourceValue>[] frames = analyzer.analyze(owner.name, target);
+        Frame<SourceValue> frame = frames[instructionIndex(target, call)];
+        Type[] arguments = Type.getArgumentTypes(call.desc);
+        int argumentIndex = -1;
+        int foundOccurrences = 0;
+        for (int index = 0; index < arguments.length; index++) {
+            if (arguments[index].getDescriptor().equals(argumentDescriptor)) {
+                if (foundOccurrences++ == descriptorOccurrence) {
+                    argumentIndex = index;
+                    break;
+                }
+            }
+        }
+        if (argumentIndex < 0) {
+            throw new IllegalStateException("Call " + call.owner + "." + call.name + call.desc
+                    + " has no argument " + argumentDescriptor);
+        }
+        int valuesAfter = 0;
+        for (int index = argumentIndex + 1; index < arguments.length; index++) {
+            valuesAfter++;
+        }
+        // ASM frames store category-2 values as one SourceValue; getStackSize() counts values,
+        // while SourceValue.getSize() still reports the JVM slot width (two for long/double).
+        int stackIndex = frame.getStackSize() - valuesAfter - 1;
+        if (stackIndex < 0 || stackIndex >= frame.getStackSize()) {
+            throw new IllegalStateException("Invalid transformed invocation frame for "
+                    + call.owner + "." + call.name + call.desc + ": stackSize=" + frame.getStackSize());
+        }
+        SourceValue value = frame.getStack(stackIndex);
+        if (value.getSize() != arguments[argumentIndex].getSize()) {
+            throw new IllegalStateException("Transformed invocation value size disagrees with descriptor for "
+                    + call.owner + "." + call.name + call.desc + " argument " + argumentDescriptor
+                    + ": frameValueSize=" + value.getSize()
+                    + ", descriptorSize=" + arguments[argumentIndex].getSize());
+        }
+        return value;
     }
 
     private static void verifyYsmPlayerHooks(ClassNode ysm) {

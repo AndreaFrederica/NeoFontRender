@@ -189,6 +189,18 @@ class UiEnhancementsMixinConfigTest {
     }
 
     @Test
+    void activeRenderInfoCameraAnchorConsumerIsRegistered() {
+        String config = config("mixins.neofontrender_ui_enhancements.json");
+        String bytecode = bytecode(
+                "neofontrender/addons/mixin/MixinActiveRenderInfoCameraAnchor.class");
+
+        assertTrue(config.contains("\"MixinActiveRenderInfoCameraAnchor\""));
+        assertTrue(bytecode.contains("projectViewFromEntity"));
+        assertTrue(bytecode.contains("alignActiveRenderInfoPosition"));
+        assertTrue(bytecode.contains("CallbackInfoReturnable"));
+    }
+
+    @Test
     void zoomMixinLeavesEntityPlayerTurnAvailableToOtherCoremods() {
         InputStream stream = UiEnhancementsMixinConfigTest.class.getClassLoader().getResourceAsStream(
                 "neofontrender/addons/mixin/MixinEntityRendererZoomMouse.class");

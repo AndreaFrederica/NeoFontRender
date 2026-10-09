@@ -37,6 +37,7 @@
     "MixinEntityRendererMouseInputEvent",
     "MixinEntityRendererUiNavigationPointer",
     "MixinEntityRendererCameraPresentation",
+    "MixinActiveRenderInfoCameraAnchor",
     "MixinMinecraftDroneInputGate",
     "MixinMinecraftPerspectiveCycle",
     "AccessorMovementInputState",
