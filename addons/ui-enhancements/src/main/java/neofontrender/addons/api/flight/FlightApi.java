@@ -25,7 +25,7 @@ import java.util.function.Function;
  * Soft dependencies may use the matching Forge events instead of linking this class.</p>
  */
 public final class FlightApi {
-    public static final int API_VERSION = 9;
+    public static final int API_VERSION = 10;
     private static final Logger LOGGER = LogManager.getLogger("Revo UI Flight API");
     private static volatile String lastCapabilityProviderId;
     private static volatile java.util.List<String> lastControlProviderIds = Collections.emptyList();

@@ -92,10 +92,15 @@ unimined.minecraft {
     remap(tasks.named('jar').get())
 }
 
+// YSM compatibility reads the relocated NightConfig API already shipped by NFR core.
+// Keep that API available to UIE compilation and tests without embedding another copy.
+def nfrShadedRuntimeJar = rootProject.tasks.named('shadowJar').flatMap { it.archiveFile }
+
 dependencies {
     implementation project(':engine:audio')
     contain(project(path: ':engine:audio', configuration: 'shadow')) { transitive = false }
     compileOnly project(':')
+    compileOnly files(nfrShadedRuntimeJar)
     implementation uiTextProject
     uiTextEmbed uiTextProject
     if (localModularUiPath) {
@@ -127,6 +132,8 @@ dependencies {
     // Chinese segmentation and dictionary used by TabbyChat spell checking.
     // Cleanroom already supplies a compatible commons-lang3, so avoid embedding 3.3.1.
     contain('com.huaban:jieba-analysis:1.0.2') { transitive = false }
+    compileOnly 'com.cleanroommc:mixinextras-common:0.5.5'
+    annotationProcessor 'com.cleanroommc:mixinextras-common:0.5.5'
     annotationProcessor 'com.cleanroommc:sponge-mixin:0.20.13+mixin.0.8.7'
     // Embedded SQL database backing the chat-history persistence layer.
     contain 'com.h2database:h2:2.3.232'
@@ -137,6 +144,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
     testImplementation 'com.h2database:h2:2.3.232'
     testImplementation project(':')
+    testRuntimeOnly files(nfrShadedRuntimeJar)
     if (localModularUiPath) {
         testRuntimeOnly files(localModularUiPath)
     } else {
@@ -261,11 +269,376 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 test {
-    useJUnitPlatform()
+    useJUnitPlatform { excludeTags 'release-artifact' }
     systemProperty 'nfr.test.ae2Jar', providers.gradleProperty('ae2CompatJar').getOrElse('')
     systemProperty 'nfr.test.pregenJar', providers.gradleProperty('pregenCompatJar').getOrElse('')
     systemProperty 'nfr.test.heiJar', providers.gradleProperty('heiCompatJar').getOrElse('')
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    def ysmJarForTests = providers.gradleProperty('uie.ysmJar').orNull
+    if (ysmJarForTests != null && !ysmJarForTests.isBlank()) {
+        environment 'UIE_YSM_JAR', file(ysmJarForTests).canonicalPath
+    }
+}
+
+tasks.register('verifyUiEnhancementsReleaseSelector', Test) {
+    group = 'verification'
+    description = 'Checks the dev and remapped selectors against the selected Cleanroom 0.6.8 profile.'
+    dependsOn tasks.named('testClasses'), tasks.named('remapJar')
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'release-artifact' }
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    filter {
+        includeTestsMatching 'neofontrender.addons.mixin.UiEnhancementsReleaseSelectorTest'
+    }
+    outputs.upToDateWhen { false }
+    doFirst {
+        String hostCleanroomVersion = providers.gradleProperty('cleanroom_version').get()
+        if (hostCleanroomVersion != '0.6.8-alpha') {
+            throw new GradleException("Release selector validation requires -Pcleanroom_version=0.6.8-alpha; found ${hostCleanroomVersion}")
+        }
+        String clientRoot = providers.gradleProperty('uie_cleanroom_068_client_root').orNull
+        String profileJson = providers.gradleProperty('uie.cleanroomProfileJson').orNull
+        String mcpJar = providers.gradleProperty('uie_cleanroom_068_mcp_jar').orNull
+        if ([clientRoot, profileJson, mcpJar].any { it == null || it.isBlank() }) {
+            throw new GradleException('Set -Puie_cleanroom_068_client_root, -Puie.cleanroomProfileJson, and -Puie_cleanroom_068_mcp_jar for the actual Cleanroom 0.6.8 profile.')
+        }
+        File actualProfile = file(profileJson).canonicalFile
+        File actualMcpJar = file(mcpJar).canonicalFile
+        if (!actualProfile.isFile()) {
+            throw new GradleException("The selected Cleanroom profile JSON is missing: ${actualProfile}")
+        }
+        if (!actualMcpJar.isFile()) {
+            throw new GradleException("The selected Cleanroom MCP JAR is missing: ${actualMcpJar}")
+        }
+        if (!mcpSrg.isFile()) {
+            throw new GradleException("The selected MCP-to-SRG mapping is missing: ${mcpSrg}")
+        }
+        systemProperty 'uie.devJar', tasks.named('jar').get().archiveFile.get().asFile.canonicalPath
+        systemProperty 'uie.releaseJar', layout.buildDirectory
+                .file("libs/neofontrender-ui-enhancements-${project.version}.jar").get().asFile.canonicalPath
+        systemProperty 'uie.cleanroomMcpJar', actualMcpJar.canonicalPath
+        systemProperty 'uie.cleanroomClientRoot', file(clientRoot).canonicalPath
+        systemProperty 'uie.cleanroomProfileJson', actualProfile.canonicalPath
+        systemProperty 'uie.mcpSrg', mcpSrg.canonicalPath
+    }
+}
+
+tasks.register('probeCleanroom068MixinTransform', JavaExec) {
+    group = 'verification'
+    description = 'Runs the actual Cleanroom 0.6.8 FML/Mixin transform seam in an isolated probe directory.'
+    dependsOn tasks.named('testClasses'), tasks.named('remapJar'), rootProject.tasks.named('shadowJar')
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    mainClass = 'neofontrender.addons.mixin.Cleanroom068MixinTransformProbe'
+    systemProperty 'mixin.debug.verbose', 'true'
+    outputs.upToDateWhen { false }
+    doFirst {
+        String hostCleanroomVersion = providers.gradleProperty('cleanroom_version').get()
+        if (hostCleanroomVersion != '0.6.8-alpha') {
+            throw new GradleException("Cleanroom host probe requires -Pcleanroom_version=0.6.8-alpha; found ${hostCleanroomVersion}")
+        }
+        if (rootProject.version.toString() != '0.7.4' || project.version.toString() != '0.8.5') {
+            throw new GradleException("Unexpected NFR/UIE versions for the host probe: core=${rootProject.version}, UIE=${project.version}")
+        }
+
+        String clientRootValue = providers.gradleProperty('uie_cleanroom_068_client_root').orNull
+        String profileJsonValue = providers.gradleProperty('uie.cleanroomProfileJson').orNull
+        String releaseJarValue = providers.gradleProperty('uie.releaseJar').orNull
+        String ysmJarValue = providers.gradleProperty('uie.ysmJar').orNull
+        String rootCoreJarValue = providers.gradleProperty('uie.rootCoreJar').orNull
+        String probeRootValue = providers.gradleProperty('uie.probeRoot').orNull
+        String profileLibraryFallbackRootValue = providers.gradleProperty('uie.profileLibraryFallbackRoot').orNull
+        String ysmPresentValue = providers.gradleProperty('uie.ysmPresent').orElse('true').get()
+        String ysmEnabledValue = providers.gradleProperty('uie.ysmEnabled').orElse('true').get()
+        if ([clientRootValue, profileJsonValue, releaseJarValue, ysmJarValue, probeRootValue]
+                .any { it == null || it.isBlank() }) {
+            throw new GradleException('Set -Puie_cleanroom_068_client_root, -Puie.cleanroomProfileJson, -Puie.releaseJar, -Puie.ysmJar, and -Puie.probeRoot.')
+        }
+        if (!(ysmPresentValue in ['true', 'false']) || !(ysmEnabledValue in ['true', 'false'])) {
+            throw new GradleException('Probe variant properties -Puie.ysmPresent and -Puie.ysmEnabled must be literal true or false.')
+        }
+        if (localModularUiPath == null || localModularUiPath.isBlank()) {
+            throw new GradleException('Set -Plocal_modularui_jar to the actual NFR ModularUI 3.2.0-nfr.2 JAR in the selected client mods directory.')
+        }
+
+        boolean ysmPresent = ysmPresentValue == 'true'
+        boolean ysmEnabled = ysmEnabledValue == 'true'
+        File clientRoot = file(clientRootValue).canonicalFile
+        File profileJson = file(profileJsonValue).canonicalFile
+        File versionsRoot = new File(clientRoot, 'versions').canonicalFile
+        if (!profileJson.isFile() || !profileJson.toPath().startsWith(versionsRoot.toPath())) {
+            throw new GradleException("The selected profile JSON must be an existing file under the client versions directory: ${profileJson}")
+        }
+        def profile = new groovy.json.JsonSlurper().parse(profileJson)
+        String profileId = profile.id?.toString()
+        String profileJarName = profile.jar?.toString()
+        if (profileId != 'QuE-Eng_Step-B0' || profileJarName != profileId
+                || profile.mainClass != 'top.outlands.foundation.boot.Foundation'
+                || profileJson.parentFile.name != profileId || profileJson.name != "${profileId}.json") {
+            throw new GradleException("Unexpected actual host profile identity in ${profileJson}: id=${profileId}, jar=${profileJarName}, mainClass=${profile.mainClass}")
+        }
+        File versionJar = new File(profileJson.parentFile, "${profileJarName}.jar").canonicalFile
+        File clientLibraries = new File(clientRoot, 'libraries').canonicalFile
+        File clientMods = new File(clientRoot, 'mods').canonicalFile
+        if (!versionJar.isFile() || !clientLibraries.isDirectory() || !clientMods.isDirectory()) {
+            throw new GradleException("The selected actual client is incomplete: versionJar=${versionJar}, libraries=${clientLibraries}, mods=${clientMods}")
+        }
+
+        File releaseJar = file(releaseJarValue).canonicalFile
+        if (!releaseJar.isFile() || releaseJar.name != "neofontrender-ui-enhancements-${project.version}.jar") {
+            throw new GradleException("Expected the current remapped UIE ${project.version} release JAR: ${releaseJar}")
+        }
+        File defaultCoreJar = rootProject.tasks.named('shadowJar').get().archiveFile.get().asFile.canonicalFile
+        File rootCoreJar = rootCoreJarValue == null || rootCoreJarValue.isBlank()
+                ? defaultCoreJar : file(rootCoreJarValue).canonicalFile
+        if (!rootCoreJar.isFile()) throw new GradleException("The current NFR core 0.7.4 JAR is missing: ${rootCoreJar}")
+        File ysmJar = file(ysmJarValue).canonicalFile
+        File modularUiJar = file(localModularUiPath).canonicalFile
+        if (!ysmJar.isFile() || !modularUiJar.isFile()) {
+            throw new GradleException("Missing actual YSM or ModularUI input: YSM=${ysmJar}, ModularUI=${modularUiJar}")
+        }
+        File clientYsmJar = new File(clientMods, ysmJar.name).canonicalFile
+        if (!ysmJar.toPath().equals(clientYsmJar.toPath())) {
+            throw new GradleException("-Puie.ysmJar must select the pinned YSM file from the chosen client's mods directory: ${ysmJar}")
+        }
+        if (modularUiJar.name != 'NFR-modularui-3.2.0-nfr.2.jar'
+                || !modularUiJar.toPath().startsWith(clientMods.toPath())) {
+            throw new GradleException("-Plocal_modularui_jar must point at the selected client's NFR-modularui-3.2.0-nfr.2.jar: ${modularUiJar}")
+        }
+        File probeRoot = file(probeRootValue).absoluteFile.toPath().normalize().toFile()
+        if (probeRoot.canonicalFile.toPath().startsWith(clientRoot.toPath())) {
+            throw new GradleException("The isolated probe root must be outside the actual client tree: ${probeRoot}")
+        }
+        if (probeRoot.exists() && (probeRoot.listFiles()?.length ?: 0) != 0) {
+            throw new GradleException("Probe root must be fresh and empty; preserving existing data: ${probeRoot}")
+        }
+        File profileLibraryFallbackRoot = profileLibraryFallbackRootValue == null || profileLibraryFallbackRootValue.isBlank()
+                ? null : file(profileLibraryFallbackRootValue).canonicalFile
+        if (profileLibraryFallbackRoot != null
+                && (profileLibraryFallbackRoot.toPath().startsWith(clientRoot.toPath())
+                || profileLibraryFallbackRoot.toPath().startsWith(probeRoot.canonicalFile.toPath()))) {
+            throw new GradleException("The profile-library fallback root must be isolated from the client and probe roots: ${profileLibraryFallbackRoot}")
+        }
+
+        List<Map<String, String>> requiredCoordinates = [
+                [name: 'com.cleanroommc:cleanroom:0.6.8-alpha'],
+                [name: 'com.cleanroommc:cleanmix:0.7.0'],
+                [name: 'com.cleanroommc:mixinextras-common:0.5.5']
+        ]
+        Set<String> profileCoordinates = (profile.libraries ?: []).collect { it.name?.toString() }
+                .findAll { it != null } as Set<String>
+        requiredCoordinates.each { required ->
+            if (!profileCoordinates.contains(required.name)) {
+                throw new GradleException("The selected host profile omits required runtime library ${required.name}: ${profileJson}")
+            }
+        }
+
+        List<Map<String, String>> requiredMods = [
+                [file: '+Fugue-0.23.7.jar', sha256: '358E565B9B655840B52A79B7808EECD9C9B611030783180D68FA5BFF3B7CC615'],
+                [file: 'Lib-scalar-3.9.0.jar', sha256: '9FA05D84B72F31DF33C94BEB2B6C34BCA25A83FB5BD59B71AE1CF00678D563DC'],
+                [file: ysmJar.name, sha256: '5DFE1A06E058FF7EB006918E4EBC60C18C450FFC441CAC1A5CFF0766251F1D60'],
+                [file: modularUiJar.name, sha256: 'E0ED1BD56ACF88E1E1F4EDEEAFE8BBA5049959D3864458586C27DA7BD0C78BDC']
+        ]
+        List<File> requiredModFiles = requiredMods.collect { dependency ->
+            new File(clientMods, dependency.file).canonicalFile
+        }
+        requiredMods.eachWithIndex { dependency, index ->
+            File input = requiredModFiles[index]
+            if (!input.isFile()) throw new GradleException("Required client mod is missing: ${input}")
+            String sha = java.security.MessageDigest.getInstance('SHA-256')
+                    .digest(input.bytes).encodeHex().toString().toUpperCase(Locale.ROOT)
+            if (sha != dependency.sha256) {
+                throw new GradleException("Unexpected required client mod identity: ${input} sha256=${sha}")
+            }
+        }
+        String ysmSha = java.security.MessageDigest.getInstance('SHA-256')
+                .digest(ysmJar.bytes).encodeHex().toString().toUpperCase(Locale.ROOT)
+        if (ysmSha != '5DFE1A06E058FF7EB006918E4EBC60C18C450FFC441CAC1A5CFF0766251F1D60') {
+            throw new GradleException("Unexpected YSM 1.1.9 source identity: ${ysmJar} sha256=${ysmSha}")
+        }
+        String coreSha = java.security.MessageDigest.getInstance('SHA-256')
+                .digest(rootCoreJar.bytes).encodeHex().toString().toUpperCase(Locale.ROOT)
+        String releaseSha = java.security.MessageDigest.getInstance('SHA-256')
+                .digest(releaseJar.bytes).encodeHex().toString().toUpperCase(Locale.ROOT)
+
+        List<Map<String, Object>> resolvedLibraries = []
+        List<String> skippedLibraries = []
+        List<String> runtimeCoordinates = []
+        Set<String> seenLibraryPaths = new LinkedHashSet<>()
+        profile.libraries.each { library ->
+            String coordinate = library.name?.toString() ?: '<unnamed>'
+            boolean allowed = library.rules == null || library.rules.isEmpty()
+            (library.rules ?: []).each { rule ->
+                def os = rule.os
+                boolean matches = os == null || os.name == null || os.name == 'windows'
+                if (matches && os?.arch) matches = os.arch in ['x86', 'amd64', 'x86_64']
+                if (matches) allowed = rule.action == 'allow'
+            }
+            if (!allowed) {
+                skippedLibraries.add("${coordinate} (profile rule excludes this host)")
+                return
+            }
+            def artifact = library.downloads?.artifact
+            String relativePath = artifact?.path?.toString()
+            if (relativePath == null || relativePath.isBlank()) {
+                String artifactUrl = artifact?.url?.toString()
+                if (artifactUrl != null && !artifactUrl.isBlank()) {
+                    relativePath = new URI(artifactUrl).path?.replaceFirst('^/', '')
+                }
+            }
+            if ((relativePath == null || relativePath.isBlank())
+                    && coordinate == 'com.cleanroommc:cleanroom:0.6.8-alpha') {
+                relativePath = 'com/cleanroommc/cleanroom/0.6.8-alpha/cleanroom-0.6.8-alpha.jar'
+            }
+            boolean nativeOnly = coordinate.contains(':natives-')
+                    || coordinate.startsWith('org.lwjgl.lwjgl:lwjgl-platform:')
+                    || coordinate.startsWith('net.java.jinput:jinput-platform:')
+            if (relativePath == null || relativePath.isBlank()) {
+                if (nativeOnly || library.downloads?.classifiers != null) {
+                    skippedLibraries.add("${coordinate} (native/classifier-only profile entry)")
+                    return
+                }
+                throw new GradleException("Profile library has no resolvable artifact path: ${coordinate}")
+            }
+            File source = new File(clientLibraries, relativePath).canonicalFile
+            if (!source.toPath().startsWith(clientLibraries.toPath())) {
+                throw new GradleException("Profile library path escapes the actual client libraries directory: ${coordinate} -> ${source}")
+            }
+            String sourceKind = 'client'
+            if (!source.isFile()) {
+                if (nativeOnly) {
+                    skippedLibraries.add("${coordinate} (native-only artifact absent from host cache)")
+                    return
+                }
+                if (profileLibraryFallbackRoot != null) {
+                    File fallbackSource = new File(profileLibraryFallbackRoot, relativePath).canonicalFile
+                    if (!fallbackSource.toPath().startsWith(profileLibraryFallbackRoot.toPath())) {
+                        throw new GradleException("Profile-library fallback path escapes its isolated root: ${coordinate} -> ${fallbackSource}")
+                    }
+                    if (fallbackSource.isFile()) {
+                        if (artifact?.url == null || artifact.url.toString().isBlank()
+                                || artifact?.size == null || artifact?.sha1 == null
+                                || artifact.sha1.toString().isBlank()) {
+                            throw new GradleException("Profile-library fallback lacks authoritative URL, size, or SHA-1 metadata: ${coordinate}")
+                        }
+                        source = fallbackSource
+                        sourceKind = 'isolated-profile-sidecar'
+                    }
+                }
+                if (!source.isFile()) {
+                    throw new GradleException("Required non-native profile library is missing from the client and isolated fallback: ${source} (${coordinate})")
+                }
+            }
+            if (artifact?.size != null && source.length() != artifact.size as long) {
+                throw new GradleException("Profile library size mismatch for ${coordinate}: expected=${artifact.size}, actual=${source.length()}, path=${source}")
+            }
+            if (artifact?.sha1 != null) {
+                String actualSha1 = java.security.MessageDigest.getInstance('SHA-1')
+                        .digest(source.bytes).encodeHex().toString().toLowerCase(Locale.ROOT)
+                if (actualSha1 != artifact.sha1.toString().toLowerCase(Locale.ROOT)) {
+                    throw new GradleException("Profile library SHA-1 mismatch for ${coordinate}: expected=${artifact.sha1}, actual=${actualSha1}, path=${source}")
+                }
+            }
+            if (coordinate == 'com.cleanroommc:cleanroom:0.6.8-alpha') {
+                String actualCleanroomSha = java.security.MessageDigest.getInstance('SHA-256')
+                        .digest(source.bytes).encodeHex().toString().toUpperCase(Locale.ROOT)
+                if (actualCleanroomSha != '29E5EC8E02DC7A58F338C53F5D060AAEB7A3742F3DF24C1B3F25ECE1F57CAE1C') {
+                    throw new GradleException("Actual Cleanroom 0.6.8 JAR identity mismatch: ${source} sha256=${actualCleanroomSha}")
+                }
+            }
+            String key = relativePath.replace('\\', '/').toLowerCase(Locale.ROOT)
+            if (seenLibraryPaths.add(key)) {
+                resolvedLibraries.add([coordinate: coordinate, relativePath: relativePath.replace('\\', '/'), source: source, sourceKind: sourceKind])
+            }
+            runtimeCoordinates.add(coordinate)
+        }
+        requiredCoordinates.each { required ->
+            if (!runtimeCoordinates.contains(required.name)) {
+                throw new GradleException("Required host library did not resolve to a local artifact: ${required.name}")
+            }
+        }
+
+        File gameDir = new File(probeRoot, 'game')
+        File assetsDir = new File(probeRoot, 'assets')
+        File workingDir = new File(probeRoot, 'working')
+        File stagedLibraries = new File(probeRoot, 'libraries')
+        File stagedVersions = new File(probeRoot, "versions/${profileId}")
+        File stagedMods = new File(gameDir, 'mods')
+        [probeRoot, gameDir, assetsDir, workingDir, stagedLibraries, stagedVersions, stagedMods].each { directory ->
+            if (!directory.mkdirs() && !directory.isDirectory()) {
+                throw new GradleException("Could not create isolated probe directory: ${directory}")
+            }
+        }
+        List<File> isolatedLibraries = []
+        resolvedLibraries.each { library ->
+            File destination = new File(stagedLibraries, library.relativePath).canonicalFile
+            if (!destination.toPath().startsWith(stagedLibraries.canonicalFile.toPath())) {
+                throw new GradleException("Staged profile library path escapes the isolated root: ${destination}")
+            }
+            if (!destination.parentFile.mkdirs() && !destination.parentFile.isDirectory()) {
+                throw new GradleException("Could not create isolated library directory: ${destination.parentFile}")
+            }
+            java.nio.file.Files.copy(library.source.toPath(), destination.toPath())
+            isolatedLibraries.add(destination)
+            println "PROBE_PROFILE_LIBRARY_SOURCE=${library.coordinate}|${library.sourceKind}|${library.source.canonicalPath}|${destination.canonicalPath}|${library.source.length()}"
+        }
+        File isolatedVersionJar = new File(stagedVersions, "${profileJarName}.jar")
+        java.nio.file.Files.copy(versionJar.toPath(), isolatedVersionJar.toPath())
+        java.nio.file.Files.copy(profileJson.toPath(), new File(stagedVersions, "${profileId}.json").toPath())
+
+        File stagedReleaseJar = new File(stagedMods, 'neofontrender-ui-enhancements.jar')
+        File stagedCoreJar = new File(stagedMods, rootCoreJar.name)
+        File stagedModularUi = new File(stagedMods, modularUiJar.name)
+        File stagedFugue = new File(stagedMods, requiredModFiles[0].name)
+        File stagedScalar = new File(stagedMods, requiredModFiles[1].name)
+        File stagedYsm = new File(stagedMods, ysmJar.name)
+        java.nio.file.Files.copy(releaseJar.toPath(), stagedReleaseJar.toPath())
+        java.nio.file.Files.copy(rootCoreJar.toPath(), stagedCoreJar.toPath())
+        java.nio.file.Files.copy(modularUiJar.toPath(), stagedModularUi.toPath())
+        java.nio.file.Files.copy(requiredModFiles[0].toPath(), stagedFugue.toPath())
+        java.nio.file.Files.copy(requiredModFiles[1].toPath(), stagedScalar.toPath())
+        if (ysmPresent) java.nio.file.Files.copy(ysmJar.toPath(), stagedYsm.toPath())
+        List<File> stagedModJars = [stagedReleaseJar, stagedCoreJar, stagedModularUi,
+                                     stagedFugue, stagedScalar]
+        if (ysmPresent) stagedModJars.add(stagedYsm)
+        if (ysmPresent && !ysmEnabled) {
+            File configDirectory = new File(gameDir, 'config')
+            if (!configDirectory.mkdirs() && !configDirectory.isDirectory()) {
+                throw new GradleException("Could not create isolated config directory: ${configDirectory}")
+            }
+            java.nio.file.Files.writeString(new File(configDirectory, 'neofontrender-ui-enhancements.toml').toPath(),
+                    '[compat.ysmBodyPose]\nenabled = false\n', java.nio.charset.StandardCharsets.UTF_8)
+        }
+
+        println "PROBE_BUILD_CLEANROOM=${hostCleanroomVersion}"
+        println "PROBE_PROFILE=${profileJson.canonicalPath}"
+        println "PROBE_PROFILE_ID=${profileId}"
+        println "PROBE_PROFILE_LIBRARY_ENTRIES=${profile.libraries.size()}"
+        println "PROBE_PROFILE_LIBRARIES_COPIED=${isolatedLibraries.size()}"
+        println "PROBE_SKIPPED_PROFILE_ENTRIES=${skippedLibraries.size()}"
+        skippedLibraries.each { println "PROBE_SKIPPED_PROFILE=${it}" }
+        println "PROBE_CLIENT_VERSION_JAR=${versionJar.canonicalPath}|${versionJar.length()}|${java.security.MessageDigest.getInstance('SHA-256').digest(versionJar.bytes).encodeHex().toString().toUpperCase(Locale.ROOT)}"
+        println "PROBE_UIE_RELEASE_JAR=${releaseJar.canonicalPath}|${releaseSha}"
+        println "PROBE_NFR_CORE_JAR=${rootCoreJar.canonicalPath}|${coreSha}"
+        println "PROBE_MODULARUI_JAR=${modularUiJar.canonicalPath}|${requiredMods[3].sha256}"
+        println "PROBE_YSM_JAR=${ysmJar.canonicalPath}|${ysmSha}|present=${ysmPresent}|enabled=${ysmEnabled}"
+        requiredMods.eachWithIndex { dependency, index ->
+            println "PROBE_REQUIRED_MOD=${requiredModFiles[index].canonicalPath}|${dependency.sha256}"
+        }
+        println "PROBE_ISOLATED_ROOT=${probeRoot.canonicalPath}"
+        println "PROBE_ACTUAL_CLIENT_WRITES=none"
+
+        // Staged mods belong only to the isolated game/mods directory. Adding them to the
+        // process classpath lets the app loader define coremod plugins before Cleanroom's
+        // LaunchClassLoader can load them against its own IFMLLoadingPlugin identity.
+        classpath = files(sourceSets.test.output, isolatedLibraries, isolatedVersionJar)
+        setWorkingDir(workingDir)
+        systemProperty 'uie.cleanroomProfileJson', profileJson.canonicalPath
+        args isolatedVersionJar.canonicalPath, ysmPresent ? stagedYsm.canonicalPath : '-',
+                gameDir.canonicalPath, assetsDir.canonicalPath, profileId,
+                ysmPresent.toString(), ysmEnabled.toString(),
+                stagedReleaseJar.canonicalPath, stagedCoreJar.canonicalPath
+    }
 }
 
 // Unimined wires Minecraft and Forge to main after source-set creation.

@@ -46,6 +46,7 @@
     "MixinItemCameraRayTrace",
     "MixinItemBoatCameraRayTrace",
     "MixinRenderPlayerFlightRoll",
+    "MixinYsmPlayerBodyPose",
     "MixinRenderGlobalBlockOutlines",
     "MixinRenderPlayerCameraTransparency",
     "MixinRenderLivingBaseCameraViewIdentity",

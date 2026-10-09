@@ -60,8 +60,8 @@ class FlightApiTest {
     }
 
     @Test
-    void apiV9ComponentRegistrationIsReversibleAndDiscoverable() {
-        assertEquals(9, FlightApi.getApiVersion());
+    void apiV10ComponentRegistrationIsReversibleAndDiscoverable() {
+        assertEquals(10, FlightApi.getApiVersion());
         ResourceLocation type = new ResourceLocation("test", "radar");
         FlightRegistration registration = FlightApi.registerHudComponent(type,
                 (context, element) -> {});

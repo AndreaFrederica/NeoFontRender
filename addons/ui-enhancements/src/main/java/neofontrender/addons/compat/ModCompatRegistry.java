@@ -12,6 +12,7 @@ public final class ModCompatRegistry {
         register(new BTFixesCompat());
         register(new CustomMainMenuCompat());
         register(new FancyMenuCompat());
+        register(new YsmCompat());
         // Future compats: register(new SomeModCompat());
     }
 
