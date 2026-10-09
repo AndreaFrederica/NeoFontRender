@@ -1,5 +1,6 @@
 package neofontrender.addons.api.camera;
 
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.util.ResourceLocation;
 
 import java.util.Objects;
@@ -13,7 +14,7 @@ import org.apache.logging.log4j.Logger;
 
 /** Public camera facade. Consumers may read frames without acquiring a control session. */
 public final class CameraApi {
-    public static final int API_VERSION = 2;
+    public static final int API_VERSION = 3;
     private static final Logger LOGGER = LogManager.getLogger("UIE Camera API");
     private static volatile Backend backend = new UnavailableBackend();
     private static final CopyOnWriteArrayList<CameraProvider> PROVIDERS = new CopyOnWriteArrayList<>();
@@ -23,6 +24,12 @@ public final class CameraApi {
     private static final CopyOnWriteArrayList<CameraPickingProvider> PICKING_PROVIDERS = new CopyOnWriteArrayList<>();
     private static final CopyOnWriteArrayList<CameraCollisionProvider> COLLISION_PROVIDERS = new CopyOnWriteArrayList<>();
     private static final CopyOnWriteArrayList<CameraAdaptiveItemProvider> ADAPTIVE_ITEM_PROVIDERS = new CopyOnWriteArrayList<>();
+    private static final CopyOnWriteArrayList<CameraEyeAnchorProvider> EYE_ANCHOR_PROVIDERS = new CopyOnWriteArrayList<>();
+    private static EntityPlayerSP evaluatedEyePlayer;
+    private static long evaluatedEyeSampleId = Long.MIN_VALUE;
+    private static float evaluatedEyePartialTicks = -1.0F;
+    private static CameraEyeAnchor evaluatedEyeAnchor;
+    private static String evaluatedEyeAnchorProviderId;
     private static long evaluatedSampleId = Long.MIN_VALUE;
     private static float evaluatedPartialTicks = -1.0F;
     private static CameraFrame evaluatedBaseFrame;
@@ -263,6 +270,62 @@ public final class CameraApi {
         invalidateEvaluation();
         return () -> { ADAPTIVE_ITEM_PROVIDERS.remove(provider); invalidateEvaluation(); };
     }
+    public static CameraRegistration registerEyeAnchorProvider(CameraEyeAnchorProvider provider) {
+        Objects.requireNonNull(provider, "provider");
+        String id = requireId("eye-anchor", provider, provider::id);
+        EYE_ANCHOR_PROVIDERS.removeIf(value -> id.equals(
+                callbackId("eye-anchor", value, value::id)));
+        EYE_ANCHOR_PROVIDERS.add(provider);
+        invalidateEvaluation();
+        return () -> { EYE_ANCHOR_PROVIDERS.remove(provider); invalidateEvaluation(); };
+    }
+
+    /**
+     * Resolves an accepted eye once for an entity/render sample. Registry changes during that
+     * sample take effect at the next sample, keeping rig, picking, and renderer origins aligned.
+     */
+    public static synchronized CameraEyeAnchor sampleEyeAnchor(CameraEyeAnchorContext context) {
+        Objects.requireNonNull(context, "context");
+        if (evaluatedEyePlayer == context.player()
+                && evaluatedEyeSampleId == context.sampleId()
+                && Float.compare(evaluatedEyePartialTicks, context.partialTicks()) == 0) {
+            return evaluatedEyeAnchor;
+        }
+        CameraEyeAnchor selectedAnchor = null;
+        String selectedOwner = null;
+        for (CameraEyeAnchorProvider provider : sortedEyeAnchorProviders()) {
+            String owner = callbackId("eye-anchor", provider, provider::id);
+            CameraEyeAnchor anchor;
+            try { anchor = provider.anchor(context); }
+            catch (RuntimeException error) {
+                throw callbackFailure(owner, "anchor", error);
+            }
+            if (anchor != null) {
+                selectedAnchor = anchor;
+                selectedOwner = owner;
+                break;
+            }
+        }
+        evaluatedEyePlayer = context.player();
+        evaluatedEyeSampleId = context.sampleId();
+        evaluatedEyePartialTicks = context.partialTicks();
+        evaluatedEyeAnchor = selectedAnchor;
+        evaluatedEyeAnchorProviderId = selectedOwner;
+        return selectedAnchor;
+    }
+
+    /**
+     * Releases the cached player and accepted-eye result when a client world ends. Provider
+     * registrations remain installed, and registration.close() deliberately does not call this:
+     * an in-flight render sample must keep its selected result stable.
+     */
+    public static synchronized void clearEyeAnchorSampleCache() {
+        evaluatedEyePlayer = null;
+        evaluatedEyeSampleId = Long.MIN_VALUE;
+        evaluatedEyePartialTicks = -1.0F;
+        evaluatedEyeAnchor = null;
+        evaluatedEyeAnchorProviderId = null;
+    }
 
     public static boolean resolveAdaptiveAiming(net.minecraft.entity.EntityLivingBase entity,
                                                 boolean configuredResult) {
@@ -365,6 +428,13 @@ public final class CameraApi {
                 .thenComparing(value -> callbackId("collision", value, value::id)));
         return result;
     }
+    private static List<CameraEyeAnchorProvider> sortedEyeAnchorProviders() {
+        List<CameraEyeAnchorProvider> result = new java.util.ArrayList<>(EYE_ANCHOR_PROVIDERS);
+        result.sort(Comparator.comparingInt((CameraEyeAnchorProvider value) ->
+                        callbackPriority("eye-anchor", value, value::priority)).reversed()
+                .thenComparing(value -> callbackId("eye-anchor", value, value::id)));
+        return result;
+    }
     public static boolean isDroneActive() { return backendCall("isDroneActive", backend::isDroneActive); }
     public static boolean isFreeLookActive() { return backendCall("isFreeLookActive", backend::isFreeLookActive); }
     public static boolean isShoulderActive() { return backendCall("isShoulderActive", backend::isShoulderActive); }
@@ -374,7 +444,10 @@ public final class CameraApi {
     public static synchronized boolean isRenderOverrideActive() {
         if (positionOverride != null) return true;
         if (backendCall("isRenderOverrideActive", backend::isRenderOverrideActive)) return true;
-        if (evaluatedFrame == null) getFrame(0.0F);
+        if (evaluatedFrame == null) {
+            getFrame(0.0F);
+            if (backendCall("isRenderOverrideActive", backend::isRenderOverrideActive)) return true;
+        }
         return evaluatedProviderOwnsView;
     }
     public static CameraShaderCompatibility shaderCompatibility() {
@@ -431,6 +504,7 @@ public final class CameraApi {
         evaluatedProviderOwnsView = false;
         evaluatedProviderId = null;
         evaluatedModifierIds = java.util.Collections.emptyList();
+        clearEyeAnchorSampleCache();
     }
 
     private static synchronized void invalidateEvaluation() {

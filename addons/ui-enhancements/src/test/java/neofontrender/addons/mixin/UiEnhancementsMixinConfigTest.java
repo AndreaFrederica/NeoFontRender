@@ -124,6 +124,7 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(config.contains("\"MixinRenderLivingBaseCameraViewIdentity\""));
         assertTrue(config.contains("\"MixinGlStateManagerCameraTransparency\""));
         assertTrue(config.contains("\"MixinRenderPlayerFlightRoll\""));
+        assertTrue(config.contains("\"MixinYsmPlayerBodyPose\""));
         assertTrue(config.contains("\"MixinRenderGlobalBlockOutlines\""));
         assertFalse(config.contains("\"MixinGuiBossOverlayFlightHud\""));
         assertFalse(config.contains("\"MixinGuiIngameForgeFlightHud\""));
@@ -185,6 +186,18 @@ class UiEnhancementsMixinConfigTest {
         assertTrue(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/ModifyVariable;"));
         assertFalse(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/Redirect;"));
         assertFalse(bytecode.contains("Lorg/spongepowered/asm/mixin/injection/ModifyConstant;"));
+    }
+
+    @Test
+    void activeRenderInfoCameraAnchorConsumerIsRegistered() {
+        String config = config("mixins.neofontrender_ui_enhancements.json");
+        String bytecode = bytecode(
+                "neofontrender/addons/mixin/MixinActiveRenderInfoCameraAnchor.class");
+
+        assertTrue(config.contains("\"MixinActiveRenderInfoCameraAnchor\""));
+        assertTrue(bytecode.contains("projectViewFromEntity"));
+        assertTrue(bytecode.contains("alignActiveRenderInfoPosition"));
+        assertTrue(bytecode.contains("CallbackInfoReturnable"));
     }
 
     @Test

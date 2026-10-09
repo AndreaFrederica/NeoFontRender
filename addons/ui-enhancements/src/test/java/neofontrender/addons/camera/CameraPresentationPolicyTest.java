@@ -38,6 +38,46 @@ class CameraPresentationPolicyTest {
     }
 
     @Test
+    void authoritativeFlightFrameUsesQuaternionWithoutChangingShoulderOrVanillaViews() {
+        assertTrue(CameraPresentationPolicy.usesQuaternionView(false, false, false, true));
+        assertFalse(CameraPresentationPolicy.usesQuaternionView(true, false, false, true));
+        assertFalse(CameraPresentationPolicy.usesQuaternionView(false, false, false, false));
+    }
+
+    @Test
+    void onlyAnActiveAuthoritativeNonProxyFrameOwnsTheNativeCameraAnchor() {
+        assertTrue(CameraPresentationPolicy.usesNativeCameraAnchor(true, true, false, false),
+                "an API provider that owns the view without requesting a proxy uses this path");
+        assertFalse(CameraPresentationPolicy.usesNativeCameraAnchor(false, true, false, false));
+        assertFalse(CameraPresentationPolicy.usesNativeCameraAnchor(true, false, false, false));
+        assertFalse(CameraPresentationPolicy.usesNativeCameraAnchor(true, true, true, false),
+                "shoulder/look/drone keep their existing camera presentation");
+        assertFalse(CameraPresentationPolicy.usesNativeCameraAnchor(true, true, false, true),
+                "proxy-backed presentation keeps its existing native adapter transform");
+    }
+
+    @Test
+    void flightTrackingOwnsViewBeforeItsFirstFrameSample() {
+        assertTrue(CameraPresentationPolicy.flightCameraViewActive(true, true));
+        assertFalse(CameraPresentationPolicy.flightCameraViewActive(false, true));
+        assertFalse(CameraPresentationPolicy.flightCameraViewActive(true, false));
+    }
+
+    @Test
+    void vanillaFrontPreRotationExistsOnlyInFrontPerspective() {
+        assertFalse(CameraPresentationPolicy.nativeFrontRotationApplied(0));
+        assertFalse(CameraPresentationPolicy.nativeFrontRotationApplied(1));
+        assertTrue(CameraPresentationPolicy.nativeFrontRotationApplied(2));
+    }
+
+    @Test
+    void quaternionViewLeavesVanillaThirdPersonDistanceUntouched() {
+        assertTrue(CameraPresentationPolicy.usesQuaternionView(false, false, false, true));
+        assertEquals(3.25D,
+                CameraPresentationPolicy.vanillaThirdPersonDistance(3.25D, false));
+    }
+
+    @Test
     void vanillaThirdPersonDistanceIsOnlySuppressedForAuthoritativeCameraDisplacement() {
         assertEquals(4.0D,
                 CameraPresentationPolicy.vanillaThirdPersonDistance(4.0D, false));
