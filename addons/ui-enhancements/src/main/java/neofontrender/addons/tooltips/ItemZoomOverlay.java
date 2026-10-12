@@ -26,7 +26,7 @@ import java.util.Locale;
  * Every tooltip path supplies its hovered stack. Draw before the tooltip or after the GUI
  * according to the configured overlap order, at most once per frame across all entry paths.
  */
-final class ItemZoomOverlay {
+public final class ItemZoomOverlay {
     private static final long CAPTURE_TIMEOUT_NANOS = 500_000_000L;
     private static final long ROTATION_WINDOW_NANOS = 3_600_000_000_000L;
     private static final ItemZoomDrawOrder DRAW_ORDER = new ItemZoomDrawOrder();

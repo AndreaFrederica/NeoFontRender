@@ -15,7 +15,7 @@ import neofontrender.api.config.NfrConfigFile;
 import org.lwjgl.input.Keyboard;
 
 /** Item Zoom controls matching the original 1.12 mod. */
-final class ItemZoomKeyBindings {
+public final class ItemZoomKeyBindings {
     private static final String CATEGORY = "key.categories.neofontrender_ui_enhancements";
 
     // 1.7.10's KeyBinding has no conflict context or modifier field, so the modifiers main

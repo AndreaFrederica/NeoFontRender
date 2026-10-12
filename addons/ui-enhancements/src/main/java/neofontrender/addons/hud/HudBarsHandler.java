@@ -15,7 +15,7 @@ import neofontrender.addons.hud.api.HudBarSide;
 import neofontrender.addons.hud.api.HudBarValue;
 import neofontrender.addons.ui.NfrUiEnhancements;
 
-final class HudBarsHandler {
+public final class HudBarsHandler {
     private final Arc3DHudBarRenderer renderer = new Arc3DHudBarRenderer();
     private boolean loggedClassicBar;
 

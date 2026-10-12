@@ -40,7 +40,7 @@ import java.util.Map;
 import java.util.Random;
 
 /** Lower-level draw hook reserved for pooled FBO/shader passes. */
-final class BrilliantCaptureRenderer implements TextGlComponent {
+public final class BrilliantCaptureRenderer implements TextGlComponent {
     static final BrilliantCaptureRenderer INSTANCE = new BrilliantCaptureRenderer();
     private static final ThreadLocal<Boolean> ACTIVE = ThreadLocal.withInitial(() -> false);
     private static Target target;

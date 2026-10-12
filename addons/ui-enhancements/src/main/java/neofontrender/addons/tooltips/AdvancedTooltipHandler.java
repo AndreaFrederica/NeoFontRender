@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Set;
 
 /** Self-contained advanced item information, independent of optional tooltip mods. */
-final class AdvancedTooltipHandler {
+public final class AdvancedTooltipHandler {
     @SubscribeEvent(priority = EventPriority.LOW)
     public void onTooltip(ItemTooltipEvent event) {
         // 1.7.10 publishes the event state as public fields instead of accessors.
