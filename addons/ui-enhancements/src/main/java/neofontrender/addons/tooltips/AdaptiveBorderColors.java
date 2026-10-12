@@ -1,16 +1,23 @@
+/*
+ * Adaptive tooltip border palette derived from ModernUI-MC TooltipRenderer.
+ * Copyright (C) 2019-2026 BloCamLimb et al.
+ * Licensed under LGPL-3.0-or-later.
+ */
 package neofontrender.addons.tooltips;
 
+import icyllis.arc3d.core.Color;
+import icyllis.arc3d.core.MathUtil;
+import cpw.mods.fml.common.registry.GameRegistry;
 import net.minecraft.item.EnumRarity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Derives a stable four-corner border palette from item and title colors. */
+/** Ports ModernUI's formatted-title color collection and HSV palette synthesis to 1.7.10. */
 final class AdaptiveBorderColors {
     private static final int[] MINECRAFT_COLORS = {
             0x000000, 0x0000AA, 0x00AA00, 0x00AAAA,
@@ -22,59 +29,82 @@ final class AdaptiveBorderColors {
     private AdaptiveBorderColors() {}
 
     static Result compute(ItemStack stack, String formattedTitle, int[] configured) {
-        Integer base = stack == null ? null : rarityColor(stack.getRarity());
+        if (stack == null) return Result.unchanged(configured);
+        GameRegistry.UniqueIdentifier identifier = GameRegistry.findUniqueIdentifierFor(stack.getItem());
+        // The dragon egg's title is colored by the block, not by its rarity, so the palette is
+        // always synthesized for it. 1.7.10 has no debug stick, so only the egg is special-cased.
+        if (identifier != null && "dragon_egg".equals(identifier.name)) {
+            return new Result(configured.clone(), true);
+        }
+
+        Integer base = rarityColor(stack.getRarity());
         Set<Integer> titleColors = collectFormattedColors(formattedTitle, base);
         if (titleColors.isEmpty()) return Result.unchanged(configured);
-        return synthesize(titleColors, stack != null && stack.hasEffect(), configured);
+
+        return synthesize(titleColors, stack.hasEffect(), configured);
     }
 
     static Result synthesize(Set<Integer> titleColors, boolean enchanted, int[] configured) {
-        if (titleColors.size() > 4) return new Result(configured.clone(), true);
-        List<float[]> colors = new ArrayList<float[]>(titleColors.size());
+        List<float[]> hsvColors = new ArrayList<>(titleColors.size());
         for (int color : titleColors) {
-            float[] hsb = Color.RGBtoHSB(color >> 16 & 255, color >> 8 & 255, color & 255, null);
-            hsb[1] = Math.min(hsb[1], 0.9F);
-            hsb[2] = clamp(hsb[2], 0.2F, 0.85F);
-            colors.add(hsb);
+            float[] hsv = new float[3];
+            Color.RGBToHSV(color, hsv);
+            hsv[1] = Math.min(hsv[1], 0.9F);
+            hsv[2] = MathUtil.clamp(hsv[2], 0.2F, 0.85F);
+            hsvColors.add(hsv);
         }
-        if (colors.isEmpty()) return Result.unchanged(configured);
-        int[] result = configured.clone();
-        int first = Color.HSBtoRGB(colors.get(0)[0], colors.get(0)[1], colors.get(0)[2]);
-        int second;
-        int third;
-        int fourth;
-        if (colors.size() >= 3) {
-            second = rgb(colors.get(1));
-            third = rgb(colors.get(2));
-            fourth = colors.size() == 4 ? rgb(colors.get(3)) : adjust(colors.get(1), true, enchanted);
-        } else if (colors.size() == 2) {
-            third = rgb(colors.get(1));
-            second = lerpRgb(first, third, 0.5F);
-            fourth = adjust(Color.RGBtoHSB(second >> 16 & 255, second >> 8 & 255, second & 255, null), true, enchanted);
+        if (hsvColors.size() > 4) return new Result(configured.clone(), true);
+
+        int size = hsvColors.size();
+        int c1 = Color.HSVToColor(hsvColors.get(0));
+        int c2;
+        int c3;
+        int c4;
+        if (size > 2) {
+            c2 = Color.HSVToColor(hsvColors.get(1));
+            c3 = Color.HSVToColor(hsvColors.get(2));
+            if (size == 4) {
+                c4 = Color.HSVToColor(hsvColors.get(3));
+            } else {
+                float[] inverted = hsvColors.get(1).clone();
+                inverted[0] = (inverted[0] + 180.0F) % 360.0F;
+                c4 = Color.HSVToColor(inverted);
+            }
+        } else if (size == 2) {
+            c3 = Color.HSVToColor(hsvColors.get(1));
+            c2 = lerpColor(c1, c3, 0.5F);
+            float[] middle = new float[3];
+            Color.RGBToHSV(c2, middle);
+            c4 = adjustColor(middle, false, true, false, enchanted);
         } else {
-            second = adjust(colors.get(0), false, enchanted);
-            third = adjust(colors.get(0), true, enchanted);
-            fourth = adjust(colors.get(0), true, !enchanted);
+            float[] hsv = hsvColors.get(0);
+            c2 = adjustColor(hsv, false, true, false, enchanted);
+            c3 = adjustColor(hsv, true, true, true, enchanted);
+            c4 = adjustColor(hsv, true, false, true, enchanted);
         }
-        result[0] = preserveAlpha(result[0], first);
-        result[1] = preserveAlpha(result[1], second);
-        result[2] = preserveAlpha(result[2], third);
-        result[3] = preserveAlpha(result[3], fourth);
+
+        int[] result = configured.clone();
+        result[0] = preserveAlpha(result[0], c1);
+        result[1] = preserveAlpha(result[1], c2);
+        result[2] = preserveAlpha(result[2], c3);
+        result[3] = preserveAlpha(result[3], c4);
         return new Result(result, false);
     }
 
     static Set<Integer> collectFormattedColors(String text, Integer baseColor) {
-        Set<Integer> colors = new LinkedHashSet<Integer>();
+        Set<Integer> colors = new LinkedHashSet<>();
         Integer current = baseColor;
         if (text == null) return colors;
-        for (int index = 0; index < text.length(); index++) {
-            char character = text.charAt(index);
-            if (character == '\u00A7' && index + 1 < text.length()) {
-                char code = Character.toLowerCase(text.charAt(++index));
-                int colorIndex = "0123456789abcdef".indexOf(code);
-                if (colorIndex >= 0) current = MINECRAFT_COLORS[colorIndex];
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch == '\u00A7' && i + 1 < text.length()) {
+                char code = Character.toLowerCase(text.charAt(++i));
+                int index = "0123456789abcdef".indexOf(code);
+                if (index >= 0) current = MINECRAFT_COLORS[index];
                 else if (code == 'r') current = baseColor;
-            } else if (!Character.isWhitespace(character) && current != null) {
+                continue;
+            }
+            if (!Character.isWhitespace(ch) && current != null && colors.size() < 16) {
                 colors.add(current);
             }
         }
@@ -84,37 +114,43 @@ final class AdaptiveBorderColors {
     private static Integer rarityColor(EnumRarity rarity) {
         if (rarity == null || rarity == EnumRarity.common) return null;
         EnumChatFormatting formatting = rarity.rarityColor;
+        // 1.7.10's EnumChatFormatting exposes only its formatting character, not a color index.
         String code = formatting == null ? "" : formatting.toString();
         if (code.length() < 2) return null;
         int index = "0123456789abcdef".indexOf(Character.toLowerCase(code.charAt(1)));
-        return index < 0 ? null : MINECRAFT_COLORS[index];
+        return index < 0 || index >= MINECRAFT_COLORS.length ? null : MINECRAFT_COLORS[index];
     }
 
-    private static int rgb(float[] hsb) {
-        return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
+    private static int adjustColor(float[] hsv, boolean hue, boolean saturation, boolean value,
+                                   boolean magnified) {
+        float h = hsv[0];
+        float s = hsv[1];
+        float v = hsv[2];
+        if (hue) {
+            if (h >= 60.0F && h <= 240.0F) h += magnified ? 27.0F : 15.0F;
+            else h -= magnified ? 18.0F : 10.0F;
+            h = (h + 360.0F) % 360.0F;
+        }
+        if (saturation) {
+            if (s < 0.6F) s += magnified ? 0.18F : 0.12F;
+            else s -= magnified ? 0.12F : 0.06F;
+        }
+        if (value) {
+            if (v < 0.6F) v += magnified ? 0.12F : 0.08F;
+            else v -= magnified ? 0.08F : 0.04F;
+        }
+        return Color.HSVToColor(h, s, v);
     }
 
-    private static int adjust(float[] source, boolean hueShift, boolean enchanted) {
-        float hue = source[0] + (hueShift ? (enchanted ? 0.075F : 0.04F) : -0.025F);
-        hue -= (float) Math.floor(hue);
-        float saturation = clamp(source[1] + (enchanted ? 0.12F : 0.06F), 0.0F, 1.0F);
-        float brightness = clamp(source[2] + (source[2] < 0.6F ? 0.10F : -0.06F), 0.0F, 1.0F);
-        return Color.HSBtoRGB(hue, saturation, brightness);
-    }
-
-    private static int lerpRgb(int from, int to, float amount) {
-        int red = Math.round((from >> 16 & 255) + ((to >> 16 & 255) - (from >> 16 & 255)) * amount);
-        int green = Math.round((from >> 8 & 255) + ((to >> 8 & 255) - (from >> 8 & 255)) * amount);
-        int blue = Math.round((from & 255) + ((to & 255) - (from & 255)) * amount);
-        return red << 16 | green << 8 | blue;
+    private static int lerpColor(int from, int to, float amount) {
+        int r = Math.round(MathUtil.lerp(Color.red(from), Color.red(to), amount));
+        int g = Math.round(MathUtil.lerp(Color.green(from), Color.green(to), amount));
+        int b = Math.round(MathUtil.lerp(Color.blue(from), Color.blue(to), amount));
+        return (r << 16) | (g << 8) | b;
     }
 
     private static int preserveAlpha(int original, int rgb) {
-        return original & 0xFF000000 | rgb & 0x00FFFFFF;
-    }
-
-    private static float clamp(float value, float min, float max) {
-        return Math.max(min, Math.min(max, value));
+        return (original & 0xFF000000) | (rgb & 0x00FFFFFF);
     }
 
     static final class Result {

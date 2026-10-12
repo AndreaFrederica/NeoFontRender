@@ -15,10 +15,10 @@ public abstract class CommandNode {
 	Map<String, LiteralNode> literals = new LinkedHashMap<>();
 	Map<String, ArgumentNode<?>> arguments = new LinkedHashMap<>();
 	SalutationCommand command;
-
+	
 	public abstract String getName();
 	public abstract List<String> getExamples(CommandContext context, int argumentIndex);
-
+	
 	public Collection<CommandNode> getChildren() { return children.values(); }
 	public SalutationCommand getCommand() { return command; }
 	public List<String> getSuggestions(int argumentIndex, CommandContext context) {
@@ -28,12 +28,12 @@ public abstract class CommandNode {
 		}
 		return possible;
 	}
-
+	
 	public CommandNode withCommand(SalutationCommand command) {
 		this.command = command;
 		return this;
 	}
-
+	
 	public void addChild(CommandNode node) {
 		CommandNode child = children.get(node.getName());
 		if(child != null) {
@@ -45,7 +45,7 @@ public abstract class CommandNode {
 		if(node instanceof LiteralNode) literals.put(node.getName(), (LiteralNode)node);
 		if(node instanceof ArgumentNode) arguments.put(node.getName(), (ArgumentNode<?>)node);
 	}
-
+	
 	public CommandNode findCurrentNode(StringWalker walker, CommandContext context) {
 		context.addNode(this);
 		if(!walker.canRead()) return this;
@@ -73,7 +73,7 @@ public abstract class CommandNode {
 		}
 		return null;
 	}
-
+	
 	@Override
 	public String toString() {
 		return getName();

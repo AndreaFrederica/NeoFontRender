@@ -1,0 +1,59 @@
+name: Prepare custom ModularUI
+description: Builds the ModularUI submodule, installs its development artifact, and stages its distributable JAR.
+
+outputs:
+  version:
+    description: ModularUI version read from gradle.properties
+    value: ${{ steps.coordinates.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read ModularUI version
+      id: coordinates
+      shell: bash
+      run: |
+        set -euo pipefail
+        read_property() {
+          sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" gradle.properties | tr -d '\r' | xargs
+        }
+
+        version="$(read_property modularui_version)"
+        test -n "$version"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Setup Java 21 for ModularUI
+      uses: actions/setup-java@v4
+      with:
+        distribution: zulu
+        java-version: '21'
+
+    - name: Build and install ModularUI submodule
+      shell: bash
+      run: |
+        set -euo pipefail
+        test -f external/ModularUI/gradlew
+        sed -i 's/\r$//' external/ModularUI/gradlew
+        chmod +x external/ModularUI/gradlew
+        external/ModularUI/gradlew \
+          -p external/ModularUI \
+          build publishToMavenLocal \
+          --no-daemon
+
+    - name: Validate and stage ModularUI
+      shell: bash
+      env:
+        VERSION: ${{ steps.coordinates.outputs.version }}
+      run: |
+        set -euo pipefail
+        installable="external/ModularUI/build/libs/modularui-${VERSION}.jar"
+        local_pom="$HOME/.m2/repository/com/cleanroommc/modularui/${VERSION}/modularui-${VERSION}.pom"
+        local_development="$HOME/.m2/repository/com/cleanroommc/modularui/${VERSION}/modularui-${VERSION}-dev.jar"
+        test -s "$installable"
+        test -s "$local_pom"
+        test -s "$local_development"
+        entries="$(jar tf "$installable")"
+        grep -Fxq 'mcmod.info' <<<"$entries"
+        grep -q '^com/cleanroommc/modularui/' <<<"$entries"
+        mkdir -p build/release/modularui
+        cp "$installable" build/release/modularui/

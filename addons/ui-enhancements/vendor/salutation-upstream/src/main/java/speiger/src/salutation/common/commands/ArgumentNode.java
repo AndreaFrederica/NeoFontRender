@@ -14,20 +14,20 @@ public class ArgumentNode<T> extends CommandNode {
 	String name;
 	IArgument<T> argument;
 	SuggestionProvider customSuggestions;
-
+	
 	public ArgumentNode(String name, IArgument<T> argument) {
 		this.name = name;
 		this.argument = argument;
 	}
-
+	
 	public ArgumentNode<T> withSuggestion(SuggestionProvider customSuggestions) {
 		this.customSuggestions = customSuggestions;
 		return this;
 	}
-
+	
 	@Override
 	public String getName() { return name; }
-
+	
 	public boolean isValid(StringWalker walker, CommandContext context) {
 		try {
 			T arg = argument.parse(walker, context);
@@ -38,11 +38,11 @@ public class ArgumentNode<T> extends CommandNode {
 		}
 		return false;
 	}
-
+	
 	public int getArgumentElements() {
 		return argument.getArgumentElements();
 	}
-
+	
 	@Override
 	public List<String> getExamples(CommandContext context, int argumentIndex) {
 		if(customSuggestions != null) {
@@ -52,7 +52,7 @@ public class ArgumentNode<T> extends CommandNode {
 		}
 		return argument.getExamples(context, argumentIndex);
 	}
-
+	
 	public static interface SuggestionProvider {
 		public void collectSuggestions(CommandContext context, int argumentIndex, Consumer<String> suggestions);
 	}

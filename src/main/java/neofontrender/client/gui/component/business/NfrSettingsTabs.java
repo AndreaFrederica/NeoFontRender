@@ -14,10 +14,12 @@ public final class NfrSettingsTabs extends ParentWidget<NfrSettingsTabs> impleme
     private static final int ROW_HEIGHT = 24;
     private static final int GAP = 4;
     private final List<NfrCategoryButton> buttons = new ArrayList<>();
+    private final List<Tab> tabModels = new ArrayList<>();
 
     public NfrSettingsTabs(List<Tab> tabs, IntConsumer scrollListener) {
         for (Tab tab : tabs) {
             NfrCategoryButton button = new NfrCategoryButton(tab.label, tab.selected);
+            tabModels.add(tab);
             button.onMousePressed(mouseButton -> {
                 if (getParent() instanceof ScrollWidget) {
                     ScrollWidget<?> scroll = (ScrollWidget<?>) getParent();
@@ -31,11 +33,14 @@ public final class NfrSettingsTabs extends ParentWidget<NfrSettingsTabs> impleme
         }
     }
 
-    public int preferredHeight() { return buttons.size() * (ROW_HEIGHT + GAP); }
+    public int preferredHeight() {
+        return buttons.size() * (ROW_HEIGHT + GAP);
+    }
 
     @Override public boolean layoutWidgets() {
         int y = 0;
-        for (NfrCategoryButton button : buttons) {
+        for (int i = 0; i < buttons.size(); i++) {
+            NfrCategoryButton button = buttons.get(i);
             NfrLayout.place(button, 0, y, getArea().w(), ROW_HEIGHT);
             y += ROW_HEIGHT + GAP;
         }

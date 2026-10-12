@@ -56,6 +56,16 @@ public class LazyBakedGlyph extends BakedGlyph {
     }
 
     @Override
+    public void renderClipped(boolean italic, float x, float y,
+                              float red, float green, float blue, float alpha,
+                              float maskTop, float maskBottom) {
+        ensureBaked();
+        if (delegate != null) {
+            delegate.renderClipped(italic, x, y, red, green, blue, alpha, maskTop, maskBottom);
+        }
+    }
+
+    @Override
     public void writeVertices(Tessellator tessellator, boolean italic, float x, float y,
                               float red, float green, float blue, float alpha) {
         ensureBaked();

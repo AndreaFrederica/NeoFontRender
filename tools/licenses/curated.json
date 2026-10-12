@@ -1,0 +1,290 @@
+{
+  "core": [
+    {
+      "section": "10_core",
+      "name": "ModularUI",
+      "version": "",
+      "license": "LGPL-3.0",
+      "source": "https://github.com/CleanroomMC/ModularUI",
+      "evidence": "Runtime mod dependency; upstream LICENSE"
+    },
+    {
+      "section": "10_core",
+      "name": "LWJGL / LWJGLX / LWJGLXX",
+      "version": "",
+      "license": "BSD-3-Clause",
+      "source": "https://www.lwjgl.org/license",
+      "evidence": "Cleanroom-provided runtime APIs; not embedded by NFR"
+    },
+    {
+      "section": "10_core",
+      "name": "SpongePowered Mixin",
+      "version": "",
+      "license": "MIT",
+      "source": "https://github.com/SpongePowered/Mixin/blob/master/LICENSE.txt",
+      "evidence": "Compile/runtime integration supplied by Cleanroom"
+    },
+    {
+      "section": "11_fonts",
+      "name": "Noto Sans SC",
+      "version": "",
+      "license": "OFL-1.1",
+      "source": "https://github.com/notofonts/noto-cjk",
+      "evidence": "assets/neofontrender/fonts/OFL.txt"
+    },
+    {
+      "section": "11_fonts",
+      "name": "Noto Color Emoji",
+      "version": "",
+      "license": "OFL-1.1",
+      "source": "https://github.com/googlefonts/noto-emoji",
+      "evidence": "assets/neofontrender/fonts/OFL.txt"
+    },
+    {
+      "section": "11_fonts",
+      "name": "SRIC Minecraft Words",
+      "version": "",
+      "license": "Apache-2.0",
+      "source": "https://github.com/AndreaFrederica/NeoFontRender",
+      "evidence": "assets/neofontrender/fonts/LICENSE-SRIC-Minecraft-Words.txt"
+    }
+  ],
+  "uie": [
+    {
+      "section": "30_uie",
+      "name": "Revo UI",
+      "version": "",
+      "license": "LGPL-3.0",
+      "source": "https://github.com/AndreaFrederica/NeoFontRender",
+      "evidence": "addons/ui-enhancements/LICENSE"
+    },
+    {
+      "section": "30_uie",
+      "name": "TabbyChat 2 Reforged",
+      "version": "",
+      "license": "Apache-2.0",
+      "source": "https://github.com/AndreaFrederica/NeoFontRender",
+      "evidence": "META-INF/LICENSE-TabbyChat-2-Reforged.txt"
+    },
+    {
+      "section": "30_uie",
+      "name": "Salutation 1.12.2",
+      "version": "",
+      "license": "Apache-2.0",
+      "source": "https://github.com/Speiger/Salutation/tree/1.12.2",
+      "evidence": "META-INF/LICENSE-Salutation-1.12.2.txt"
+    },
+    {
+      "section": "30_uie",
+      "name": "Tiqian",
+      "version": "",
+      "license": "MPL-2.0",
+      "source": "https://github.com/tiqian-cjk/tiqian",
+      "evidence": "META-INF/LICENSE-Tiqian.txt; NOTICE-Tiqian.md; revision d25567f3324747ee16585edeccfc9c98c69a9adb"
+    },
+    {
+      "section": "31_content",
+      "name": "Gosling / Emojicord dictionaries",
+      "version": "",
+      "license": "MIT",
+      "source": "https://github.com/Team-Fruit/Emojicord",
+      "evidence": "META-INF/LICENSE-Gosling-Emojicord.txt"
+    },
+    {
+      "section": "31_content",
+      "name": "Fira Math",
+      "version": "",
+      "license": "OFL-1.1",
+      "source": "https://github.com/firamath/firamath",
+      "evidence": "META-INF/LICENSE-FiraMath.txt"
+    },
+    {
+      "section": "31_content",
+      "name": "American English hyphenation patterns",
+      "version": "",
+      "license": "Permissive notice (retain copyright and permission notice)",
+      "source": "https://www.hyphenation.org/tex",
+      "evidence": "Tiqian hyphenation/hyph-en-us.tex header; Gerard D.C. Kuiken 1990, 2004, 2005"
+    },
+    {
+      "section": "31_content",
+      "name": "Mod Name Tooltip",
+      "version": "",
+      "license": "MIT",
+      "source": "https://github.com/mezz/ModNameTooltip",
+      "evidence": "META-INF/licenses/ModNameTooltip.txt"
+    },
+    {
+      "section": "31_content",
+      "name": "ChatAnimation",
+      "version": "",
+      "license": "MIT",
+      "source": "https://github.com/Ezzenix/ChatAnimation",
+      "evidence": "META-INF/licenses/ChatAnimation.txt"
+    },
+    {
+      "section": "31_content",
+      "name": "Shoulder Surfing",
+      "version": "",
+      "license": "MIT",
+      "source": "https://github.com/Exopandora/ShoulderSurfing",
+      "evidence": "META-INF/licenses/ShoulderSurfing.txt"
+    },
+    {
+      "section": "31_content",
+      "name": "Omnilook",
+      "version": "",
+      "license": "Unlicense",
+      "source": "https://github.com/AndreaFrederica/NeoFontRender",
+      "evidence": "META-INF/licenses/Omnilook.txt"
+    },
+    {
+      "section": "31_content",
+      "name": "FancyOutlines",
+      "version": "",
+      "license": "WTFPL-2.0",
+      "source": "https://github.com/Invadermonky/FancyOutlines",
+      "evidence": "META-INF/licenses/FancyOutlines-WTFPL.txt"
+    },
+    {
+      "section": "31_content",
+      "name": "Tips content / translations",
+      "version": "",
+      "license": "LGPL-2.1; upstream asset-specific terms apply",
+      "source": "https://github.com/Darkhax-Minecraft/Tips",
+      "evidence": "NOTICE.md attribution; upstream gradle.properties mod_license=LGPL v2.1. Runelic font is not included."
+    },
+    {
+      "section": "40_audio",
+      "name": "Opus",
+      "version": "1.3",
+      "license": "BSD-3-Clause; upstream royalty-free patent notices",
+      "source": "https://github.com/xiph/opus/blob/v1.3/COPYING",
+      "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+    },
+    {
+      "section": "40_audio",
+      "name": "libogg",
+      "version": "1.3.3",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/xiph/ogg/blob/v1.3.3/COPYING",
+      "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+    },
+    {
+      "section": "40_audio",
+      "name": "libvorbis",
+      "version": "1.3.6",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/xiph/vorbis/blob/v1.3.6/COPYING",
+      "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+    },
+    {
+      "section": "40_audio",
+      "name": "libsamplerate",
+      "version": "0.1.9",
+      "license": "BSD-2-Clause",
+      "source": "https://github.com/libsndfile/libsamplerate/blob/0.1.9/COPYING",
+      "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+    },
+    {
+      "section": "40_audio",
+      "name": "FDK-AAC",
+      "version": "2.0.0",
+      "license": "Fraunhofer FDK AAC Codec Library license",
+      "source": "https://github.com/mstorsjo/fdk-aac/blob/v2.0.0/NOTICE",
+      "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+    },
+    {
+      "section": "40_audio",
+      "name": "mpg123 (non-Windows native builds)",
+      "version": "1.25.10",
+      "license": "LGPL-2.1-only",
+      "source": "https://www.mpg123.de/download/mpg123-1.25.10.tar.bz2",
+      "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+    }
+  ],
+  "controller": [
+    {
+      "section": "50_controller",
+      "name": "Controlify sources and assets",
+      "version": "",
+      "license": "LGPL-3.0",
+      "source": "https://github.com/isXander/Controlify",
+      "evidence": "META-INF/LICENSE-Controlify.txt"
+    },
+    {
+      "section": "50_controller",
+      "name": "SDL",
+      "version": "3.4.14",
+      "license": "Zlib",
+      "source": "https://github.com/libsdl-org/SDL/tree/release-3.4.14",
+      "evidence": "META-INF/LICENSE-SDL3.txt; NOTICE-controller-runtime.md"
+    },
+    {
+      "section": "50_controller",
+      "name": "SDL GameControllerDB",
+      "version": "",
+      "license": "Zlib",
+      "source": "https://github.com/mdqinc/SDL_GameControllerDB/blob/master/LICENSE",
+      "evidence": "Source header in bundled gamecontrollerdb-sdl3.txt; upstream LICENSE"
+    }
+  ],
+  "typst": [
+    {
+      "section": "60_typst_assets",
+      "name": "Libertinus Serif",
+      "version": "",
+      "license": "OFL-1.1",
+      "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+      "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+    },
+    {
+      "section": "60_typst_assets",
+      "name": "NewComputerModern (except NewCM10-Regular)",
+      "version": "",
+      "license": "GUST Font License 1.0 / LPPL-1.3c-or-later",
+      "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+      "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+    },
+    {
+      "section": "60_typst_assets",
+      "name": "NewCM10-Regular",
+      "version": "",
+      "license": "GPL-3.0-or-later WITH Font Exception and Distribution Exception",
+      "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+      "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+    },
+    {
+      "section": "60_typst_assets",
+      "name": "DejaVu fonts",
+      "version": "",
+      "license": "Bitstream Vera / Arev font licenses; DejaVu changes public domain",
+      "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+      "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+    },
+    {
+      "section": "60_typst_assets",
+      "name": "Foxit fonts",
+      "version": "",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+      "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+    },
+    {
+      "section": "60_typst_assets",
+      "name": "ICC profiles",
+      "version": "",
+      "license": "CC0-1.0",
+      "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+      "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+    },
+    {
+      "section": "60_typst_assets",
+      "name": "HTML / MathML reference data",
+      "version": "",
+      "license": "Upstream notices including W3C Document License",
+      "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+      "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+    }
+  ]
+}

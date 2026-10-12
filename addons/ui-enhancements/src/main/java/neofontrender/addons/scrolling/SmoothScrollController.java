@@ -1,6 +1,6 @@
 package neofontrender.addons.scrolling;
 
-/** Decelerating one-dimensional scroller shared by list mixins. */
+/** Small decelerating one-dimensional scroller, independent of ModernUI runtime classes. */
 public final class SmoothScrollController {
     private float current;
     private float start;
@@ -37,13 +37,30 @@ public final class SmoothScrollController {
         }
         actual = clamp(actual, max);
         if (Math.abs(actual - current) > 0.05F) sync(actual);
+        return advance(max);
+    }
+
+    /** Advances state owned by a renderer that only exposes an integer projection externally. */
+    public float updateOwned(float max) {
+        if (max <= 0.0F) {
+            sync(0.0F);
+            return 0.0F;
+        }
+        if (!initialized) sync(0.0F);
+        if (!SmoothScrollConfig.enabled) {
+            sync(clamp(target, max));
+            return current;
+        }
+        return advance(max);
+    }
+
+    private float advance(float max) {
         target = clamp(target, max);
         if (current == target) return current;
-        float durationNanos = SmoothScrollConfig.durationMillis * 1_000_000.0F;
-        float progress = Math.min((System.nanoTime() - startNanos) / durationNanos, 1.0F);
-        float eased = 1.0F - (1.0F - progress) * (1.0F - progress);
+        float p = Math.min((System.nanoTime() - startNanos) / (SmoothScrollConfig.durationMillis * 1_000_000.0F), 1.0F);
+        float eased = 1.0F - (1.0F - p) * (1.0F - p);
         current = start + (target - start) * eased;
-        if (progress >= 1.0F) current = target;
+        if (p >= 1.0F) current = target;
         return current;
     }
 
@@ -70,6 +87,14 @@ public final class SmoothScrollController {
 
     public float getTarget() {
         return target;
+    }
+
+    /** Moves the complete animation frame when content is inserted ahead of the viewport. */
+    public void shiftBy(float delta, float max) {
+        if (!initialized) sync(0.0F);
+        current = clamp(current + delta, max);
+        start = clamp(start + delta, max);
+        target = clamp(target + delta, max);
     }
 
     private static float clamp(float value, float max) {

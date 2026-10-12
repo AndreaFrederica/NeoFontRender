@@ -13,8 +13,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.function.Function;
 
 /**
  * Stable client flight facade for UIE integrations.
@@ -26,7 +27,13 @@ import java.util.function.Predicate;
 public final class FlightApi {
     public static final int API_VERSION = 9;
     private static final Logger LOGGER = LogManager.getLogger("Revo UI Flight API");
-    private static final java.util.Set<String> REPORTED_FAILURES = ConcurrentHashMap.newKeySet();
+    private static volatile String lastCapabilityProviderId;
+    private static volatile java.util.List<String> lastControlProviderIds = Collections.emptyList();
+    private static volatile String lastBodyPoseProviderId;
+    private static volatile String lastHudAttitudeProviderId;
+    private static volatile String lastManeuverHandlerId;
+    private static volatile String lastCameraTrackingProviderId;
+    private static volatile String lastHudComponentType;
 
     private static final CopyOnWriteArrayList<CapabilityEntry> CAPABILITIES =
             new CopyOnWriteArrayList<>();
@@ -138,12 +145,12 @@ public final class FlightApi {
         Objects.requireNonNull(type, "type"); Objects.requireNonNull(component, "component");
         String id = type.toString();
         HUD_COMPONENTS.put(id, component);
-        backend.registriesChanged();
+        backendRun("registriesChanged", backend::registriesChanged);
         return once(() -> {
             synchronized (HUD_COMPONENTS) {
                 if (HUD_COMPONENTS.get(id) == component) HUD_COMPONENTS.remove(id);
             }
-            backend.registriesChanged();
+            backendRun("registriesChanged", backend::registriesChanged);
         });
     }
 
@@ -152,44 +159,60 @@ public final class FlightApi {
         Objects.requireNonNull(id, "id"); Objects.requireNonNull(json, "json");
         String key = id.toString();
         HUD_THEMES.put(key, json);
-        backend.registriesChanged();
+        backendRun("registriesChanged", backend::registriesChanged);
         return once(() -> {
             synchronized (HUD_THEMES) {
                 if (json.equals(HUD_THEMES.get(key))) HUD_THEMES.remove(key);
             }
-            backend.registriesChanged();
+            backendRun("registriesChanged", backend::registriesChanged);
         });
     }
 
     public static int getApiVersion() { return API_VERSION; }
     public static boolean isAvailable() { return backend != Backend.NOOP; }
     /** Returns UIE's state-safe HUD canvas, or null before the backend is installed. */
-    public static FlightHudCanvas getHudCanvas() { return backend.hudCanvas(); }
-    public static FlightState getState(float partialTicks) { return backend.state(partialTicks); }
+    public static FlightHudCanvas getHudCanvas() { return backendCall("hudCanvas", backend::hudCanvas); }
+    public static FlightState getState(float partialTicks) {
+        return backendCall("state", () -> backend.state(partialTicks));
+    }
     /** Returns UIE's single cached quaternion render sample for the current camera frame. */
     public static FlightRenderPose getRenderPose(EntityPlayerSP player, float partialTicks) {
-        return backend.renderPose(player, Math.max(0.0F, Math.min(1.0F, partialTicks)));
+        float clamped = Math.max(0.0F, Math.min(1.0F, partialTicks));
+        return backendCall("renderPose", () -> backend.renderPose(player, clamped));
     }
     public static boolean isActive() { return getState(1.0F).isActive(); }
-    public static void setRoll(float degrees) { backend.setRoll(finite(degrees)); }
+    public static void setRoll(float degrees) {
+        float value = finite(degrees);
+        backendRun("setRoll", () -> backend.setRoll(value));
+    }
     public static void rotateView(float pitchDegrees, float yawDegrees, float rollDegrees) {
-        backend.rotate(finite(pitchDegrees), finite(yawDegrees), finite(rollDegrees));
+        float pitch = finite(pitchDegrees), yaw = finite(yawDegrees), roll = finite(rollDegrees);
+        backendRun("rotate", () -> backend.rotate(pitch, yaw, roll));
     }
     public static boolean startBarrelRoll(int direction, int durationTicks) {
-        return backend.startBarrelRoll(direction < 0 ? -1 : 1,
-                Math.max(1, Math.min(1200, durationTicks)));
+        int side = direction < 0 ? -1 : 1;
+        int duration = Math.max(1, Math.min(1200, durationTicks));
+        return backendCall("startBarrelRoll", () -> backend.startBarrelRoll(side, duration));
     }
     public static float getPlayerRoll(int entityId, float partialTicks) {
-        return backend.playerRoll(entityId, partialTicks);
+        return backendCall("playerRoll", () -> backend.playerRoll(entityId, partialTicks));
     }
     public static void updateRemotePlayerRoll(int entityId, boolean rolling, float degrees) {
-        backend.updateRemotePlayerRoll(entityId, rolling, finite(degrees));
+        float value = finite(degrees);
+        backendRun("updateRemotePlayerRoll",
+                () -> backend.updateRemotePlayerRoll(entityId, rolling, value));
     }
-    public static void resetOrientation() { backend.resetOrientation(); }
-    public static java.util.List<String> getAvailableHudThemes() { return backend.hudThemes(); }
-    public static String getSelectedHudTheme() { return backend.selectedHudTheme(); }
-    public static boolean selectHudTheme(String id) { return backend.selectHudTheme(id); }
-    public static void reloadHudThemes() { backend.registriesChanged(); }
+    public static void resetOrientation() { backendRun("resetOrientation", backend::resetOrientation); }
+    public static java.util.List<String> getAvailableHudThemes() {
+        return backendCall("hudThemes", backend::hudThemes);
+    }
+    public static String getSelectedHudTheme() {
+        return backendCall("selectedHudTheme", backend::selectedHudTheme);
+    }
+    public static boolean selectHudTheme(String id) {
+        return backendCall("selectHudTheme", () -> backend.selectHudTheme(id));
+    }
+    public static void reloadHudThemes() { backendRun("registriesChanged", backend::registriesChanged); }
 
     /** UIE implementation hook. Other mods should not replace the active backend. */
     public static synchronized void installBackend(Backend implementation) {
@@ -203,85 +226,117 @@ public final class FlightApi {
     public static FlightDecision queryCapability(EntityPlayerSP player,
                                                  FlightCapability capability,
                                                  boolean builtInDefault) {
+        lastCapabilityProviderId = null;
         for (CapabilityEntry entry : CAPABILITIES) {
             FlightDecision decision;
             try {
                 decision = entry.provider.decide(player, capability, builtInDefault);
-            } catch (RuntimeException ignored) {
-                reportOnce("capability:" + entry.id, ignored);
-                continue;
+            } catch (RuntimeException error) {
+                throw callbackFailure("capability:" + entry.id, "decide", error);
             }
-            if (decision != null && decision != FlightDecision.PASS) return decision;
+            if (decision != null && decision != FlightDecision.PASS) {
+                lastCapabilityProviderId = entry.id;
+                return decision;
+            }
         }
+        lastCapabilityProviderId = null;
         return FlightDecision.PASS;
     }
 
     public static void collectControlInput(FlightControlInput input) {
+        lastControlProviderIds = Collections.emptyList();
+        java.util.List<String> applied = new java.util.ArrayList<>();
         for (ControlEntry entry : CONTROLS) {
-            try { entry.provider.update(input); }
-            catch (RuntimeException error) { reportOnce("control:" + entry.id, error); }
+            try {
+                entry.provider.update(input);
+                applied.add(entry.id);
+            } catch (RuntimeException error) {
+                throw callbackFailure("control:" + entry.id, "update", error);
+            }
         }
+        lastControlProviderIds = Collections.unmodifiableList(applied);
     }
 
     public static FlightBodyPose queryBodyPose(AbstractClientPlayer player, float partialTicks) {
+        lastBodyPoseProviderId = null;
         for (BodyPoseEntry entry : BODY_POSES) {
             try {
                 FlightBodyPose pose = entry.provider.pose(player, partialTicks);
-                if (pose != null) return pose;
+                if (pose != null) {
+                    lastBodyPoseProviderId = entry.id;
+                    return pose;
+                }
             } catch (RuntimeException error) {
-                reportOnce("body-pose:" + entry.id, error);
+                throw callbackFailure("body-pose:" + entry.id, "pose", error);
             }
         }
+        lastBodyPoseProviderId = null;
         return null;
     }
 
     public static FlightHudAttitude queryHudAttitude(EntityPlayerSP player, float partialTicks) {
+        lastHudAttitudeProviderId = null;
         for (HudAttitudeEntry entry : HUD_ATTITUDES) {
             try {
                 FlightHudAttitude attitude = entry.provider.attitude(player, partialTicks);
-                if (attitude != null) return attitude;
+                if (attitude != null) {
+                    lastHudAttitudeProviderId = entry.id;
+                    return attitude;
+                }
             } catch (RuntimeException error) {
-                reportOnce("hud-attitude:" + entry.id, error);
+                throw callbackFailure("hud-attitude:" + entry.id, "attitude", error);
             }
         }
+        lastHudAttitudeProviderId = null;
         return null;
     }
 
     public static boolean dispatchManeuverInput(FlightManeuverInput input) {
         Objects.requireNonNull(input, "input");
+        lastManeuverHandlerId = null;
         for (ManeuverEntry entry : MANEUVER_HANDLERS) {
             try {
-                if (entry.handler.handle(input)) return true;
+                if (entry.handler.handle(input)) {
+                    lastManeuverHandlerId = entry.id;
+                    return true;
+                }
             } catch (RuntimeException error) {
-                reportOnce("maneuver:" + entry.id, error);
+                throw callbackFailure("maneuver:" + entry.id, "handle", error);
             }
         }
+        lastManeuverHandlerId = null;
         return false;
     }
 
     public static FlightCameraTracking queryCameraTracking(EntityPlayerSP player,
                                                             float partialTicks) {
+        lastCameraTrackingProviderId = null;
         for (CameraTrackingEntry entry : CAMERA_TRACKERS) {
             try {
                 FlightCameraTracking tracking = entry.provider.tracking(player, partialTicks);
-                if (tracking != null) return tracking;
+                if (tracking != null) {
+                    lastCameraTrackingProviderId = entry.id;
+                    return tracking;
+                }
             } catch (RuntimeException error) {
-                reportOnce("camera-tracking:" + entry.id, error);
+                throw callbackFailure("camera-tracking:" + entry.id, "tracking", error);
             }
         }
+        lastCameraTrackingProviderId = null;
         return null;
     }
 
     public static boolean renderHudComponent(String type, FlightHudRenderContext context,
                                              FlightHudElement element) {
         FlightHudComponent component = HUD_COMPONENTS.get(type);
+        lastHudComponentType = null;
         if (component == null) return false;
         try {
             component.render(context, element);
+            lastHudComponentType = type;
             return true;
         } catch (RuntimeException error) {
-            reportOnce("hud:" + type, error);
-            return false;
+            throw callbackFailure("hud:" + type, "render", error);
         }
     }
 
@@ -301,6 +356,31 @@ public final class FlightApi {
         synchronized (HUD_THEMES) {
             return Collections.unmodifiableMap(new LinkedHashMap<>(HUD_THEMES));
         }
+    }
+
+    public static FlightDiagnostics diagnostics() {
+        return new FlightDiagnostics(lastCapabilityProviderId, lastControlProviderIds,
+                lastBodyPoseProviderId, lastHudAttitudeProviderId, lastManeuverHandlerId,
+                lastCameraTrackingProviderId, lastHudComponentType);
+    }
+
+    public static java.util.List<String> capabilityProviderIds() {
+        return entryIds(CAPABILITIES, value -> value.id);
+    }
+    public static java.util.List<String> controlProviderIds() {
+        return entryIds(CONTROLS, value -> value.id);
+    }
+    public static java.util.List<String> bodyPoseProviderIds() {
+        return entryIds(BODY_POSES, value -> value.id);
+    }
+    public static java.util.List<String> hudAttitudeProviderIds() {
+        return entryIds(HUD_ATTITUDES, value -> value.id);
+    }
+    public static java.util.List<String> maneuverHandlerIds() {
+        return entryIds(MANEUVER_HANDLERS, value -> value.id);
+    }
+    public static java.util.List<String> cameraTrackingProviderIds() {
+        return entryIds(CAMERA_TRACKERS, value -> value.id);
     }
 
     private static void removeCapability(String id) {
@@ -324,8 +404,33 @@ public final class FlightApi {
 
     private static float finite(float value) { return Float.isFinite(value) ? value : 0.0F; }
 
-    private static void reportOnce(String owner, RuntimeException error) {
-        if (REPORTED_FAILURES.add(owner)) LOGGER.error("Suppressing future repeated failures from {}", owner, error);
+    private static RuntimeException callbackFailure(String owner, String operation,
+                                                    RuntimeException error) {
+        LOGGER.error("Flight API callback {} failed for {}", operation, owner, error);
+        return error;
+    }
+
+    private static <T> T backendCall(String operation, Supplier<T> callback) {
+        try {
+            return callback.get();
+        } catch (RuntimeException error) {
+            throw callbackFailure("backend", operation, error);
+        }
+    }
+
+    private static void backendRun(String operation, Runnable callback) {
+        try {
+            callback.run();
+        } catch (RuntimeException error) {
+            throw callbackFailure("backend", operation, error);
+        }
+    }
+
+    private static <T> java.util.List<String> entryIds(java.util.List<T> entries,
+                                                       Function<T, String> id) {
+        java.util.List<String> result = new java.util.ArrayList<>();
+        for (T entry : entries) result.add(id.apply(entry));
+        return Collections.unmodifiableList(result);
     }
 
     private static final class CapabilityEntry {

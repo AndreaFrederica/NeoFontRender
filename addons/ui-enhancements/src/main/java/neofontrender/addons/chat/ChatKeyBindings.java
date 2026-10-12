@@ -16,21 +16,30 @@ import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import org.lwjgl.input.Keyboard;
 
 /**
- * Chat clipboard keybindings. Minecraft 1.7.10 KeyBinding has no modifier support and key
- * events are not dispatched while a screen is open, so Ctrl+letter combos are edge-detected
- * from the client tick while the vanilla chat screen is displayed. The vanilla text field
- * already handles Ctrl+C/X/V/A itself; these bindings add copy-from-history and keep the
- * context menu state in sync.
+ * Chat clipboard and panel keybindings. Minecraft 1.7.10 KeyBinding has no modifier support and
+ * key events are not dispatched to Forge while a screen is open, so Ctrl+letter combos are
+ * edge-detected from the client tick while the vanilla chat screen is displayed. The vanilla text
+ * field already handles Ctrl+C/X/V/A itself; these bindings add copy-from-history plus the search
+ * and history panels, and keep the context menu state in sync.
  */
 public final class ChatKeyBindings {
     private static final String CATEGORY = "key.categories.neofontrender_ui_enhancements.chat";
+
+    private static final int COPY_INDEX = 0;
+    private static final int CUT_INDEX = 1;
+    private static final int PASTE_INDEX = 2;
+    private static final int SELECT_ALL_INDEX = 3;
+    private static final int SEARCH_INDEX = 4;
+    private static final int HISTORY_INDEX = 5;
 
     private static final KeyBinding COPY = binding("copy", Keyboard.KEY_C);
     private static final KeyBinding CUT = binding("cut", Keyboard.KEY_X);
     private static final KeyBinding PASTE = binding("paste", Keyboard.KEY_V);
     private static final KeyBinding SELECT_ALL = binding("select_all", Keyboard.KEY_A);
+    private static final KeyBinding SEARCH = binding("search", Keyboard.KEY_F);
+    private static final KeyBinding HISTORY = binding("history", Keyboard.KEY_H);
     private static final KeyBinding HUD_INTERACT = binding("hud_interact", Keyboard.KEY_GRAVE);
-    private static final KeyBinding[] ALL = {COPY, CUT, PASTE, SELECT_ALL};
+    private static final KeyBinding[] ALL = {COPY, CUT, PASTE, SELECT_ALL, SEARCH, HISTORY};
     private static final ChatKeyBindings INSTANCE = new ChatKeyBindings();
 
     private static boolean registered;
@@ -62,23 +71,43 @@ public final class ChatKeyBindings {
         }
         handledCurrentEvent = false;
         try {
-            if (!EnhancedChatFeatures.copySelection() || !(minecraft.currentScreen instanceof GuiChat)
-                    || !GuiScreen.isCtrlKeyDown()) return;
-            GuiTextField input = ((AccessorGuiChatFeatures) minecraft.currentScreen).nfrUi$getInputField();
+            if (!(minecraft.currentScreen instanceof GuiChat)) return;
+            GuiChat chatScreen = (GuiChat) minecraft.currentScreen;
+            GuiTextField input = ((AccessorGuiChatFeatures) chatScreen).nfrUi$getInputField();
             boolean focusedInput = input != null && input.isFocused();
 
-            if (edge(down, 0)) {
+            // The search panel owns the keyboard while it is displayed: 1.7.10 cannot cancel the
+            // key for the screen, so its own handling replaces the shortcuts for this tick.
+            if (ChatSearchController.INSTANCE.isOpen()) {
+                handledCurrentEvent = ChatSearchController.INSTANCE.handleKeyboard();
+                if (handledCurrentEvent) ChatContextMenu.INSTANCE.close();
+                return;
+            }
+            if (!GuiScreen.isCtrlKeyDown()) return;
+            if (edge(down, SEARCH_INDEX) && EnhancedChatConfig.messageSearch) {
+                ChatSearchController.INSTANCE.open(chatScreen);
+                handledCurrentEvent = true;
+                return;
+            }
+            if (edge(down, HISTORY_INDEX) && EnhancedChatConfigAccess.tabbedChatEnabled()) {
+                ChatHistoryScreen.open();
+                handledCurrentEvent = true;
+                return;
+            }
+            if (!EnhancedChatFeatures.copySelection()) return;
+
+            if (edge(down, COPY_INDEX)) {
                 if (focusedInput && ChatContextMenu.hasSelection(input)) {
                     // The vanilla text field exports the selection to the clipboard by itself.
                     handledCurrentEvent = true;
                 } else {
                     handledCurrentEvent = ChatCopyController.INSTANCE.copySelectedHistory();
                 }
-            } else if (edge(down, 1) && focusedInput && ChatContextMenu.hasSelection(input)) {
+            } else if (edge(down, CUT_INDEX) && focusedInput && ChatContextMenu.hasSelection(input)) {
                 handledCurrentEvent = true;
-            } else if (edge(down, 2) && focusedInput) {
+            } else if (edge(down, PASTE_INDEX) && focusedInput) {
                 handledCurrentEvent = true;
-            } else if (edge(down, 3) && focusedInput) {
+            } else if (edge(down, SELECT_ALL_INDEX) && focusedInput) {
                 handledCurrentEvent = true;
             }
 
@@ -121,6 +150,7 @@ public final class ChatKeyBindings {
     public static String cutDisplayName() { return displayName(CUT); }
     public static String pasteDisplayName() { return displayName(PASTE); }
     public static String selectAllDisplayName() { return displayName(SELECT_ALL); }
+    public static String searchDisplayName() { return displayName(SEARCH); }
 
     private static String displayName(KeyBinding binding) {
         return "Ctrl+" + GameSettings.getKeyDisplayString(binding.getKeyCode());

@@ -37,6 +37,8 @@ public abstract class MixinLoadingScreenRenderer {
     private void nfrUi$drawIntegratedServerProgress(int vanillaProgress, CallbackInfo ci) {
         Minecraft mc = Minecraft.getMinecraft();
         ScaledResolution resolution = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
+        WorldLoadingRenderer.INSTANCE.renderForeignPrompt(
+                resolution.getScaledWidth(), resolution.getScaledHeight());
         WorldLoadingRenderer.INSTANCE.renderLoadingScreen(
                 resolution.getScaledWidth(), resolution.getScaledHeight(), vanillaProgress,
                 currentlyDisplayedText, field_73727_a);

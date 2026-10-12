@@ -7,11 +7,11 @@ import speiger.src.salutation.common.commands.BaseSalutationCommand.CommandConte
 
 public class LiteralNode extends CommandNode {
 	String name;
-
+	
 	public LiteralNode(String name) {
 		this.name = name;
 	}
-
+	
 	@Override
 	public String getName() { return name; }
 	@Override

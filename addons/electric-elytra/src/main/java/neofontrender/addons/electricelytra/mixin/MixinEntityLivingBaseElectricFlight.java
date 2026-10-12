@@ -1,7 +1,9 @@
 package neofontrender.addons.electricelytra.mixin;
 
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.DamageSource;
+import neofontrender.addons.electricelytra.ElectricFlightController;
 import neofontrender.addons.electricelytra.ElectricFlightPhysics;
 import neofontrender.addons.electricelytra.ElectricVanillaThrust;
 import neofontrender.addons.electricelytra.compat.ElectricElytraCompat;
@@ -16,7 +18,21 @@ public abstract class MixinEntityLivingBaseElectricFlight {
     private void nfr$replaceElectricElytraTravel(float strafe, float forward,
                                                   CallbackInfo callback) {
         EntityLivingBase entity = (EntityLivingBase) (Object) this;
-        if (entity.worldObj.isRemote && entity.riddenByEntity != null) return;
+        // 1.7.10 calls this travel hook for every living entity on both sides, so the server side
+        // and the locally controlled EntityPlayerSP are the only movement owners here.
+        if (entity.worldObj.isRemote && !(entity instanceof EntityPlayerSP)) return;
+        // Vanilla clears the Elytra flight flag before travel. Restore it from the server latch
+        // or local prediction before selecting a travel solver.
+        if (ElectricFlightController.isAerodynamicFlightActive(entity)
+                || ElectricFlightPhysics.hasClientPrediction(entity)) {
+            ElectricElytraCompat.setElytraFlying(entity, true);
+        }
+        // The local client predicts the aerodynamic motion. Running a second server integrator
+        // would move the same player from delayed input and cause correction jitter.
+        if (ElectricFlightPhysics.shouldDeferToClientMovement(entity)) {
+            callback.cancel();
+            return;
+        }
         // This path deliberately returns to vanilla travel after adding thrust. It does not
         // invoke ElectricFlightMath, body-axis control, SAS or aerodynamic force replacement.
         if (ElectricVanillaThrust.shouldApply(entity)) ElectricVanillaThrust.apply(entity);

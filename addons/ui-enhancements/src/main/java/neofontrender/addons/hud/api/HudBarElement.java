@@ -1,6 +1,6 @@
 package neofontrender.addons.hud.api;
 
-/** Identifies the vanilla HUD slot whose layout and cancellation lifecycle hosts a status bar. */
+/** Forge HUD element whose layout slot hosts a status bar. */
 public enum HudBarElement {
     HEALTH,
     ARMOR,

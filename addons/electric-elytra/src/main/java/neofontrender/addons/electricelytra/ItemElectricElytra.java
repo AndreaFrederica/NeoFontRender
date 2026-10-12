@@ -175,13 +175,9 @@ public class ItemElectricElytra extends Item {
         IEnergyStorage energy = getEnergy(stack);
         int stored = energy == null ? 0 : energy.getEnergyStored();
         int capacity = energy == null ? ElectricElytraConfig.energyCapacity : energy.getMaxEnergyStored();
-        tooltip.add(EnumChatFormatting.AQUA + StatCollector.translateToLocal(
+        tooltip.add(EnumChatFormatting.AQUA + StatCollector.translateToLocalFormatted(
                 hasInfiniteEnergy(stack) ? "tooltip.neofontrender_electric_elytra.energy_infinite"
-                        : "tooltip.neofontrender_electric_elytra.energy"));
-        if (!hasInfiniteEnergy(stack)) {
-            tooltip.set(tooltip.size() - 1, tooltip.get(tooltip.size() - 1)
-                    .replace("%d %d", stored + " " + capacity));
-        }
+                        : "tooltip.neofontrender_electric_elytra.energy", stored, capacity));
         tooltip.add(EnumChatFormatting.GRAY + StatCollector.translateToLocal(
                 vanillaFlightModel ? "tooltip.neofontrender_electric_elytra.vanilla_controls"
                         : "tooltip.neofontrender_electric_elytra.controls"));
@@ -198,9 +194,9 @@ public class ItemElectricElytra extends Item {
                             : "tooltip.neofontrender_electric_elytra.sas_off"));
         }
         if (flapCapable) {
-            tooltip.add(EnumChatFormatting.AQUA + StatCollector.translateToLocal(
-                    "tooltip.neofontrender_electric_elytra.flap") + " "
-                    + (getFlapSetting(stack) == 0 ? "UP" : getFlapSetting(stack) == 1 ? "TO" : "LDG"));
+            tooltip.add(EnumChatFormatting.AQUA + StatCollector.translateToLocalFormatted(
+                    "tooltip.neofontrender_electric_elytra.flap",
+                    getFlapSetting(stack) == 0 ? "UP" : getFlapSetting(stack) == 1 ? "TO" : "LDG"));
         }
     }
 }

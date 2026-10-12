@@ -11,17 +11,17 @@ public class PositionArgument implements IArgument<ChunkPos> {
 	private static final List<String> FIRST = Arrays.asList(new String[]{"0", "~", "^", "^1", "~1", "b2"});
 	private static final List<String> SECOND = Arrays.asList(new String[]{"0", "~", "^", "^-5", "~-5", "b-5"});
 	boolean chunkPos;
-
+	
 	protected PositionArgument(boolean chunkPos) { this.chunkPos = chunkPos; }
-
+	
 	public static PositionArgument blockPos() {
 		return new PositionArgument(false);
 	}
-
+	
 	public static PositionArgument chunkPos() {
 		return new PositionArgument(true);
 	}
-
+	
 	@Override
 	public ChunkPos parse(StringWalker args, CommandContext context) throws CommandException {
 		ChunkPos player = context.getSenderPosition();
@@ -32,7 +32,7 @@ public class PositionArgument implements IArgument<ChunkPos> {
 		}
 		return new ChunkPos(args.parsePosition(player.x, spawn.x, chunkPos), args.parsePosition(player.z, spawn.z, chunkPos));
 	}
-
+	
 	@Override
 	public int getArgumentElements() { return 2; }
 	@Override

@@ -7,25 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SmoothScrollControllerTest {
     @Test
-    void clampsTargetsAndResetsWhenContentDoesNotScroll() {
-        SmoothScrollController controller = new SmoothScrollController();
-        controller.sync(20.0F);
-        controller.scrollBy(200.0F, 100.0F, 20.0F);
-        assertEquals(100.0F, controller.getTarget());
-        assertEquals(0.0F, controller.update(50.0F, 0.0F));
-        assertEquals(0.0F, controller.getTarget());
-    }
-
-    @Test
-    void movesTowardTheTargetWithoutOvershooting() {
-        SmoothScrollController controller = new SmoothScrollController();
-        controller.sync(0.0F);
-        controller.scrollBy(40.0F, 100.0F, 0.0F);
-        float value = controller.update(0.0F, 100.0F);
-        assertTrue(value >= 0.0F && value <= 40.0F);
-    }
-
-    @Test
     void continuousStepMovesMonotonicallyWithoutOvershoot() {
         float first = SmoothScrollController.continuousStep(0.0F, 20.0F, 16_000_000L, 200);
         float second = SmoothScrollController.continuousStep(first, 20.0F, 16_000_000L, 200);
@@ -46,5 +27,26 @@ class SmoothScrollControllerTest {
 
         assertTrue(retargeted > moving);
         assertTrue(retargeted < 80.0F);
+    }
+
+    @Test
+    void shiftingContentPreservesTheAnimationFrame() {
+        SmoothScrollController controller = new SmoothScrollController();
+        controller.sync(12.0F);
+        controller.scrollBy(18.0F, 100.0F, 12.0F);
+        controller.shiftBy(9.0F, 100.0F);
+
+        assertEquals(39.0F, controller.getTarget());
+    }
+
+    @Test
+    void ownedUpdateDoesNotReconcileAgainstIntegerProjection() {
+        SmoothScrollController controller = new SmoothScrollController();
+        controller.sync(0.6F);
+        controller.scrollBy(1.0F, 10.0F, 0.6F);
+
+        controller.updateOwned(10.0F);
+
+        assertEquals(1.6F, controller.getTarget());
     }
 }

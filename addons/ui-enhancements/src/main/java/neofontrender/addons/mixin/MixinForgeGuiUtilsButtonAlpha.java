@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(value = GuiUtils.class, remap = false)
 public abstract class MixinForgeGuiUtilsButtonAlpha {
-    @Inject(method = "drawContinuousTexturedBox(IIIIIIIIIIIIF)V",
-            at = @At(value = "INVOKE",
+    @Inject(method = "drawContinuousTexturedBox(IIIIIIIIIIIIF)V", remap = false,
+            at = @At(value = "INVOKE", remap = false,
                     target = "Lorg/lwjgl/opengl/GL11;glColor4f(FFFF)V",
                     shift = At.Shift.AFTER))
     private static void nfrUi$applyScopedButtonAlpha(CallbackInfo ci) {

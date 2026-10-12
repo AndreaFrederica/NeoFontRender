@@ -33,6 +33,7 @@ dependencies {
     compileOnly project(':')
     compileOnly files(rootProject.configurations.compileClasspath)
 
+    // Embedded SQL database backing server-side chat persistence.
     contain 'com.h2database:h2:2.3.232'
 
     annotationProcessor files(provider {
@@ -80,6 +81,9 @@ processResources {
     inputs.property('issueTracker', issueTracker)
     filesMatching('mcmod.info') {
         expand(version: resourceVersion, issueTracker: issueTracker)
+    }
+    from(rootProject.file('addons/ui-enhancements/src/main/resources/assets/neofontrender_ui_enhancements/logo.png')) {
+        into 'assets/neofontrender_ui_enhancements'
     }
 }
 
@@ -151,4 +155,12 @@ tasks.named('assemble') {
 test {
     useJUnitPlatform()
     javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+}
+
+tasks.register('stageUiEnhancementsServerRelease', Sync) {
+    group = 'distribution'
+    description = 'Stages only the remapped, installable UI Enhancements Server JAR.'
+    dependsOn tasks.named('build'), tasks.named('reobfJar')
+    from(layout.buildDirectory.file("libs/neofontrender-ui-enhancements-server-${project.version}.jar"))
+    into rootProject.layout.buildDirectory.dir('release/uie-server')
 }

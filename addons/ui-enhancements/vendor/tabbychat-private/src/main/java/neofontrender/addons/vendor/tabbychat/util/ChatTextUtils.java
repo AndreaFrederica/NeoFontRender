@@ -7,7 +7,7 @@ import neofontrender.addons.chat.ChatMessageMetadataRegistry;
 import neofontrender.addons.chat.ChatHeadResolver;
 import neofontrender.addons.chat.ChatItemIconRenderer;
 import neofontrender.addons.chat.ChatSource;
-import neofontrender.api.text.CjkParagraphLayoutProvider;
+import neofontrender.api.text.paragraph.TextParagraphProvider;
 import neofontrender.addons.vendor.tabbychat.ChatMessage;
 import neofontrender.addons.vendor.tabbychat.TabbyChat;
 import neofontrender.addons.vendor.tabbychat.api.Message;
@@ -34,7 +34,7 @@ public class ChatTextUtils {
         IChatComponent decorated = ChatItemIconRenderer.decorate(chat);
         List<IChatComponent> positioned = CjkTypographyRenderer.splitComponents(
                 fr, decorated, width, false, false,
-                CjkParagraphLayoutProvider.ComponentRequest.Surface.CHAT);
+                TextParagraphProvider.ComponentRequest.Surface.CHAT);
         if (positioned != null) return positioned;
         List<IChatComponent> pending = Lists.newArrayList(decorated);
         List<IChatComponent> lines = Lists.newArrayList();

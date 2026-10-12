@@ -24,6 +24,7 @@ final class WorldLoadingSettingsPage implements NfrSettingsPage {
         private final boolean worldJoin = WorldLoadingConfig.worldJoin;
         private final boolean dimensionChange = WorldLoadingConfig.dimensionChange;
         private final boolean singleplayerProgress = WorldLoadingConfig.singleplayerServerProgress;
+        private final boolean modernPrompts = WorldLoadingConfig.modernPrompts;
         private final boolean lastExitSnapshot = WorldLoadingConfig.lastExitSnapshot;
         private final boolean bottomShade = WorldLoadingConfig.bottomShade;
         private final boolean progressBar = WorldLoadingConfig.progressBar;
@@ -47,6 +48,10 @@ final class WorldLoadingSettingsPage implements NfrSettingsPage {
                             () -> tr("tooltip.loading.singleplayer_progress"),
                             () -> WorldLoadingConfig.singleplayerServerProgress,
                             value -> WorldLoadingConfig.singleplayerServerProgress = value))
+                    .add(c.toggleText(() -> tr("gui.loading.modern_prompts"),
+                            () -> tr("tooltip.loading.modern_prompts"),
+                            () -> WorldLoadingConfig.modernPrompts,
+                            value -> WorldLoadingConfig.modernPrompts = value))
                     .add(c.toggleText(() -> tr("gui.loading.last_exit_snapshot"),
                             () -> tr("tooltip.loading.last_exit_snapshot"),
                             () -> WorldLoadingConfig.lastExitSnapshot,
@@ -82,6 +87,7 @@ final class WorldLoadingSettingsPage implements NfrSettingsPage {
             WorldLoadingConfig.worldJoin = worldJoin;
             WorldLoadingConfig.dimensionChange = dimensionChange;
             WorldLoadingConfig.singleplayerServerProgress = singleplayerProgress;
+            WorldLoadingConfig.modernPrompts = modernPrompts;
             WorldLoadingConfig.lastExitSnapshot = lastExitSnapshot;
             WorldLoadingConfig.bottomShade = bottomShade;
             WorldLoadingConfig.progressBar = progressBar;

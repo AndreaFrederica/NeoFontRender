@@ -9,6 +9,7 @@ import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.client.resources.IResourceManagerReloadListener;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.build.UiBuildFeatures;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -92,8 +93,10 @@ public enum TipManager implements IResourceManagerReloadListener {
         Collections.shuffle(shuffled);
         reset();
 
-        NfrUiEnhancements.LOGGER.info("Loaded {} tips from {} registered files",
-                allTips.size(), registeredFiles.size());
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            NfrUiEnhancements.LOGGER.info("Loaded {} tips from {} registered files",
+                    allTips.size(), registeredFiles.size());
+        }
     }
 
     private void loadTipFile(IResourceManager rm, ResourceLocation file) {
@@ -107,7 +110,9 @@ public enum TipManager implements IResourceManagerReloadListener {
                 }
             }
         } catch (Exception e) {
-            NfrUiEnhancements.LOGGER.debug("Could not load tip file {}: {}", file, e.getMessage());
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                NfrUiEnhancements.LOGGER.debug("Could not load tip file {}: {}", file, e.getMessage());
+            }
         }
     }
 

@@ -21,6 +21,7 @@ class ZoomTransitionTest {
             assertTrue(val >= prev, "should increase: " + val + " < " + prev);
             prev = val;
         }
+        // Should reach ~1.0
         assertEquals(1.0F, prev, 0.1F);
 
         // Zoom out: value should decrease
@@ -31,6 +32,7 @@ class ZoomTransitionTest {
             assertTrue(val <= prevOut, "should decrease: " + val + " > " + prevOut);
             prevOut = val;
         }
+        // Should reach ~0.0
         assertEquals(0.0F, prevOut, 0.1F);
     }
 

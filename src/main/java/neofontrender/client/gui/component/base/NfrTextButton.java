@@ -16,6 +16,7 @@ public class NfrTextButton extends ButtonWidget<NfrTextButton> {
     public NfrTextButton(Supplier<String> label, boolean centered) {
         this.label = label;
         this.centered = centered;
+        NfrSettingsSearch.register(this, label, "button", "action");
     }
 
     @Override

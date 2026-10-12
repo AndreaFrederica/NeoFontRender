@@ -9,8 +9,11 @@ import java.util.function.Supplier;
  * base component library.</p>
  */
 public final class NfrCycleButton extends NfrTextButton {
+    private final Runnable cycle;
+
     public NfrCycleButton(Supplier<String> label, Runnable cycle) {
         super(label, true);
+        this.cycle = cycle;
         onMousePressed(button -> {
             cycle.run();
             return true;

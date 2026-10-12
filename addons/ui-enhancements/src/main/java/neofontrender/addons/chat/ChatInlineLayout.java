@@ -49,4 +49,10 @@ public final class ChatInlineLayout {
         }
         return count;
     }
+
+    public static int maximumScrollIndex(List<ChatLine> lines, int pixelHeight,
+                                         FontRenderer font) {
+        return ChatPixelScrollLayout.maximumIndex(lines, pixelHeight,
+                line -> lineHeight(line, font));
+    }
 }

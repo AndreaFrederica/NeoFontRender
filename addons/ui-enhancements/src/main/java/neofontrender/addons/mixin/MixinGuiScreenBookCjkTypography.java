@@ -3,7 +3,7 @@ package neofontrender.addons.mixin;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiScreenBook;
 import neofontrender.addons.cjk.CjkTypographyRenderer;
-import neofontrender.api.text.CjkParagraphLayoutProvider;
+import neofontrender.api.text.paragraph.TextParagraphProvider;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -19,7 +19,7 @@ public abstract class MixinGuiScreenBookCjkTypography {
                     ordinal = 1))
     private void nfrUi$drawSignedBookPage(FontRenderer font, String text, int x, int y,
                                           int width, int color) {
-        CjkParagraphLayoutProvider.Layout layout = CjkTypographyRenderer.layout(
+        TextParagraphProvider.Layout layout = CjkTypographyRenderer.layout(
                 font, text, BOOK_TEXT_WIDTH, font.FONT_HEIGHT);
         if (layout != null) {
             CjkTypographyRenderer.draw(font, layout, x, y, color, false,

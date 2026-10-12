@@ -1,0 +1,1034 @@
+package mnm.mods.tabbychat.gui;
+
+import com.google.common.collect.Lists;
+import com.google.common.eventbus.Subscribe;
+import mnm.mods.tabbychat.ChatChannel;
+import mnm.mods.tabbychat.TabbyChat;
+import mnm.mods.tabbychat.api.Message;
+import mnm.mods.tabbychat.api.gui.ReceivedChat;
+import mnm.mods.tabbychat.core.GuiNewChatTC;
+import mnm.mods.tabbychat.util.ChatTextUtils;
+import mnm.mods.tabbychat.util.ChatVisibility;
+import mnm.mods.util.Color;
+import mnm.mods.util.ILocation;
+import mnm.mods.util.TexturedModal;
+import mnm.mods.util.gui.GuiComponent;
+import mnm.mods.util.gui.events.GuiMouseEvent;
+import mnm.mods.util.gui.events.GuiMouseEvent.MouseEvent;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.GuiUtilRenderComponents;
+import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL11;
+import java.nio.IntBuffer;
+import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
+import neofontrender.addons.scrolling.SmoothScrollController;
+import neofontrender.addons.chat.ChatStyleConfig;
+import neofontrender.addons.chat.ChatStyleRenderer;
+import neofontrender.addons.chat.ChatAnimationController;
+import neofontrender.addons.chat.ChatHudWindowController;
+import neofontrender.addons.chat.ChatFadeMath;
+import neofontrender.addons.chat.ChatCopyController;
+import neofontrender.addons.chat.ChatContextMenu;
+import neofontrender.addons.chat.ChatHeadRenderer;
+import neofontrender.addons.chat.ChatItemIconRenderer;
+import neofontrender.addons.chat.ChatInlineImageInteraction;
+import neofontrender.addons.chat.ChatMessageMetadata;
+import neofontrender.addons.chat.ChatPlayerLinks;
+import neofontrender.addons.chat.ChatPixelScrollLayout;
+import neofontrender.addons.chat.ChatSelectionModel;
+import neofontrender.addons.chat.ChatSource;
+import neofontrender.addons.chat.EnhancedChatFeatures;
+import neofontrender.api.text.route.TextInlineBounds;
+import neofontrender.api.text.route.TextRenderRouteApi;
+import neofontrender.api.text.route.TextRenderRouteLayout;
+import neofontrender.api.text.animation.TextAnimationApi;
+import neofontrender.api.text.animation.TextAnimationScope;
+import neofontrender.addons.inline.StructuredInlineContentAdapter;
+import neofontrender.addons.cjk.ChatTypographyRenderer;
+import mnm.mods.tabbychat.ChatMessage;
+import org.lwjgl.input.Mouse;
+
+import java.awt.Dimension;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.util.IdentityHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+public class ChatArea extends GuiComponent implements ReceivedChat {
+
+    private static final TexturedModal MODAL = new TexturedModal(ChatBox.GUI_LOCATION, 0, 14, 254, 205);
+    private static final int PRIVATE_ROW_GAP = 5;
+    private static final int PRIVATE_INCOMING = 0xD8293038;
+    private static final int PRIVATE_OUTGOING = 0xD8326B58;
+
+    private ChatChannel channel;
+    private List<Message> messages = Lists.newLinkedList();
+    private boolean dirty;
+    private int scrollPos = 0;
+    private final SmoothScrollController nfrUi$scroller = new SmoothScrollController();
+    private float nfrUi$displayScroll;
+    private final ChatSelectionModel<Message> nfrUi$selection = new ChatSelectionModel<>();
+    private boolean nfrUi$selecting;
+    private Map<Message, CachedRow> nfrUi$rowCache = new IdentityHashMap<>();
+    private ChatPixelScrollLayout.Index nfrUi$pixelIndex;
+    private boolean nfrUi$layoutDirty = true;
+    /** Width changes are deferred while the resize handle is dragged. */
+    private boolean nfrUi$allowResizeReflow;
+    private int nfrUi$splitWidth = Integer.MIN_VALUE;
+    private boolean nfrUi$splitPrivate;
+    private int nfrUi$layoutFeatureMask = -1;
+    private int nfrUi$fontHeight = -1;
+    private Object nfrUi$fontRenderer;
+    private long nfrUi$layoutGeneration = -1L;
+    /** Source-message identity snapshot used to avoid rewrapping unchanged history. */
+    private List<Message> nfrUi$sourceSnapshot = Collections.emptyList();
+
+    public ChatArea() {
+        this.setMinimumSize(new Dimension(300, 160));
+    }
+
+    @Subscribe
+    public void superScrollingAction(GuiMouseEvent event) {
+        if (event.getType() == MouseEvent.SCROLL) {
+            // Scrolling
+            int scroll = event.getScroll();
+            // One tick = 120
+            if (scroll != 0) {
+                if (scroll > 1) {
+                    scroll = 1;
+                }
+                if (scroll < -1) {
+                    scroll = -1;
+                }
+                if (GuiScreen.isShiftKeyDown()) {
+                    scroll *= 7;
+                }
+                scroll(scroll);
+
+            }
+        }
+    }
+
+    @Override
+    public void onClosed() {
+        resetScroll();
+        nfrUi$selection.clear();
+        nfrUi$selecting = false;
+        super.onClosed();
+    }
+
+    @Override
+    public ILocation getLocation() {
+        List<Message> visible = getVisibleChat();
+        int height = visibleHeight(visible);
+        ChatVisibility vis = TabbyChat.getInstance().settings.advanced.visibility.get();
+
+        if (ChatHudWindowController.isChatExpanded() || vis == ChatVisibility.ALWAYS) {
+            return super.getLocation();
+        } else if (height != 0) {
+            int y = super.getLocation().getHeight() - height;
+            return super.getLocation().copy().move(0, y - 2).setHeight(height + 2);
+        }
+        return super.getLocation();
+    }
+
+    @Override
+    public boolean isVisible() {
+
+        List<Message> visible = getVisibleChat();
+        int height = visibleHeight(visible);
+        ChatVisibility vis = TabbyChat.getInstance().settings.advanced.visibility.get();
+
+        return mc.gameSettings.chatVisibility != EntityPlayer.EnumChatVisibility.HIDDEN
+                && (ChatHudWindowController.isChatExpanded() || vis == ChatVisibility.ALWAYS || height != 0);
+    }
+
+    @Override
+    public void drawComponent(int mouseX, int mouseY) {
+        // Mouse events can arrive several times before one render frame. Reflow once here,
+        // after the final drag geometry for this frame has been applied, instead of doing it
+        // from every child hit-test during handleMouseInput().
+        nfrUi$prepareForRender();
+        // Clip drawing to this area so scrolled lines or bubbles cannot bleed past its
+        // top/left edge (TabbyChat only limits the visible row count, it never clips).
+        boolean clipped = beginClip();
+
+        float maxScroll = maximumPixelScroll();
+        nfrUi$displayScroll = SmoothScrollConfigAccess.chatEnabled()
+                ? nfrUi$scroller.update(nfrUi$displayScroll, maxScroll)
+                : Math.max(0.0F, Math.min(maxScroll, nfrUi$displayScroll));
+        ChatPixelScrollLayout.Position scroll = pixelPosition(nfrUi$displayScroll);
+        scrollPos = scroll.index;
+
+        List<Message> visible = getVisibleChat();
+        GlStateManager.enableBlend();
+        float opac = mc.gameSettings.chatOpacity;
+        boolean chatOpen = ChatHudWindowController.isChatExpanded();
+
+        if (ChatStyleConfig.enabled) {
+            if (chatOpen || TabbyChat.getInstance().settings.advanced.visibility.get() == ChatVisibility.ALWAYS) {
+                ChatStyleRenderer.panel(getBounds().width, getBounds().height,
+                        ChatStyleConfig.background, ChatStyleConfig.border, opac);
+            } else {
+                float[] rowFade = new float[visible.size()];
+                for (int i = 0; i < visible.size(); i++) rowFade[i] = getLineFade(visible.get(i));
+                ChatStyleRenderer.fadingPanel(getBounds().width, getBounds().height,
+                        baseRowHeight(), rowFade,
+                        ChatStyleConfig.background, ChatStyleConfig.border, opac);
+            }
+        } else {
+            float panelFade = visible.isEmpty() ? 0.0F : getLineFade(visible.get(0));
+            GlStateManager.color(1, 1, 1, opac * (chatOpen ? 1.0F : panelFade));
+            drawModalCorners(MODAL);
+            GlStateManager.color(1, 1, 1, 1);
+        }
+
+        zLevel = 100;
+        // Local coordinate: GuiPanel already translates us by our layout offset, so using
+        // getBounds().x here would double-apply it whenever the area sits at a non-zero
+        // position (e.g. to the right of a vertical tab tray).
+        int xPos = 3;
+        int yPos = getBounds().height + Math.round(scroll.remainder);
+        float messageOffset = ChatAnimationController.messageOffset(isScrolled());
+        boolean translated = Math.abs(messageOffset) > 0.001F;
+        if (translated) {
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(0.0F, messageOffset, 0.0F);
+        }
+        drawCopySelection(visible, xPos, yPos);
+        for (Message line : visible) {
+            yPos -= rowHeight(line);
+            drawChatLine(line, xPos, yPos);
+        }
+        // Hit testing is only needed for an enabled interaction surface. Keep one row hit
+        // for all hover consumers so a frame never repeats the same layout/position work.
+        SelectionHit hovered = (EnhancedChatFeatures.playerHeads()
+                || EnhancedChatFeatures.copySelection()
+                || EnhancedChatFeatures.inlineGlyphs())
+                ? nfrUi$selectionHit(mouseX, mouseY, false) : null;
+        GlyphHover glyphHover = EnhancedChatFeatures.inlineGlyphs()
+                ? nfrUi$glyphAt(mouseX, mouseY, hovered) : null;
+        String hoveredPlayer = nfrUi$playerAt(hovered);
+        if (hovered != null && hovered.head && hoveredPlayer != null) {
+            ILocation actual = getActualLocation();
+            float scale = getActualScale();
+            ChatPlayerLinks.hoverAvatar(hoveredPlayer,
+                    actual.getXPos() + Math.round(mouseX * scale),
+                    actual.getYPos() + Math.round(mouseY * scale));
+        }
+        if (translated) GlStateManager.popMatrix();
+        zLevel = 0;
+        GlStateManager.disableAlpha();
+        GlStateManager.disableBlend();
+        if (clipped) endClip();
+        ILocation hoverLocation = getActualLocation();
+        float hoverScale = getActualScale();
+        int glyphX = glyphHover == null ? 0
+                : hoverLocation.getXPos() + Math.round(glyphHover.x * hoverScale);
+        int glyphY = glyphHover == null ? 0
+                : hoverLocation.getYPos() + Math.round(glyphHover.y * hoverScale);
+        int glyphWidth = glyphHover == null ? 0
+                : Math.max(1, Math.round(glyphHover.width * hoverScale));
+        int glyphHeight = glyphHover == null ? 0
+                : Math.max(1, Math.round(glyphHover.height * hoverScale));
+        ChatInlineImageInteraction.publishTabbyHover(
+                glyphHover == null ? null
+                        : new StructuredInlineContentAdapter(glyphHover.hit.content()),
+                glyphX, glyphY, glyphWidth, glyphHeight);
+    }
+
+    private final IntBuffer oldScissor = BufferUtils.createIntBuffer(4);
+    private boolean scissorWasEnabled;
+
+    private boolean beginClip() {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.displayWidth <= 0 || mc.displayHeight <= 0) return false;
+        ILocation loc = getActualLocation();
+        int factor = new ScaledResolution(mc).getScaleFactor();
+        int x = Math.max(0, loc.getXPos() * factor);
+        int y = Math.max(0, mc.displayHeight - (loc.getYPos() + loc.getHeight()) * factor);
+        int width = Math.min(mc.displayWidth - x, Math.max(0, loc.getWidth() * factor));
+        int height = Math.min(mc.displayHeight - y, Math.max(0, loc.getHeight() * factor));
+        if (width <= 0 || height <= 0) return false;
+        scissorWasEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+        if (scissorWasEnabled) GL11.glGetInteger(GL11.GL_SCISSOR_BOX, oldScissor);
+        GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        GL11.glScissor(x, y, width, height);
+        return true;
+    }
+
+    private void endClip() {
+        if (scissorWasEnabled) {
+            GL11.glScissor(oldScissor.get(0), oldScissor.get(1), oldScissor.get(2), oldScissor.get(3));
+        } else {
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        }
+    }
+
+    private void drawChatLine(Message line, int xPos, int yPos) {
+        long animationInstanceId = line instanceof ChatMessage
+                ? ((ChatMessage) line).nfrUi$getAnimationInstanceId() : 0L;
+        try (TextAnimationScope ignored = TextAnimationApi.openInstance(animationInstanceId)) {
+            drawChatLineInScope(line, xPos, yPos);
+        }
+    }
+
+    private boolean nfrUi$showHead(ChatMessage message) {
+        List<Message> rows = getChat();
+        int index = rows.indexOf(message);
+        ChatMessage older = index >= 0 && index + 1 < rows.size() && rows.get(index + 1) instanceof ChatMessage
+                ? (ChatMessage) rows.get(index + 1) : null;
+        return ChatHeadRenderer.showMessageHead(message.nfrUi$getSenderId(), message.nfrUi$getMessageMetadata(),
+                message.nfrUi$isFirstFragment(), older == null ? null : older.nfrUi$getSenderId(),
+                older == null ? null : older.nfrUi$getMessageMetadata(), older != null);
+    }
+
+    private void drawChatLineInScope(Message line, int xPos, int yPos) {
+        if (isPrivateView()) {
+            drawPrivateLine(line, xPos, yPos);
+            return;
+        }
+        ITextComponent display = line.getMessageWithOptionalTimestamp();
+        TextRenderRouteLayout inline = cachedRow(line).messageLayout;
+        int contentHeight = (int) Math.ceil(inline.height());
+        int iconY = yPos + Math.max(0, contentHeight - mc.fontRenderer.FONT_HEIGHT);
+        float fade = getLineFade(line);
+        if (line instanceof ChatMessage) {
+            ChatMessage message = (ChatMessage) line;
+            if (nfrUi$showHead(message)) {
+                ChatHeadRenderer.renderMessage(message.nfrUi$getSenderId(), message.nfrUi$getMessageMetadata(), xPos, iconY,
+                        mc.gameSettings.chatOpacity * fade);
+            }
+        }
+        int configured = ChatStyleConfig.enabled
+                ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity * fade)
+                : Color.WHITE.getHex() & 0x00FFFFFF
+                    | ChatFadeMath.lineOpacity(mc.gameSettings.chatOpacity, fade) << 24;
+        if (canUsePositionedTypography(display, inline)) {
+            ChatTypographyRenderer.draw(mc.fontRenderer, display,
+                    xPos + ChatHeadRenderer.textOffset(), yPos, configured, true);
+        } else {
+            TextRenderRouteApi.layout(mc.fontRenderer, inline.source(), configured, true)
+                    .draw(xPos + ChatHeadRenderer.textOffset(), yPos);
+        }
+        ChatItemIconRenderer.renderLine(display,
+                xPos + ChatHeadRenderer.textOffset(), iconY);
+    }
+
+    /**
+     * Renders private messages as their bare body: restored history may land in a
+     * non-bubble tab (empty privatePeer) or carry a full whisper prefix, so strip it
+     * here for every path instead of relying on the private-view split.
+     */
+    private String lineText(Message line) {
+        ITextComponent component = line.getMessageWithOptionalTimestamp();
+        ChatMessageMetadata metadata = line instanceof ChatMessage
+                ? ((ChatMessage) line).nfrUi$getMessageMetadata() : null;
+        if (metadata != null && metadata.source == ChatSource.PRIVATE) {
+            if (!metadata.privateBody.isEmpty()) return metadata.privateBody;
+            return stripWhisperPrefix(component.getFormattedText());
+        }
+        return component.getFormattedText();
+    }
+
+    private static String stripWhisperPrefix(String text) {
+        if (text == null || text.isEmpty()) return text;
+        String plain = text.replaceAll("§.", "");
+        String[] patterns = {
+                "^你悄悄地对.+?[说:：]\\s*",
+                "^.+?悄悄地对你说[:：]\\s*",
+                "^.+?whispers to you[:：]\\s*",
+                "^you whisper to .+?[:：]\\s*"
+        };
+        for (String pattern : patterns) {
+            String stripped = plain.replaceFirst(pattern, "");
+            if (!stripped.equals(plain)) return stripped;
+        }
+        return text;
+    }
+
+    private void drawPrivateLine(Message line, int xPos, int yPos) {
+        ITextComponent display = line.getMessageWithOptionalTimestamp();
+        TextRenderRouteLayout inline = cachedRow(line).renderLayout;
+        int contentHeight = (int) Math.ceil(inline.height());
+        ChatMessageMetadata metadata = line instanceof ChatMessage
+                ? ((ChatMessage) line).nfrUi$getMessageMetadata() : null;
+        boolean outgoing = metadata != null && metadata.outgoing;
+        float fade = getLineFade(line);
+        int avatarSpace = EnhancedChatFeatures.playerHeads() ? ChatHeadRenderer.HEAD_SIZE + 5 : 0;
+        int textWidth = canUsePositionedTypography(display, inline)
+                ? ChatTypographyRenderer.width(mc.fontRenderer, display)
+                : (int) Math.ceil(inline.advance());
+        int bubbleWidth = Math.min(getBounds().width - avatarSpace - 8, textWidth + 8);
+        int bubbleX = outgoing
+                ? getBounds().width - 3 - avatarSpace - bubbleWidth
+                : xPos + avatarSpace;
+        int alpha = Math.max(0, Math.min(255,
+                Math.round(255.0F * mc.gameSettings.chatOpacity * fade)));
+        int bubble = ((outgoing ? PRIVATE_OUTGOING : PRIVATE_INCOMING) & 0x00FFFFFF)
+                | alpha << 24;
+        int shadow = 0x000000 | Math.min(alpha, 0x38) << 24;
+        drawRect(bubbleX + 1, yPos, bubbleX + bubbleWidth + 1,
+                yPos + contentHeight + 4, shadow);
+        drawRect(bubbleX, yPos - 1, bubbleX + bubbleWidth,
+                yPos + contentHeight + 3, bubble);
+        int accent = ((outgoing ? 0x67C89A : 0x8EA1B5) & 0x00FFFFFF) | alpha << 24;
+        if (outgoing) {
+            drawRect(bubbleX + bubbleWidth - 2, yPos - 1, bubbleX + bubbleWidth,
+                    yPos + contentHeight + 3, accent);
+        } else {
+            drawRect(bubbleX, yPos - 1, bubbleX + 2,
+                    yPos + contentHeight + 3, accent);
+        }
+        int textX = bubbleX + 4;
+        int configured = ChatStyleConfig.enabled
+                ? ChatStyleRenderer.color(ChatStyleConfig.text, mc.gameSettings.chatOpacity * fade)
+                : 0x00FFFFFF | alpha << 24;
+        if (canUsePositionedTypography(display, inline)) {
+            ChatTypographyRenderer.draw(mc.fontRenderer, display,
+                    textX, yPos + 1, configured, false);
+        } else {
+            TextRenderRouteApi.layout(mc.fontRenderer, inline.source(), configured, false)
+                    .draw(textX, yPos + 1);
+        }
+        int iconY = yPos + 1 + Math.max(0, contentHeight - mc.fontRenderer.FONT_HEIGHT);
+        ChatItemIconRenderer.renderLine(display, textX, iconY);
+        if (line instanceof ChatMessage && nfrUi$showHead((ChatMessage) line)) {
+            int headX = outgoing
+                    ? getBounds().width - 3 - ChatHeadRenderer.HEAD_SIZE : xPos;
+            ChatHeadRenderer.renderMessage(((ChatMessage) line).nfrUi$getSenderId(), ((ChatMessage) line).nfrUi$getMessageMetadata(),
+                    headX, iconY, mc.gameSettings.chatOpacity * fade);
+        }
+    }
+
+    public void setChannel(ChatChannel channel) {
+        this.channel = channel;
+        this.markDirty();
+    }
+
+    public void markDirty() {
+        this.dirty = true;
+        this.nfrUi$layoutDirty = true;
+    }
+
+    /**
+     * Allows the renderer to commit a deferred width change exactly once per frame.
+     * During a resize drag getLocation() is also queried by mouse hit testing; rebuilding
+     * the entire history from those queries makes multiple mouse events per frame expensive.
+     */
+    public void nfrUi$prepareForRender() {
+        boolean previous = nfrUi$allowResizeReflow;
+        nfrUi$allowResizeReflow = true;
+        try {
+            getChat();
+        } finally {
+            nfrUi$allowResizeReflow = previous;
+        }
+    }
+
+    private boolean nfrUi$isResizeDragging() {
+        return getParent().map(parent -> parent instanceof ChatBox
+                && ((ChatBox) parent).isLayoutDragging()).orElse(false);
+    }
+
+    public List<Message> getChat() {
+        boolean privateView = isPrivateView();
+        int width = chatTextWidth(privateView);
+        boolean widthChanged = width != nfrUi$splitWidth || privateView != nfrUi$splitPrivate;
+        if (channel != null && (dirty || widthChanged)) {
+            if (widthChanged && nfrUi$isResizeDragging() && !nfrUi$allowResizeReflow
+                    && nfrUi$splitWidth != Integer.MIN_VALUE) {
+                // Keep the last valid wrapping while the pointer is moving. The draw pass
+                // calls nfrUi$prepareForRender() after the final geometry update for the frame.
+                ensureLayoutCache();
+                return this.messages;
+            }
+            this.dirty = false;
+            this.nfrUi$splitWidth = width;
+            this.nfrUi$splitPrivate = privateView;
+            List<Message> source = channel.getMessages();
+            List<Message> incremental = nfrUi$incrementalSplit(source, width, privateView);
+            this.messages = incremental != null
+                    ? incremental : ChatTextUtils.split(source, width, privateView);
+            this.nfrUi$sourceSnapshot = new ArrayList<>(source);
+            this.nfrUi$layoutDirty = true;
+        }
+        ensureLayoutCache();
+        return this.messages;
+    }
+
+    /** Returns a wrapped-list update when the source history only gained a prefix. */
+    private List<Message> nfrUi$incrementalSplit(List<Message> source, int width,
+                                                   boolean privateView) {
+        if (nfrUi$sourceSnapshot.isEmpty() || source.size() < nfrUi$sourceSnapshot.size()) return null;
+        int added = source.size() - nfrUi$sourceSnapshot.size();
+        for (int index = 0; index < nfrUi$sourceSnapshot.size(); index++) {
+            if (source.get(index + added) != nfrUi$sourceSnapshot.get(index)) return null;
+        }
+        // A dirty flag with no source growth can represent settings or timestamp changes.
+        if (added == 0) return null;
+        List<Message> prefix = ChatTextUtils.split(
+                new ArrayList<>(source.subList(0, added)), width, privateView);
+        if (prefix.isEmpty()) return this.messages;
+        List<Message> result = new ArrayList<>(prefix.size() + this.messages.size());
+        result.addAll(prefix);
+        result.addAll(this.messages);
+        if (result.size() > 4096) {
+            return new ArrayList<>(result.subList(0, 4096));
+        }
+        return result;
+    }
+
+    private int chatTextWidth(boolean privateView) {
+        int width = super.getLocation().getWidth();
+        return privateView
+                ? Math.max(16, (width - 20) * 3 / 4)
+                : Math.max(16, width - 6 - ChatHeadRenderer.textOffset());
+    }
+
+    private void ensureLayoutCache() {
+        int featureMask = (EnhancedChatFeatures.goslingImageGlyphs() ? 1 : 0)
+                | (EnhancedChatFeatures.externalImageGlyphs() ? 2 : 0)
+                | (EnhancedChatFeatures.localImageGlyphs() ? 4 : 0);
+        long generation = TextRenderRouteApi.revision();
+        if (!nfrUi$layoutDirty && nfrUi$pixelIndex != null
+                && nfrUi$layoutFeatureMask == featureMask
+                && nfrUi$layoutGeneration == generation
+                && nfrUi$fontRenderer == mc.fontRenderer
+                && nfrUi$fontHeight == mc.fontRenderer.FONT_HEIGHT) return;
+
+        Map<Message, CachedRow> rows = new IdentityHashMap<>();
+        boolean privateView = isPrivateView();
+        ChatPixelScrollLayout.Index pixels = ChatPixelScrollLayout.index(messages, line -> {
+            CachedRow row = measureRow(line, privateView);
+            rows.put(line, row);
+            return row.height;
+        });
+        nfrUi$rowCache = rows;
+        nfrUi$pixelIndex = pixels;
+        nfrUi$layoutFeatureMask = featureMask;
+        nfrUi$layoutGeneration = generation;
+        nfrUi$fontRenderer = mc.fontRenderer;
+        nfrUi$fontHeight = mc.fontRenderer.FONT_HEIGHT;
+        nfrUi$layoutDirty = false;
+    }
+
+    private CachedRow measureRow(Message line, boolean privateView) {
+        String message = messageText(line);
+        TextRenderRouteLayout messageLayout = TextRenderRouteApi.layout(mc.fontRenderer, message);
+        String rendered = privateView ? lineText(line) : message;
+        TextRenderRouteLayout renderLayout = rendered.equals(message) ? messageLayout
+                : TextRenderRouteApi.layout(mc.fontRenderer, rendered);
+        int content = EnhancedChatFeatures.inlineGlyphs()
+                ? (int) Math.ceil(messageLayout.height()) : mc.fontRenderer.FONT_HEIGHT;
+        int height = Math.max(mc.fontRenderer.FONT_HEIGHT, content)
+                + (privateView ? PRIVATE_ROW_GAP : 0);
+        return new CachedRow(messageLayout, renderLayout, height);
+    }
+
+    private CachedRow cachedRow(Message line) {
+        getChat();
+        CachedRow row = nfrUi$rowCache.get(line);
+        return row != null ? row : measureRow(line, isPrivateView());
+    }
+
+    private List<Message> getVisibleChat() {
+        List<Message> lines = getChat();
+
+        List<Message> messages = Lists.newArrayList();
+        int length = 0;
+
+        ChatPixelScrollLayout.Position scroll = pixelPosition(nfrUi$displayScroll);
+        int pos = scroll.index;
+        float unfoc = TabbyChat.getInstance().settings.advanced.unfocHeight.get();
+        float div = ChatHudWindowController.isChatExpanded() ? 1 : unfoc;
+        float limit = super.getLocation().getHeight() * div - 10 + scroll.remainder;
+        while (pos < lines.size() && length < limit) {
+            Message line = lines.get(pos);
+
+            if (ChatHudWindowController.isChatExpanded()) {
+                messages.add(line);
+            } else if (getLineOpacity(line) > 3) {
+                messages.add(line);
+            } else {
+                break;
+            }
+
+            pos++;
+            length += rowHeight(line);
+        }
+
+        return messages;
+    }
+
+    private int getLineOpacity(Message line) {
+        return ChatFadeMath.lineOpacity(mc.gameSettings.chatOpacity, getLineFade(line));
+    }
+
+    private float getLineFade(Message line) {
+        ChatVisibility vis = TabbyChat.getInstance().settings.advanced.visibility.get();
+        boolean chatOpen = ChatHudWindowController.isChatExpanded();
+        if (chatOpen || vis == ChatVisibility.ALWAYS) return 1.0F;
+        if (vis == ChatVisibility.HIDDEN) return 0.0F;
+        return ChatFadeMath.lineFade(mc.ingameGUI.getUpdateCounter(), line.getCounter(),
+                TabbyChat.getInstance().settings.advanced.fadeTime.get());
+    }
+
+    @Subscribe
+    public void nfrUi$copySelection(GuiMouseEvent event) {
+        if (!ChatHudWindowController.isChatExpanded()) return;
+        SelectionHit interactionHit = (EnhancedChatFeatures.playerHeads()
+                || EnhancedChatFeatures.copySelection() || EnhancedChatFeatures.inlineGlyphs())
+                ? nfrUi$selectionHit(event.getMouseX(), event.getMouseY(), false) : null;
+        GlyphHover imageHit = EnhancedChatFeatures.inlineGlyphs()
+                ? nfrUi$glyphAt(event.getMouseX(), event.getMouseY(), interactionHit) : null;
+        if (event.getType() == MouseEvent.CLICK && event.getButton() == 1 && imageHit != null) {
+            ILocation actual = getActualLocation();
+            float scale = getActualScale();
+            ChatContextMenu.INSTANCE.openImage(
+                    new StructuredInlineContentAdapter(imageHit.hit.content()),
+                    actual.getXPos() + Math.round(event.getMouseX() * scale),
+                    actual.getYPos() + Math.round(event.getMouseY() * scale));
+            return;
+        }
+        String interactionPlayer = nfrUi$playerAt(interactionHit);
+        if (event.getType() == MouseEvent.CLICK && event.getButton() == 1
+                && interactionPlayer != null) {
+            ILocation actual = getActualLocation();
+            float scale = getActualScale();
+            ChatContextMenu.INSTANCE.openPlayer(interactionPlayer,
+                    actual.getXPos() + Math.round(event.getMouseX() * scale),
+                    actual.getYPos() + Math.round(event.getMouseY() * scale));
+            return;
+        }
+        if (event.getType() == MouseEvent.CLICK && event.getButton() == 0
+                && interactionHit != null && interactionHit.head && interactionPlayer != null
+                && ChatPlayerLinks.activate(interactionPlayer)) {
+            nfrUi$selecting = false;
+            return;
+        }
+        if (!EnhancedChatFeatures.copySelection()) return;
+        if (event.getType() == MouseEvent.CLICK && event.getButton() == 1) {
+            if (nfrUi$selection.hasSelection()) {
+                SelectionHit hit = interactionHit;
+                ChatSelectionModel.Range range = hit == null ? null
+                        : nfrUi$selection.ranges(getChat(), ChatArea::messageText).get(hit.line);
+                if (range == null || hit.position < range.start || hit.position > range.end) return;
+                ILocation actual = getActualLocation();
+                float scale = getActualScale();
+                ChatContextMenu.INSTANCE.openHistory(
+                        nfrUi$selection.selectedText(getChat(), ChatArea::messageText),
+                        actual.getXPos() + Math.round(event.getMouseX() * scale),
+                        actual.getYPos() + Math.round(event.getMouseY() * scale));
+            }
+        } else if (event.getType() == MouseEvent.CLICK && event.getButton() == 0) {
+            SelectionHit hit = nfrUi$selectionHit(event.getMouseX(), event.getMouseY(), false);
+            if (hit != null) {
+                ChatContextMenu.INSTANCE.close();
+                ChatCopyController.INSTANCE.setSelectedHistoryText("");
+                nfrUi$selection.begin(hit.line, hit.position);
+                nfrUi$selecting = true;
+            }
+        } else if (event.getType() == MouseEvent.DRAG && nfrUi$selecting) {
+            SelectionHit hit = nfrUi$selectionHit(event.getMouseX(), event.getMouseY(), true);
+            if (hit != null) nfrUi$selection.update(hit.line, hit.position);
+        } else if (event.getType() == MouseEvent.RAW && event.getButton() == 0
+                && !Mouse.getEventButtonState() && nfrUi$selecting) {
+            SelectionHit hit = nfrUi$selectionHit(event.getMouseX(), event.getMouseY(), true);
+            if (hit != null) nfrUi$selection.update(hit.line, hit.position);
+            nfrUi$selecting = false;
+            String selectedText = nfrUi$selection.selectedText(getChat(), ChatArea::messageText);
+            ChatCopyController.INSTANCE.setSelectedHistoryText(selectedText);
+            ChatCopyController.copyToClipboard(selectedText);
+        }
+    }
+
+    private SelectionHit nfrUi$selectionHit(int mouseX, int mouseY, boolean clamp) {
+        List<Message> visible = getVisibleChat();
+        if (visible.isEmpty()) return null;
+        int width = getBounds().width;
+        int height = getBounds().height;
+        ChatPixelScrollLayout.Position scroll = pixelPosition(nfrUi$displayScroll);
+        float visualBottom = height + scroll.remainder
+                + ChatAnimationController.messageOffset(isScrolled());
+        int visibleHeight = visibleHeight(visible);
+        if (!clamp && (mouseX < 0 || mouseX >= width || mouseY < visualBottom
+                - visibleHeight || mouseY >= visualBottom)) return null;
+        int row = rowAt(visible, visualBottom, mouseY);
+        row = Math.max(0, Math.min(visible.size() - 1, row));
+        Message line = visible.get(row);
+        String value = messageText(line);
+        int localX = Math.max(0, mouseX - textX(line, 3));
+        ITextComponent display = line.getMessageWithOptionalTimestamp();
+        TextRenderRouteLayout inline = cachedRow(line).messageLayout;
+        int position = canUsePositionedTypography(display, inline)
+                ? ChatTypographyRenderer.formattedIndexAt(display, localX)
+                : inline.sourceIndexAt(localX);
+        int headX = isPrivateView() && isOutgoing(line)
+                ? width - 3 - ChatHeadRenderer.HEAD_SIZE : 3;
+        boolean head = EnhancedChatFeatures.playerHeads()
+                && mouseX >= headX && mouseX < headX + ChatHeadRenderer.HEAD_SIZE
+                && line instanceof ChatMessage
+                && !ChatHeadRenderer.isServer(((ChatMessage) line).nfrUi$getSenderId(), ((ChatMessage) line).nfrUi$getMessageMetadata())
+                && nfrUi$showHead((ChatMessage) line);
+        ITextComponent component = nfrUi$componentAt(line, mouseX);
+        int rowTop = Math.round(visualBottom);
+        for (int index = 0; index <= row; index++) rowTop -= rowHeight(visible.get(index));
+        return new SelectionHit(line, Math.max(0, Math.min(value.length(), position)),
+                head, component, rowTop);
+    }
+
+    private ITextComponent nfrUi$componentAt(Message line, int mouseX) {
+        int x = textX(line, 3);
+        if (mouseX < x) return null;
+        ITextComponent display = line.getMessageWithOptionalTimestamp();
+        TextRenderRouteLayout inline = cachedRow(line).messageLayout;
+        if (canUsePositionedTypography(display, inline)) {
+            return ChatTypographyRenderer.componentAt(display, mouseX - x);
+        }
+        for (ITextComponent component : display) {
+            String text = GuiUtilRenderComponents.removeTextColorsIfConfigured(
+                    component.getUnformattedComponentText(), false);
+            x += TextRenderRouteApi.width(mc.fontRenderer, text);
+            if (x > mouseX) return component;
+        }
+        return null;
+    }
+
+    private String nfrUi$playerAt(SelectionHit hit) {
+        if (hit == null) return null;
+        String linked = ChatPlayerLinks.playerFrom(hit.component);
+        if (linked != null) return linked;
+        if (hit.head && hit.line instanceof ChatMessage) {
+            ChatMessageMetadata metadata = ((ChatMessage) hit.line).nfrUi$getMessageMetadata();
+            if (metadata != null && !metadata.playerName.isEmpty()) return metadata.playerName;
+        }
+        return null;
+    }
+
+    private void drawCopySelection(List<Message> visible, int xPos, int initialY) {
+        if (!EnhancedChatFeatures.copySelection() || !nfrUi$selection.hasSelection()) return;
+        Map<Message, ChatSelectionModel.Range> ranges =
+                nfrUi$selection.visibleRanges(getChat(), visible, ChatArea::messageText);
+        int y = initialY;
+        for (Message line : visible) {
+            int height = rowHeight(line);
+            y -= height;
+            ChatSelectionModel.Range range = ranges.get(line);
+            if (range == null || range.start >= range.end) continue;
+            int textX = textX(line, xPos);
+            TextRenderRouteLayout layout = cachedRow(line).messageLayout;
+            ITextComponent display = line.getMessageWithOptionalTimestamp();
+            boolean positioned = canUsePositionedTypography(display, layout);
+            int x1 = textX + Math.round(positioned
+                    ? ChatTypographyRenderer.xAtFormattedIndex(display, range.start)
+                    : layout.widthToSource(range.start));
+            int x2 = textX + Math.round(positioned
+                    ? ChatTypographyRenderer.xAtFormattedIndex(display, range.end)
+                    : layout.widthToSource(range.end));
+            drawRect(x1, y, x2, y + height, ChatCopyController.SELECTION_COLOR);
+        }
+    }
+
+    private static String messageText(Message line) {
+        return line.getMessageWithOptionalTimestamp().getFormattedText();
+    }
+
+    private static boolean canUsePositionedTypography(ITextComponent display,
+                                                        TextRenderRouteLayout layout) {
+        return ChatTypographyRenderer.isPositioned(display)
+                && !layout.hasInlineContent()
+                && layout.structuredText().effects().isEmpty();
+    }
+
+    private GlyphHover nfrUi$glyphAt(int mouseX, int mouseY, SelectionHit rowHit) {
+        if (!EnhancedChatFeatures.inlineGlyphs()) return null;
+        // Reuse the exact row hit used by the proven player-name/avatar hover path. Only the
+        // horizontal run lookup is image-specific, so both hover systems share scroll, animation,
+        // component offsets and chat scaling behavior.
+        if (rowHit == null) return null;
+        Message line = rowHit.line;
+        int textX = textX(line, 3);
+        TextRenderRouteLayout layout = cachedRow(line).messageLayout;
+        TextInlineBounds hit = layout.contentAt(mouseX - textX,
+                mouseY - rowHit.rowTop);
+        return hit == null ? null : new GlyphHover(hit,
+                textX + Math.round(hit.x()), rowHit.rowTop + Math.round(hit.y()));
+    }
+
+    private static final class GlyphHover {
+        private final TextInlineBounds hit;
+        private final int x;
+        private final int y;
+        private final int width;
+        private final int height;
+
+        private GlyphHover(TextInlineBounds hit, int x, int y) {
+            this.hit = hit;
+            this.x = x;
+            this.y = y;
+            this.width = Math.round(hit.width());
+            this.height = Math.round(hit.height());
+        }
+    }
+
+    private static final class SelectionHit {
+        private final Message line;
+        private final int position;
+        private final boolean head;
+        private final ITextComponent component;
+        private final int rowTop;
+
+        private SelectionHit(Message line, int position, boolean head, ITextComponent component) {
+            this(line, position, head, component, 0);
+        }
+
+        private SelectionHit(Message line, int position, boolean head, ITextComponent component,
+                             int rowTop) {
+            this.line = line;
+            this.position = position;
+            this.head = head;
+            this.component = component;
+            this.rowTop = rowTop;
+        }
+    }
+
+    @Override
+    public void scroll(int scr) {
+        if (scr == 0) return;
+        float delta = scr * baseRowHeight();
+        float maximum = maximumPixelScroll();
+        if (!SmoothScrollConfigAccess.chatEnabled()) {
+            setPixelScroll(nfrUi$displayScroll + delta, maximum);
+            return;
+        }
+        nfrUi$scroller.scrollBy(delta, maximum, nfrUi$displayScroll);
+        scrollPos = pixelPosition(nfrUi$scroller.getTarget()).index;
+    }
+
+    @Override
+    public void setScrollPos(int scroll) {
+        List<Message> list = getChat();
+        int line = Math.max(0, Math.min(scroll, list.size()));
+        setPixelScroll(nfrUi$pixelIndex.offsetForIndex(line), maximumPixelScroll());
+    }
+
+    @Override
+    public int getScrollPos() {
+        return pixelPosition(Math.max(nfrUi$displayScroll,
+                nfrUi$scroller.getTarget())).index;
+    }
+
+    @Override
+    public void resetScroll() {
+        setScrollPos(0);
+    }
+
+    @Override
+    public ITextComponent getChatComponent(int clickX, int clickY) {
+        if (ChatHudWindowController.isChatExpanded()) {
+            Point point = scalePoint(new Point(clickX, clickY), mc.currentScreen);
+            ILocation actual = getActualLocation();
+            // check that cursor is in bounds.
+            if (point.x > actual.getXPos() && point.y > actual.getYPos()
+                    && point.x < actual.getXPos() + actual.getWidth()
+                    && point.y < actual.getYPos() + actual.getHeight()) {
+
+
+                float scale = getActualScale();
+                float bottom = (actual.getYPos() + actual.getHeight());
+                List<Message> list = this.getChat();
+                ChatPixelScrollLayout.Position scroll = pixelPosition(nfrUi$displayScroll);
+                int start = scroll.index;
+                float localY = (bottom - point.y) / scale + scroll.remainder;
+                int linePos = start;
+                int consumed = 0;
+                while (linePos < list.size()) {
+                    consumed += rowHeight(list.get(linePos));
+                    if (localY < consumed) break;
+                    linePos++;
+                }
+
+                if (linePos >= 0 && linePos < list.size()) {
+                    Message chatline = list.get(linePos);
+                    float x = actual.getXPos() + textX(chatline, 3) * scale;
+                    if (point.x < x) return null;
+
+                    for (ITextComponent ichatcomponent : chatline.getMessageWithOptionalTimestamp()) {
+                        if (ichatcomponent instanceof TextComponentString) {
+
+                            // get the text of the component, no children.
+                            String text = ichatcomponent.getUnformattedComponentText();
+                            // clean it up
+                            String clean = GuiUtilRenderComponents.removeTextColorsIfConfigured(text, false);
+                            // get it's width, then scale it.
+                            x += TextRenderRouteApi.width(this.mc.fontRenderer, clean) * scale;
+
+                            if (x > point.x) {
+                                return ichatcomponent;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Rectangle getBounds() {
+        return getLocation().asRectangle();
+    }
+
+    private boolean isPrivateView() {
+        return channel != null && channel.isPm();
+    }
+
+    private int baseRowHeight() {
+        return mc.fontRenderer.FONT_HEIGHT + (isPrivateView() ? PRIVATE_ROW_GAP : 0);
+    }
+
+    private int rowHeight(Message line) {
+        return cachedRow(line).height;
+    }
+
+    private int visibleHeight(List<Message> visible) {
+        int height = 0;
+        for (Message line : visible) height += rowHeight(line);
+        return height;
+    }
+
+    private int rowAt(List<Message> visible, float visualBottom, int mouseY) {
+        float fromBottom = visualBottom - 1.0F - mouseY;
+        int consumed = 0;
+        for (int row = 0; row < visible.size(); row++) {
+            consumed += rowHeight(visible.get(row));
+            if (fromBottom < consumed) return row;
+        }
+        return visible.size();
+    }
+
+    private int lineCapacity() {
+        List<Message> list = getChat();
+        int available = Math.max(1, super.getLocation().getHeight() - 10);
+        int used = 0;
+        int count = 0;
+        int start = pixelPosition(nfrUi$displayScroll).index;
+        for (int index = Math.max(0, start); index < list.size(); index++) {
+            int height = rowHeight(list.get(index));
+            if (count > 0 && used + height > available) break;
+            used += height;
+            count++;
+            if (used >= available) break;
+        }
+        return Math.max(1, count);
+    }
+
+    public int getVisibleLineCapacity() {
+        return lineCapacity();
+    }
+
+    public boolean isScrolled() {
+        return nfrUi$displayScroll > 0.01F || nfrUi$scroller.getTarget() > 0.01F;
+    }
+
+    public int getScrollPixels() {
+        return Math.round(nfrUi$displayScroll);
+    }
+
+    public int getMaximumScrollPixels() {
+        return Math.round(maximumPixelScroll());
+    }
+
+    public int getContentPixelHeight() {
+        getChat();
+        return nfrUi$pixelIndex.totalHeight();
+    }
+
+    public int measureMessagePixelHeight(Message message) {
+        boolean privateView = isPrivateView();
+        int width = chatTextWidth(privateView);
+        int height = 0;
+        for (Message line : ChatTextUtils.split(
+                java.util.Collections.singletonList(message), width, privateView)) {
+            height += measureRow(line, privateView).height;
+        }
+        return height;
+    }
+
+    public void preserveScrollAfterMessage(int addedHeight) {
+        if (!isScrolled() || addedHeight <= 0) return;
+        float maximum = maximumPixelScroll();
+        nfrUi$displayScroll = Math.min(maximum, nfrUi$displayScroll + addedHeight);
+        nfrUi$scroller.shiftBy(addedHeight, maximum);
+        scrollPos = pixelPosition(nfrUi$displayScroll).index;
+    }
+
+    private float maximumPixelScroll() {
+        getChat();
+        return nfrUi$pixelIndex.maximum(viewportPixelHeight());
+    }
+
+    private int viewportPixelHeight() {
+        return Math.max(1, super.getLocation().getHeight() - 10);
+    }
+
+    private ChatPixelScrollLayout.Position pixelPosition(float pixels) {
+        getChat();
+        return nfrUi$pixelIndex.locate(pixels);
+    }
+
+    private void setPixelScroll(float pixels, float maximum) {
+        nfrUi$displayScroll = Math.max(0.0F, Math.min(maximum, pixels));
+        nfrUi$scroller.sync(nfrUi$displayScroll);
+        scrollPos = pixelPosition(nfrUi$displayScroll).index;
+    }
+
+    private boolean isOutgoing(Message line) {
+        if (!(line instanceof ChatMessage)) return false;
+        ChatMessageMetadata metadata = ((ChatMessage) line).nfrUi$getMessageMetadata();
+        return metadata != null && metadata.outgoing;
+    }
+
+    private int textX(Message line, int baseX) {
+        if (!isPrivateView()) return baseX + ChatHeadRenderer.textOffset();
+        int avatarSpace = EnhancedChatFeatures.playerHeads() ? ChatHeadRenderer.HEAD_SIZE + 5 : 0;
+        ITextComponent display = line.getMessageWithOptionalTimestamp();
+        int bubbleWidth = Math.min(getBounds().width - avatarSpace - 8,
+                nfrUi$textWidth(line, display) + 8);
+        int bubbleX = isOutgoing(line)
+                ? getBounds().width - 3 - avatarSpace - bubbleWidth
+                : baseX + avatarSpace;
+        return bubbleX + 4;
+    }
+
+    private int nfrUi$textWidth(Message line, ITextComponent display) {
+        TextRenderRouteLayout inline = cachedRow(line).renderLayout;
+        return canUsePositionedTypography(display, inline)
+                ? ChatTypographyRenderer.width(mc.fontRenderer, display)
+                : (int) Math.ceil(inline.advance());
+    }
+
+    private static final class CachedRow {
+        private final TextRenderRouteLayout messageLayout;
+        private final TextRenderRouteLayout renderLayout;
+        private final int height;
+
+        private CachedRow(TextRenderRouteLayout messageLayout, TextRenderRouteLayout renderLayout,
+                          int height) {
+            this.messageLayout = messageLayout;
+            this.renderLayout = renderLayout;
+            this.height = height;
+        }
+    }
+
+}

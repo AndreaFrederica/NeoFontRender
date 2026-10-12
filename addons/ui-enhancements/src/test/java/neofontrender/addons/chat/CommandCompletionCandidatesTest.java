@@ -1,0 +1,68 @@
+package neofontrender.addons.chat;
+
+import net.minecraft.util.EnumChatFormatting;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class CommandCompletionCandidatesTest {
+    @Test
+    void mergesClientBeforeServerAndRemovesForgeFormatting() {
+        String[] client = {EnumChatFormatting.GRAY + "/neofontrender" + EnumChatFormatting.RESET};
+        String[] server = {"/help", "/thaumcraft"};
+
+        CommandCompletionCandidates.Merge merged =
+                CommandCompletionCandidates.merge(server, client);
+
+        assertArrayEquals(new String[]{"/neofontrender", "/help", "/thaumcraft"},
+                merged.plainValues());
+        List<String> styled = merged.styledValues();
+        assertEquals(EnumChatFormatting.GOLD + "/neofontrender" + EnumChatFormatting.RESET,
+                styled.get(0));
+        assertEquals(EnumChatFormatting.AQUA + "/help" + EnumChatFormatting.RESET, styled.get(1));
+    }
+
+    @Test
+    void clientSourceWinsWhenForgeWouldExecuteTheClientCommand() {
+        String[] client = {EnumChatFormatting.GRAY + "/shared" + EnumChatFormatting.RESET};
+        String[] server = {"/shared", "/server-only"};
+
+        CommandCompletionCandidates.Merge merged =
+                CommandCompletionCandidates.merge(server, client);
+
+        assertArrayEquals(new String[]{"/shared", "/server-only"}, merged.plainValues());
+        assertEquals(CommandCompletionCandidates.Source.CLIENT, merged.sourceOf("shared"));
+        assertEquals(CommandCompletionCandidates.Source.SERVER,
+                merged.sourceOf("/server-only"));
+    }
+
+    @Test
+    void displayFormattingNeverLeaksIntoInsertedValue() {
+        String styled = CommandCompletionCandidates.styled(
+                "/thaumcraft", CommandCompletionCandidates.Source.SERVER);
+
+        assertEquals("/thaumcraft", CommandCompletionCandidates.plain(styled));
+    }
+
+    @Test
+    void argumentPlaceholdersAreDetectedAndShownInTheirOwnColor() {
+        assertTrue(CommandCompletionCandidates.isPlaceholder("<menu_identifier>"));
+        assertTrue(CommandCompletionCandidates.isPlaceholder("<player>"));
+        assertFalse(CommandCompletionCandidates.isPlaceholder("gamemode"));
+        assertFalse(CommandCompletionCandidates.isPlaceholder("<>"));
+        assertFalse(CommandCompletionCandidates.isPlaceholder("<unclosed"));
+        assertFalse(CommandCompletionCandidates.isPlaceholder("unopened>"));
+
+        String placeholder = CommandCompletionCandidates.styled(
+                "<menu_identifier>", CommandCompletionCandidates.Source.SERVER);
+        assertEquals(EnumChatFormatting.DARK_GRAY + "<menu_identifier>" + EnumChatFormatting.RESET,
+                placeholder);
+        // Still selectable, and still inserts exactly the plain text.
+        assertEquals("<menu_identifier>", CommandCompletionCandidates.plain(placeholder));
+    }
+}

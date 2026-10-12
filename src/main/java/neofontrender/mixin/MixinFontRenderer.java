@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import neofontrender.api.text.ModernTextApi;
 import neofontrender.api.text.ModernTextLayout;
 import neofontrender.api.color.TextColorPaletteRegistry;
-import neofontrender.api.text.CjkParagraphLayoutProvider;
-import neofontrender.api.text.CjkParagraphLayoutRegistry;
+import neofontrender.api.text.paragraph.TextParagraphProvider;
+import neofontrender.api.text.paragraph.TextParagraphApi;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.BakedGlyph;
 import neofontrender.core.font.awt.FontSet;
@@ -25,7 +25,8 @@ import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.backend.BackendTextSegmenter;
 import neofontrender.core.config.NeofontrenderConfig;
-import neofontrender.core.font.preprocess.LayoutText;
+import neofontrender.core.font.pipeline.StructuredTextRuntime;
+import neofontrender.core.font.pipeline.LayoutText;
 import neofontrender.core.font.preprocess.PreprocessedText;
 import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
 import neofontrender.core.font.linebreak.CjkLineBreakRules;
@@ -635,10 +636,10 @@ public abstract class MixinFontRenderer {
         if (str == null) {
             return;
         }
-        CjkParagraphLayoutProvider.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
+        TextParagraphProvider.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
         if (paragraph != null) {
             cir.setReturnValue(Math.min(str.length(),
-                    Math.max(0, paragraph.firstRawBoundary(str.length()))));
+                    Math.max(0, paragraph.firstSourceBoundary(str.length()))));
             return;
         }
         LayoutText layoutText = LayoutText.process(str);
@@ -708,11 +709,11 @@ public abstract class MixinFontRenderer {
     private void sfr$drawCjkParagraph(String str, int x, int y, int wrapWidth, int textColor,
                                       CallbackInfo ci) {
         if (str == null) return;
-        CjkParagraphLayoutProvider.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
+        TextParagraphProvider.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
         if (paragraph == null) return;
         FontRenderer self = (FontRenderer) (Object) this;
-        for (CjkParagraphLayoutProvider.Line line : paragraph.lines()) {
-            for (CjkParagraphLayoutProvider.Run run : line.runs()) {
+        for (TextParagraphProvider.Line line : paragraph.lines()) {
+            for (TextParagraphProvider.Run run : line.runs()) {
                 self.drawString(run.formattedText(), x + (int) run.xOffset(),
                         y + (int) line.yOffset(), textColor, false);
             }
@@ -720,10 +721,10 @@ public abstract class MixinFontRenderer {
         ci.cancel();
     }
 
-    private CjkParagraphLayoutProvider.Layout sfr$layoutCjkParagraph(String text, int width) {
+    private TextParagraphProvider.Layout sfr$layoutCjkParagraph(String text, int width) {
         if (!NeofontrenderConfig.fixCjkLineBreak()) return null;
         FontRenderer self = (FontRenderer) (Object) this;
-        return CjkParagraphLayoutRegistry.layout(new CjkParagraphLayoutProvider.Request(
+        return TextParagraphApi.layout(new TextParagraphProvider.Request(
                 text, width, this.FONT_HEIGHT, sfr$currentLanguageCode(), self::getStringWidth));
     }
 
@@ -850,6 +851,7 @@ public abstract class MixinFontRenderer {
         sfr$runtimeColorSnapshot = this.colorCode == null ? new int[0] : this.colorCode.clone();
         sfr$activeColorCodes = TextColorPaletteRegistry.resolve(provider, this.colorCode);
         FontManager.INSTANCE.updateLegacyColorCodes(sfr$activeColorCodes);
+        StructuredTextRuntime.updateColorCodes(sfr$activeColorCodes);
     }
 
     private int sfr$legacyColor(int index) {

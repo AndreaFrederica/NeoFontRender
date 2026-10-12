@@ -6,8 +6,12 @@
   "compatibilityLevel": "JAVA_8",
   "target": "@env(DEFAULT)",
   "mixins": [
+    "MixinCommandHandlerCompletionProviders",
     "MixinCommandMessageSelfTarget",
-    "MixinCommandMessageRecord"
+    "MixinCommandMessageRecord",
+    "MixinServerChatCharacters",
+    "MixinTextAnimatorGameRules",
+    "MixinContainerRepairTextAnimator"
   ],
   "server": [],
   "client": []

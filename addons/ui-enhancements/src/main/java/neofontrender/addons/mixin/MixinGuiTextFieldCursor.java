@@ -2,6 +2,7 @@ package neofontrender.addons.mixin;
 
 import net.minecraft.client.gui.GuiTextField;
 import neofontrender.addons.input.TextCursorManager;
+import neofontrender.addons.navigation.vanilla.VanillaWidgetCapture;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,6 +21,7 @@ public abstract class MixinGuiTextFieldCursor {
 
     @Inject(method = "drawTextBox", at = @At("HEAD"))
     private void nfrUi$trackCursor(CallbackInfo callback) {
+        VanillaWidgetCapture.widgetDrawn((GuiTextField) (Object) this);
         TextCursorManager.textFieldDrawn(xPosition, yPosition, width, height, visible, isEnabled);
     }
 }

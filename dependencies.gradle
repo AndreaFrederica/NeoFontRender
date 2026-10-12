@@ -7,11 +7,24 @@ configurations {
     runtimeOnlyNonPublishable
     implementation.extendsFrom(embed)
     runtimeClasspath.extendsFrom(runtimeOnlyNonPublishable)
+
+    // The GTNH convention pulls asm-debug-all 5.0.3 onto the test classpath, but it
+    // predates Java 25 class files. The bytecode contract tests need the ASM 9 API, so
+    // drop the shaded 5.0.3 jar in favour of the explicit modern dependency below.
+    testCompileClasspath {
+        exclude group: 'org.ow2.asm', module: 'asm-debug-all'
+    }
+    testRuntimeClasspath {
+        exclude group: 'org.ow2.asm', module: 'asm-debug-all'
+    }
 }
 
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Provides Opcodes.ASM9 and Java 25 class-file parsing for the GL/bytecode contract tests.
+    testImplementation 'org.ow2.asm:asm:9.8'
 
     // TOML configuration library (embedded so no extra jar needed at runtime)
     embed 'com.electronwill.night-config:core:3.8.3'

@@ -11,6 +11,7 @@ import com.google.gson.JsonPrimitive;
 import net.minecraft.client.Minecraft;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.addons.api.flight.FlightApi;
+import neofontrender.addons.build.UiBuildFeatures;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -136,7 +137,9 @@ enum FlightHudThemeManager {
         themes.putAll(loaded);
         fingerprint = fingerprint(directory);
         lastCheckNanos = System.nanoTime();
-        NfrUiEnhancements.LOGGER.info("Loaded {} flight HUD themes from {}", themes.size(), directory);
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            NfrUiEnhancements.LOGGER.info("Loaded {} flight HUD themes from {}", themes.size(), directory);
+        }
     }
 
     private void reloadIfChanged() {
@@ -207,6 +210,9 @@ enum FlightHudThemeManager {
         }
     }
 
+    /**
+     * 1.7.10 ships Gson 2.2.4, where JsonElement#deepCopy is package private.
+     */
     private static JsonElement deepCopy(JsonElement element) {
         if (element == null || element.isJsonNull()) return JsonNull.INSTANCE;
         if (element.isJsonPrimitive()) return element.getAsJsonPrimitive();

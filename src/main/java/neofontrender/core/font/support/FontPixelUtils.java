@@ -1,5 +1,7 @@
 package neofontrender.core.font.support;
 
+import neofontrender.api.text.TextVisualBounds;
+
 /**
  * Pixel cleanup for straight-alpha font textures.
  *
@@ -12,6 +14,26 @@ public final class FontPixelUtils {
     public static final int TRANSPARENT_WHITE = 0x00FFFFFF;
 
     private FontPixelUtils() {
+    }
+
+    /** Nontransparent raster coverage in the same coordinates as the rendered quad. */
+    public static TextVisualBounds visibleBounds(
+            int[] pixels, int width, int height, float left, float top, float right, float bottom) {
+        if (pixels == null || width <= 0 || height <= 0 || (long) width * height > pixels.length) {
+            return TextVisualBounds.EMPTY;
+        }
+        int minX = width, minY = height, maxX = -1, maxY = -1;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if ((pixels[y * width + x] >>> 24) == 0) continue;
+                minX = Math.min(minX, x); minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+            }
+        }
+        if (maxX < minX) return TextVisualBounds.EMPTY;
+        float sx = (right - left) / width, sy = (bottom - top) / height;
+        return new TextVisualBounds(left + minX * sx, top + minY * sy,
+                left + (maxX + 1) * sx, top + (maxY + 1) * sy);
     }
 
     public static void normalizeWhiteStraightAlpha(int[] pixels) {

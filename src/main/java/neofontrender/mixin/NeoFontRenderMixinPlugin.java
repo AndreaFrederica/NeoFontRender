@@ -1,6 +1,7 @@
 package neofontrender.mixin;
 
 import net.minecraft.launchwrapper.Launch;
+import neofontrender.api.config.NfrMixinConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
@@ -14,7 +15,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Applies optional sign optimizations only when at least one sign option is enabled at launch.
+ * Applies shared boot-time Mixin switches and the optional sign optimization settings.
  * Runtime checks remain in the mixin for config reloads, but this gate preserves the original
  * target bytecode entirely when both options are disabled.
  */
@@ -38,6 +39,7 @@ public final class NeoFontRenderMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (!NfrMixinConfig.enabled(mixinClassName)) return false;
         if (mixinClassName.endsWith("MixinTileEntitySignRenderer")) {
             return signMixinEnabled;
         }

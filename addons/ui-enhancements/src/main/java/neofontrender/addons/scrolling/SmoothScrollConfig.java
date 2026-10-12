@@ -3,7 +3,6 @@ package neofontrender.addons.scrolling;
 import neofontrender.addons.ui.UiEnhancementsConfig;
 import neofontrender.api.config.NfrConfigFile;
 
-/** Persistent options for list scrolling. */
 final class SmoothScrollConfig {
     static boolean enabled = true;
     static boolean vanillaLists = true;
@@ -18,12 +17,12 @@ final class SmoothScrollConfig {
     static void load() {
         NfrConfigFile file = UiEnhancementsConfig.file();
         file.define("scrolling.enabled", true, "Master switch for smooth wheel movement.")
-                .define("scrolling.vanillaLists", true, "Smooth vanilla GuiSlot lists.")
-                .define("scrolling.forgeLists", true, "Smooth Forge GuiScrollingList lists.")
-                .define("scrolling.creativeInventory", true, "Smooth creative inventory item grid scrolling.")
-                .define("scrolling.chat", true, "Smooth vanilla chat history scrolling.")
+                .define("scrolling.vanillaLists", true, "Smooth vanilla GuiSlot based lists.")
+                .define("scrolling.forgeLists", true, "Smooth Forge GuiScrollingList based lists.")
+                .define("scrolling.creativeInventory", true, "Smooth the creative inventory item grid.")
+                .define("scrolling.chat", true, "Smooth chat history scrolling.")
                 .define("scrolling.durationMillis", 200, "Animation duration in milliseconds (60-600).")
-                .define("scrolling.wheelStep", 40, "Pixels per wheel notch (8-160).");
+                .define("scrolling.wheelStep", 40, "Pixels added to the target per wheel notch (8-160). ");
         enabled = file.getBoolean("scrolling.enabled", true);
         vanillaLists = file.getBoolean("scrolling.vanillaLists", true);
         forgeLists = file.getBoolean("scrolling.forgeLists", true);
@@ -35,8 +34,7 @@ final class SmoothScrollConfig {
     }
 
     static void save() {
-        UiEnhancementsConfig.file()
-                .set("scrolling.enabled", enabled)
+        UiEnhancementsConfig.file().set("scrolling.enabled", enabled)
                 .set("scrolling.vanillaLists", vanillaLists)
                 .set("scrolling.forgeLists", forgeLists)
                 .set("scrolling.creativeInventory", creativeInventory)

@@ -8,6 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EnhancedChatConfigAccessTest {
     @Test
+    void restoredHistoryLoggingIsDisabledByDefault() {
+        assertFalse(EnhancedChatConfigAccess.logRestoredHistory());
+    }
+
+    @Test
     void vanillaChatKeepsExtendedHistoryWhenTabbedChatIsDisabled() {
         boolean oldEnabled = EnhancedChatConfig.enabled;
         boolean oldTabbed = EnhancedChatConfig.tabbedChat;

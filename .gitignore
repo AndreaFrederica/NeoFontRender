@@ -13,6 +13,7 @@
 /logs/
 /addons/*/build/
 /addons/*/*/build/
+/engine/*/build/
 /addons/*/logs/
 options.txt
 /saves/
@@ -39,15 +40,37 @@ addon.late.local.gradle
 addon.late.local.gradle.kts
 layout.json
 
+# local compiler/decompiler output and diagnostics
+.kotlin/
+.tmp-*/
+ref/
+*.log
+*.log.gz
+*.class
+*.pdb
+/ac-gl.txt
+/ot-gl.txt
+/net/minecraft/
+.out-of-code-insights/
+
 # Rust native build output; Cargo.lock remains tracked for reproducible JNI binaries.
 native/**/target/
+/engine/typst-render/native/target/
 
+# other
 hs_err_pid*.log
 src/main/java/io/
+/addons/ui-enhancements/logs
+/addons/ui-enhancements-controller/logs
+/addons/inline-content-showcase/logs
 
 # local agent tooling
 .claude/
 .mimocode/
+AGENTS.md
 
 # vendored arc3d scratch (not wired into any build; use the dev.icyllis:arc3d-core dependency)
 /icyllis/
+
+# decompiled Minecraft sources (DMCA)
+.out-of-code-insights/mc-src/

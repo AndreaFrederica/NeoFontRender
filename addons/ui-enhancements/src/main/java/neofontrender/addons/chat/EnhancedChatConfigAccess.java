@@ -1,11 +1,34 @@
 package neofontrender.addons.chat;
 
-/** Read-only early-Mixin bridge for runtime chat limits. */
 public final class EnhancedChatConfigAccess {
     private EnhancedChatConfigAccess() {}
 
     public static boolean tabbedChatEnabled() {
         return tabbedChatEnabled(ExternalChatCompat.tabbyChatLoaded());
+    }
+
+    public static boolean chatEnabled() {
+        return EnhancedChatConfig.enabled;
+    }
+
+    public static boolean inputAnimationEnabled() {
+        return EnhancedChatConfig.enabled && EnhancedChatConfig.animateInput;
+    }
+
+    public static int inputAnimationDurationMillis() {
+        return EnhancedChatConfig.inputAnimationDuration;
+    }
+
+    public static boolean commandCompletionEnabled() {
+        return EnhancedChatConfig.enabled && EnhancedChatConfig.commandCompletion;
+    }
+
+    public static boolean sourcePreviewEnabled() {
+        return EnhancedChatConfig.enabled && EnhancedChatConfig.sourcePreview;
+    }
+
+    public static boolean allowSectionSignInput() {
+        return EnhancedChatConfig.enabled && EnhancedChatConfig.allowSectionSignInput;
     }
 
     static boolean tabbedChatEnabled(boolean externalTabbyLoaded) {
@@ -29,8 +52,8 @@ public final class EnhancedChatConfigAccess {
         return !externalTabbyLoaded && EnhancedChatConfig.enabled && EnhancedChatConfig.persistence;
     }
 
-    public static boolean commandCompletionEnabled() {
-        return EnhancedChatConfig.enabled && EnhancedChatConfig.commandCompletion;
+    public static boolean logRestoredHistory() {
+        return EnhancedChatConfig.logRestoredHistory;
     }
 
     public static boolean privateCommandBlockEnabled() {
@@ -40,14 +63,9 @@ public final class EnhancedChatConfigAccess {
     public static String privateCommandPrefix(String player) {
         String name = player == null ? "" : player;
         String template = EnhancedChatConfig.privateMessageCommand == null
-                ? "/msg" : EnhancedChatConfig.privateMessageCommand.trim();
-        String prefix = template.contains("{player}")
-                ? template.replace("{player}", name).trim() : template + " " + name;
-        return prefix.trim().isEmpty() ? "/msg " + name : prefix.trim();
-    }
-
-    public static boolean verticalTabsEnabled() {
-        return tabbedChatEnabled() && EnhancedChatConfig.verticalTabs;
+                ? "/msg {player}" : EnhancedChatConfig.privateMessageCommand.trim();
+        String prefix = template.replace("{player}", name).trim();
+        return prefix.isEmpty() ? "/msg " + name : prefix;
     }
 
     public static boolean persistentChatHudEnabled() {
@@ -55,6 +73,7 @@ public final class EnhancedChatConfigAccess {
     }
 
     public static void setPersistentChatHudEnabled(boolean enabled) {
+        if (EnhancedChatConfig.persistentChatHud == enabled) return;
         EnhancedChatConfig.persistentChatHud = enabled;
         EnhancedChatConfig.save();
     }
@@ -63,10 +82,11 @@ public final class EnhancedChatConfigAccess {
         return EnhancedChatConfig.closeChatOnDetach;
     }
 
-    public static boolean chatEnabled() {
-        return EnhancedChatConfig.enabled;
+    public static boolean verticalTabsEnabled() {
+        return tabbedChatEnabled() && EnhancedChatConfig.verticalTabs;
     }
 
+    /** Values used by the embedded Salutation command and translation implementation. */
     public static boolean forceServerTranslations() {
         return EnhancedChatConfig.salutationForceServerTranslations;
     }

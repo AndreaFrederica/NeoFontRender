@@ -82,7 +82,7 @@ public final class CosmicRuntimeSupport {
                 return new Platform("android-" + normalizedArch, "libneofontrender_cosmic.so");
             } else {
                 return new Platform("linux-" + normalizedArch + "-" + detectLinuxLibc(normalizedArch),
-                        "libneofontrender_cosmic.so");
+                    "libneofontrender_cosmic.so");
             }
         }
         if (os.contains("mac") || os.contains("darwin")) {

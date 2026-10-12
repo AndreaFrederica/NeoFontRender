@@ -1,7 +1,6 @@
 package neofontrender.addons.chat;
 
 import com.cleanroommc.modularui.api.widget.IWidget;
-import neofontrender.addons.scrolling.SmoothScrollConfigAccess;
 import neofontrender.addons.tooltips.AddonI18n;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.api.client.settings.NfrSettingsPage;
@@ -22,24 +21,26 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
     @Override public NfrSettingsPageSession createSession() { return new Session(); }
 
     private static final class Session implements NfrSettingsPageSession {
-        private final boolean originalEnabled = EnhancedChatConfig.enabled;
-        private final boolean originalExtended = EnhancedChatConfig.extendedHistory;
-        private final int originalLimit = EnhancedChatConfig.maxMessages;
-        private final boolean originalPersistence = EnhancedChatConfig.persistence;
-        private final boolean originalReceived = EnhancedChatConfig.persistReceived;
-        private final boolean originalSent = EnhancedChatConfig.persistSent;
-        private final boolean originalCopySelection = EnhancedChatConfig.copySelection;
-        private final boolean originalCopyFormattingCodes = EnhancedChatConfig.copyFormattingCodes;
-        private final boolean originalAmpersandFormatting = EnhancedChatConfig.ampersandFormatting;
-        private final boolean originalTabbed = EnhancedChatConfig.tabbedChat;
-        private final boolean originalSmooth = SmoothScrollConfigAccess.chatConfigured();
-        private final boolean originalSearch = EnhancedChatConfig.messageSearch;
-        private final boolean originalCommandCompletion = EnhancedChatConfig.commandCompletion;
-        private final boolean originalPrivateCommandBlock = EnhancedChatConfig.privateCommandBlock;
-        private final boolean originalForceServerTranslations =
-                EnhancedChatConfig.salutationForceServerTranslations;
-        private final boolean originalDisableSalutationOverride =
-                EnhancedChatConfig.salutationDisableOverride;
+        private final boolean enabled = EnhancedChatConfig.enabled;
+        private final boolean tabbed = EnhancedChatConfig.tabbedChat;
+        private final boolean extended = EnhancedChatConfig.extendedHistory;
+        private final int limit = EnhancedChatConfig.maxMessages;
+        private final boolean persistence = EnhancedChatConfig.persistence;
+        private final boolean received = EnhancedChatConfig.persistReceived;
+        private final boolean sent = EnhancedChatConfig.persistSent;
+        private final boolean logRestored = EnhancedChatConfig.logRestoredHistory;
+        private final boolean search = EnhancedChatConfig.messageSearch;
+        private final boolean commandCompletion = EnhancedChatConfig.commandCompletion;
+        private final String completionEngine = EnhancedChatConfig.completionEngine;
+        private final String completionDisplay = EnhancedChatConfig.completionDisplay;
+        private final boolean privateCommandBlock = EnhancedChatConfig.privateCommandBlock;
+        private final boolean copySelection = EnhancedChatConfig.copySelection;
+        private final boolean copyFormattingCodes = EnhancedChatConfig.copyFormattingCodes;
+        private final boolean ampersandFormatting = EnhancedChatConfig.ampersandFormatting;
+        private final boolean allowSectionSignInput = EnhancedChatConfig.allowSectionSignInput;
+        private final boolean sourcePreview = EnhancedChatConfig.sourcePreview;
+        private final boolean forceServerTranslations = EnhancedChatConfig.salutationForceServerTranslations;
+        private final boolean disableSalutationOverride = EnhancedChatConfig.salutationDisableOverride;
 
         @Override public IWidget createView(NfrSettingsPageContext context) {
             NfrSettingsControls c = context.controls();
@@ -48,17 +49,18 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
                             () -> EnhancedChatConfig.enabled, value -> EnhancedChatConfig.enabled = value))
                     .add(c.toggleText(() -> tr("gui.chat.tabbed"), () -> tr("tooltip.chat.tabbed"),
                             () -> EnhancedChatConfig.tabbedChat, value -> EnhancedChatConfig.tabbedChat = value))
-                    .add(c.toggleText(() -> tr("gui.chat.smooth_scrolling"),
-                            () -> tr("tooltip.chat.smooth_scrolling"),
-                            SmoothScrollConfigAccess::chatConfigured,
-                            SmoothScrollConfigAccess::setChatConfigured))
                     .add(c.toggleText(() -> tr("gui.chat.search"), () -> tr("tooltip.chat.search"),
-                            () -> EnhancedChatConfig.messageSearch,
-                            value -> EnhancedChatConfig.messageSearch = value))
+                            () -> EnhancedChatConfig.messageSearch, value -> EnhancedChatConfig.messageSearch = value))
                     .add(c.toggleText(() -> tr("gui.chat.command_completion"),
                             () -> tr("tooltip.chat.command_completion"),
                             () -> EnhancedChatConfig.commandCompletion,
                             value -> EnhancedChatConfig.commandCompletion = value))
+                    .add(c.dropdownText("chat_completion_engine", () -> tr("gui.chat.completion_engine"),
+                            CommandCompletionOptions::engine, value -> EnhancedChatConfig.completionEngine = value,
+                            CommandCompletionOptions.engines(), value -> tr("gui.chat.completion_option." + value)).size(260, 24))
+                    .add(c.dropdownText("chat_completion_display", () -> tr("gui.chat.completion_display"),
+                            CommandCompletionOptions::display, value -> EnhancedChatConfig.completionDisplay = value,
+                            CommandCompletionOptions.displays(), value -> tr("gui.chat.completion_option." + value)).size(260, 24))
                     .add(c.toggleText(() -> tr("gui.chat.private_command_block"),
                             () -> tr("tooltip.chat.private_command_block"),
                             () -> EnhancedChatConfig.privateCommandBlock,
@@ -70,83 +72,72 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
                     .add(c.toggleText(() -> tr("gui.chat.salutation_disable_override"),
                             () -> tr("tooltip.chat.salutation_disable_override"),
                             () -> EnhancedChatConfig.salutationDisableOverride,
-                            value -> EnhancedChatConfig.salutationDisableOverride = value));
+                            value -> EnhancedChatConfig.salutationDisableOverride = value))
+                    .add(c.toggleText(() -> tr("gui.chat.allow_section_sign"),
+                            () -> tr("tooltip.chat.allow_section_sign"),
+                            () -> EnhancedChatConfig.allowSectionSignInput,
+                            value -> EnhancedChatConfig.allowSectionSignInput = value))
+                    .add(c.toggleText(() -> tr("gui.chat.source_preview"),
+                            () -> tr("tooltip.chat.source_preview"),
+                            () -> EnhancedChatConfig.sourcePreview,
+                            value -> EnhancedChatConfig.sourcePreview = value));
             NfrOptionsGrid history = c.grid()
-                    .add(c.toggleText(() -> tr("gui.chat.extended_history"),
-                            () -> tr("tooltip.chat.extended_history"),
-                            () -> EnhancedChatConfig.extendedHistory,
-                            value -> EnhancedChatConfig.extendedHistory = value))
+                    .add(c.toggleText(() -> tr("gui.chat.extended_history"), () -> tr("tooltip.chat.extended_history"),
+                            () -> EnhancedChatConfig.extendedHistory, value -> EnhancedChatConfig.extendedHistory = value))
                     .add(c.dropdownText("chat_history_limit", () -> tr("gui.chat.history_limit"),
                             () -> Integer.toString(EnhancedChatConfig.maxMessages),
                             value -> EnhancedChatConfig.maxMessages = Integer.parseInt(value),
-                            Arrays.asList("100", "500", "1000", "4096", "8192", "16384", "32767"),
-                            value -> value).size(260, 24))
-                    .add(c.toggleText(() -> tr("gui.chat.persistence"),
-                            () -> tr("tooltip.chat.persistence"),
-                            () -> EnhancedChatConfig.persistence,
-                            value -> EnhancedChatConfig.persistence = value))
-                    .add(c.toggleText(() -> tr("gui.chat.persist_received"),
-                            () -> tr("tooltip.chat.persist_received"),
-                            () -> EnhancedChatConfig.persistReceived,
-                            value -> EnhancedChatConfig.persistReceived = value))
-                    .add(c.toggleText(() -> tr("gui.chat.persist_sent"),
-                            () -> tr("tooltip.chat.persist_sent"),
-                            () -> EnhancedChatConfig.persistSent,
-                            value -> EnhancedChatConfig.persistSent = value));
+                            Arrays.asList("100", "500", "1000", "4096", "8192", "16384", "32767"), value -> value)
+                            .size(260, 24))
+                    .add(c.toggleText(() -> tr("gui.chat.persistence"), () -> tr("tooltip.chat.persistence"),
+                            () -> EnhancedChatConfig.persistence, value -> EnhancedChatConfig.persistence = value))
+                    .add(c.toggleText(() -> tr("gui.chat.persist_received"), () -> tr("tooltip.chat.persist_received"),
+                            () -> EnhancedChatConfig.persistReceived, value -> EnhancedChatConfig.persistReceived = value))
+                    .add(c.toggleText(() -> tr("gui.chat.persist_sent"), () -> tr("tooltip.chat.persist_sent"),
+                            () -> EnhancedChatConfig.persistSent, value -> EnhancedChatConfig.persistSent = value))
+                    .add(c.toggleText(() -> tr("gui.chat.log_restored_history"),
+                            () -> tr("tooltip.chat.log_restored_history"),
+                            () -> EnhancedChatConfig.logRestoredHistory,
+                            value -> EnhancedChatConfig.logRestoredHistory = value));
             NfrOptionsGrid copying = c.grid()
-                    .add(c.toggleText(() -> tr("gui.chat.copy_selection"),
-                            () -> tr("tooltip.chat.copy_selection"),
-                            () -> EnhancedChatConfig.copySelection,
-                            value -> EnhancedChatConfig.copySelection = value))
-                    .add(c.toggleText(() -> tr("gui.chat.copy_formatting"),
-                            () -> tr("tooltip.chat.copy_formatting"),
+                    .add(c.toggleText(() -> tr("gui.chat.copy_selection"), () -> tr("tooltip.chat.copy_selection"),
+                            () -> EnhancedChatConfig.copySelection, value -> EnhancedChatConfig.copySelection = value))
+                    .add(c.toggleText(() -> tr("gui.chat.copy_formatting"), () -> tr("tooltip.chat.copy_formatting"),
                             () -> EnhancedChatConfig.copyFormattingCodes,
                             value -> EnhancedChatConfig.copyFormattingCodes = value))
-                    .add(c.toggleText(() -> tr("gui.chat.copy_ampersand"),
-                            () -> tr("tooltip.chat.copy_ampersand"),
+                    .add(c.toggleText(() -> tr("gui.chat.copy_ampersand"), () -> tr("tooltip.chat.copy_ampersand"),
                             () -> EnhancedChatConfig.ampersandFormatting,
                             value -> EnhancedChatConfig.ampersandFormatting = value));
             return new PageView(core, history, copying);
         }
 
-        @Override public void apply() {
-            SmoothScrollConfigAccess.save();
-            EnhancedChatConfig.save();
-        }
+        @Override public void apply() { EnhancedChatConfig.save(); }
 
         @Override public void cancel() {
-            restoreOriginal();
-        }
-
-        public void rollbackApply() {
-            restoreOriginal();
-            SmoothScrollConfigAccess.save();
-            EnhancedChatConfig.save();
-        }
-
-        private void restoreOriginal() {
-            EnhancedChatConfig.enabled = originalEnabled;
-            EnhancedChatConfig.extendedHistory = originalExtended;
-            EnhancedChatConfig.maxMessages = originalLimit;
-            EnhancedChatConfig.persistence = originalPersistence;
-            EnhancedChatConfig.persistReceived = originalReceived;
-            EnhancedChatConfig.persistSent = originalSent;
-            EnhancedChatConfig.copySelection = originalCopySelection;
-            EnhancedChatConfig.copyFormattingCodes = originalCopyFormattingCodes;
-            EnhancedChatConfig.ampersandFormatting = originalAmpersandFormatting;
-            EnhancedChatConfig.tabbedChat = originalTabbed;
-            EnhancedChatConfig.messageSearch = originalSearch;
-            EnhancedChatConfig.commandCompletion = originalCommandCompletion;
-            EnhancedChatConfig.privateCommandBlock = originalPrivateCommandBlock;
-            EnhancedChatConfig.salutationForceServerTranslations = originalForceServerTranslations;
-            EnhancedChatConfig.salutationDisableOverride = originalDisableSalutationOverride;
-            SmoothScrollConfigAccess.setChatConfigured(originalSmooth);
+            EnhancedChatConfig.enabled = enabled;
+            EnhancedChatConfig.tabbedChat = tabbed;
+            EnhancedChatConfig.extendedHistory = extended;
+            EnhancedChatConfig.maxMessages = limit;
+            EnhancedChatConfig.persistence = persistence;
+            EnhancedChatConfig.persistReceived = received;
+            EnhancedChatConfig.persistSent = sent;
+            EnhancedChatConfig.logRestoredHistory = logRestored;
+            EnhancedChatConfig.messageSearch = search;
+            EnhancedChatConfig.commandCompletion = commandCompletion;
+            EnhancedChatConfig.completionEngine = completionEngine;
+            EnhancedChatConfig.completionDisplay = completionDisplay;
+            EnhancedChatConfig.privateCommandBlock = privateCommandBlock;
+            EnhancedChatConfig.copySelection = copySelection;
+            EnhancedChatConfig.copyFormattingCodes = copyFormattingCodes;
+            EnhancedChatConfig.ampersandFormatting = ampersandFormatting;
+            EnhancedChatConfig.allowSectionSignInput = allowSectionSignInput;
+            EnhancedChatConfig.sourcePreview = sourcePreview;
+            EnhancedChatConfig.salutationForceServerTranslations = forceServerTranslations;
+            EnhancedChatConfig.salutationDisableOverride = disableSalutationOverride;
         }
     }
 
-    private static String tr(String key) {
-        return AddonI18n.tr("neofontrender_ui_enhancements." + key);
-    }
+    private static String tr(String key) { return AddonI18n.tr("neofontrender_ui_enhancements." + key); }
 
     private static final class PageView extends NfrContentView<PageView> {
         private PageView(NfrOptionsGrid core, NfrOptionsGrid history, NfrOptionsGrid copying) {

@@ -12,6 +12,7 @@ public final class MainMenuModule implements UiEnhancementModule {
         LastPlayedGameManager.INSTANCE.initialize();
         // ClientTickEvent fires on the FML bus, not on MinecraftForge.EVENT_BUS.
         FMLCommonHandler.instance().bus().register(LastPlayedGameManager.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(new CustomMainMenuButtonInjector());
         NfrSettingsPageRegistry.register(new MainMenuSettingsPage());
     }
 }

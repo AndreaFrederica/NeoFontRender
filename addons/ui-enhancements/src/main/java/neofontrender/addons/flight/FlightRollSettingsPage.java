@@ -30,6 +30,7 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
         private final boolean originalEnabled = FlightRollConfig.enabled;
         private final boolean originalAllowInWater = FlightRollConfig.allowInWater;
         private final boolean originalKeyboardYaw = FlightRollConfig.keyboardYaw;
+        private final boolean originalWsPitch = FlightRollConfig.wsPitch;
         private final boolean originalBanking = FlightRollConfig.banking;
         private final boolean originalMomentum = FlightRollConfig.momentumMouse;
         private final float originalRollSensitivity = FlightRollConfig.rollSensitivity;
@@ -54,6 +55,9 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
         private final boolean originalHorizon = FlightRollConfig.hudHorizon;
         private final boolean originalInputIndicator = FlightRollConfig.hudInputIndicator;
         private final int originalHudScale = FlightRollConfig.hudScalePercent;
+        private final boolean originalHudMaskEnabled = FlightRollConfig.hudMaskEnabled;
+        private final int originalHudMaskColor = FlightRollConfig.hudMaskColor;
+        private final int originalHudMaskOpacity = FlightRollConfig.hudMaskOpacityPercent;
         private final boolean originalHideVanillaCrosshair =
                 CrosshairConfig.hideVanillaDuringFlightHud;
         private final boolean originalHideForgeCrosshair =
@@ -84,6 +88,10 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
                             () -> tr("tooltip.flight_roll.keyboard_yaw"),
                             () -> FlightRollConfig.keyboardYaw,
                             value -> FlightRollConfig.keyboardYaw = value))
+                    .add(c.toggleText(() -> tr("gui.flight_roll.ws_pitch"),
+                            () -> tr("tooltip.flight_roll.ws_pitch"),
+                            () -> FlightRollConfig.wsPitch,
+                            value -> FlightRollConfig.wsPitch = value))
                     .add(c.toggleText(() -> tr("gui.flight_roll.banking"),
                             () -> tr("tooltip.flight_roll.banking"),
                             () -> FlightRollConfig.banking,
@@ -154,7 +162,7 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
                             value -> FlightRollConfig.hudTheme = value,
                             FlightHudThemeManager.INSTANCE.themeIds(),
                             FlightHudThemeManager.INSTANCE::displayName).size(260, 24))
-                    .add(c.action(tr("gui.flight_roll.hud_reload"),
+                    .add(c.action(() -> tr("gui.flight_roll.hud_reload"),
                             260, 24, FlightHudThemeManager.INSTANCE::reloadNow))
                     .add(c.action("neofontrender.gui.button.open_folder", 130, 24,
                             FlightRollSettingsPage::openThemeFolder))
@@ -190,6 +198,21 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
                             50.0D, 100.0D, 1.0D,
                             () -> FlightRollConfig.hudScalePercent + "%",
                             "tooltip.flight_roll.hud_scale"))
+                    .add(c.toggleText(() -> tr("gui.flight_roll.hud_mask"),
+                            () -> tr("tooltip.flight_roll.hud_mask"),
+                            () -> FlightRollConfig.hudMaskEnabled,
+                            value -> FlightRollConfig.hudMaskEnabled = value))
+                    .add(c.colorText("flight_hud_mask_color",
+                            () -> tr("gui.flight_roll.hud_mask_color"),
+                            () -> FlightRollConfig.hudMaskColor,
+                            value -> FlightRollConfig.hudMaskColor = 0xFF000000 | (value & 0x00FFFFFF),
+                            false).size(260, 24))
+                    .add(slider("gui.flight_roll.hud_mask_opacity",
+                            () -> FlightRollConfig.hudMaskOpacityPercent,
+                            value -> FlightRollConfig.hudMaskOpacityPercent = (int) Math.round(value),
+                            0.0D, 100.0D, 1.0D,
+                            () -> FlightRollConfig.hudMaskOpacityPercent + "%",
+                            "tooltip.flight_roll.hud_mask_opacity"))
                     .add(hudVisibilityToggle(c, "hud_hide_crosshair",
                             "tooltip.crosshair.hide_flight",
                             () -> CrosshairConfig.hideVanillaDuringFlightHud,
@@ -228,7 +251,8 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
                     .add(hudVisibilityToggle(c, "hud_hide_first_person_hand",
                             "tooltip.flight_roll.hud_hide_first_person_hand",
                             () -> FlightRollConfig.hudHideFirstPersonHand,
-                            value -> FlightRollConfig.hudHideFirstPersonHand = value));
+                            value -> FlightRollConfig.hudHideFirstPersonHand = value))
+                    ;
             return new PageView(grid);
         }
 
@@ -241,6 +265,7 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
             FlightRollConfig.enabled = originalEnabled;
             FlightRollConfig.allowInWater = originalAllowInWater;
             FlightRollConfig.keyboardYaw = originalKeyboardYaw;
+            FlightRollConfig.wsPitch = originalWsPitch;
             FlightRollConfig.banking = originalBanking;
             FlightRollConfig.momentumMouse = originalMomentum;
             FlightRollConfig.rollSensitivity = originalRollSensitivity;
@@ -265,6 +290,9 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
             FlightRollConfig.hudHorizon = originalHorizon;
             FlightRollConfig.hudInputIndicator = originalInputIndicator;
             FlightRollConfig.hudScalePercent = originalHudScale;
+            FlightRollConfig.hudMaskEnabled = originalHudMaskEnabled;
+            FlightRollConfig.hudMaskColor = originalHudMaskColor;
+            FlightRollConfig.hudMaskOpacityPercent = originalHudMaskOpacity;
             CrosshairConfig.hideVanillaDuringFlightHud = originalHideVanillaCrosshair;
             CrosshairConfig.hideForgeLayerDuringFlightHud = originalHideForgeCrosshair;
             FlightRollConfig.hudHideHotbar = originalHideHotbar;

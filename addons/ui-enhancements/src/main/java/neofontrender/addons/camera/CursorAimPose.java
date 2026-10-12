@@ -1,0 +1,31 @@
+package neofontrender.addons.camera;
+
+import net.minecraft.util.MathHelper;
+
+/** Resolves cursor-owned head and body yaw without feeding either back into the camera. */
+final class CursorAimPose {
+    static final float HEAD_YAW_LIMIT = 75.0F;
+
+    final float bodyYaw;
+    final float headYaw;
+    final float pitch;
+
+    private CursorAimPose(float bodyYaw, float headYaw, float pitch) {
+        this.bodyYaw = bodyYaw;
+        this.headYaw = headYaw;
+        this.pitch = pitch;
+    }
+
+    static CursorAimPose resolve(float currentBodyYaw, float targetYaw, float pitch,
+                                 boolean headOnly) {
+        // 1.7.10 exposes the same degree wrap under the MathHelper.wrapAngleTo180_float name.
+        float delta = MathHelper.wrapAngleTo180_float(targetYaw - currentBodyYaw);
+        float headYaw = currentBodyYaw + delta;
+        if (!headOnly) return new CursorAimPose(headYaw, headYaw, pitch);
+
+        float bodyYaw = currentBodyYaw;
+        if (delta > HEAD_YAW_LIMIT) bodyYaw += delta - HEAD_YAW_LIMIT;
+        else if (delta < -HEAD_YAW_LIMIT) bodyYaw += delta + HEAD_YAW_LIMIT;
+        return new CursorAimPose(bodyYaw, headYaw, pitch);
+    }
+}

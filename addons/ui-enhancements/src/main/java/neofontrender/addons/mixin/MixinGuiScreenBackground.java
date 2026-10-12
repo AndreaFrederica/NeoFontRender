@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(GuiScreen.class)
 public abstract class MixinGuiScreenBackground {
     @Inject(method = "drawWorldBackground", at = @At("HEAD"), cancellable = true)
-    private void nfrUi$drawBackground(int tint, CallbackInfo callback) {
-        if (ScreenEffectsRenderer.INSTANCE.drawBackground((GuiScreen) (Object) this)) callback.cancel();
+    private void nfrUi$drawBackground(int tint, CallbackInfo ci) {
+        if (ScreenEffectsRenderer.INSTANCE.drawBackground((GuiScreen) (Object) this)) ci.cancel();
     }
 }

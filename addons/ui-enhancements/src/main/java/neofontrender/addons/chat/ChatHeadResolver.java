@@ -62,13 +62,21 @@ public final class ChatHeadResolver {
     }
 
     public static void beginVanillaLine(IChatComponent message) {
-        PENDING.set(new Pending(detect(message)));
+        ChatMessageMetadata metadata = ChatMessageMetadataRegistry.get(message);
+        PENDING.set(new Pending(detect(message), senderId(message, metadata), metadata));
+    }
+
+    /** Prefers the UUID carried by the classified metadata, then falls back to a name lookup. */
+    private static UUID senderId(IChatComponent message, ChatMessageMetadata metadata) {
+        if (metadata != null && metadata.playerId != null) return metadata.playerId;
+        return detectSender(message);
     }
 
     public static Capture captureVanillaLine() {
         Pending pending = PENDING.get();
         if (pending == null) return Capture.EMPTY;
-        Capture capture = new Capture(pending.senderName, pending.firstFragment);
+        Capture capture = new Capture(pending.senderName, pending.senderId,
+                pending.firstFragment, pending.metadata);
         pending.firstFragment = false;
         return capture;
     }
@@ -123,21 +131,30 @@ public final class ChatHeadResolver {
 
     private static final class Pending {
         private final String senderName;
+        private final UUID senderId;
+        private final ChatMessageMetadata metadata;
         private boolean firstFragment = true;
 
-        private Pending(String senderName) {
+        private Pending(String senderName, UUID senderId, ChatMessageMetadata metadata) {
             this.senderName = senderName;
+            this.senderId = senderId;
+            this.metadata = metadata;
         }
     }
 
     public static final class Capture {
-        private static final Capture EMPTY = new Capture(null, false);
+        private static final Capture EMPTY = new Capture(null, null, false, null);
         public final String senderName;
+        public final UUID senderId;
         public final boolean firstFragment;
+        public final ChatMessageMetadata metadata;
 
-        private Capture(String senderName, boolean firstFragment) {
+        private Capture(String senderName, UUID senderId, boolean firstFragment,
+                        ChatMessageMetadata metadata) {
             this.senderName = senderName;
+            this.senderId = senderId;
             this.firstFragment = firstFragment;
+            this.metadata = metadata;
         }
     }
 }

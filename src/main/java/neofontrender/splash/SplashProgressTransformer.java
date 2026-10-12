@@ -288,6 +288,9 @@ public final class SplashProgressTransformer implements IClassTransformer {
                             mv.visitFieldInsn(Opcodes.GETSTATIC, SPLASH_PROGRESS_INTERNAL,
                                     "fontRenderer",
                                     "Lcpw/mods/fml/client/SplashProgress$SplashFontRenderer;");
+                            // Forge builds its ortho projection from the current framebuffer
+                            // dimensions.  Pass the same values so the tip baseline follows
+                            // that projection on non-640x480 windows.
                             mv.visitMethodInsn(Opcodes.INVOKESTATIC, "org/lwjgl/opengl/Display",
                                     "getWidth", "()I", false);
                             mv.visitMethodInsn(Opcodes.INVOKESTATIC, "org/lwjgl/opengl/Display",
@@ -323,6 +326,7 @@ public final class SplashProgressTransformer implements IClassTransformer {
                     && "update".equals(name)
                     && "()V".equals(descriptor)) {
                 LOGGER.info("Injecting tip render before Display.update() at instruction #{}", methodInsnCount);
+                // Reuse ModernSplash's own startup string, display bounds, color and fade alpha.
                 mv.visitVarInsn(Opcodes.ALOAD, 0);
                 mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, ownerClass,
                         "getString", "()Ljava/lang/String;", false);

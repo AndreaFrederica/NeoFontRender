@@ -1,0 +1,21 @@
+colors.black=黑色
+colors.dark_blue=深蓝
+colors.dark_green=深绿色
+colors.dark_aqua=深绿色
+colors.dark_red=暗红色
+colors.dark_purple=深紫色
+colors.gold=金色
+colors.gray=灰色
+colors.dark_gray=深灰色
+colors.blue=蓝色
+colors.green=绿色
+colors.aqua=水绿色
+colors.red=红色
+colors.light_purple=浅紫色
+colors.yellow=黄色
+colors.white=白色
+colors.reset=重置
+colors.alpha=透明度
+
+update.available= %s 的新版本可用。
+update.clickhere=点击此处

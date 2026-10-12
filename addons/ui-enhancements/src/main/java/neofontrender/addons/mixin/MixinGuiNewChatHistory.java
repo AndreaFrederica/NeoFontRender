@@ -24,7 +24,13 @@ public abstract class MixinGuiNewChatHistory implements ChatHistoryRuntimeAccess
     @Shadow private List<ChatLine> field_146253_i;
     @Shadow private List<String> sentMessages;
 
-    @ModifyConstant(method = "func_146237_a", constant = @Constant(intValue = 100), require = 2)
+    /**
+     * Raise the chat history limit. Anchored to the two {@code > 100} constants in
+     * {@code setChatLine} (one per list). Fail-soft: if another mod overwrites
+     * {@code setChatLine} or already replaced the constant, Mixin logs a warning instead of
+     * crashing, and the limit silently falls back to the vanilla 100.
+     */
+    @ModifyConstant(method = "func_146237_a", constant = @Constant(intValue = 100), expect = 2, require = 0)
     private int nfrUi$historyLimit(int original) {
         return EnhancedChatConfigAccess.messageLimit();
     }

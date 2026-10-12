@@ -12,6 +12,8 @@ import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.backend.BackendTextSegmenter;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.cosmic.CosmicTextRenderer;
+import neofontrender.core.font.pipeline.StructuredTextRuntime;
+import neofontrender.build.BuildFeatures;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -21,7 +23,7 @@ import java.util.Locale;
 /** Client diagnostics and font-management command. */
 public final class NeofontrenderCommand extends CommandBase {
     private static final List<String> SUBCOMMANDS =
-            Arrays.asList("fonts", "info", "reload", "test", "gui");
+            Arrays.asList("fonts", "info", "reload", "test", "gui", "config");
 
     @Override
     public String getCommandName() {
@@ -61,15 +63,33 @@ public final class NeofontrenderCommand extends CommandBase {
             case "gui":
                 gui(sender);
                 break;
+            case "config":
+                config(sender, args);
+                break;
             default:
                 message(sender, EnumChatFormatting.RED,
                         "Unknown subcommand: " + args[0]);
         }
     }
 
+    private static void config(ICommandSender sender, String[] args) {
+        if (args.length < 2 || !"promote".equalsIgnoreCase(args[1])) {
+            message(sender, EnumChatFormatting.YELLOW, "/neofontrender config promote");
+            return;
+        }
+        try {
+            Class<?> c = Class.forName("neofontrender.addons.ui.UiEnhancementsConfig");
+            c.getMethod("promoteUserToPack").invoke(null);
+            message(sender, EnumChatFormatting.GREEN,
+                    "User settings copied to the integration-pack configuration layer.");
+        } catch (Exception e) {
+            message(sender, EnumChatFormatting.RED, "Cannot promote config: " + e.getCause());
+        }
+    }
+
     private static void fonts(ICommandSender sender) {
         message(sender, EnumChatFormatting.GOLD,
-                "Configured font: " + NeofontrenderConfig.fontName());
+                "Configured font: " + NeofontrenderConfig.fontFamily());
         TextRenderBackend backend = FontManager.INSTANCE.getTextRenderBackend();
         if (backend == null || !backend.isReady()) {
             message(sender, EnumChatFormatting.YELLOW,
@@ -110,12 +130,14 @@ public final class NeofontrenderCommand extends CommandBase {
                     "  measure cache: " + state.measureCacheSize + "/" + state.measureCacheMax
                             + " h/m/e=" + state.measureHits + "/" + state.measureMisses
                             + "/" + state.measureEvictions);
-            BackendTextSegmenter.DebugState segments = BackendTextSegmenter.debugState();
-            message(sender, EnumChatFormatting.WHITE,
-                    "  segments: " + (segments.enabled() ? "on" : "off")
-                            + " attempts=" + segments.attempts()
-                            + " runs=" + segments.segmentedRuns()
-                            + " rejected=" + segments.rejectedRuns());
+            if (BuildFeatures.RENDER_STATS) {
+                BackendTextSegmenter.DebugState segments = BackendTextSegmenter.debugState();
+                message(sender, EnumChatFormatting.WHITE,
+                        "  segments: " + (segments.enabled() ? "on" : "off")
+                                + " attempts=" + segments.attempts()
+                                + " runs=" + segments.segmentedRuns()
+                                + " rejected=" + segments.rejectedRuns());
+            }
         } else if (manager.isSfrActive()) {
             FontSet.DebugState state = manager.getSfrDebugState();
             if (state != null) {
@@ -144,7 +166,8 @@ public final class NeofontrenderCommand extends CommandBase {
                 + "\uD83D\uDE00";
         message(sender, EnumChatFormatting.AQUA,
                 "Measured sample width: "
-                        + backend.measureFormatted(sample, 0xFFFFFFFF, false));
+                        + backend.measureStructuredAtSize(StructuredTextRuntime.parse(sample),
+                        0xFFFFFFFF, false, NeofontrenderConfig.fontSize()));
     }
 
     private static void gui(ICommandSender sender) {

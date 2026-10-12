@@ -7,6 +7,7 @@ final class FlightRollConfig {
     static boolean enabled = false;
     static boolean allowInWater = false;
     static boolean keyboardYaw = false;
+    static boolean wsPitch = true;
     static boolean banking = false;
     static boolean momentumMouse = true;
     static float rollSensitivity = 1.0F;
@@ -41,6 +42,9 @@ final class FlightRollConfig {
     static boolean hudHidePlayerList;
     static boolean hudHideText;
     static boolean hudHideFirstPersonHand;
+    static boolean hudMaskEnabled = false;
+    static int hudMaskColor = 0xFF808080;
+    static int hudMaskOpacityPercent = 15;
 
     private FlightRollConfig() {}
 
@@ -51,6 +55,8 @@ final class FlightRollConfig {
                         "Keep flight-roll control active while the player is in water.")
                 .define("flightRoll.keyboardYaw", false,
                         "Enable the remappable left/right keyboard yaw bindings.")
+                .define("flightRoll.wsPitch", true,
+                        "Map the forward/back movement keys (W/S) to the pitch axis while flying.")
                 .define("flightRoll.banking", false,
                         "Automatically coordinate turns from the current roll attitude.")
                 .define("flightRoll.momentumMouse", true,
@@ -105,10 +111,18 @@ final class FlightRollConfig {
                 .define("flightRoll.hud.hideText", false,
                         "Hide vanilla overlay text while the flight HUD is visible.")
                 .define("flightRoll.hud.hideFirstPersonHand", false,
-                        "Hide the first-person hand while the flight HUD is visible.");
+                        "Hide the first-person hand while the flight HUD is visible.")
+                .define("flightRoll.hud.mask.enabled", false,
+                        "Draw a configurable translucent mask behind the flight HUD.")
+                .define("flightRoll.hud.mask.color", "#FF808080",
+                        "Flight HUD mask RGB color.")
+                .define("flightRoll.hud.mask.opacityPercent", 15,
+                        "Flight HUD mask opacity percentage.")
+                ;
         enabled = file.getBoolean("flightRoll.enabled", false);
         allowInWater = file.getBoolean("flightRoll.allowInWater", false);
         keyboardYaw = file.getBoolean("flightRoll.keyboardYaw", false);
+        wsPitch = file.getBoolean("flightRoll.wsPitch", true);
         banking = file.getBoolean("flightRoll.banking", false);
         momentumMouse = file.getBoolean("flightRoll.momentumMouse", true);
         rollSensitivity = (float) file.getDouble("flightRoll.rollSensitivity", 1.0D, 0.1D, 4.0D);
@@ -152,6 +166,10 @@ final class FlightRollConfig {
         hudHideText = file.getBoolean("flightRoll.hud.hideText", false);
         hudHideFirstPersonHand = file.getBoolean(
                 "flightRoll.hud.hideFirstPersonHand", false);
+        hudMaskEnabled = file.getBoolean("flightRoll.hud.mask.enabled", false);
+        hudMaskColor = parseColor(file.getString("flightRoll.hud.mask.color", "#FF808080"),
+                0xFF808080);
+        hudMaskOpacityPercent = file.getInt("flightRoll.hud.mask.opacityPercent", 15, 0, 100);
         file.save();
     }
 
@@ -165,11 +183,14 @@ final class FlightRollConfig {
         controllerYawSensitivity = clampSensitivity(controllerYawSensitivity);
         controllerRollSensitivity = clampSensitivity(controllerRollSensitivity);
         hudScalePercent = Math.max(50, Math.min(100, hudScalePercent));
+        hudMaskColor = 0xFF000000 | (hudMaskColor & 0x00FFFFFF);
+        hudMaskOpacityPercent = Math.max(0, Math.min(100, hudMaskOpacityPercent));
         barrelDurationTicks = Math.max(6, Math.min(40, barrelDurationTicks));
         UiEnhancementsConfig.file()
                 .set("flightRoll.enabled", enabled)
                 .set("flightRoll.allowInWater", allowInWater)
                 .set("flightRoll.keyboardYaw", keyboardYaw)
+                .set("flightRoll.wsPitch", wsPitch)
                 .set("flightRoll.banking", banking)
                 .set("flightRoll.momentumMouse", momentumMouse)
                 .set("flightRoll.rollSensitivity", (double) rollSensitivity)
@@ -204,7 +225,15 @@ final class FlightRollConfig {
                 .set("flightRoll.hud.hidePlayerList", hudHidePlayerList)
                 .set("flightRoll.hud.hideText", hudHideText)
                 .set("flightRoll.hud.hideFirstPersonHand", hudHideFirstPersonHand)
+                .set("flightRoll.hud.mask.enabled", hudMaskEnabled)
+                .set("flightRoll.hud.mask.color", String.format("#%08X", hudMaskColor))
+                .set("flightRoll.hud.mask.opacityPercent", hudMaskOpacityPercent)
                 .save();
+    }
+
+    static int hudMaskArgb() {
+        int alpha = (hudMaskOpacityPercent * 255 + 50) / 100;
+        return (hudMaskColor & 0x00FFFFFF) | (Math.max(0, Math.min(255, alpha)) << 24);
     }
 
     private static float clampSensitivity(float value) {
@@ -215,5 +244,21 @@ final class FlightRollConfig {
         String normalized = value == null ? "" : value.trim().toUpperCase(java.util.Locale.ROOT);
         for (String candidate : allowed) if (candidate.equals(normalized)) return candidate;
         return fallback;
+    }
+
+    private static int parseColor(String value, int fallback) {
+        if (value == null) return fallback;
+        String normalized = value.trim();
+        if (normalized.startsWith("#")) normalized = normalized.substring(1);
+        else if (normalized.startsWith("0x") || normalized.startsWith("0X")) {
+            normalized = normalized.substring(2);
+        }
+        try {
+            long parsed = Long.parseLong(normalized, 16);
+            if (normalized.length() <= 6) parsed |= 0xFF000000L;
+            return (int) parsed;
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
     }
 }

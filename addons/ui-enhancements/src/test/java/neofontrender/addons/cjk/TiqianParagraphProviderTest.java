@@ -1,8 +1,16 @@
 package neofontrender.addons.cjk;
 
-import neofontrender.api.text.CjkParagraphLayoutProvider;
-import neofontrender.core.font.preprocess.PreprocessedText;
-import neofontrender.core.font.preprocess.TextPreprocessingPipeline;
+import neofontrender.api.text.paragraph.TextParagraphProvider;
+import neofontrender.api.text.paragraph.TextParagraphApi;
+import neofontrender.api.text.paragraph.TextParagraphRegistration;
+import neofontrender.api.text.StructuredTextApi;
+import neofontrender.api.text.StructuredTextRegistration;
+import neofontrender.core.font.pipeline.builtin.TinkersAntiqueSyntaxProvider;
+import neofontrender.text.StructuredText;
+import neofontrender.text.TextStyle;
+import neofontrender.text.pipeline.StructuredTextMiddleware;
+import neofontrender.text.pipeline.TextPipelinePlugin;
+import neofontrender.core.font.pipeline.builtin.HexChatStructuredMiddleware;
 import net.minecraft.event.ClickEvent;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.EnumChatFormatting;
@@ -14,6 +22,9 @@ import org.tiqian.linebreak.EnglishHyphenation;
 
 import java.util.Set;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -25,28 +36,31 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class TiqianParagraphProviderTest {
     private static final Set<Integer> FORBIDDEN_START = Set.of(
             (int) '，', (int) '。', (int) '！', (int) '？', (int) '）', (int) '》');
+    private StructuredTextRegistration tinkersRegistration;
 
     @BeforeEach
     void enableTiqian() {
         CjkTypographyConfig.engine = CjkTypographyConfig.ENGINE_TIQIAN;
+        tinkersRegistration = StructuredTextApi.register(TinkersAntiqueSyntaxProvider.INSTANCE);
         TiqianParagraphProvider.INSTANCE.clearCache();
     }
 
     @AfterEach
     void clearCache() {
         TiqianParagraphProvider.INSTANCE.clearCache();
+        tinkersRegistration.close();
     }
 
     @Test
     void laysOutSimplifiedChineseWithKinsokuBoundaries() {
         String text = "这是第一句，后面还有第二句。中文排版需要避免标点出现在行首。";
-        CjkParagraphLayoutProvider.Layout layout = TiqianParagraphProvider.INSTANCE.layout(
+        TextParagraphProvider.Layout layout = TiqianParagraphProvider.INSTANCE.layout(
                 request(text, 45, "zh_cn"));
 
         assertNotNull(layout);
         assertTrue(layout.lines().size() > 1);
         for (int index = 1; index < layout.lines().size(); index++) {
-            int start = layout.lines().get(index).rawStart();
+            int start = layout.lines().get(index).sourceStart();
             if (start < text.length()) {
                 assertFalse(FORBIDDEN_START.contains(text.codePointAt(start)));
             }
@@ -56,13 +70,115 @@ class TiqianParagraphProviderTest {
     @Test
     void preservesRawFormattingBoundaries() {
         String text = "中文\u00a7l粗体中文，继续显示";
-        CjkParagraphLayoutProvider.Layout layout = TiqianParagraphProvider.INSTANCE.layout(
+        TextParagraphProvider.Layout layout = TiqianParagraphProvider.INSTANCE.layout(
                 request(text, 27, "zh_cn"));
 
         assertNotNull(layout);
-        int boundary = layout.firstRawBoundary(text.length());
+        int boundary = layout.firstSourceBoundary(text.length());
         assertTrue(boundary >= 0 && boundary <= text.length());
         assertFalse(boundary > 0 && text.charAt(boundary - 1) == '\u00a7');
+    }
+
+    @Test
+    void registersThroughThePublicTextPipeline() {
+        try (TextParagraphRegistration registration =
+                     TextParagraphApi.register(TiqianParagraphProvider.INSTANCE)) {
+            assertEquals("neofontrender_ui_enhancements:tiqian",
+                    TiqianParagraphProvider.INSTANCE.id());
+        }
+    }
+
+    @Test
+    void treatsEnabledTinkersRgbMarkersAsZeroWidthLayoutState() {
+        String marker = tinkersRgb(0x12, 0x80, 0xFE);
+        String text = "中" + marker + "文着色";
+        TextParagraphProvider.Layout layout = TiqianParagraphProvider.INSTANCE.layout(
+                request(text, 100, "zh_cn"));
+
+        assertNotNull(layout);
+        assertEquals(text.length(), layout.lines().get(layout.lines().size() - 1).sourceEnd());
+        StringBuilder visible = new StringBuilder();
+        boolean foundColor = false;
+        for (TextParagraphProvider.Line line : layout.lines()) {
+            for (TextParagraphProvider.Run run : line.runs()) {
+                StructuredText decoded = StructuredTextApi.parse(run.formattedText());
+                visible.append(decoded.plainText());
+                foundColor |= decoded.styles().stream().anyMatch(span ->
+                        span.style().hasColorOverride() && span.style().rgb() == 0x1280FE);
+            }
+        }
+        assertEquals("中文着色", visible.toString());
+        assertTrue(foundColor);
+    }
+
+    @Test
+    void laysOutRealTinkersDurabilityTextWithoutExpandingColorRuns() {
+        String text = "\u8010\u4e45: " + tinkersRgb(0x5B, 0xCC, 0x47) + "1,224"
+                + "\u00a77/" + tinkersRgb(0x47, 0xCC, 0x47) + "1,320\u00a7r\u00a7r";
+        TextParagraphProvider.Layout layout = TiqianParagraphProvider.INSTANCE.layout(
+                request(text, 1_000_000, "zh_cn"));
+
+        assertNotNull(layout);
+        assertEquals(1, layout.lines().size());
+        List<TextParagraphProvider.Run> runs = layout.lines().get(0).runs();
+        StringBuilder visible = new StringBuilder();
+        float renderedRight = 0.0F;
+        boolean foundCurrent = false;
+        boolean foundMaximum = false;
+        boolean foundGraySlash = false;
+        for (TextParagraphProvider.Run run : runs) {
+            StructuredText decoded = StructuredTextApi.parse(run.formattedText());
+            visible.append(decoded.plainText());
+            renderedRight = Math.max(renderedRight,
+                    run.xOffset() + measure(run.formattedText()));
+            foundCurrent |= decoded.styles().stream().anyMatch(value ->
+                    value.style().hasColorOverride() && value.style().rgb() == 0x5BCC47);
+            foundMaximum |= decoded.styles().stream().anyMatch(value ->
+                    value.style().hasColorOverride() && value.style().rgb() == 0x47CC47);
+            int slash = decoded.plainText().indexOf('/');
+            foundGraySlash |= slash >= 0 && decoded.styleAt(slash).hasColorOverride()
+                    && decoded.styleAt(slash).rgb() == 0xAAAAAA;
+        }
+
+        assertEquals("\u8010\u4e45: 1,224/1,320", visible.toString());
+        assertTrue(foundCurrent);
+        assertTrue(foundMaximum);
+        assertTrue(foundGraySlash);
+        assertTrue(renderedRight <= measure(text) + 10.0F,
+                "Tinkers color runs expanded to " + renderedRight
+                        + "px from a natural " + measure(text) + "px line");
+    }
+
+    @Test
+    void publicParagraphDispatchPreservesHeiPrefixedTinkersRgbRuns() {
+        String text = "\u00a77\u8010\u4e45: " + tinkersRgb(0x5B, 0xCC, 0x47) + "1,224"
+                + "\u00a77/" + tinkersRgb(0x47, 0xCC, 0x47) + "1,320\u00a7r\u00a7r";
+        TextParagraphProvider.Layout layout;
+        try (TextParagraphRegistration registration =
+                     TextParagraphApi.register(TiqianParagraphProvider.INSTANCE)) {
+            layout = TextParagraphApi.layout(
+                    request(text, 1_000_000, "zh_cn"));
+        }
+
+        assertNotNull(layout);
+        assertEquals(1, layout.lines().size());
+        boolean foundCurrent = false;
+        boolean foundMaximum = false;
+        StringBuilder visible = new StringBuilder();
+        for (TextParagraphProvider.Run run : layout.lines().get(0).runs()) {
+            assertNoPartialTinkersMarker(run.formattedText());
+            StructuredText decoded = StructuredTextApi.parse(run.formattedText());
+            visible.append(decoded.plainText());
+            foundCurrent |= decoded.styles().stream().anyMatch(value ->
+                    value.style().hasColorOverride() && value.style().rgb() == 0x5BCC47);
+            foundMaximum |= decoded.styles().stream().anyMatch(value ->
+                    value.style().hasColorOverride() && value.style().rgb() == 0x47CC47);
+        }
+
+        assertEquals("\u8010\u4e45: 1,224/1,320",
+                EnumChatFormatting.getTextWithoutFormattingCodes(visible.toString()));
+        assertTrue(foundCurrent);
+        assertTrue(foundMaximum);
     }
 
     @Test
@@ -80,7 +196,7 @@ class TiqianParagraphProviderTest {
         List<Integer> points = EnglishHyphenation.INSTANCE.getEnUs()
                 .hyphenate("internationalization");
         assertFalse(points.isEmpty(), "bundled en-US patterns did not load");
-        CjkParagraphLayoutProvider.Layout layout = TiqianParagraphProvider.INSTANCE.layout(
+        TextParagraphProvider.Layout layout = TiqianParagraphProvider.INSTANCE.layout(
                 request(text, 90, "zh_cn"));
 
         assertNotNull(layout);
@@ -89,15 +205,15 @@ class TiqianParagraphProviderTest {
                 .anyMatch(run -> run.formattedText().endsWith("-")),
                 () -> layout.lines().stream()
                         .map(line -> line.runs().stream()
-                                .map(CjkParagraphLayoutProvider.Run::formattedText)
+                                .map(TextParagraphProvider.Run::formattedText)
                                 .reduce("", String::concat))
                         .reduce("", (left, right) -> left + "|" + right));
 
         ChatComponentText component = new ChatComponentText(text);
         List<IChatComponent> lines = TiqianParagraphProvider.INSTANCE.splitComponents(
-                new CjkParagraphLayoutProvider.ComponentRequest(component, 90, 9,
+                new TextParagraphProvider.ComponentRequest(component, 90, 9,
                         "zh_cn", true, true, TiqianParagraphProviderTest::measure,
-                        CjkParagraphLayoutProvider.ComponentRequest.Surface.BOOK));
+                        TextParagraphProvider.ComponentRequest.Surface.BOOK));
         assertNotNull(lines);
         assertFalse(lines.stream().anyMatch(line -> line.getUnformattedText().contains("-")));
     }
@@ -109,16 +225,18 @@ class TiqianParagraphProviderTest {
                 new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "2"));
 
         List<IChatComponent> lines = TiqianParagraphProvider.INSTANCE.splitComponents(
-                new CjkParagraphLayoutProvider.ComponentRequest(component, 45, 9,
+                new TextParagraphProvider.ComponentRequest(component, 45, 9,
                         "zh_cn", true, true, TiqianParagraphProviderTest::measure,
-                        CjkParagraphLayoutProvider.ComponentRequest.Surface.BOOK));
+                        TextParagraphProvider.ComponentRequest.Surface.BOOK));
 
         assertNotNull(lines);
         assertTrue(lines.size() > 1);
-        IChatComponent firstStyled = lines.get(0).getSiblings().get(0);
+        IChatComponent firstStyled = (IChatComponent) lines.get(0).iterator().next();
         if (firstStyled.getUnformattedTextForChat().isEmpty()
-                && lines.get(0).getSiblings().size() > 1) {
-            firstStyled = lines.get(0).getSiblings().get(1);
+                && lines.get(0).iterator().hasNext()) {
+            Iterator<IChatComponent> iterator = lines.get(0).iterator();
+            iterator.next();
+            firstStyled = (IChatComponent) iterator.next();
         }
         assertTrue(lines.get(0).getUnformattedText().contains("\u00a7c"));
         assertEquals("2", firstStyled.getChatStyle().getChatClickEvent().getValue());
@@ -131,9 +249,9 @@ class TiqianParagraphProviderTest {
         ChatComponentText component = new ChatComponentText(text);
 
         List<IChatComponent> lines = TiqianParagraphProvider.INSTANCE.splitComponents(
-                new CjkParagraphLayoutProvider.ComponentRequest(component, 180, 9,
+                new TextParagraphProvider.ComponentRequest(component, 180, 9,
                         "zh_cn", false, true, TiqianParagraphProviderTest::measure,
-                        CjkParagraphLayoutProvider.ComponentRequest.Surface.CHAT));
+                        TextParagraphProvider.ComponentRequest.Surface.CHAT));
 
         assertNotNull(lines);
         assertTrue(lines.size() > 1);
@@ -176,11 +294,11 @@ class TiqianParagraphProviderTest {
     @Test
     void chatDrawsAContinuousUnderlinedPlayerNameAsOneRun() {
         List<IChatComponent> lines = TiqianParagraphProvider.INSTANCE.splitComponents(
-                new CjkParagraphLayoutProvider.ComponentRequest(
+                new TextParagraphProvider.ComponentRequest(
                         new ChatComponentText("\u00a7n<Nullpinter>\u00a7r 中文消息"),
                         180, 9, "zh_cn", false, true,
                         TiqianParagraphProviderTest::measure,
-                        CjkParagraphLayoutProvider.ComponentRequest.Surface.CHAT));
+                        TextParagraphProvider.ComponentRequest.Surface.CHAT));
 
         assertNotNull(lines);
         PositionedTextLine first = (PositionedTextLine) lines.get(0);
@@ -188,6 +306,52 @@ class TiqianParagraphProviderTest {
                 run.formattedText().contains("\u00a7n")
                         && "<Nullpinter>".equals(EnumChatFormatting.getTextWithoutFormattingCodes(
                                 run.formattedText()))));
+    }
+
+    @Test
+    void chatGradientKeepsEveryCharacterColorInBothRenderRunsAndExportedComponents() {
+        try (StructuredTextRegistration ignored = StructuredTextApi.register(new TextPipelinePlugin() {
+            @Override public String id() { return "test:tiqian_gradient"; }
+            @Override public Collection<? extends StructuredTextMiddleware> structuredMiddlewares() {
+                return List.of(new StructuredTextMiddleware() {
+                    @Override public String id() { return HexChatStructuredMiddleware.ID; }
+                    @Override public StructuredText process(StructuredText input) {
+                        return HexChatStructuredMiddleware.INSTANCE.process(input);
+                    }
+                });
+            }
+        })) {
+            String source = "\u00a7b输入速度: #FFFF00-7FFF00-40E0D0-00BFFF无限Infinity\u00a7r";
+            StructuredText expected = StructuredTextApi.parse(source);
+            for (int width : new int[] {45, 400}) {
+                List<IChatComponent> lines = TiqianParagraphProvider.INSTANCE.splitComponents(
+                        new TextParagraphProvider.ComponentRequest(new ChatComponentText(source),
+                                width, 9, "zh_cn", false, true, TiqianParagraphProviderTest::measure,
+                                TextParagraphProvider.ComponentRequest.Surface.CHAT));
+                assertNotNull(lines);
+                List<TextStyle> expectedStyles = styles(expected);
+                List<TextStyle> exported = new ArrayList<>();
+                List<TextStyle> drawn = new ArrayList<>();
+                StringBuilder copied = new StringBuilder();
+                for (IChatComponent line : lines) {
+                    StructuredText parsed = StructuredTextApi.parse(line.getFormattedText());
+                    copied.append(parsed.plainText());
+                    exported.addAll(styles(parsed));
+                    for (var run : ((PositionedTextLine) line).nfrUi$runs()) {
+                        drawn.addAll(styles(StructuredTextApi.parse(run.formattedText())));
+                    }
+                }
+                assertEquals(expected.plainText(), copied.toString());
+                assertEquals(expectedStyles, exported);
+                assertEquals(expectedStyles, drawn);
+            }
+        }
+    }
+
+    private static List<TextStyle> styles(StructuredText text) {
+        List<TextStyle> result = new ArrayList<>();
+        for (int i = 0; i < text.plainText().length(); i++) result.add(text.styleAt(i));
+        return result;
     }
 
     @Test
@@ -208,25 +372,25 @@ class TiqianParagraphProviderTest {
     @Test
     void genericComponentSplitsStayOnTheSafeDefaultPath() {
         List<IChatComponent> lines = TiqianParagraphProvider.INSTANCE.splitComponents(
-                new CjkParagraphLayoutProvider.ComponentRequest(
+                new TextParagraphProvider.ComponentRequest(
                         new ChatComponentText("默认调用不应携带聊天几何"), 45, 9,
                         "zh_cn", true, true, TiqianParagraphProviderTest::measure));
 
         assertNull(lines);
     }
 
-    private static CjkParagraphLayoutProvider.Request request(
+    private static TextParagraphProvider.Request request(
             String text, int width, String language) {
-        return new CjkParagraphLayoutProvider.Request(text, width, 9, language,
+        return new TextParagraphProvider.Request(text, width, 9, language,
                 TiqianParagraphProviderTest::measure);
     }
 
     private static void assertChatTokenIsNotSplit(String text, String token, int width) {
         List<IChatComponent> lines = TiqianParagraphProvider.INSTANCE.splitComponents(
-                new CjkParagraphLayoutProvider.ComponentRequest(
+                new TextParagraphProvider.ComponentRequest(
                         new ChatComponentText(text), width, 9, "zh_cn", false, true,
                         TiqianParagraphProviderTest::measure,
-                        CjkParagraphLayoutProvider.ComponentRequest.Surface.CHAT));
+                        TextParagraphProvider.ComponentRequest.Surface.CHAT));
 
         assertNotNull(lines);
         int tokenStart = text.indexOf(token);
@@ -247,7 +411,7 @@ class TiqianParagraphProviderTest {
     }
 
     private static float measure(String formatted) {
-        formatted = TextPreprocessingPipeline.process(formatted).visibleText();
+        formatted = StructuredTextApi.parse(formatted).plainText();
         float width = 0;
         boolean bold = false;
         for (int index = 0; index < formatted.length();) {
@@ -267,4 +431,25 @@ class TiqianParagraphProviderTest {
         return width;
     }
 
+    private static String tinkersRgb(int red, int green, int blue) {
+        return new String(new char[]{
+                (char) (TinkersAntiqueSyntaxProvider.MARKER_START + red),
+                (char) (TinkersAntiqueSyntaxProvider.MARKER_START + green),
+                (char) (TinkersAntiqueSyntaxProvider.MARKER_START + blue)
+        });
+    }
+
+    private static void assertNoPartialTinkersMarker(String text) {
+        for (int index = 0; index < text.length();) {
+            if (!TinkersAntiqueSyntaxProvider.isMarker(text.charAt(index))) {
+                index++;
+                continue;
+            }
+            assertTrue(index + 2 < text.length()
+                            && TinkersAntiqueSyntaxProvider.isMarker(text.charAt(index + 1))
+                            && TinkersAntiqueSyntaxProvider.isMarker(text.charAt(index + 2)),
+                    "Tiqian split a Tinkers RGB triplet: " + Integer.toHexString(text.charAt(index)));
+            index += 3;
+        }
+    }
 }

@@ -20,6 +20,8 @@ public final class CameraMouseInputEvent extends Event {
     private final int originalDeltaY;
     private int deltaX;
     private int deltaY;
+    private int cameraDeltaX;
+    private int cameraDeltaY;
 
     public CameraMouseInputEvent(EntityPlayerSP player, float partialTicks, int deltaX, int deltaY) {
         this.player = player;
@@ -28,6 +30,8 @@ public final class CameraMouseInputEvent extends Event {
         this.originalDeltaY = deltaY;
         this.deltaX = deltaX;
         this.deltaY = deltaY;
+        this.cameraDeltaX = deltaX;
+        this.cameraDeltaY = deltaY;
     }
 
     public EntityPlayerSP getPlayer() { return player; }
@@ -36,8 +40,17 @@ public final class CameraMouseInputEvent extends Event {
     public int getOriginalDeltaY() { return originalDeltaY; }
     public int getDeltaX() { return deltaX; }
     public int getDeltaY() { return deltaY; }
-    public void setDeltaX(int deltaX) { this.deltaX = deltaX; }
-    public void setDeltaY(int deltaY) { this.deltaY = deltaY; }
-    public void consumeHorizontal() { this.deltaX = 0; }
-    public void consumeVertical() { this.deltaY = 0; }
+    public int getCameraDeltaX() { return cameraDeltaX; }
+    public int getCameraDeltaY() { return cameraDeltaY; }
+    public void setDeltaX(int deltaX) { this.deltaX = this.cameraDeltaX = deltaX; }
+    public void setDeltaY(int deltaY) { this.deltaY = this.cameraDeltaY = deltaY; }
+    public void setCameraDeltaX(int deltaX) { this.cameraDeltaX = deltaX; }
+    public void setCameraDeltaY(int deltaY) { this.cameraDeltaY = deltaY; }
+    public void consumeHorizontal() { setDeltaX(0); }
+    public void consumeVertical() { setDeltaY(0); }
+
+    /** Consumes legacy player/Flight rotation without stealing the detached camera axis. */
+    public void consumeBodyHorizontal() { this.deltaX = 0; }
+    /** Consumes legacy player/Flight rotation without stealing the detached camera axis. */
+    public void consumeBodyVertical() { this.deltaY = 0; }
 }

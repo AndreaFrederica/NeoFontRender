@@ -1,0 +1,106 @@
+plugins {
+    id 'java'
+    id 'xyz.wagyourtail.unimined' version '1.4.26-kappa'
+}
+
+group = 'neofontrender.addons'
+version = providers.gradleProperty('inline_content_showcase_version').get()
+
+base { archivesName = 'neofontrender-inline-content-showcase' }
+
+apply from: 'gradle/icons.gradle'
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.cleanroommc.com/releases' }
+    maven { url = 'https://maven.minecraftforge.net/' }
+}
+
+unimined.minecraft {
+    version '1.12.2'
+    mappings { mcp('stable', '39-1.12') }
+    cleanroom {
+        loader providers.gradleProperty('cleanroom_version').get()
+        runs.off = true
+    }
+    defaultRemapJar = false
+    remap(tasks.named('jar').get())
+}
+
+dependencies {
+    compileOnly project(':')
+    compileOnly project(':addons:ui-enhancements')
+    compileOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
+    testImplementation project(':')
+    testImplementation project(':addons:ui-enhancements')
+    testImplementation project(':addons:ui-enhancements-text')
+    testImplementation project(':engine:typst-render')
+    testImplementation project(':addons:electric-elytra')
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.lwjgl.lwjgl:lwjgl_util:2.9.4-nightly-20150209'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+processResources {
+    inputs.property('version', project.version)
+    inputs.property('nfrVersion', providers.gradleProperty('mod_version').get())
+    inputs.property('uieVersion', providers.gradleProperty('ui_enhancements_version').get())
+    filesMatching('mcmod.info') {
+        expand(version: project.version,
+                nfrVersion: providers.gradleProperty('mod_version').get(),
+                uieVersion: providers.gradleProperty('ui_enhancements_version').get())
+    }
+}
+
+jar {
+    archiveClassifier = 'dev'
+    manifest.attributes('ModType': 'CRL')
+    finalizedBy tasks.named('remapJar')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
+}
+
+test {
+    useJUnitPlatform()
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    dependsOn tasks.named('remapJar')
+    inputs.file(tasks.named('remapJar').flatMap { it.archiveFile })
+    systemProperty 'showcase.installableJar', tasks.named('remapJar').get().archiveFile.get().asFile.absolutePath
+}
+
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+tasks.register('typstShowcaseSmoke', JavaExec) {
+    group = 'verification'
+    description = 'Renders every Typst showcase token through JNI and exports visual review sheets.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'neofontrender.addons.inlinecontent.TypstShowcaseSmoke'
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    systemProperty 'java.awt.headless', 'true'
+    args layout.buildDirectory.dir('reports/typst-showcase').get().asFile.absolutePath,
+            providers.gradleProperty('showcaseTypstLibrary').getOrElse(
+                    layout.buildDirectory.dir('typst-library').get().asFile.absolutePath)
+}
+
+tasks.register('prepareCombinedClientRun', Copy) {
+    dependsOn tasks.named('jar')
+    from(tasks.named('jar').flatMap { it.archiveFile })
+    into rootProject.layout.projectDirectory.dir('run/client/mods')
+    rename { 'neofontrender-inline-content-showcase-dev.jar' }
+}
+
+tasks.register('stageInlineContentShowcaseRelease', Sync) {
+    group = 'distribution'
+    dependsOn tasks.named('build'), tasks.named('remapJar')
+    from(tasks.named('remapJar').flatMap { it.archiveFile })
+    into rootProject.layout.buildDirectory.dir('release/inline-content-showcase')
+}

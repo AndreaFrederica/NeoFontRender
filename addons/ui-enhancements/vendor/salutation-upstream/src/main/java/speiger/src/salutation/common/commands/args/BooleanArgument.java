@@ -8,17 +8,17 @@ import speiger.src.salutation.common.commands.BaseSalutationCommand.CommandConte
 
 public class BooleanArgument implements IArgument<Boolean> {
 	private static final List<String> EXAMPLES = Arrays.asList(new String[] {"true", "false"});
-
+	
 	public static BooleanArgument bool() {
 		return new BooleanArgument();
 	}
-
+	
 	@Override
 	public Boolean parse(StringWalker args, CommandContext context) throws CommandException {
 		return args.readBoolean();
 	}
-
+	
 	@Override
 	public List<String> getExamples(CommandContext context, int argumentIndex) { return EXAMPLES; }
-
+	
 }

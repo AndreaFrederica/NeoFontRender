@@ -3,48 +3,57 @@ package neofontrender.addons.chat;
 import neofontrender.addons.ui.UiEnhancementsConfig;
 import neofontrender.api.config.NfrConfigFile;
 
-/** Persistent options for vanilla chat history and session restoration. */
-final class EnhancedChatConfig {
+public final class EnhancedChatConfig {
     static boolean enabled = true;
+    static boolean tabbedChat = true;
     static boolean extendedHistory = true;
     static int maxMessages = 16384;
     static boolean persistence = true;
     static boolean persistReceived = true;
     static boolean persistSent = true;
+    static boolean logRestoredHistory = false;
+    static boolean messageSearch = true;
+    static boolean commandCompletion = true;
+    static String completionEngine = "uie";
+    static String completionDisplay = "uie";
+    static boolean sourceClassification = true;
+    static String playerSourcePattern = "";
+    static String serverSourcePattern = "";
+    static String privateSourcePattern = "";
+    static String blockedMessagePattern = "";
+    static String mutedPlayers = "";
+    static boolean blockPlayerMessages = false;
+    static boolean blockServerMessages = false;
+    static boolean blockPrivateMessages = false;
+    static boolean mentionCompletion = true;
+    static boolean mentionNotification = true;
+    static String mentionSound = "minecraft:entity.experience_orb.pickup";
+    static String privateMessageCommand = "/msg {player}";
+    static boolean privateCommandBlock = true;
+    static boolean keepOpenPublic = false;
+    static boolean keepOpenPlayer = false;
+    static boolean keepOpenServer = false;
+    static boolean keepOpenPrivate = false;
+    static boolean keepOpenCustom = false;
+    static boolean verticalTabs = false;
+    static String pinnedTabs = "";
+    static boolean persistentChatHud = false;
+    static boolean closeChatOnDetach = false;
+    static boolean serverHeads = true;
+    static String serverAvatar = "rack";
+    static boolean serverHeadGroupFirst = false;
+    static boolean playerHeadGroupFirst = false;
     static boolean playerHeads = true;
     static boolean headShadow = true;
     static boolean itemIcons = true;
     static boolean copySelection = true;
     static boolean copyFormattingCodes = false;
     static boolean ampersandFormatting = false;
-    static boolean tabbedChat = true;
-    static boolean sourceClassification = true;
-    static boolean blockPlayerMessages = false;
-    static boolean blockServerMessages = false;
-    static boolean blockPrivateMessages = false;
-    static boolean mentionCompletion = true;
-    static boolean mentionNotification = true;
-    static boolean messageSearch = true;
-    static boolean commandCompletion = true;
-    static boolean privateCommandBlock = true;
-    static boolean salutationForceServerTranslations = false;
-    static boolean salutationDisableOverride = false;
-    static boolean verticalTabs = false;
-    static boolean persistentChatHud = false;
-    static boolean closeChatOnDetach = true;
-    static String playerSourcePattern = "";
-    static String serverSourcePattern = "";
-    static String privateSourcePattern = "";
-    static String blockedMessagePattern = "";
-    static String mutedPlayers = "";
-    static String mentionSound = "random.orb";
-    static String privateMessageCommand = "/msg";
-    static String pinnedTabs = "";
-    static boolean keepOpenPublic = false;
-    static boolean keepOpenPlayer = false;
-    static boolean keepOpenServer = false;
-    static boolean keepOpenPrivate = false;
-    static boolean keepOpenCustom = false;
+    static boolean allowSectionSignInput = false;
+    static boolean sourcePreview = true;
+
+    public static boolean allowSectionSignInput() { return allowSectionSignInput; }
+    public static boolean sourcePreviewEnabled() { return sourcePreview; }
     static boolean animateMessages = true;
     static int messageAnimationDuration = 150;
     static float messageAnimationDistance = 7.0F;
@@ -53,53 +62,60 @@ final class EnhancedChatConfig {
     static int inputAnimationDuration = 170;
     static float inputAnimationDistance = 8.0F;
     static String inputAnimationEasing = "back";
+    static boolean salutationForceServerTranslations = false;
+    static boolean salutationDisableOverride = false;
 
     private EnhancedChatConfig() {}
 
     static void load() {
         NfrConfigFile file = UiEnhancementsConfig.file();
-        file.define("chat.enabled", true, "Master switch for vanilla chat enhancements.")
-                .define("chat.extendedHistory", true, "Increase vanilla's 100-message history limit.")
-                .define("chat.maxMessages", 16384, "Maximum retained received and sent messages (100-32767).")
+        file.define("chat.enabled", true, "Master switch for integrated chat enhancements.")
+                .define("chat.tabbedChat", true, "Enable the embedded TabbyChat channel and filter interface.")
+                .define("chat.extendedHistory", true, "Increase vanilla's 100-message chat limit.")
+                .define("chat.maxMessages", 16384, "Maximum received and sent messages retained (100-32767).")
                 .define("chat.persistence", true, "Restore chat for the same world or server across reconnects and game restarts.")
-                .define("chat.persistReceived", true, "Persist received components with formatting and events.")
-                .define("chat.persistSent", true, "Persist sent-message and command history.")
+                .define("chat.persistReceived", true, "Persist received chat components with formatting and events.")
+                .define("chat.persistSent", true, "Persist sent-message command history.")
+                .define("chat.logRestoredHistory", false,
+                        "Write restored historical messages to chat logs. Disabled by default to avoid replay-like log entries.")
+                .define("chat.search", true, "Search and filter the current chat history with Ctrl+F.")
+                .define("chat.commandCompletion", true,
+                        "Show command completions in Salutation and embedded TabbyChat inputs.")
+                .define("chat.sources.enabled", true, "Classify messages as player, server or private messages.")
+                .define("chat.sources.playerPattern", "", "Regex overriding messages to the player source.")
+                .define("chat.sources.serverPattern", "", "Regex overriding messages to the server source.")
+                .define("chat.sources.privatePattern", "", "Regex overriding messages to the private source.")
+                .define("chat.block.pattern", "", "Regex matching messages that should be hidden.")
+                .define("chat.block.players", "", "Comma-separated player names whose messages should be hidden.")
+                .define("chat.block.allPlayers", false, "Hide all messages classified as player messages.")
+                .define("chat.block.server", false, "Hide all messages classified as server messages.")
+                .define("chat.block.private", false, "Hide all messages classified as private messages.")
+                .define("chat.mentions.completion", true, "Complete @player tokens from the online player list.")
+                .define("chat.mentions.notification", true, "Play a sound when the local player is mentioned.")
+                .define("chat.mentions.sound", "minecraft:entity.experience_orb.pickup", "Mention notification sound event.")
+                .define("chat.privateMessageCommand", "/msg {player}", "Command template used by the private-message action.")
+                .define("chat.privateCommandBlock", true, "Show the private command as a removable fixed block in TabbyChat PM inputs.")
+                .define("chat.keepOpen.public", false, "Keep the chat screen open after sending from the public channel.")
+                .define("chat.keepOpen.player", false, "Keep the chat screen open after sending from the player-source channel.")
+                .define("chat.keepOpen.server", false, "Keep the chat screen open after sending from the server-source channel.")
+                .define("chat.keepOpen.private", false, "Keep the chat screen open after sending from private-message channels.")
+                .define("chat.keepOpen.custom", false, "Keep the chat screen open after sending from custom channels.")
+                .define("chat.tabs.vertical", false, "Arrange chat tabs vertically on the left edge, Edge-browser style.")
+                .define("chat.tabs.pinned", "", "Comma-separated channel names pinned to the front of the tab tray, in priority order.")
+                .define("chat.hud.persistent", false, "Keep the expanded TabbyChat window visible in the HUD.")
+                .define("chat.hud.closeOnDetach", false, "Close the current chat screen immediately after detaching it to the HUD.")
+                .define("chat.serverHeads", true, "Display server message avatars independently of player heads.")
+                .define("chat.serverAvatar", "rack", "Server avatar: rack, tower, storage, narrow.")
+                .define("chat.playerHeadGroupFirst", false, "Show only the first avatar in consecutive messages from the same player.")
+                .define("chat.serverHeadGroupFirst", false, "Show only the first avatar in consecutive server messages.")
                 .define("chat.playerHeads", true, "Display cached player heads next to chat messages.")
                 .define("chat.playerHeadShadow", true, "Draw a one-pixel shadow behind chat heads.")
                 .define("chat.itemIcons", true, "Display item icons beside SHOW_ITEM chat components.")
                 .define("chat.copySelection", true, "Copy chat text by dragging over it while chat is open.")
                 .define("chat.copyFormattingCodes", false, "Include Minecraft formatting codes in copied text.")
                 .define("chat.copyAmpersandFormatting", false, "Write copied formatting codes with & instead of section signs.")
-                .define("chat.tabbedChat", true, "Use the embedded TabbyChat interface when no external TabbyChat is loaded.")
-                .define("chat.rules.sourceClassification", true, "Classify received messages into player, server, private and group tabs.")
-                .define("chat.rules.blockPlayerMessages", false, "Block messages classified as player chat.")
-                .define("chat.rules.blockServerMessages", false, "Block messages classified as server/system chat.")
-                .define("chat.rules.blockPrivateMessages", false, "Block messages classified as private chat.")
-                .define("chat.rules.mentionCompletion", true, "Suggest online player names after @ in chat.")
-                .define("chat.rules.mentionNotification", true, "Play a sound when your name is mentioned.")
-                .define("chat.rules.messageSearch", true, "Enable the in-chat message search panel.")
-                .define("chat.rules.commandCompletion", true, "Enable command completion suggestions for the embedded chat.")
-                .define("chat.rules.privateCommandBlock", true, "Show the private command as a removable fixed block in PM inputs.")
-                .define("chat.rules.salutationForceServerTranslations", false,
-                        "Use server-side Salutation translations even when UIE is installed.")
-                .define("chat.rules.salutationDisableOverride", false,
-                        "Keep vanilla GuiChat instead of Salutation's original chat screen when TabbyChat is disabled.")
-                .define("chat.tabs.vertical", false, "Use an Edge-style vertical tab tray on the left edge of the chat window.")
-                .define("chat.rules.playerSourcePattern", "", "Regex used to classify player chat.")
-                .define("chat.rules.serverSourcePattern", "", "Regex used to classify server/system chat.")
-                .define("chat.rules.privateSourcePattern", "", "Regex used to classify private chat.")
-                .define("chat.rules.blockedMessagePattern", "", "Regex that blocks matching messages.")
-                .define("chat.rules.mutedPlayers", "", "Comma-separated player names whose messages are muted.")
-                .define("chat.rules.mentionSound", "random.orb", "Sound played for mention notifications.")
-                .define("chat.rules.privateMessageCommand", "/msg", "Command template used for private messages.")
-                .define("chat.rules.pinnedTabs", "", "Comma-separated TabbyChat channel names pinned in the tray.")
-                .define("chat.rules.keepOpenPublic", false, "Keep chat open after sending to public channels.")
-                .define("chat.rules.keepOpenPlayer", false, "Keep chat open after sending to player channels.")
-                .define("chat.rules.keepOpenServer", false, "Keep chat open after sending to server channels.")
-                .define("chat.rules.keepOpenPrivate", false, "Keep chat open after sending to private channels.")
-                .define("chat.rules.keepOpenCustom", false, "Keep chat open after sending to custom channels.")
-                .define("chat.hud.persistent", false, "Keep the embedded chat rendered as a detached HUD window.")
-                .define("chat.hud.closeOnDetach", true, "Close the chat screen when the detached HUD is enabled.")
+                .define("chat.input.allowSectionSign", false, "Allow the section sign in vanilla, TabbyChat and Salutation chat inputs.")
+                .define("chat.input.sourcePreview", true, "Reveal recognized formatting source while the caret edits it.")
                 .define("chat.animation.messages", true, "Animate newly received messages.")
                 .define("chat.animation.messageDuration", 150, "Message entrance duration in milliseconds.")
                 .define("chat.animation.messageDistance", 7.0D, "Message entrance distance in GUI pixels.")
@@ -107,48 +123,58 @@ final class EnhancedChatConfig {
                 .define("chat.animation.input", true, "Animate the chat input when opening chat.")
                 .define("chat.animation.inputDuration", 170, "Input entrance duration in milliseconds.")
                 .define("chat.animation.inputDistance", 8.0D, "Input entrance distance in GUI pixels.")
-                .define("chat.animation.inputEasing", "back", "Input entrance easing.");
+                .define("chat.animation.inputEasing", "back", "Input entrance easing.")
+                .define("chat.salutation.forceServerTranslations", false,
+                        "Use server-side Salutation translations even when UIE is installed.")
+                .define("chat.salutation.disableOverride", false,
+                        "Keep vanilla GuiChat instead of Salutation's original chat screen when TabbyChat is disabled.");
         enabled = file.getBoolean("chat.enabled", true);
+        tabbedChat = file.getBoolean("chat.tabbedChat", true);
         extendedHistory = file.getBoolean("chat.extendedHistory", true);
         maxMessages = file.getInt("chat.maxMessages", 16384, 100, 32767);
         persistence = file.getBoolean("chat.persistence", true);
         persistReceived = file.getBoolean("chat.persistReceived", true);
         persistSent = file.getBoolean("chat.persistSent", true);
+        logRestoredHistory = file.getBoolean("chat.logRestoredHistory", false);
+        messageSearch = file.getBoolean("chat.search", true);
+        commandCompletion = file.getBoolean("chat.commandCompletion", true);
+        completionEngine = file.getString("chat.commandCompletionEngine", "uie");
+        completionDisplay = file.getString("chat.commandCompletionDisplay", "uie");
+        sourceClassification = file.getBoolean("chat.sources.enabled", true);
+        playerSourcePattern = file.getString("chat.sources.playerPattern", "");
+        serverSourcePattern = file.getString("chat.sources.serverPattern", "");
+        privateSourcePattern = file.getString("chat.sources.privatePattern", "");
+        blockedMessagePattern = file.getString("chat.block.pattern", "");
+        mutedPlayers = file.getString("chat.block.players", "");
+        blockPlayerMessages = file.getBoolean("chat.block.allPlayers", false);
+        blockServerMessages = file.getBoolean("chat.block.server", false);
+        blockPrivateMessages = file.getBoolean("chat.block.private", false);
+        mentionCompletion = file.getBoolean("chat.mentions.completion", true);
+        mentionNotification = file.getBoolean("chat.mentions.notification", true);
+        mentionSound = file.getString("chat.mentions.sound", "minecraft:entity.experience_orb.pickup");
+        privateMessageCommand = file.getString("chat.privateMessageCommand", "/msg {player}");
+        privateCommandBlock = file.getBoolean("chat.privateCommandBlock", true);
+        keepOpenPublic = file.getBoolean("chat.keepOpen.public", false);
+        keepOpenPlayer = file.getBoolean("chat.keepOpen.player", false);
+        keepOpenServer = file.getBoolean("chat.keepOpen.server", false);
+        keepOpenPrivate = file.getBoolean("chat.keepOpen.private", false);
+        keepOpenCustom = file.getBoolean("chat.keepOpen.custom", false);
+        verticalTabs = file.getBoolean("chat.tabs.vertical", false);
+        pinnedTabs = file.getString("chat.tabs.pinned", "");
+        persistentChatHud = file.getBoolean("chat.hud.persistent", false);
+        closeChatOnDetach = file.getBoolean("chat.hud.closeOnDetach", false);
+        serverHeads = file.getBoolean("chat.serverHeads", true);
+        serverAvatar = file.getString("chat.serverAvatar", "rack");
+        playerHeadGroupFirst = file.getBoolean("chat.playerHeadGroupFirst", false);
+        serverHeadGroupFirst = file.getBoolean("chat.serverHeadGroupFirst", false);
         playerHeads = file.getBoolean("chat.playerHeads", true);
         headShadow = file.getBoolean("chat.playerHeadShadow", true);
         itemIcons = file.getBoolean("chat.itemIcons", true);
         copySelection = file.getBoolean("chat.copySelection", true);
         copyFormattingCodes = file.getBoolean("chat.copyFormattingCodes", false);
         ampersandFormatting = file.getBoolean("chat.copyAmpersandFormatting", false);
-        tabbedChat = file.getBoolean("chat.tabbedChat", true);
-        sourceClassification = file.getBoolean("chat.rules.sourceClassification", true);
-        blockPlayerMessages = file.getBoolean("chat.rules.blockPlayerMessages", false);
-        blockServerMessages = file.getBoolean("chat.rules.blockServerMessages", false);
-        blockPrivateMessages = file.getBoolean("chat.rules.blockPrivateMessages", false);
-        mentionCompletion = file.getBoolean("chat.rules.mentionCompletion", true);
-        mentionNotification = file.getBoolean("chat.rules.mentionNotification", true);
-        messageSearch = file.getBoolean("chat.rules.messageSearch", true);
-        commandCompletion = file.getBoolean("chat.rules.commandCompletion", true);
-        privateCommandBlock = file.getBoolean("chat.rules.privateCommandBlock", true);
-        salutationForceServerTranslations =
-                file.getBoolean("chat.rules.salutationForceServerTranslations", false);
-        salutationDisableOverride = file.getBoolean("chat.rules.salutationDisableOverride", false);
-        verticalTabs = file.getBoolean("chat.tabs.vertical", false);
-        persistentChatHud = file.getBoolean("chat.hud.persistent", false);
-        closeChatOnDetach = file.getBoolean("chat.hud.closeOnDetach", true);
-        playerSourcePattern = file.getString("chat.rules.playerSourcePattern", "");
-        serverSourcePattern = file.getString("chat.rules.serverSourcePattern", "");
-        privateSourcePattern = file.getString("chat.rules.privateSourcePattern", "");
-        blockedMessagePattern = file.getString("chat.rules.blockedMessagePattern", "");
-        mutedPlayers = file.getString("chat.rules.mutedPlayers", "");
-        mentionSound = file.getString("chat.rules.mentionSound", "random.orb");
-        privateMessageCommand = file.getString("chat.rules.privateMessageCommand", "/msg");
-        pinnedTabs = file.getString("chat.rules.pinnedTabs", "");
-        keepOpenPublic = file.getBoolean("chat.rules.keepOpenPublic", false);
-        keepOpenPlayer = file.getBoolean("chat.rules.keepOpenPlayer", false);
-        keepOpenServer = file.getBoolean("chat.rules.keepOpenServer", false);
-        keepOpenPrivate = file.getBoolean("chat.rules.keepOpenPrivate", false);
-        keepOpenCustom = file.getBoolean("chat.rules.keepOpenCustom", false);
+        allowSectionSignInput = file.getBoolean("chat.input.allowSectionSign", false);
+        sourcePreview = file.getBoolean("chat.input.sourcePreview", true);
         animateMessages = file.getBoolean("chat.animation.messages", true);
         messageAnimationDuration = file.getInt("chat.animation.messageDuration", 150, 10, 1000);
         messageAnimationDistance = (float) file.getDouble("chat.animation.messageDistance", 7.0D, 0.0D, 32.0D);
@@ -157,51 +183,59 @@ final class EnhancedChatConfig {
         inputAnimationDuration = file.getInt("chat.animation.inputDuration", 170, 10, 1000);
         inputAnimationDistance = (float) file.getDouble("chat.animation.inputDistance", 8.0D, 0.0D, 32.0D);
         inputAnimationEasing = file.getString("chat.animation.inputEasing", "back");
+        salutationForceServerTranslations = file.getBoolean("chat.salutation.forceServerTranslations", false);
+        salutationDisableOverride = file.getBoolean("chat.salutation.disableOverride", false);
         file.save();
     }
 
     static void save() {
-        UiEnhancementsConfig.file()
-                .set("chat.enabled", enabled)
+        UiEnhancementsConfig.file().set("chat.enabled", enabled)
+                .set("chat.tabbedChat", tabbedChat)
                 .set("chat.extendedHistory", extendedHistory)
                 .set("chat.maxMessages", maxMessages)
                 .set("chat.persistence", persistence)
                 .set("chat.persistReceived", persistReceived)
                 .set("chat.persistSent", persistSent)
+                .set("chat.logRestoredHistory", logRestoredHistory)
+                .set("chat.search", messageSearch)
+                .set("chat.commandCompletion", commandCompletion)
+                .set("chat.commandCompletionEngine", completionEngine)
+                .set("chat.commandCompletionDisplay", completionDisplay)
+                .set("chat.sources.enabled", sourceClassification)
+                .set("chat.sources.playerPattern", playerSourcePattern)
+                .set("chat.sources.serverPattern", serverSourcePattern)
+                .set("chat.sources.privatePattern", privateSourcePattern)
+                .set("chat.block.pattern", blockedMessagePattern)
+                .set("chat.block.players", mutedPlayers)
+                .set("chat.block.allPlayers", blockPlayerMessages)
+                .set("chat.block.server", blockServerMessages)
+                .set("chat.block.private", blockPrivateMessages)
+                .set("chat.mentions.completion", mentionCompletion)
+                .set("chat.mentions.notification", mentionNotification)
+                .set("chat.mentions.sound", mentionSound)
+                .set("chat.privateMessageCommand", privateMessageCommand)
+                .set("chat.privateCommandBlock", privateCommandBlock)
+                .set("chat.keepOpen.public", keepOpenPublic)
+                .set("chat.keepOpen.player", keepOpenPlayer)
+                .set("chat.keepOpen.server", keepOpenServer)
+                .set("chat.keepOpen.private", keepOpenPrivate)
+                .set("chat.keepOpen.custom", keepOpenCustom)
+                .set("chat.tabs.vertical", verticalTabs)
+                .set("chat.tabs.pinned", pinnedTabs)
+                .set("chat.hud.persistent", persistentChatHud)
+                .set("chat.hud.closeOnDetach", closeChatOnDetach)
+                .set("chat.serverHeads", serverHeads)
+                .set("chat.serverAvatar", serverAvatar)
+                .set("chat.playerHeadGroupFirst", playerHeadGroupFirst)
+                .set("chat.serverHeadGroupFirst", serverHeadGroupFirst)
                 .set("chat.playerHeads", playerHeads)
                 .set("chat.playerHeadShadow", headShadow)
                 .set("chat.itemIcons", itemIcons)
                 .set("chat.copySelection", copySelection)
                 .set("chat.copyFormattingCodes", copyFormattingCodes)
                 .set("chat.copyAmpersandFormatting", ampersandFormatting)
-                .set("chat.tabbedChat", tabbedChat)
-                .set("chat.rules.sourceClassification", sourceClassification)
-                .set("chat.rules.blockPlayerMessages", blockPlayerMessages)
-                .set("chat.rules.blockServerMessages", blockServerMessages)
-                .set("chat.rules.blockPrivateMessages", blockPrivateMessages)
-                .set("chat.rules.mentionCompletion", mentionCompletion)
-                .set("chat.rules.mentionNotification", mentionNotification)
-                .set("chat.rules.messageSearch", messageSearch)
-                .set("chat.rules.commandCompletion", commandCompletion)
-                .set("chat.rules.privateCommandBlock", privateCommandBlock)
-                .set("chat.rules.salutationForceServerTranslations", salutationForceServerTranslations)
-                .set("chat.rules.salutationDisableOverride", salutationDisableOverride)
-                .set("chat.tabs.vertical", verticalTabs)
-                .set("chat.hud.persistent", persistentChatHud)
-                .set("chat.hud.closeOnDetach", closeChatOnDetach)
-                .set("chat.rules.playerSourcePattern", playerSourcePattern)
-                .set("chat.rules.serverSourcePattern", serverSourcePattern)
-                .set("chat.rules.privateSourcePattern", privateSourcePattern)
-                .set("chat.rules.blockedMessagePattern", blockedMessagePattern)
-                .set("chat.rules.mutedPlayers", mutedPlayers)
-                .set("chat.rules.mentionSound", mentionSound)
-                .set("chat.rules.privateMessageCommand", privateMessageCommand)
-                .set("chat.rules.pinnedTabs", pinnedTabs)
-                .set("chat.rules.keepOpenPublic", keepOpenPublic)
-                .set("chat.rules.keepOpenPlayer", keepOpenPlayer)
-                .set("chat.rules.keepOpenServer", keepOpenServer)
-                .set("chat.rules.keepOpenPrivate", keepOpenPrivate)
-                .set("chat.rules.keepOpenCustom", keepOpenCustom)
+                .set("chat.input.allowSectionSign", allowSectionSignInput)
+                .set("chat.input.sourcePreview", sourcePreview)
                 .set("chat.animation.messages", animateMessages)
                 .set("chat.animation.messageDuration", messageAnimationDuration)
                 .set("chat.animation.messageDistance", messageAnimationDistance)
@@ -210,10 +244,13 @@ final class EnhancedChatConfig {
                 .set("chat.animation.inputDuration", inputAnimationDuration)
                 .set("chat.animation.inputDistance", inputAnimationDistance)
                 .set("chat.animation.inputEasing", inputAnimationEasing)
+                .set("chat.salutation.forceServerTranslations", salutationForceServerTranslations)
+                .set("chat.salutation.disableOverride", salutationDisableOverride)
                 .save();
         speiger.src.salutation.Salutation.initialize();
         ChatHistoryManager.INSTANCE.configChanged();
         ChatRuntimeController.sync();
+        ChatSourceChannels.sync();
         ChatRuntimeController.refreshLayout();
     }
 }

@@ -7,6 +7,7 @@ import neofontrender.addons.hover.HoverAnimationAccess;
 import neofontrender.addons.hover.HoverAnimationState;
 import neofontrender.addons.hover.HoverEffectsConfigAccess;
 import neofontrender.addons.hover.HoverEffectsRenderer;
+import neofontrender.addons.navigation.vanilla.VanillaWidgetCapture;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -28,6 +29,7 @@ public abstract class MixinGuiButtonHover implements HoverAnimationAccess {
     @Inject(method = "drawButton", at = @At(value = "INVOKE",
             target = "Lorg/lwjgl/opengl/GL11;glEnable(I)V", remap = false))
     private void nfrUi$updateVanillaHover(Minecraft minecraft, int mouseX, int mouseY, CallbackInfo ci) {
+        VanillaWidgetCapture.widgetDrawn((GuiButton) (Object) this);
         nfrUi$updateHoverAnimation(field_146123_n && enabled);
     }
 

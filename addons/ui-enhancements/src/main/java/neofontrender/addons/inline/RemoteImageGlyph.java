@@ -3,13 +3,15 @@ package neofontrender.addons.inline;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.Tessellator;
+import neofontrender.api.text.pipeline.InlineContent;
+import neofontrender.addons.api.content.InlineImageHandle;
 import neofontrender.addons.api.inline.InlineGlyph;
-import neofontrender.addons.api.inline.InlineImageHandle;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.core.font.support.ShadowColorPolicy;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 
-final class RemoteImageGlyph implements InlineGlyph {
+final class RemoteImageGlyph implements InlineContent, InlineGlyph {
     private static final int MAX_INLINE_IMAGE_WIDTH = 128;
     private static final int MAX_INLINE_IMAGE_HEIGHT = 48;
     private static final int INLINE_PADDING = 2;
@@ -47,13 +49,16 @@ final class RemoteImageGlyph implements InlineGlyph {
         }
         float alpha = ((argb >>> 24) & 0xff) / 255.0F;
         if (shadow) {
-            if (NeofontrenderConfig.modernShadowEnabled()) {
-                drawTexture(x + 1, y + 1, display[0], display[1], 1.0F, 1.0F, 1.0F,
-                        alpha * 0.65F);
-            } else {
-                drawTexture(x + 1, y + 1, display[0], display[1], 0.12F, 0.12F, 0.12F,
-                        alpha * 0.72F);
-            }
+            int shadowArgb = ShadowColorPolicy.shadowColor(argb,
+                    NeofontrenderConfig.shadowColorMode(), NeofontrenderConfig.shadowColor(),
+                    NeofontrenderConfig.shadowColorOverrides(), null);
+            float shadowAlpha = alpha
+                    * (ShadowColorPolicy.COLORED.equals(ShadowColorPolicy.normalizeMode(
+                            NeofontrenderConfig.shadowColorMode())) ? 0.65F : 0.72F);
+            drawTexture(x + 1, y + 1, display[0], display[1],
+                    ((shadowArgb >>> 16) & 0xff) / 255.0F,
+                    ((shadowArgb >>> 8) & 0xff) / 255.0F,
+                    (shadowArgb & 0xff) / 255.0F, shadowAlpha);
         }
         drawTexture(x, y, display[0], display[1], 1.0F, 1.0F, 1.0F, alpha);
     }
@@ -125,10 +130,9 @@ final class RemoteImageGlyph implements InlineGlyph {
         GL11.glEnable(GL11.GL_BLEND);
         GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
                 GL11.GL_ONE, GL11.GL_ZERO);
+        GL11.glColor4f(red, green, blue, Math.max(0.0F, Math.min(1.0F, alpha)));
         Tessellator tessellator = Tessellator.instance;
         tessellator.startDrawingQuads();
-        tessellator.setColorRGBA_F(red, green, blue,
-                Math.max(0.0F, Math.min(1.0F, alpha)));
         tessellator.addVertexWithUV(x, y + drawHeight, 0.0D, 0.0D, 1.0D);
         tessellator.addVertexWithUV(x + drawWidth, y + drawHeight, 0.0D, 1.0D, 1.0D);
         tessellator.addVertexWithUV(x + drawWidth, y, 0.0D, 1.0D, 0.0D);

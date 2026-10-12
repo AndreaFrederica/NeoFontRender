@@ -1,3 +1,14 @@
-The adaptive tooltip border behavior is derived from ModernUI-MC.
-Copyright (C) 2019-2026 BloCamLimb and contributors.
-Licensed under LGPL-3.0-or-later.
+# ModernUI-MC tooltip shader notice
+
+The analytic rounded-tooltip shader and its Java integration in this add-on are derived from
+ModernUI-MC by BloCamLimb and contributors:
+
+https://github.com/BloCamLimb/ModernUI-MC
+
+Copyright (C) 2019-2026 BloCamLimb et al.
+
+The derived files remain licensed under the GNU Lesser General Public License, version 3 or
+(at your option) any later version. Local changes adapt the shader and formatted-title adaptive
+border palette algorithm to Minecraft 1.7.10 on Forge/LWJGL 3 (lwjgl3ify), add configurable
+four-corner colors, shading modes, configured-color Mica material grain and shadow offsets, and
+integrate with the 1.7.10 tooltip events.

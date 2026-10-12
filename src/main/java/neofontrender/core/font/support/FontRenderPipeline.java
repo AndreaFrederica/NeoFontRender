@@ -50,14 +50,14 @@ public final class FontRenderPipeline {
             OpenGlHelper.glBlendFunc(
                     GL11.GL_ONE,
                     GL11.GL_ONE_MINUS_SRC_ALPHA,
-                    GL11.GL_ONE,
-                    GL11.GL_ZERO);
+                    FramebufferAlphaBlend.SOURCE_FACTOR,
+                    FramebufferAlphaBlend.DESTINATION_FACTOR);
         } else {
             OpenGlHelper.glBlendFunc(
                     GL11.GL_SRC_ALPHA,
                     GL11.GL_ONE_MINUS_SRC_ALPHA,
-                    GL11.GL_ONE,
-                    GL11.GL_ZERO);
+                    FramebufferAlphaBlend.SOURCE_FACTOR,
+                    FramebufferAlphaBlend.DESTINATION_FACTOR);
         }
 
         if (enhanced && NeofontrenderConfig.shaderTextPipeline() && state.previousProgram == 0) {
@@ -223,6 +223,7 @@ public final class FontRenderPipeline {
             if (shaderChanged) {
                 GL20.glUseProgram(previousProgram);
             }
+            // 1.7.10 has no GlStateManager cache, so the raw blend factors are authoritative.
             OpenGlHelper.glBlendFunc(srcRgb, dstRgb, srcAlpha, dstAlpha);
             if (!blendEnabled) {
                 GL11.glDisable(GL11.GL_BLEND);

@@ -14,6 +14,7 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.Minecraft;
 import neofontrender.addons.electricelytra.ElectricElytraMod;
+import neofontrender.addons.electricelytra.ElectricBodyAxis;
 import neofontrender.addons.electricelytra.ItemElectricElytra;
 import neofontrender.addons.api.flight.FlightAttitude;
 import neofontrender.addons.electricelytra.client.ElectricRemoteAttitudes;
@@ -81,6 +82,11 @@ public final class ElectricElytraNetwork {
                         message.yaw, message.roll);
                 FlightAttitude attitude = new FlightAttitude(
                         message.qx, message.qy, message.qz, message.qw);
+                ItemStack stack = EntityEquipmentSlot.getChest(player);
+                if (ItemElectricElytra.usesAerodynamicFlightModel(stack)) {
+                    ElectricBodyAxis.setManeuverCommand(player, message.pitch,
+                            message.roll, message.yaw);
+                }
                 CHANNEL.sendToAllAround(new AttitudeMessage(player.getEntityId(), attitude),
                         new NetworkRegistry.TargetPoint(player.dimension, player.posX,
                                 player.posY, player.posZ, 384.0D));
@@ -112,12 +118,12 @@ public final class ElectricElytraNetwork {
     public static final class AttitudeHandler
             implements IMessageHandler<AttitudeMessage, IMessage> {
         @Override public IMessage onMessage(AttitudeMessage message, MessageContext context) {
-            {
+            Minecraft.getMinecraft().func_152344_a(() -> {
                 if (Minecraft.getMinecraft().thePlayer != null
-                        && Minecraft.getMinecraft().thePlayer.getEntityId() == message.entityId) return null;
+                        && Minecraft.getMinecraft().thePlayer.getEntityId() == message.entityId) return;
                 ElectricRemoteAttitudes.update(message.entityId,
                         new FlightAttitude(message.x, message.y, message.z, message.w));
-            }
+            });
             return null;
         }
     }

@@ -10,15 +10,48 @@ import net.minecraft.util.Vec3;
 import neofontrender.addons.api.flight.FlightAttitude;
 import neofontrender.addons.api.flight.FlightVector;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 /** Runtime bridge between Minecraft's blocks/tick motion and the aerodynamic model. */
 public final class ElectricFlightPhysics {
+    private static final Map<EntityLivingBase, Boolean> CLIENT_PREDICTIONS = new WeakHashMap<>();
+
     private ElectricFlightPhysics() {}
 
     public static boolean shouldReplaceVanillaTravel(EntityLivingBase entity) {
-        if (!(entity instanceof EntityPlayer) || !ElectricElytraCompat.isElytraFlying(entity)
-                || entity.isInWater()) return false;
+        if (!(entity instanceof EntityPlayer)) return false;
         ItemStack chest = EntityEquipmentSlot.getChest(entity);
-        return ItemElectricElytra.usesAerodynamicFlightModel(chest);
+        return shouldUseAerodynamicSolver(ElectricElytraCompat.isElytraFlying(entity),
+                entity.worldObj.isRemote && hasClientPrediction(entity), entity.isInWater(),
+                entity.handleLavaMovement(), ItemElectricElytra.usesAerodynamicFlightModel(chest));
+    }
+
+    /** Server players are moved by their vanilla movement packets; the server only validates. */
+    public static boolean shouldDeferToClientMovement(EntityLivingBase entity) {
+        return entity != null && shouldDeferToClientMovement(
+                !entity.worldObj.isRemote, ElectricFlightController.isAerodynamicFlightActive(entity));
+    }
+
+    static boolean shouldDeferToClientMovement(boolean serverWorld, boolean active) {
+        return serverWorld && active;
+    }
+
+    public static synchronized void setClientPrediction(EntityLivingBase entity,
+                                                         boolean active) {
+        if (entity == null || !entity.worldObj.isRemote) return;
+        if (active) CLIENT_PREDICTIONS.put(entity, Boolean.TRUE);
+        else CLIENT_PREDICTIONS.remove(entity);
+    }
+
+    public static synchronized boolean hasClientPrediction(EntityLivingBase entity) {
+        return CLIENT_PREDICTIONS.containsKey(entity);
+    }
+
+    static boolean shouldUseAerodynamicSolver(boolean elytraFlying, boolean clientPrediction,
+                                              boolean inWater, boolean inLava,
+                                              boolean aerodynamicModel) {
+        return (elytraFlying || clientPrediction) && !inWater && !inLava && aerodynamicModel;
     }
 
     public static void integrate(EntityLivingBase entity) {

@@ -32,7 +32,7 @@ class HudBarRegistryTest {
         register(new TestProvider("testhud:later", 20));
         register(new TestProvider("testhud:alpha", 10));
 
-        List<HudBarRegistration> providers = HudBarRegistry.snapshot(HudBarElement.HEALTH);
+        List<HudBarProvider> providers = HudBarRegistry.snapshot(HudBarElement.HEALTH);
 
         assertEquals("testhud:alpha", providers.get(0).id());
         assertEquals("testhud:zeta", providers.get(1).id());

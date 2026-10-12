@@ -1,5 +1,6 @@
 package neofontrender.client;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
 import cpw.mods.fml.client.registry.ClientRegistry;
 import cpw.mods.fml.common.FMLCommonHandler;
@@ -29,12 +30,18 @@ public final class NeofontrenderKeyHandler {
             Keyboard.KEY_P,
             "key.categories.neofontrender." + BRAND_SUFFIX
     );
+    public static final KeyBinding OPEN_AUDIO = new KeyBinding(
+            "key.neofontrender.openAudio",
+            Keyboard.KEY_M,
+            "key.categories.neofontrender." + BRAND_SUFFIX
+    );
 
     private NeofontrenderKeyHandler() {}
 
     public static void init() {
         ClientRegistry.registerKeyBinding(OPEN_CONFIG);
         ClientRegistry.registerKeyBinding(OPEN_EMOJI_TEST);
+        ClientRegistry.registerKeyBinding(OPEN_AUDIO);
         FMLCommonHandler.instance().bus().register(new NeofontrenderKeyHandler());
     }
 
@@ -45,6 +52,10 @@ public final class NeofontrenderKeyHandler {
         }
         if (OPEN_EMOJI_TEST.isPressed()) {
             NeofontrenderEmojiTestScreen.open();
+        }
+        if (OPEN_AUDIO.isPressed()) {
+            Minecraft.getMinecraft().displayGuiScreen(NeofontrenderConfigScreen.createConfigGui(null,
+                    "neofontrender_ui_enhancements:music"));
         }
     }
 }

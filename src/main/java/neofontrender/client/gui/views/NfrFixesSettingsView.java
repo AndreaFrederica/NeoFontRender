@@ -7,8 +7,6 @@ import neofontrender.client.gui.model.NfrSettingsDraft;
 
 /** Compatibility fixes route. */
 public final class NfrFixesSettingsView extends NfrContentView<NfrFixesSettingsView> {
-    public NfrFixesSettingsView(NfrSettingsDraft d, NfrSettingsControls c) { this(options(d, c)); }
-
     public NfrFixesSettingsView(NfrSettingsDraft d, NfrSettingsControls c,
                                 Iterable<IWidget> contributedControls) {
         this(options(d, c, contributedControls));
@@ -16,10 +14,6 @@ public final class NfrFixesSettingsView extends NfrContentView<NfrFixesSettingsV
 
     private NfrFixesSettingsView(NfrOptionsGrid options) {
         super(section(options, options::preferredHeight));
-    }
-
-    private static NfrOptionsGrid options(NfrSettingsDraft d, NfrSettingsControls c) {
-        return options(d, c, null);
     }
 
     private static NfrOptionsGrid options(NfrSettingsDraft d, NfrSettingsControls c,

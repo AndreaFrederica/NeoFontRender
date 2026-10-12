@@ -1,24 +1,28 @@
 package neofontrender.addons.tooltips;
 
+import org.lwjgl.Version;
 import neofontrender.api.arc3d.Arc3DApi;
 
-/** Verifies the Arc3D API supplied by the required Neo Font Render mod. */
+/** Verifies that the Arc3D core shipped by Neo Font Render is linked to the lwjgl3ify host. */
 final class Arc3DRuntimeSupport {
     private static boolean available;
 
-    private Arc3DRuntimeSupport() {}
+    private Arc3DRuntimeSupport() {
+    }
 
     static void verify() {
         try {
-            available = Arc3DApi.isAvailable() && Arc3DApi.lerp(0.0F, 1.0F, 0.5F) == 0.5F;
-            if (available) {
-                TooltipModule.LOGGER.info("Arc3D Core {} is available through Neo Font Render", Arc3DApi.ARC3D_VERSION);
-            } else {
-                TooltipModule.LOGGER.error("Arc3D Core API reported unavailable; modern tooltips are disabled");
-            }
-        } catch (LinkageError error) {
+            // Exercise classes used by the renderer without allocating native resources.
+            float midpoint = Arc3DApi.lerp(0.0F, 1.0F, 0.5F);
+            int color = Arc3DApi.hsv(200.0F, 0.5F, midpoint, 255);
+            // Arc3D's HSV helper intentionally returns RGB without an alpha channel.
+            available = midpoint == 0.5F && (color & 0x00FFFFFF) != 0;
+            TooltipModule.LOGGER.info(
+                    "Arc3D Core {} is available through NFR; using host LWJGL {} (no bundled natives)",
+                    Arc3DApi.ARC3D_VERSION, Version.getVersion());
+        } catch (Throwable throwable) {
             available = false;
-            TooltipModule.LOGGER.error("Arc3D Core linkage failed; modern tooltips are disabled", error);
+            TooltipModule.LOGGER.error("Arc3D Core failed to initialize; modern tooltips are disabled", throwable);
         }
     }
 

@@ -39,6 +39,7 @@ float srgbChannelToLinear(float value) {
         ? value / 12.92
         : pow((value + 0.055) / 1.055, 2.4);
 }
+
 vec3 srgbToLinear(vec3 color) {
     return vec3(srgbChannelToLinear(color.r),
             srgbChannelToLinear(color.g), srgbChannelToLinear(color.b));

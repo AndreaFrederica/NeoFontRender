@@ -2,6 +2,8 @@ package neofontrender.addons.hud;
 
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemFood;
+import net.minecraft.item.ItemStack;
 import net.minecraft.potion.Potion;
 import net.minecraft.util.FoodStats;
 import net.minecraftforge.common.ForgeHooks;
@@ -12,20 +14,24 @@ import neofontrender.addons.hud.api.HudBarSide;
 import neofontrender.addons.hud.api.HudBarValue;
 import neofontrender.api.arc3d.Arc3DApi;
 
-/** Registers the status sources corresponding to Forge's vanilla HUD elements. */
 final class VanillaHudBarProviders {
     private VanillaHudBarProviders() {}
 
-    static void register(FoodStatsAccess foodStatsAccess) {
-        if (foodStatsAccess == null) throw new IllegalArgumentException("food stats access must not be null");
+    static void register() {
         HudBarRegistry.register(provider("health", HudBarElement.HEALTH, HudBarSide.LEFT, 100, true,
                 player -> HudBarsConfig.health,
-                (player, partialTicks) -> health(player)));
+                (player, partialTicks) -> {
+                    float max = player.getMaxHealth();
+                    float ratio = max <= 0 ? 0 : player.getHealth() / max;
+                    int color = lerp(HudBarsConfig.healthColor, HudBarsConfig.healthyColor, ratio);
+                    if (player.isPotionActive(Potion.poison)) color = 0xFF4A9C38;
+                    else if (player.isPotionActive(Potion.wither)) color = 0xFF5A5A5A;
+                    return value(player.getHealth(), max, color);
+                }));
         HudBarRegistry.register(provider("absorption", HudBarElement.HEALTH, HudBarSide.LEFT, 110, false,
                 player -> HudBarsConfig.absorption && player.getAbsorptionAmount() > 0.0F,
                 (player, partialTicks) -> value(player.getAbsorptionAmount(),
-                        Math.max(player.getMaxHealth(), player.getAbsorptionAmount()),
-                        HudBarsConfig.absorptionColor)));
+                        Math.max(player.getMaxHealth(), player.getAbsorptionAmount()), HudBarsConfig.absorptionColor)));
         HudBarRegistry.register(provider("armor", HudBarElement.ARMOR, HudBarSide.LEFT, 100, true,
                 player -> HudBarsConfig.armor && armor(player) > 0.0F,
                 (player, partialTicks) -> {
@@ -35,7 +41,7 @@ final class VanillaHudBarProviders {
                 }));
         HudBarRegistry.register(provider("food", HudBarElement.FOOD, HudBarSide.RIGHT, 100, true,
                 player -> HudBarsConfig.food,
-                (player, partialTicks) -> food(player, foodStatsAccess)));
+                (player, partialTicks) -> food(player)));
         HudBarRegistry.register(provider("air", HudBarElement.AIR, HudBarSide.RIGHT, 100, true,
                 player -> HudBarsConfig.air && player.getAir() < 300,
                 (player, partialTicks) -> value(player.getAir(), 300.0F, HudBarsConfig.airColor)));
@@ -47,26 +53,43 @@ final class VanillaHudBarProviders {
                 }));
     }
 
-    private static HudBarValue health(EntityPlayer player) {
-        float maximum = player.getMaxHealth();
-        float ratio = maximum <= 0.0F ? 0.0F : player.getHealth() / maximum;
-        int color = Arc3DApi.lerpArgb(HudBarsConfig.healthColor, HudBarsConfig.healthyColor, ratio);
-        if (player.isPotionActive(Potion.poison)) color = 0xFF4A9C38;
-        else if (player.isPotionActive(Potion.wither)) color = 0xFF5A5A5A;
-        return value(player.getHealth(), maximum, color);
-    }
-
-    private static HudBarValue food(EntityPlayer player, FoodStatsAccess foodStatsAccess) {
+    private static HudBarValue food(EntityPlayer player) {
         FoodStats stats = player.getFoodStats();
         float food = stats.getFoodLevel();
+        float maximum = AppleCoreCompat.maximumHunger(player);
+        float saturation = stats.getSaturationLevel();
+        FoodBarPreview preview = foodPreview(player.getHeldItem(), player, food, maximum, saturation);
+        // FoodStats exposes no public exhaustion accessor before 1.12.2 and the SRG field name
+        // cannot be resolved from this workspace, so vanilla exhaustion stays at zero; AppleCore
+        // supplies the real value when it is installed.
+        float exhaustion = AppleCoreCompat.exhaustion(player, 0.0F);
+        float maximumExhaustion = AppleCoreCompat.maximumExhaustion(player);
         int primary = player.isPotionActive(Potion.hunger) ? 0xFF579A42 : HudBarsConfig.foodColor;
-        return FoodBarValues.create(food, stats.getSaturationLevel(), player.getHeldItem(), player, foodStatsAccess,
-                primary, HudBarsConfig.saturationColor, withAlpha(primary, 150), 0x90FFFFFF,
-                text(food, 20.0F));
+        float depletion = Math.min(maximumExhaustion, exhaustion) / maximumExhaustion * maximum;
+        float hungerPreview = preview == null ? 0.0F : preview.hunger;
+        float saturationPreview = preview == null ? 0.0F : preview.saturation;
+        return new HudBarValue(food, maximum, saturation, hungerPreview, saturationPreview, depletion,
+                primary, HudBarsConfig.saturationColor, primary, 0x90FFFFFF,
+                text(food, maximum), preview != null);
+    }
+
+    private static FoodBarPreview foodPreview(ItemStack stack, EntityPlayer player, float food,
+                                              float maximum, float saturation) {
+        AppleCoreCompat.FoodValue appleCore = AppleCoreCompat.foodValue(stack, player);
+        if (appleCore != null)
+            return FoodBarPreview.calculate(food, maximum, saturation,
+                    appleCore.hunger, appleCore.saturationModifier);
+        if (stack != null && stack.getItem() instanceof ItemFood) {
+            ItemFood item = (ItemFood) stack.getItem();
+            return FoodBarPreview.calculate(food, maximum, saturation,
+                    item.func_150905_g(stack), item.func_150906_h(stack));
+        }
+        return null;
     }
 
     private static float armor(EntityPlayer player) {
-        return ForgeHooks.getTotalArmorValue(player);
+        // Forge's hook already folds ISpecialArmor contributions into the displayed value.
+        return (float) ForgeHooks.getTotalArmorValue(player);
     }
 
     private static HudBarValue value(float current, float maximum, int color) {
@@ -78,19 +101,12 @@ final class VanillaHudBarProviders {
         return Math.round(current) + "/" + Math.round(maximum);
     }
 
-    private static int withAlpha(int color, int alpha) {
-        return color & 0x00FFFFFF | Math.max(0, Math.min(255, alpha)) << 24;
+    private static int lerp(int from, int to, float amount) {
+        return Arc3DApi.lerpArgb(from, to, amount);
     }
 
-    /** Evaluates whether a provider should reserve a bar for a player. */
-    private interface Visibility {
-        boolean test(EntityPlayer player);
-    }
-
-    /** Produces one immutable frame sample for a provider. */
-    private interface Sampler {
-        HudBarValue sample(EntityPlayer player, float partialTicks);
-    }
+    private interface Visibility { boolean test(EntityPlayer player); }
+    private interface Sampler { HudBarValue sample(EntityPlayer player, float partialTicks); }
 
     private static HudBarProvider provider(String name, HudBarElement element, HudBarSide side, int order,
                                            boolean replaces, Visibility visible, Sampler sampler) {

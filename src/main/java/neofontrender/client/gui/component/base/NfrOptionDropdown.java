@@ -47,6 +47,7 @@ public final class NfrOptionDropdown extends ContextMenuButton<NfrOptionDropdown
         for (String value : values) this.values.add(value);
         this.display = display;
         this.compact = compact;
+        NfrSettingsSearch.register(this, label, name, "dropdown");
         requiresClick();
         // We provide the menu's relative anchor ourselves because ModularUI's widget Area does
         // not contain the render-time translation applied by ancestor scroll widgets.
@@ -57,8 +58,8 @@ public final class NfrOptionDropdown extends ContextMenuButton<NfrOptionDropdown
     public void openMenu(boolean soft) {
         if (!isOpen()) {
             // A closed Menu has already belonged to a temporary MenuPanel. Reusing that widget
-            // tree leaves stale resizer parent/state in ModularUI 3.1.6, which can make the
-            // popup background shrink while its rows retain the old dropdown width.
+            // tree leaves stale resizer parent/state in ModularUI 3.1.6, which can make the popup
+            // background shrink while its rows retain the old dropdown width.
             setMenu(createFreshMenu());
         }
         super.openMenu(soft);

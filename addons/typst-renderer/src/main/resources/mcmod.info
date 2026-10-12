@@ -1,0 +1,14 @@
+[
+  {
+    "modid": "neofontrender_typst_renderer",
+    "name": "NFR Typst Renderer",
+    "version": "${version}",
+    "mcversion": "1.12.2",
+    "description": "Optional Typst inline renderer backed by an isolated JNI raster engine.",
+    "authorList": ["Revo UI contributors"],
+    "url": "https://github.com/typst/typst",
+    "clientSideOnly": true,
+    "requiredMods": ["neofontrender@[${nfrVersion},)"],
+    "dependencies": []
+  }
+]

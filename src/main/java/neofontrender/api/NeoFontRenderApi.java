@@ -21,7 +21,7 @@ import java.util.List;
  */
 @SideOnly(Side.CLIENT)
 public final class NeoFontRenderApi {
-    public static final int API_VERSION = 5;
+    public static final int API_VERSION = 6;
 
     private NeoFontRenderApi() {}
 

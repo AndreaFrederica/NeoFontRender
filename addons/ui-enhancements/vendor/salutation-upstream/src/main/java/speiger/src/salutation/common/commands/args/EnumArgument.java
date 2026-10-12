@@ -8,11 +8,11 @@ import speiger.src.salutation.common.commands.BaseSalutationCommand.CommandConte
 
 public class EnumArgument<T extends Enum<T>> implements IArgument<T> {
 	Class<T> clz;
-
+	
 	private EnumArgument(Class<T> clz) {
 		this.clz = clz;
 	}
-
+	
 	public static <T extends Enum<T>> EnumArgument<T> value(Class<T> clz) {
 		return new EnumArgument<>(clz);
 	}
@@ -30,5 +30,5 @@ public class EnumArgument<T extends Enum<T>> implements IArgument<T> {
 		}
 		return values;
 	}
-
+	
 }

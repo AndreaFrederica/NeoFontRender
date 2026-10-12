@@ -35,6 +35,21 @@ public final class NfrCompatibilitySettingsView extends NfrContentView<NfrCompat
                 .add(c.toggle("neofontrender.gui.option.compat_tinkers_construct",
                         "neofontrender.tooltip.compat_tinkers_construct",
                         () -> d.compatTinkersConstruct, value -> d.compatTinkersConstruct = value))
+                .add(c.toggle("neofontrender.gui.option.compat_tinkers_antique",
+                        "neofontrender.tooltip.compat_tinkers_antique",
+                        () -> d.compatTinkersAntique, value -> d.compatTinkersAntique = value))
+                .add(c.toggle("neofontrender.gui.option.compat_thaumcraft_tooltip",
+                        "neofontrender.tooltip.compat_thaumcraft_tooltip",
+                        () -> d.compatThaumcraftTooltip,
+                        value -> d.compatThaumcraftTooltip = value))
+                .add(c.toggle("neofontrender.gui.option.compat_custom_main_menu",
+                        "neofontrender.tooltip.compat_custom_main_menu",
+                        () -> d.compatCustomMainMenu,
+                        value -> d.compatCustomMainMenu = value))
+                .add(c.toggle("neofontrender.gui.option.compat_fancy_menu",
+                        "neofontrender.tooltip.compat_fancy_menu",
+                        () -> d.compatFancyMenu,
+                        value -> d.compatFancyMenu = value))
                 .add(c.dropdown("enchantment_backend", "neofontrender.gui.option.enchantment_backend",
                         () -> d.enchantmentBackend, value -> d.enchantmentBackend = value,
                         Arrays.asList("awt", "cosmic", "auto", "vanilla"),

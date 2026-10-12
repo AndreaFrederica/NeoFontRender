@@ -13,7 +13,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Locale;
 
 /**
@@ -40,13 +39,13 @@ public final class CosmicFontComparison {
             throw new IllegalStateException(compatibility.getMessage());
         }
 
-        Path output = Paths.get(args[0]).toAbsolutePath();
+        Path output = Path.of(args[0]).toAbsolutePath();
         Files.createDirectories(output);
         Path[] paths = new Path[4];
         byte[][] fonts = new byte[4][];
         String[] aliases = new String[4];
         for (int i = 0; i < 4; i++) {
-            paths[i] = Paths.get(args[i + 1]).toAbsolutePath();
+            paths[i] = Path.of(args[i + 1]).toAbsolutePath();
             fonts[i] = Files.readAllBytes(paths[i]);
             aliases[i] = paths[i].getFileName().toString();
         }
@@ -85,12 +84,12 @@ public final class CosmicFontComparison {
 
     private static void writeCosmicPng(byte[] encoded, Path output) throws Exception {
         ByteBuffer data = ByteBuffer.wrap(encoded).order(ByteOrder.LITTLE_ENDIAN);
-        if (data.remaining() < 32 || data.getInt() != RASTER_MAGIC) {
+        if (data.remaining() < 36 || data.getInt() != RASTER_MAGIC) {
             throw new IllegalStateException("invalid Cosmic raster");
         }
         int width = data.getInt();
         int height = data.getInt();
-        data.position(32);
+        data.position(36);
         if (width <= 0 || height <= 0 || data.remaining() != width * height * 4) {
             throw new IllegalStateException("invalid Cosmic dimensions " + width + "x" + height);
         }

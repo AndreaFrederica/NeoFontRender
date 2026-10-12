@@ -3,22 +3,21 @@ package neofontrender.client.gui.component.business;
 import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.widget.Widget;
-import com.cleanroommc.modularui.widgets.SliderWidget;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import net.minecraft.client.resources.I18n;
 import neofontrender.client.gui.component.base.NfrContentButton;
 import neofontrender.client.gui.component.base.NfrColorPickerButton;
 import neofontrender.client.gui.component.base.NfrDoubleValue;
 import neofontrender.client.gui.component.base.NfrDecimalSlider;
-import neofontrender.client.gui.component.base.NfrLabeledSlider;
 import neofontrender.client.gui.component.base.NfrLabeledTextField;
 import neofontrender.client.gui.component.base.NfrOptionsGrid;
 import neofontrender.client.gui.component.base.NfrOptionDropdown;
 import neofontrender.client.gui.component.base.NfrStringValue;
 import neofontrender.client.gui.component.base.NfrTextButton;
 import neofontrender.client.gui.component.base.NfrToggleIndicator;
-import neofontrender.client.gui.component.base.NfrTrackSliderWidget;
+import neofontrender.client.gui.component.base.NfrSettingsSearch;
 import neofontrender.client.gui.model.NfrSettingsDraft;
+import neofontrender.core.font.support.ShadowColorPolicy;
 
 import java.util.Arrays;
 import java.util.List;
@@ -79,32 +78,36 @@ public final class NfrSettingsControls {
 
     public IWidget toggleText(Supplier<String> label, Supplier<String> tooltipText,
                               Supplier<Boolean> getter, Consumer<Boolean> setter, Runnable afterChange) {
-        return tooltipText(new NfrContentButton(label, false, new NfrToggleIndicator(getter))
+        IWidget control = tooltipText(new NfrContentButton(label, false, new NfrToggleIndicator(getter))
                 .size(260, 24)
                 .onMousePressed(mouseButton -> {
                     setter.accept(!getter.get());
                     afterChange.run();
                     return true;
                 }), tooltipText);
+        return NfrSettingsSearch.register(control, label, "toggle", "enabled", tooltipText == null ? "" : tooltipText.get());
     }
 
     public NfrOptionDropdown dropdown(String name, String labelKey, Supplier<String> getter,
                                       Consumer<String> setter, Iterable<String> values,
                                       Function<String, String> display) {
-        return new NfrOptionDropdown(name, () -> tr(labelKey), getter, setter, values, display, false);
+        return NfrSettingsSearch.register(new NfrOptionDropdown(name, () -> tr(labelKey), getter, setter, values, display, false),
+                () -> tr(labelKey), name, labelKey);
     }
 
     /** Localized-text overload for extension pages that own their translation lifecycle. */
     public NfrOptionDropdown dropdownText(String name, Supplier<String> label, Supplier<String> getter,
                                           Consumer<String> setter, Iterable<String> values,
                                           Function<String, String> display) {
-        return new NfrOptionDropdown(name, label, getter, setter, values, display, false);
+        return NfrSettingsSearch.register(new NfrOptionDropdown(name, label, getter, setter, values, display, false),
+                label, name);
     }
 
     public NfrOptionDropdown compactDropdown(String name, Supplier<String> getter, Consumer<String> setter,
                                              Iterable<String> values,
                                              Function<String, String> display) {
-        return new NfrOptionDropdown(name, () -> "", getter, setter, values, display, true);
+        return NfrSettingsSearch.register(new NfrOptionDropdown(name, () -> "", getter, setter, values, display, true),
+                () -> name, name);
     }
 
     /** Opens ModularUI's native RGB/HSV/hex picker in an NFR-styled dialog. */
@@ -115,7 +118,8 @@ public final class NfrSettingsControls {
 
     public NfrColorPickerButton colorText(String name, Supplier<String> label, IntSupplier getter,
                                           IntConsumer setter, boolean alpha, Runnable afterChange) {
-        return new NfrColorPickerButton(name, label, getter, setter, alpha, afterChange);
+        return NfrSettingsSearch.register(new NfrColorPickerButton(name, label, getter, setter, alpha, afterChange),
+                label, name, "color");
     }
 
     public NfrTextButton action(String labelKey, int width, int height, Runnable action) {
@@ -124,12 +128,12 @@ public final class NfrSettingsControls {
 
     /** Addon-safe overload for namespaces that provide their own translation fallback. */
     public NfrTextButton action(Supplier<String> label, int width, int height, Runnable action) {
-        return new NfrTextButton(label, true)
+        return NfrSettingsSearch.register(new NfrTextButton(label, true)
                 .size(width, height)
                 .onMousePressed(mouseButton -> {
                     action.run();
                     return true;
-                });
+                }), label, "action");
     }
 
     public IWidget engine(int route) {
@@ -195,6 +199,29 @@ public final class NfrSettingsControls {
         return decimalSlider(labelKey, getter, setter, min, max, step, preview);
     }
 
+    public IWidget shadowColorMode(Runnable afterChange) {
+        return tooltip(dropdown("shadow_color_mode", "neofontrender.gui.option.shadow_color_mode",
+                () -> draft.shadowColorMode, value -> {
+                    draft.shadowColorMode = ShadowColorPolicy.normalizeMode(value);
+                    afterChange.run();
+                }, Arrays.asList(ShadowColorPolicy.VANILLA, ShadowColorPolicy.COLORED,
+                        ShadowColorPolicy.SOLID),
+                value -> tr("neofontrender.gui.shadow_color_mode." + value)).size(260, 24),
+                "neofontrender.tooltip.shadow_color_mode");
+    }
+
+    public IWidget shadowColoredFunction(Runnable afterChange) {
+        return tooltip(dropdown("shadow_colored_function",
+                "neofontrender.gui.option.shadow_colored_function",
+                () -> draft.shadowColoredFunction, value -> {
+                    draft.shadowColoredFunction = ShadowColorPolicy.normalizeColoredFunction(value);
+                    afterChange.run();
+                }, Arrays.asList(ShadowColorPolicy.COLORED_FUNCTION_SRGB,
+                        ShadowColorPolicy.COLORED_FUNCTION_LINEAR_LIGHT),
+                value -> tr("neofontrender.gui.shadow_colored_function." + value)).size(260, 24),
+                "neofontrender.tooltip.shadow_colored_function");
+    }
+
     /** Addon-safe overload for namespaces that provide their own translation fallback. */
     public IWidget decimalSlider(Supplier<String> label, Supplier<Float> getter, Consumer<Float> setter,
                                  float min, float max, float step) {
@@ -204,6 +231,16 @@ public final class NfrSettingsControls {
     public IWidget decimalSlider(String labelKey, Supplier<Float> getter, Consumer<Float> setter,
                                  float min, float max, float step, Runnable afterChange) {
         return decimalSlider(() -> tr(labelKey), getter, setter, min, max, step, afterChange);
+    }
+
+    public IWidget decimalSlider(String labelKey, String tooltipKey, Supplier<Float> getter,
+                                 Consumer<Float> setter, float min, float max, float step,
+                                 Runnable afterChange) {
+        IWidget slider = decimalSlider(labelKey, getter, setter, min, max, step, afterChange);
+        if (slider instanceof Widget<?>) {
+            tooltip((Widget<?>) slider, tooltipKey);
+        }
+        return slider;
     }
 
     /** Addon-safe overload for namespaces that provide their own translation fallback. */
@@ -218,7 +255,7 @@ public final class NfrSettingsControls {
                     afterChange.run();
                 }))
                 .bounds(min, max);
-        return slider.size(260, 24);
+        return NfrSettingsSearch.register(slider.size(260, 24), label, "slider");
     }
 
     public IWidget shadowColor() {
@@ -230,26 +267,35 @@ public final class NfrSettingsControls {
                 () -> draft.shadowColor, value -> draft.shadowColor = value, true, afterChange).size(260, 24);
     }
 
-    public NfrLabeledSlider brightness() {
-        SliderWidget slider = new NfrTrackSliderWidget()
-                .value(new NfrDoubleValue(
-                        () -> (double) parseFloat(draft.brightness, 3.0F, 0.0F, 12.0F),
-                        value -> {
-                            draft.brightness = String.format(Locale.ROOT, "%.1f",
-                                    Math.max(0.0D, Math.min(12.0D, value)));
-                            preview.run();
-                        }))
-                .bounds(0.0D, 12.0D)
-                .stopper(0.0D, 1.0D, 2.0D, 3.0D, 4.0D, 6.0D, 8.0D, 12.0D)
-                .sliderSize(8, 14)
-                .stopperSize(2, 6);
-        return new NfrLabeledSlider(() -> tr("neofontrender.gui.label.brightness") + ": " + draft.brightness,
-                slider);
+    public IWidget brightness() {
+        return decimalSlider("neofontrender.gui.label.brightness",
+                "neofontrender.tooltip.brightness",
+                () -> parseFloat(draft.brightness, 3.0F, 0.0F, 12.0F),
+                value -> draft.brightness = String.format(Locale.ROOT, "%.1f",
+                        Math.max(0.0F, Math.min(12.0F, value))),
+                0.0F, 12.0F, 0.1F, preview);
+    }
+
+    public IWidget sdfDistanceRange(Runnable afterChange) {
+        return decimalSlider("neofontrender.gui.option.sdf_distance_range",
+                "neofontrender.tooltip.sdf_distance_range",
+                () -> parseFloat(draft.sdfDistanceRange, 4.0F, 2.0F, 8.0F),
+                value -> draft.sdfDistanceRange = Integer.toString(Math.max(2, Math.min(8,
+                        Math.round(value)))), 2.0F, 8.0F, 1.0F, afterChange);
+    }
+
+    public IWidget sdfEdgeSoftness(Runnable afterChange) {
+        return decimalSlider("neofontrender.gui.option.sdf_edge_softness",
+                "neofontrender.tooltip.sdf_edge_softness",
+                () -> parseFloat(draft.sdfEdgeSoftness, 1.0F, 0.5F, 2.0F),
+                value -> draft.sdfEdgeSoftness = String.format(Locale.ROOT, "%.1f",
+                        Math.max(0.5F, Math.min(2.0F, value))),
+                0.5F, 2.0F, 0.1F, afterChange);
     }
 
     public NfrLabeledTextField cacheField(String key, Supplier<String> getter, Consumer<String> setter) {
-        return new NfrLabeledTextField(tr(key), new TextFieldWidget().setMaxLength(10)
-                .value(new NfrStringValue(getter, setter)));
+        return NfrSettingsSearch.register(new NfrLabeledTextField(tr(key), new TextFieldWidget().setMaxLength(10)
+                .value(new NfrStringValue(getter, setter))), () -> tr(key), key, "text");
     }
 
     private static <T extends Widget<?>> T tooltip(T widget, String key) {

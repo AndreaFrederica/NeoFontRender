@@ -4,7 +4,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import neofontrender.api.text.ModernTextApi;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -36,22 +35,23 @@ public final class TipRenderer {
         int tipColor = applyAlpha(textColor, tipAlpha);
         int dimColor = applyAlpha(textColor, tipAlpha * 0.6F);
 
-        int maxWidth = Math.min(width - margin * 2, (int) (width * 0.55F));
+        int maxWidth = Math.max(1, width - margin * 2);
         String text = tip.text();
         if (text.isEmpty()) return;
 
         boolean useModern = ModernTextApi.isAvailable();
         float tipFontSize = useModern ? Math.max(1.0F, font.FONT_HEIGHT * 0.85F) : 0;
 
-        String[] lines;
+        List<String> lines;
         if (useModern) {
-            lines = wrapTextModern(text, maxWidth, tipFontSize);
+            lines = TipTextWrapper.wrap(text, maxWidth,
+                    value -> ModernTextApi.measure(value, tipFontSize));
         } else {
-            lines = wrapTextVanilla(text, maxWidth, font);
+            lines = TipTextWrapper.wrap(text, maxWidth, font::getStringWidth);
         }
 
         float lineSpacing = useModern ? tipFontSize + 2 : font.FONT_HEIGHT + 1;
-        float startY = titleTop - lines.length * lineSpacing - 6;
+        float startY = titleTop - lines.size() * lineSpacing - 6;
 
         String title = tip.title();
         if (!title.isEmpty()) {
@@ -71,42 +71,6 @@ public final class TipRenderer {
             }
             startY += lineSpacing;
         }
-    }
-
-    private static String[] wrapTextModern(String text, int maxWidth, float fontSize) {
-        String[] words = text.split(" ");
-        List<String> lines = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        for (String word : words) {
-            String candidate = current.length() == 0 ? word : current + " " + word;
-            if (current.length() > 0 && ModernTextApi.measure(candidate, fontSize) > maxWidth) {
-                lines.add(current.toString());
-                current.setLength(0);
-            }
-            if (current.length() > 0) current.append(' ');
-            current.append(word);
-        }
-        if (current.length() > 0) lines.add(current.toString());
-        if (lines.isEmpty()) lines.add("");
-        return lines.toArray(new String[0]);
-    }
-
-    private static String[] wrapTextVanilla(String text, int maxWidth, FontRenderer font) {
-        List<String> lines = new ArrayList<>();
-        String[] words = text.split(" ");
-        StringBuilder current = new StringBuilder();
-        for (String word : words) {
-            String candidate = current.length() == 0 ? word : current + " " + word;
-            if (current.length() > 0 && font.getStringWidth(candidate) > maxWidth) {
-                lines.add(current.toString());
-                current.setLength(0);
-            }
-            if (current.length() > 0) current.append(' ');
-            current.append(word);
-        }
-        if (current.length() > 0) lines.add(current.toString());
-        if (lines.isEmpty()) lines.add("");
-        return lines.toArray(new String[0]);
     }
 
     private static int applyAlpha(int argb, float alpha) {

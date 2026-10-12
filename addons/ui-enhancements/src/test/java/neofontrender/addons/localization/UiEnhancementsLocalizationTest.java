@@ -26,9 +26,9 @@ class UiEnhancementsLocalizationTest {
         Properties chinese = lang("zh_CN");
         assertEquals(english.stringPropertyNames(), chinese.stringPropertyNames());
         for (String key : new String[]{
-                "neofontrender_ui_enhancements.name",
-                "neofontrender_ui_enhancements.gui.chat.enabled",
-                "neofontrender_ui_enhancements.gui.effects.enabled",
+                "neofontrender_ui_enhancements.gui.crosshair.width",
+                "neofontrender_ui_enhancements.gui.crosshair.drawn_size",
+                "neofontrender_ui_enhancements.gui.flight_roll.hud_reload",
                 "neofontrender_ui_enhancements.info.version",
                 "neofontrender_ui_enhancements.info.description"}) {
             assertTrue(english.containsKey(key), key);
@@ -37,9 +37,28 @@ class UiEnhancementsLocalizationTest {
     }
 
     @Test
+    void everyCameraToggleHasLocalizedTooltip() throws Exception {
+        Properties english = lang("en_US");
+        Properties chinese = lang("zh_CN");
+        for (String name : new String[]{
+                "f5_enabled", "f5_shoulder", "f5_freelook", "f5_drone",
+                "f5_replace_third", "f5_skip_front", "f5_remember", "freelook_toggle",
+                "freelook_collision", "drone_collision", "drone_interaction",
+                "shoulder_unlimited_x", "shoulder_unlimited_y", "shoulder_unlimited_z",
+                "shoulder_valkyrien_collision", "shoulder_collision", "shoulder_climbing",
+                "shoulder_dynamic_offsets", "shoulder_limit_reach", "shoulder_custom_ray",
+                "shoulder_transparency", "shoulder_hide_player"}) {
+            String key = "neofontrender_ui_enhancements.tooltip.camera." + name;
+            assertTrue(english.containsKey(key), "Missing English camera tooltip: " + key);
+            assertTrue(chinese.containsKey(key), "Missing Chinese camera tooltip: " + key);
+        }
+    }
+
+    @Test
     void everyTipTranslationExistsInBothJsonLocales() throws Exception {
         JsonObject english = json(ROOT + "lang/en_us.json");
         JsonObject chinese = json(ROOT + "lang/zh_cn.json");
+        // 1.7.10 ships Gson 2.2.4, whose JsonObject has no keySet(); collect the entry keys.
         assertEquals(keys(english), keys(chinese));
 
         JsonObject catalog = json(ROOT + "tips/tips.json");
@@ -48,6 +67,12 @@ class UiEnhancementsLocalizationTest {
             assertTrue(english.has(key), "Missing English tip: " + key);
             assertTrue(chinese.has(key), "Missing Chinese tip: " + key);
         }
+    }
+
+    private static Set<String> keys(JsonObject object) {
+        return object.entrySet().stream()
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
     }
 
     private static Properties lang(String locale) throws Exception {
@@ -63,12 +88,6 @@ class UiEnhancementsLocalizationTest {
              InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
             return new JsonParser().parse(reader).getAsJsonObject();
         }
-    }
-
-    private static Set<String> keys(JsonObject object) {
-        return object.entrySet().stream()
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
     }
 
     private static InputStream resource(String path) {

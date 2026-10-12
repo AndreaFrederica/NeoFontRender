@@ -28,7 +28,8 @@ public final class BackendTextSegmenter {
             return null;
         }
         return segment(text, NeofontrenderConfig.segmentCacheMaxRunCodePoints(),
-                NeofontrenderConfig.segmentCacheMaxSegments(), NeofontrenderConfig.debugRenderStats());
+                NeofontrenderConfig.segmentCacheMaxSegments(),
+                NeofontrenderConfig.debugRenderStats());
     }
 
     static List<String> segment(String text, int maxRunCodePoints, int maxSegments, boolean stats) {

@@ -1,5 +1,9 @@
 package neofontrender.addons.chat;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.common.network.FMLNetworkEvent;
@@ -8,198 +12,298 @@ import net.minecraft.client.gui.GuiNewChat;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.IChatComponent;
+import neofontrender.addons.build.UiBuildFeatures;
 import neofontrender.addons.ui.NfrUiEnhancements;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.SQLException;
-import java.util.LinkedHashMap;
+import java.nio.file.StandardCopyOption;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * Coordinates per-scope persistence, connection lifecycle, and live GuiNewChat restoration.
- * Histories are isolated by server address or singleplayer world folder; the active scope
- * follows connect/disconnect and world load.
+ * Persists chat history into an embedded H2 database. Messages are written
+ * synchronously on arrival (no periodic full-file rewrites) and trimmed in
+ * batches. A one-time import migrates the pre-H2 JSON file if present.
  */
 public enum ChatHistoryManager {
     INSTANCE;
 
-    private static final long SAVE_INTERVAL_MILLIS = 5000L;
+    private static final int TRIM_BATCH = 4096;
+    private static final String LEGACY_SUFFIX = ".migrated";
 
-    private final Map<String, ChatHistoryBuffer> histories = new LinkedHashMap<>();
-    private ChatHistoryStorage storage;
     private ChatHistoryStore store;
+    private Path dataBase;
+    private Path legacyFile;
     private String activeScope;
-    private ChatHistoryBuffer activeHistory;
     private boolean restoring;
     private boolean pendingScopeSelection;
     private boolean pendingRestore;
-    private boolean dirty;
-    private long lastSaveMillis;
+    private final Map<String, Integer> pendingTrim = new HashMap<>();
+    private final Map<String, String> lastSent = new HashMap<>();
+    private int lastTrimLimit = -1;
 
     public void initialize() {
-        storage = new JsonChatHistoryStorageImpl(
-                Minecraft.getMinecraft().mcDataDir.toPath()
-                        .resolve("config")
-                        .resolve("neofontrender-ui-chat-history.json"));
+        Path config = Minecraft.getMinecraft().mcDataDir.toPath().resolve("config");
+        dataBase = config.resolve("neofontrender-ui-chat-history");
+        legacyFile = config.resolve("neofontrender-ui-chat-history.json");
         try {
-            Path database = Minecraft.getMinecraft().mcDataDir.toPath()
-                    .resolve("config")
-                    .resolve("neofontrender-ui-chat-history");
-            store = new ChatHistoryStore(database);
-        } catch (SQLException exception) {
-            NfrUiEnhancements.LOGGER.error("Could not open chat history store", exception);
+            store = new ChatHistoryStore(dataBase);
+            migrateLegacy();
+        } catch (Exception exception) {
+            NfrUiEnhancements.LOGGER.warn("Could not open chat history database; history persistence disabled", exception);
             store = null;
         }
-        histories.clear();
-        for (Map.Entry<String, ChatHistoryData> entry : storage.load().entrySet()) {
-            ChatHistoryBuffer buffer = new ChatHistoryBuffer();
-            buffer.replace(entry.getValue(), EnhancedChatConfig.maxMessages);
-            histories.put(entry.getKey(), buffer);
-        }
-        activeScope = null;
-        activeHistory = null;
-        dirty = false;
     }
 
     public void recordReceived(IChatComponent component, int id) {
-        if (restoring || !persistenceEnabled() || !EnhancedChatConfig.persistReceived
+        if (restoring || store == null || !persistenceEnabled() || !EnhancedChatConfig.persistReceived
                 || component == null || !ensureActiveScope()) return;
         try {
-            activeHistory.recordReceived(
-                    id, IChatComponent.Serializer.func_150696_a(component), EnhancedChatConfig.maxMessages);
-            dirty = true;
-        } catch (RuntimeException exception) {
-            NfrUiEnhancements.LOGGER.error("Could not serialize a received chat component", exception);
+            store.deleteReceivedById(activeScope, id);
+            ChatMessageMetadata metadata = ChatMessageMetadataRegistry.get(component);
+            if (metadata == null) {
+                metadata = new ChatMessageMetadata(System.currentTimeMillis(), ChatSource.SERVER, "", null);
+            }
+            store.insertReceived(activeScope, id, metadata.timestamp, metadata,
+                    IChatComponent.Serializer.func_150696_a(component));
+            scheduleTrim();
+        } catch (ChatHistoryException exception) {
+            NfrUiEnhancements.LOGGER.warn("Could not record chat message", exception);
         }
     }
 
     public void recordSent(String message) {
         if (restoring || message == null) return;
         ChatMessageProcessor.recordOutgoing(message);
-        if (!persistenceEnabled() || !EnhancedChatConfig.persistSent || !ensureActiveScope()) return;
-        activeHistory.recordSent(message, EnhancedChatConfig.maxMessages);
-        dirty = true;
+        if (store == null || !persistenceEnabled() || !EnhancedChatConfig.persistSent
+                || !ensureActiveScope()) return;
+        try {
+            String last = lastSent.get(activeScope);
+            if (last == null) {
+                List<String> sent = store.loadSent(activeScope);
+                last = sent.isEmpty() ? null : sent.get(sent.size() - 1);
+                lastSent.put(activeScope, last == null ? "" : last);
+            }
+            if (message.equals(last)) return;
+            store.insertSent(activeScope, message);
+            lastSent.put(activeScope, message);
+            scheduleTrim();
+        } catch (ChatHistoryException exception) {
+            NfrUiEnhancements.LOGGER.warn("Could not record sent message", exception);
+        }
     }
 
     public void configChanged() {
-        for (ChatHistoryBuffer buffer : histories.values()) {
-            buffer.trim(EnhancedChatConfig.maxMessages);
-        }
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft.ingameGUI != null) {
             GuiNewChat chat = minecraft.ingameGUI.getChatGUI();
             ((ChatHistoryRuntimeAccess) chat).nfrUi$trimHistoryToConfiguredLimit();
         }
-        if (persistenceEnabled()) {
-            ensureActiveScope();
-            dirty = true;
-            saveIfEnabled();
+        if (store == null) return;
+        int limit = EnhancedChatConfig.maxMessages;
+        try {
+            for (String scope : store.scopes()) {
+                store.trimReceived(scope, limit);
+                store.trimSent(scope, limit);
+            }
+        } catch (ChatHistoryException exception) {
+            NfrUiEnhancements.LOGGER.warn("Could not trim chat history", exception);
         }
+        pendingTrim.clear();
+        lastTrimLimit = limit;
     }
 
     public void scheduleRestore() {
         pendingRestore = persistenceEnabled() && ensureActiveScope();
     }
 
-    public ChatHistoryStore store() {
-        return store;
-    }
-
     @SubscribeEvent
     public void connected(FMLNetworkEvent.ClientConnectedToServerEvent event) {
-        saveIfEnabled();
         deactivateScope();
         pendingScopeSelection = persistenceEnabled();
     }
 
     @SubscribeEvent
     public void disconnected(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
-        saveIfEnabled();
         deactivateScope();
     }
 
     @SubscribeEvent
     public void clientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
-        Minecraft minecraft = Minecraft.getMinecraft();
-        if (pendingScopeSelection && minecraft.theWorld != null && ensureActiveScope()) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (pendingScopeSelection && mc.theWorld != null && ensureActiveScope()) {
             pendingScopeSelection = false;
             pendingRestore = true;
         }
-        if (pendingRestore && minecraft.theWorld != null && minecraft.ingameGUI != null) {
-            restore(minecraft.ingameGUI.getChatGUI());
-        }
-        if (dirty && System.currentTimeMillis() - lastSaveMillis >= SAVE_INTERVAL_MILLIS) saveIfEnabled();
+        if (pendingRestore && mc.theWorld != null && mc.ingameGUI != null) restore(mc.ingameGUI.getChatGUI());
     }
 
     private void restore(GuiNewChat chat) {
         pendingRestore = false;
-        if (activeHistory == null) return;
+        if (store == null || activeScope == null) return;
         restoring = true;
         try {
-            ChatHistoryData snapshot = activeHistory.snapshot(
-                    EnhancedChatConfig.persistReceived, EnhancedChatConfig.persistSent);
             if (EnhancedChatConfig.persistReceived) {
                 chat.clearChatMessages();
-                for (ChatHistoryEntry entry : snapshot.received()) {
+                for (ChatHistoryStore.ReceivedMessage message : store.loadReceived(activeScope)) {
                     try {
-                        IChatComponent component = IChatComponent.Serializer.func_150699_a(entry.json());
-                        if (component == null) {
-                            NfrUiEnhancements.LOGGER.error("Persisted chat component decoded to null");
-                            continue;
+                        IChatComponent component = IChatComponent.Serializer.func_150699_a(message.json);
+                        if (component != null) {
+                            ChatMessageMetadataRegistry.put(component, message.metadata);
+                            restoreReceived(chat, component, message.msgId);
                         }
-                        chat.printChatMessageWithOptionalDeletion(component, entry.id());
                     } catch (RuntimeException exception) {
-                        NfrUiEnhancements.LOGGER.error("Skipping an invalid persisted chat component", exception);
+                        NfrUiEnhancements.LOGGER.warn("Skipping an invalid persisted chat component", exception);
                     }
                 }
+                chat.refreshChat();
             }
             if (EnhancedChatConfig.persistSent) {
                 chat.getSentMessages().clear();
-                for (String message : snapshot.sent()) chat.addToSentMessages(message);
+                for (String message : store.loadSent(activeScope)) chat.addToSentMessages(message);
             }
+        } catch (ChatHistoryException exception) {
+            NfrUiEnhancements.LOGGER.warn("Could not restore chat history", exception);
         } finally {
             restoring = false;
         }
     }
 
-    private void saveIfEnabled() {
-        if (!persistenceEnabled() || !dirty || storage == null) return;
-        lastSaveMillis = System.currentTimeMillis();
-        Map<String, ChatHistoryData> snapshot = new LinkedHashMap<>();
-        for (Map.Entry<String, ChatHistoryBuffer> entry : histories.entrySet()) {
-            snapshot.put(entry.getKey(), entry.getValue().snapshot(
-                    EnhancedChatConfig.persistReceived, EnhancedChatConfig.persistSent));
+    /**
+     * 1.7.10 (and the embedded TabbyChat backend) re-add a stored line through the vanilla deletion
+     * path. The 1.12.2 mixin that injects straight into the private feed method has no counterpart
+     * here, and the bundled TabbyChat build exposes no restore entry point of its own.
+     */
+    private static void restoreReceived(GuiNewChat chat, IChatComponent component, int id) {
+        chat.printChatMessageWithOptionalDeletion(component, id);
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && EnhancedChatConfigAccess.logRestoredHistory()) {
+            NfrUiEnhancements.LOGGER.info("[CHAT] {}", sanitizeForLog(component));
         }
-        if (storage.save(snapshot)) dirty = false;
+    }
+
+    private static String sanitizeForLog(IChatComponent component) {
+        return component.getUnformattedText().replace("\r", "\\r").replace("\n", "\\n");
+    }
+
+    /** One-time import of the pre-H2 JSON file, renamed away after a successful copy. */
+    private void migrateLegacy() throws IOException {
+        if (store == null || !Files.isRegularFile(legacyFile) || !store.isEmpty()) return;
+        final int[] imported = {0};
+        try (BufferedReader reader = Files.newBufferedReader(legacyFile, StandardCharsets.UTF_8)) {
+            JsonElement rootElement = new JsonParser().parse(reader);
+            if (!rootElement.isJsonObject()) return;
+            JsonObject root = rootElement.getAsJsonObject();
+            if (!root.has("scopes") || !root.get("scopes").isJsonObject()) return;
+            store.runInTransaction(() -> {
+                for (Map.Entry<String, JsonElement> entry : root.getAsJsonObject("scopes").entrySet()) {
+                    String scope = entry.getKey();
+                    if (!ChatHistoryScope.valid(scope) || !entry.getValue().isJsonObject()) continue;
+                    JsonObject bucket = entry.getValue().getAsJsonObject();
+                    JsonArray received = bucket.has("received") && bucket.get("received").isJsonArray()
+                            ? bucket.getAsJsonArray("received") : new JsonArray();
+                    for (JsonElement element : received) {
+                        if (!element.isJsonObject()) continue;
+                        JsonObject message = element.getAsJsonObject();
+                        if (!message.has("text") || !message.get("text").isJsonPrimitive()) continue;
+                        ChatMessageMetadata metadata = readLegacyMetadata(message);
+                        store.insertReceived(scope, message.has("id") ? message.get("id").getAsInt() : 0,
+                                metadata.timestamp, metadata, message.get("text").getAsString());
+                        imported[0]++;
+                    }
+                    JsonArray sent = bucket.has("sent") && bucket.get("sent").isJsonArray()
+                            ? bucket.getAsJsonArray("sent") : new JsonArray();
+                    for (JsonElement element : sent) {
+                        if (element.isJsonPrimitive()) store.insertSent(scope, element.getAsString());
+                    }
+                    store.trimReceived(scope, EnhancedChatConfig.maxMessages);
+                    store.trimSent(scope, EnhancedChatConfig.maxMessages);
+                }
+            });
+            // The JSON is preserved as a backup under .migrated in case of manual rollback.
+            Files.move(legacyFile, legacyFile.resolveSibling(legacyFile.getFileName() + LEGACY_SUFFIX),
+                    StandardCopyOption.REPLACE_EXISTING);
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                NfrUiEnhancements.LOGGER.info("Migrated {} chat messages from legacy JSON to H2 database", imported[0]);
+            }
+        } catch (Exception exception) {
+            // Rolled back: the store is still empty, so the import retries on next launch.
+            NfrUiEnhancements.LOGGER.warn("Could not migrate legacy chat history from {}", legacyFile, exception);
+        }
+    }
+
+    private static ChatMessageMetadata readLegacyMetadata(JsonObject message) {
+        if (!message.has("timestamp")) {
+            return new ChatMessageMetadata(System.currentTimeMillis(), ChatSource.SERVER, "", null);
+        }
+        long timestamp = message.get("timestamp").getAsLong();
+        ChatSource source = ChatSource.SERVER;
+        if (message.has("source")) {
+            try {
+                source = ChatSource.valueOf(message.get("source").getAsString());
+            } catch (IllegalArgumentException ignored) {}
+        }
+        String player = message.has("player") ? message.get("player").getAsString() : "";
+        java.util.UUID playerId = null;
+        if (message.has("playerId")) {
+            try {
+                playerId = java.util.UUID.fromString(message.get("playerId").getAsString());
+            } catch (IllegalArgumentException ignored) {}
+        }
+        String privatePeer = message.has("privatePeer")
+                ? message.get("privatePeer").getAsString() : "";
+        boolean outgoing = message.has("outgoing") && message.get("outgoing").getAsBoolean();
+        String privateBody = message.has("privateBody")
+                ? message.get("privateBody").getAsString() : "";
+        return new ChatMessageMetadata(timestamp, source, player, playerId, privatePeer, outgoing, privateBody);
+    }
+
+    public ChatHistoryStore store() {
+        return store;
+    }
+
+    private void scheduleTrim() {
+        int limit = EnhancedChatConfig.maxMessages;
+        if (limit != lastTrimLimit) {
+            pendingTrim.clear();
+            lastTrimLimit = limit;
+        }
+        if (pendingTrim.merge(activeScope, 1, Integer::sum) < TRIM_BATCH) return;
+        pendingTrim.remove(activeScope);
+        try {
+            store.trimReceived(activeScope, limit);
+            store.trimSent(activeScope, limit);
+        } catch (ChatHistoryException exception) {
+            NfrUiEnhancements.LOGGER.warn("Could not trim chat history", exception);
+        }
     }
 
     private boolean ensureActiveScope() {
         String scope = currentScope(Minecraft.getMinecraft());
         if (scope == null) return false;
-        if (activeHistory != null && scope.equals(activeScope)) return true;
+        if (scope.equals(activeScope)) return true;
         activeScope = scope;
-        activeHistory = histories.get(scope);
-        if (activeHistory == null) {
-            activeHistory = new ChatHistoryBuffer();
-            histories.put(scope, activeHistory);
-        }
+        lastSent.remove(activeScope);
         return true;
     }
 
     private void deactivateScope() {
         activeScope = null;
-        activeHistory = null;
         pendingScopeSelection = false;
         pendingRestore = false;
     }
 
-    private static String currentScope(Minecraft minecraft) {
-        if (minecraft.isSingleplayer()) {
-            IntegratedServer server = minecraft.getIntegratedServer();
+    private static String currentScope(Minecraft mc) {
+        if (mc.isSingleplayer()) {
+            IntegratedServer server = mc.getIntegratedServer();
             return server == null ? null : ChatHistoryScope.singleplayer(server.getFolderName());
         }
-        ServerData server = minecraft.func_147104_D();
+        ServerData server = mc.func_147104_D();
         return server == null ? null : ChatHistoryScope.server(server.serverIP);
     }
 

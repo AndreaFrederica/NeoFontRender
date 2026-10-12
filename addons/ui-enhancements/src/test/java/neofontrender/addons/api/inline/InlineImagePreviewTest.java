@@ -1,4 +1,4 @@
-package neofontrender.addons.api.inline;
+package neofontrender.addons.api.content;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,5 +21,11 @@ class InlineImagePreviewTest {
     void unknownImagesUseCompactFallbackWithoutOverflowing() {
         assertArrayEquals(new int[] { 80, 80 },
                 InlineImagePreview.naturalSize(-1, -1, 100, 80, 144));
+    }
+
+    @Test
+    void compactPreviewPreservesWideFormulaAspectRatio() {
+        assertArrayEquals(new int[] { 144, 36 },
+                InlineImagePreview.naturalSize(800, 200, 144, 144, 144));
     }
 }

@@ -1,4 +1,4 @@
-package neofontrender.addons.api.inline;
+package neofontrender.addons.api.content;
 
 import org.junit.jupiter.api.Test;
 

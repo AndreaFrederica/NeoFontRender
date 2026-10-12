@@ -14,6 +14,7 @@ import net.minecraft.client.resources.I18n;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import neofontrender.client.gui.component.base.NfrScrollablePane;
+import neofontrender.client.NeofontrenderBranding;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
 import neofontrender.client.gui.component.business.NfrSettingsFooter;
 import neofontrender.client.gui.component.business.NfrSettingsTabs;
@@ -36,6 +37,10 @@ import neofontrender.client.gui.views.NfrShadowSettingsView;
 import neofontrender.api.client.settings.NfrSettingsPageContext;
 import neofontrender.api.client.settings.NfrSettingsPageRegistry;
 import neofontrender.api.client.settings.NfrSettingsPageSession;
+import neofontrender.api.client.settings.NfrSettingsSection;
+import neofontrender.api.client.settings.NfrSettingsSectionContribution;
+import neofontrender.api.client.settings.NfrSettingsSectionRegistry;
+import neofontrender.api.client.settings.NfrSettingsSectionSession;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.FontManager;
 
@@ -78,19 +83,18 @@ public final class NeofontrenderConfigScreen {
     private static ModularScreen createConfigScreen(GuiScreen parent, Route initialRoute) {
         returnScreen = parent;
         ScreenSession session = new ScreenSession(new NfrSettingsDraft());
-        return createScreen(buildPanel(session, initialRoute));
+        return createScreen(buildPanel(session, initialRoute)).openParentOnClose(parent != null);
     }
 
     private static ModularScreen createConfigScreen(GuiScreen parent, String extensionPageId,
                                                      String extensionNamespace) {
         returnScreen = parent;
         ScreenSession session = new ScreenSession(new NfrSettingsDraft());
-        return createScreen(buildPanel(session,
-                initialExtensionRoute(session, extensionPageId, extensionNamespace)));
+        return createScreen(buildPanel(session, initialExtensionRoute(session, extensionPageId, extensionNamespace)))
+                .openParentOnClose(parent != null);
     }
 
-    private static Route initialExtensionRoute(ScreenSession session, String pageId,
-                                               String namespace) {
+    private static Route initialExtensionRoute(ScreenSession session, String pageId, String namespace) {
         for (neofontrender.api.client.settings.NfrSettingsPage page : session.extensionPages) {
             if (pageId != null && pageId.equals(page.id())) return Route.extension(page);
             if (pageId == null && namespace != null && page.id().startsWith(namespace + ":")) {
@@ -115,7 +119,7 @@ public final class NeofontrenderConfigScreen {
 
     private static NfrSettingsLayout buildLayout(ScreenSession session, Route route) {
         NfrSettingsDraft draft = session.draft;
-        TextWidget title = new TextWidget(IKey.str(tr("neofontrender.gui.title")
+        TextWidget title = new TextWidget(IKey.str(NeofontrenderBranding.displayName()
                 + (route.isFont() ? "" : " / " + route.title())))
                 .alignment(Alignment.CenterLeft)
                 .color(0xFFFFFF);
@@ -170,11 +174,13 @@ public final class NeofontrenderConfigScreen {
             case SHADOW:
                 return new NfrShadowSettingsView(controls);
             case FIXES:
-                return new NfrFixesSettingsView(draft, controls);
+                return new NfrFixesSettingsView(draft, controls,
+                        screen.sectionControls(NfrSettingsSection.FIXES, selected));
             case COMPATIBILITY:
                 return new NfrCompatibilitySettingsView(draft, controls);
             case LABORATORY:
-                return new NfrLaboratorySettingsView(draft, controls);
+                return new NfrLaboratorySettingsView(draft, controls,
+                        screen.sectionControls(NfrSettingsSection.LABORATORY, selected));
             case ABOUT:
                 return new NfrAboutSettingsView(draft);
             case LICENSES:
@@ -218,14 +224,14 @@ public final class NeofontrenderConfigScreen {
     }
 
     private static void reloadAndOpen(ScreenSession session, NfrSettingsRoute route) {
-        session.draft.writeToConfig(false);
+        session.draft.writePreviewToConfig();
         reloadFontManager();
         openRoute(session, Route.builtin(route));
     }
 
     private static void preview(NfrSettingsDraft draft) {
         if (!draft.enabled || "vanilla".equals(NfrSettingsControls.normalizeEngine(draft.engine))) return;
-        draft.writeToConfig(false);
+        draft.writePreviewToConfig();
         reloadFontManager();
     }
 
@@ -239,6 +245,8 @@ public final class NeofontrenderConfigScreen {
         private final NfrSettingsDraft draft;
         private final List<neofontrender.api.client.settings.NfrSettingsPage> extensionPages;
         private final Map<String, NfrSettingsPageSession> extensionSessions = new LinkedHashMap<>();
+        private final List<NfrSettingsSectionContribution> sectionContributions;
+        private final Map<String, NfrSettingsSectionSession> sectionSessions = new LinkedHashMap<>();
 
         private ScreenSession(NfrSettingsDraft draft) {
             this.draft = draft;
@@ -248,10 +256,43 @@ public final class NeofontrenderConfigScreen {
                 if (session == null) throw new IllegalStateException("Settings page returned a null session: " + page.id());
                 extensionSessions.put(page.id(), session);
             }
+            this.sectionContributions = new ArrayList<>();
+            for (NfrSettingsSection section : NfrSettingsSection.values()) {
+                this.sectionContributions.addAll(NfrSettingsSectionRegistry.snapshot(section));
+            }
+            for (NfrSettingsSectionContribution contribution : sectionContributions) {
+                NfrSettingsSectionSession session = contribution.createSession();
+                if (session == null) {
+                    throw new IllegalStateException(
+                            "Settings section contribution returned a null session: "
+                                    + contribution.id());
+                }
+                sectionSessions.put(contribution.id(), session);
+            }
         }
 
-        private void applyExtensions() { for (NfrSettingsPageSession session : extensionSessions.values()) session.apply(); }
-        private void cancelExtensions() { for (NfrSettingsPageSession session : extensionSessions.values()) session.cancel(); }
+        private List<IWidget> sectionControls(NfrSettingsSection section, Route route) {
+            List<IWidget> controls = new ArrayList<>();
+            for (NfrSettingsSectionContribution contribution : sectionContributions) {
+                if (contribution.section() != section) continue;
+                NfrSettingsSectionSession session = sectionSessions.get(contribution.id());
+                NfrSettingsControls sectionControls = new NfrSettingsControls(draft, session::preview,
+                        id -> reloadAndOpen(this, NfrSettingsRoute.byId(id)));
+                List<IWidget> created = session.createControls(new NfrSettingsPageContext(
+                        sectionControls, () -> openRoute(this, route)));
+                if (created != null) controls.addAll(created);
+            }
+            return controls;
+        }
+
+        private void applyExtensions() {
+            for (NfrSettingsPageSession session : extensionSessions.values()) session.apply();
+            for (NfrSettingsSectionSession session : sectionSessions.values()) session.apply();
+        }
+        private void cancelExtensions() {
+            for (NfrSettingsPageSession session : extensionSessions.values()) session.cancel();
+            for (NfrSettingsSectionSession session : sectionSessions.values()) session.cancel();
+        }
     }
 
     private static final class Route {
@@ -340,7 +381,7 @@ public final class NeofontrenderConfigScreen {
         @Override
         public void initGui() {
             if (opened) {
-                Minecraft.getMinecraft().displayGuiScreen(parent);
+                mc.displayGuiScreen(parent);
                 return;
             }
             opened = true;

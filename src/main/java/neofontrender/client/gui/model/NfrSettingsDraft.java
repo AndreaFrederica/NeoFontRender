@@ -46,6 +46,9 @@ public final class NfrSettingsDraft {
     public final boolean originalBuiltinFallbacks = NeofontrenderConfig.builtinFallbacksEnabled();
     public final String originalEngine = NeofontrenderConfig.renderingEngine();
     public final boolean originalAdvancedStringMode = NeofontrenderConfig.advancedStringMode();
+    public final boolean originalSdfEnabled = NeofontrenderConfig.sdfEnabled();
+    public final String originalSdfDistanceRange = Integer.toString(NeofontrenderConfig.sdfDistanceRange());
+    public final String originalSdfEdgeSoftness = Float.toString(NeofontrenderConfig.sdfEdgeSoftness());
     public final boolean originalAdaptiveRasterScale = NeofontrenderConfig.adaptiveRasterScale();
     public final boolean originalExcludeIntegerScale = NeofontrenderConfig.excludeIntegerScale();
     public final boolean originalExcludeHighMagnification = NeofontrenderConfig.excludeHighMagnification();
@@ -54,6 +57,8 @@ public final class NfrSettingsDraft {
     public final boolean originalMipmap = NeofontrenderConfig.renderingMipmap();
     public final boolean originalEnhancedTextPipeline = NeofontrenderConfig.enhancedTextPipeline();
     public final boolean originalShaderTextPipeline = NeofontrenderConfig.shaderTextPipeline();
+    public final boolean originalVanillaFormattingCompatibility = NeofontrenderConfig.vanillaFormattingCompatibility();
+    public final boolean originalBrilliantTextEnabled = NeofontrenderConfig.brilliantTextEnabled();
     public final boolean originalDebugRenderStats = NeofontrenderConfig.debugRenderStats();
     public final boolean originalSignModelLod = NeofontrenderConfig.signModelLod();
     public final boolean originalSignBlockOcclusionCulling = NeofontrenderConfig.signBlockOcclusionCulling();
@@ -68,9 +73,11 @@ public final class NfrSettingsDraft {
     public final float originalShadowOffsetY = NeofontrenderConfig.shadowOffsetY();
     public final float originalShadowBlurRadius = NeofontrenderConfig.shadowBlurRadius();
     public final int originalShadowColor = NeofontrenderConfig.shadowColor();
-    public final boolean originalColoredShadow = NeofontrenderConfig.coloredShadowEnabled();
-    public final String originalShadowColorRemapRules =
-            NeofontrenderConfig.shadowColorRemapRulesConfig();
+    public final String originalShadowColorMode = NeofontrenderConfig.shadowColorMode();
+    public final float originalShadowColoredRatio = NeofontrenderConfig.shadowColoredRatio();
+    public final String originalShadowColoredFunction = NeofontrenderConfig.shadowColoredFunction();
+    public final String originalShadowColorOverrides =
+            NeofontrenderConfig.shadowColorOverridesConfig();
     public final boolean originalFixImeInput = NeofontrenderConfig.fixImeInput();
     public final boolean originalFixUnicodeTextDeletion = NeofontrenderConfig.fixUnicodeTextDeletion();
     public final boolean originalFixCjkLineBreak = NeofontrenderConfig.fixCjkLineBreak();
@@ -78,8 +85,23 @@ public final class NfrSettingsDraft {
     public final boolean originalLaboratoryHexChat = NeofontrenderConfig.laboratoryHexChat();
     public final boolean originalLaboratoryHexChatResetStyles = NeofontrenderConfig.laboratoryHexChatResetStyles();
     public final boolean originalLaboratoryTextUndoRedo = NeofontrenderConfig.laboratoryTextUndoRedo();
+    public final boolean originalLaboratoryBrilliantAnyPosition = NeofontrenderConfig.laboratoryBrilliantAnyPosition();
+    public final boolean originalLaboratoryTextAnimatorEnabled = NeofontrenderConfig.laboratoryTextAnimatorEnabled();
+    public final boolean originalLaboratoryTextAnimatorAnyPosition = NeofontrenderConfig.laboratoryTextAnimatorAnyPosition();
+    public final String originalLaboratoryTextAnimatorEffects = NeofontrenderConfig.laboratoryTextAnimatorEffects();
+    public final String originalLaboratoryTextAnimatorTypewriterSpeed = Integer.toString(NeofontrenderConfig.laboratoryTextAnimatorTypewriterSpeed());
+    public final String originalLaboratoryTextAnimatorTypewriterMode = NeofontrenderConfig.laboratoryTextAnimatorTypewriterMode();
+    public final String originalLaboratoryTextAnimatorPulseMinimum = Float.toString(
+            NeofontrenderConfig.laboratoryTextAnimatorPulseMinimum());
+    public final String originalLaboratoryTextAnimatorPulseMaximum = Float.toString(
+            NeofontrenderConfig.laboratoryTextAnimatorPulseMaximum());
     public final boolean originalCompatModernSplash = NeofontrenderConfig.compatModernSplash();
+    public final boolean originalCompatTinkersAntique = NeofontrenderConfig.compatTinkersAntique();
     public final boolean originalCompatTinkersConstruct = NeofontrenderConfig.compatTinkersConstruct();
+    public final boolean originalCompatThaumcraftTooltip = NeofontrenderConfig.compatThaumcraftTooltip();
+    public final boolean originalCompatCustomMainMenu = NeofontrenderConfig.compatCustomMainMenu();
+    public final boolean originalCompatFancyMenu = NeofontrenderConfig.compatFancyMenu();
+    public final boolean originalShowMainMenuBranding = NeofontrenderConfig.showMainMenuBranding();
     public final String originalTextColorPaletteProvider =
             NeofontrenderConfig.textColorPaletteProvider();
     public final String originalCustomTextColorPalette =
@@ -90,12 +112,18 @@ public final class NfrSettingsDraft {
     public final String originalTextCacheMin = Integer.toString(NeofontrenderConfig.textCacheMinEntries());
     public final String originalTextCacheMax = Integer.toString(NeofontrenderConfig.textCacheMaxEntries());
     public final String originalTextCacheTtl = Float.toString(NeofontrenderConfig.textCacheTtlSeconds());
+    public final String originalMonospaceCharacterCacheMax = Integer.toString(NeofontrenderConfig.monospaceCharacterCacheMaxEntries());
+    public final boolean originalAsyncFontRendering = NeofontrenderConfig.asyncFontRendering();
+    public final boolean originalMonospaceCharacterCache = NeofontrenderConfig.monospaceCharacterCache();
     public final String originalMeasureCacheMax = Integer.toString(NeofontrenderConfig.measureCacheMaxEntries());
 
     public boolean enabled = originalEnabled;
     public boolean forceUnicodeFont = originalForceUnicodeFont;
     public String engine = originalEngine;
     public boolean advancedStringMode = originalAdvancedStringMode;
+    public boolean sdfEnabled = originalSdfEnabled;
+    public String sdfDistanceRange = originalSdfDistanceRange;
+    public String sdfEdgeSoftness = originalSdfEdgeSoftness;
     public boolean adaptiveRasterScale = originalAdaptiveRasterScale;
     public boolean excludeIntegerScale = originalExcludeIntegerScale;
     public boolean excludeHighMagnification = originalExcludeHighMagnification;
@@ -104,6 +132,8 @@ public final class NfrSettingsDraft {
     public boolean mipmap = originalMipmap;
     public boolean enhancedTextPipeline = originalEnhancedTextPipeline;
     public boolean shaderTextPipeline = originalShaderTextPipeline;
+    public boolean vanillaFormattingCompatibility = originalVanillaFormattingCompatibility;
+    public boolean brilliantTextEnabled = originalBrilliantTextEnabled;
     public boolean debugRenderStats = originalDebugRenderStats;
     public boolean signModelLod = originalSignModelLod;
     public boolean signBlockOcclusionCulling = originalSignBlockOcclusionCulling;
@@ -118,8 +148,10 @@ public final class NfrSettingsDraft {
     public float shadowOffsetY = originalShadowOffsetY;
     public float shadowBlurRadius = originalShadowBlurRadius;
     public int shadowColor = originalShadowColor;
-    public boolean coloredShadow = originalColoredShadow;
-    public String shadowColorRemapRules = originalShadowColorRemapRules;
+    public String shadowColorMode = originalShadowColorMode;
+    public float shadowColoredRatio = originalShadowColoredRatio;
+    public String shadowColoredFunction = originalShadowColoredFunction;
+    public String shadowColorOverrides = originalShadowColorOverrides;
     public boolean fixImeInput = originalFixImeInput;
     public boolean fixUnicodeTextDeletion = originalFixUnicodeTextDeletion;
     public boolean fixCjkLineBreak = originalFixCjkLineBreak;
@@ -127,8 +159,21 @@ public final class NfrSettingsDraft {
     public boolean laboratoryHexChat = originalLaboratoryHexChat;
     public boolean laboratoryHexChatResetStyles = originalLaboratoryHexChatResetStyles;
     public boolean laboratoryTextUndoRedo = originalLaboratoryTextUndoRedo;
+    public boolean laboratoryBrilliantAnyPosition = originalLaboratoryBrilliantAnyPosition;
+    public boolean laboratoryTextAnimatorEnabled = originalLaboratoryTextAnimatorEnabled;
+    public boolean laboratoryTextAnimatorAnyPosition = originalLaboratoryTextAnimatorAnyPosition;
+    public String laboratoryTextAnimatorEffects = originalLaboratoryTextAnimatorEffects;
+    public String laboratoryTextAnimatorTypewriterSpeed = originalLaboratoryTextAnimatorTypewriterSpeed;
+    public String laboratoryTextAnimatorTypewriterMode = originalLaboratoryTextAnimatorTypewriterMode;
+    public String laboratoryTextAnimatorPulseMinimum = originalLaboratoryTextAnimatorPulseMinimum;
+    public String laboratoryTextAnimatorPulseMaximum = originalLaboratoryTextAnimatorPulseMaximum;
     public boolean compatModernSplash = originalCompatModernSplash;
+    public boolean compatTinkersAntique = originalCompatTinkersAntique;
     public boolean compatTinkersConstruct = originalCompatTinkersConstruct;
+    public boolean compatThaumcraftTooltip = originalCompatThaumcraftTooltip;
+    public boolean compatCustomMainMenu = originalCompatCustomMainMenu;
+    public boolean compatFancyMenu = originalCompatFancyMenu;
+    public boolean showMainMenuBranding = originalShowMainMenuBranding;
     public String textColorPaletteProvider = originalTextColorPaletteProvider;
     public String customTextColorPalette = originalCustomTextColorPalette;
     public String enchantmentBackend = originalEnchantmentBackend;
@@ -159,6 +204,9 @@ public final class NfrSettingsDraft {
     public String textCacheMin = originalTextCacheMin;
     public String textCacheMax = originalTextCacheMax;
     public String textCacheTtl = originalTextCacheTtl;
+    public String monospaceCharacterCacheMax = originalMonospaceCharacterCacheMax;
+    public boolean asyncFontRendering = originalAsyncFontRendering;
+    public boolean monospaceCharacterCache = originalMonospaceCharacterCache;
     public String measureCacheMax = originalMeasureCacheMax;
 
     public String selectedFont() {
@@ -174,7 +222,7 @@ public final class NfrSettingsDraft {
     public boolean isSelected(FontEntry font) {
         switch (fontTarget) {
             case TARGET_FALLBACK:
-                return parseFontList(fontFallbacks).contains(font.familyName);
+                return parseFontList(fontFallbacks).contains(fallbackFontValue(font));
             case TARGET_COSMIC_REGULAR:
                 return fontValue(font).equals(cosmicRegular);
             case TARGET_COSMIC_BOLD:
@@ -197,7 +245,7 @@ public final class NfrSettingsDraft {
     public void selectFont(FontEntry font) {
         switch (fontTarget) {
             case TARGET_FALLBACK:
-                String value = font.familyName;
+                String value = fallbackFontValue(font);
                 List<String> fonts = parseFontList(fontFallbacks);
                 if (fonts.contains(value)) {
                     fonts.remove(value);
@@ -250,6 +298,12 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setEnabled(enabled);
         NeofontrenderConfig.setRenderingEngine(engine);
         NeofontrenderConfig.setAdvancedStringMode(advancedStringMode);
+        // SDF is edited on the Advanced page like Shadow: keep draft values isolated until Apply.
+        if (save) {
+            NeofontrenderConfig.setSdfEnabled(sdfEnabled);
+            NeofontrenderConfig.setSdfDistanceRange(parseInt(sdfDistanceRange, 4, 2, 8));
+            NeofontrenderConfig.setSdfEdgeSoftness(parseFloat(sdfEdgeSoftness, 1.0F, 0.5F, 2.0F));
+        }
         NeofontrenderConfig.setAdaptiveRasterScale(adaptiveRasterScale);
         NeofontrenderConfig.setExcludeIntegerScale(excludeIntegerScale);
         NeofontrenderConfig.setExcludeHighMagnification(excludeHighMagnification);
@@ -258,6 +312,8 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setRenderingMipmap(mipmap);
         NeofontrenderConfig.setEnhancedTextPipeline(enhancedTextPipeline);
         NeofontrenderConfig.setShaderTextPipeline(shaderTextPipeline);
+        NeofontrenderConfig.setVanillaFormattingCompatibility(vanillaFormattingCompatibility);
+        NeofontrenderConfig.setBrilliantTextEnabled(brilliantTextEnabled);
         NeofontrenderConfig.setDebugRenderStats(debugRenderStats);
         NeofontrenderConfig.setSignModelLod(signModelLod);
         NeofontrenderConfig.setSignBlockOcclusionCulling(signBlockOcclusionCulling);
@@ -273,8 +329,10 @@ public final class NfrSettingsDraft {
             NeofontrenderConfig.setShadowOffsetY(shadowOffsetY);
             NeofontrenderConfig.setShadowBlurRadius(shadowBlurRadius);
             NeofontrenderConfig.setShadowColor(shadowColor);
-            NeofontrenderConfig.setColoredShadowEnabled(coloredShadow);
-            NeofontrenderConfig.setShadowColorRemapRules(shadowColorRemapRules);
+            NeofontrenderConfig.setShadowColorMode(shadowColorMode);
+            NeofontrenderConfig.setShadowColoredRatio(shadowColoredRatio);
+            NeofontrenderConfig.setShadowColoredFunction(shadowColoredFunction);
+            NeofontrenderConfig.setShadowColorOverrides(shadowColorOverrides);
         }
         NeofontrenderConfig.setFixImeInput(fixImeInput);
         NeofontrenderConfig.setFixUnicodeTextDeletion(fixUnicodeTextDeletion);
@@ -283,8 +341,23 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryHexChat(laboratoryHexChat);
         NeofontrenderConfig.setLaboratoryHexChatResetStyles(laboratoryHexChatResetStyles);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(laboratoryTextUndoRedo);
+        NeofontrenderConfig.setLaboratoryBrilliantAnyPosition(laboratoryBrilliantAnyPosition);
+        NeofontrenderConfig.setLaboratoryTextAnimatorEnabled(laboratoryTextAnimatorEnabled);
+        NeofontrenderConfig.setLaboratoryTextAnimatorAnyPosition(laboratoryTextAnimatorAnyPosition);
+        NeofontrenderConfig.setLaboratoryTextAnimatorEffects(laboratoryTextAnimatorEffects);
+        NeofontrenderConfig.setLaboratoryTextAnimatorTypewriterSpeed(parseInt(laboratoryTextAnimatorTypewriterSpeed, 5, 1, 9));
+        NeofontrenderConfig.setLaboratoryTextAnimatorTypewriterMode(laboratoryTextAnimatorTypewriterMode);
+        float pulseMinimum = parseFloat(laboratoryTextAnimatorPulseMinimum, 0.6F, 0.0F, 1.0F);
+        float pulseMaximum = parseFloat(laboratoryTextAnimatorPulseMaximum, 1.0F, pulseMinimum, 1.0F);
+        NeofontrenderConfig.setLaboratoryTextAnimatorPulseMinimum(pulseMinimum);
+        NeofontrenderConfig.setLaboratoryTextAnimatorPulseMaximum(pulseMaximum);
         NeofontrenderConfig.setCompatModernSplash(compatModernSplash);
+        NeofontrenderConfig.setCompatTinkersAntique(compatTinkersAntique);
         NeofontrenderConfig.setCompatTinkersConstruct(compatTinkersConstruct);
+        NeofontrenderConfig.setCompatThaumcraftTooltip(compatThaumcraftTooltip);
+        NeofontrenderConfig.setCompatCustomMainMenu(compatCustomMainMenu);
+        NeofontrenderConfig.setCompatFancyMenu(compatFancyMenu);
+        NeofontrenderConfig.setShowMainMenuBranding(showMainMenuBranding);
         NeofontrenderConfig.setTextColorPaletteProvider(textColorPaletteProvider);
         NeofontrenderConfig.setCustomTextColorPalette(customTextColorPalette);
         NeofontrenderConfig.setEnchantmentFontBackend(enchantmentBackend);
@@ -312,6 +385,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setTextCacheMinEntries(parseInt(textCacheMin, 256, 0, 65536));
         NeofontrenderConfig.setTextCacheMaxEntries(parseInt(textCacheMax, 2048, 1, 131072));
         NeofontrenderConfig.setTextCacheTtlSeconds(parseFloat(textCacheTtl, 300.0F, 0.0F, 86400.0F));
+        NeofontrenderConfig.setMonospaceCharacterCacheMaxEntries(parseInt(monospaceCharacterCacheMax, 16384, 1, 262144));
+        NeofontrenderConfig.setAsyncFontRendering(asyncFontRendering);
+        NeofontrenderConfig.setMonospaceCharacterCache(monospaceCharacterCache);
         NeofontrenderConfig.setMeasureCacheMaxEntries(parseInt(measureCacheMax, 4096, 1, 262144));
         if (save) {
             NeofontrenderConfig.save();
@@ -323,6 +399,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setEnabled(originalEnabled);
         NeofontrenderConfig.setRenderingEngine(originalEngine);
         NeofontrenderConfig.setAdvancedStringMode(originalAdvancedStringMode);
+        NeofontrenderConfig.setSdfEnabled(originalSdfEnabled);
+        NeofontrenderConfig.setSdfDistanceRange(parseInt(originalSdfDistanceRange, 4, 2, 8));
+        NeofontrenderConfig.setSdfEdgeSoftness(parseFloat(originalSdfEdgeSoftness, 1.0F, 0.5F, 2.0F));
         NeofontrenderConfig.setAdaptiveRasterScale(originalAdaptiveRasterScale);
         NeofontrenderConfig.setExcludeIntegerScale(originalExcludeIntegerScale);
         NeofontrenderConfig.setExcludeHighMagnification(originalExcludeHighMagnification);
@@ -331,6 +410,8 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setRenderingMipmap(originalMipmap);
         NeofontrenderConfig.setEnhancedTextPipeline(originalEnhancedTextPipeline);
         NeofontrenderConfig.setShaderTextPipeline(originalShaderTextPipeline);
+        NeofontrenderConfig.setVanillaFormattingCompatibility(originalVanillaFormattingCompatibility);
+        NeofontrenderConfig.setBrilliantTextEnabled(originalBrilliantTextEnabled);
         NeofontrenderConfig.setDebugRenderStats(originalDebugRenderStats);
         NeofontrenderConfig.setSignModelLod(originalSignModelLod);
         NeofontrenderConfig.setSignBlockOcclusionCulling(originalSignBlockOcclusionCulling);
@@ -345,8 +426,10 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setShadowOffsetY(originalShadowOffsetY);
         NeofontrenderConfig.setShadowBlurRadius(originalShadowBlurRadius);
         NeofontrenderConfig.setShadowColor(originalShadowColor);
-        NeofontrenderConfig.setColoredShadowEnabled(originalColoredShadow);
-        NeofontrenderConfig.setShadowColorRemapRules(originalShadowColorRemapRules);
+        NeofontrenderConfig.setShadowColorMode(originalShadowColorMode);
+        NeofontrenderConfig.setShadowColoredRatio(originalShadowColoredRatio);
+        NeofontrenderConfig.setShadowColoredFunction(originalShadowColoredFunction);
+        NeofontrenderConfig.setShadowColorOverrides(originalShadowColorOverrides);
         NeofontrenderConfig.setFixImeInput(originalFixImeInput);
         NeofontrenderConfig.setFixUnicodeTextDeletion(originalFixUnicodeTextDeletion);
         NeofontrenderConfig.setFixCjkLineBreak(originalFixCjkLineBreak);
@@ -354,8 +437,23 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setLaboratoryHexChat(originalLaboratoryHexChat);
         NeofontrenderConfig.setLaboratoryHexChatResetStyles(originalLaboratoryHexChatResetStyles);
         NeofontrenderConfig.setLaboratoryTextUndoRedo(originalLaboratoryTextUndoRedo);
+        NeofontrenderConfig.setLaboratoryBrilliantAnyPosition(originalLaboratoryBrilliantAnyPosition);
+        NeofontrenderConfig.setLaboratoryTextAnimatorEnabled(originalLaboratoryTextAnimatorEnabled);
+        NeofontrenderConfig.setLaboratoryTextAnimatorEffects(originalLaboratoryTextAnimatorEffects);
+        NeofontrenderConfig.setLaboratoryTextAnimatorTypewriterSpeed(parseInt(originalLaboratoryTextAnimatorTypewriterSpeed, 5, 1, 9));
+        NeofontrenderConfig.setLaboratoryTextAnimatorTypewriterMode(originalLaboratoryTextAnimatorTypewriterMode);
+        NeofontrenderConfig.setLaboratoryTextAnimatorPulseMinimum(
+                parseFloat(originalLaboratoryTextAnimatorPulseMinimum, 0.6F, 0.0F, 1.0F));
+        NeofontrenderConfig.setLaboratoryTextAnimatorPulseMaximum(
+                parseFloat(originalLaboratoryTextAnimatorPulseMaximum, 1.0F,
+                        parseFloat(originalLaboratoryTextAnimatorPulseMinimum, 0.6F, 0.0F, 1.0F), 1.0F));
         NeofontrenderConfig.setCompatModernSplash(originalCompatModernSplash);
+        NeofontrenderConfig.setCompatTinkersAntique(originalCompatTinkersAntique);
         NeofontrenderConfig.setCompatTinkersConstruct(originalCompatTinkersConstruct);
+        NeofontrenderConfig.setCompatThaumcraftTooltip(originalCompatThaumcraftTooltip);
+        NeofontrenderConfig.setCompatCustomMainMenu(originalCompatCustomMainMenu);
+        NeofontrenderConfig.setCompatFancyMenu(originalCompatFancyMenu);
+        NeofontrenderConfig.setShowMainMenuBranding(originalShowMainMenuBranding);
         NeofontrenderConfig.setTextColorPaletteProvider(originalTextColorPaletteProvider);
         NeofontrenderConfig.setCustomTextColorPalette(originalCustomTextColorPalette);
         NeofontrenderConfig.setEnchantmentFontBackend(originalEnchantmentBackend);
@@ -383,6 +481,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setTextCacheMinEntries(parseInt(originalTextCacheMin, 256, 0, 65536));
         NeofontrenderConfig.setTextCacheMaxEntries(parseInt(originalTextCacheMax, 2048, 1, 131072));
         NeofontrenderConfig.setTextCacheTtlSeconds(parseFloat(originalTextCacheTtl, 300.0F, 0.0F, 86400.0F));
+        NeofontrenderConfig.setMonospaceCharacterCacheMaxEntries(parseInt(originalMonospaceCharacterCacheMax, 16384, 1, 262144));
+        NeofontrenderConfig.setAsyncFontRendering(originalAsyncFontRendering);
+        NeofontrenderConfig.setMonospaceCharacterCache(originalMonospaceCharacterCache);
         NeofontrenderConfig.setMeasureCacheMaxEntries(parseInt(originalMeasureCacheMax, 4096, 1, 262144));
     }
 
@@ -401,5 +502,10 @@ public final class NfrSettingsDraft {
     private static String fontValue(FontEntry font) {
         String path = font.path == null ? "" : font.path.trim();
         return path.isEmpty() ? font.displayName : path;
+    }
+
+    private static String fallbackFontValue(FontEntry font) {
+        String path = font.path == null ? "" : font.path.trim();
+        return path.indexOf(':') > 0 ? path : font.familyName;
     }
 }

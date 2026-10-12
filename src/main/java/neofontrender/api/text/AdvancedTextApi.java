@@ -2,8 +2,10 @@ package neofontrender.api.text;
 
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.backend.TextRenderBackend;
-import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.ShadowRenderSpec;
+import neofontrender.core.font.postprocess.TextPostProcessPipeline;
+import neofontrender.core.font.pipeline.StructuredTextRuntime;
 
 /** Scoped text API. Unlike ModernTextApi, the caller chooses the backend and font family. */
 public final class AdvancedTextApi {
@@ -21,8 +23,14 @@ public final class AdvancedTextApi {
         TextRenderBackend backend = FontManager.INSTANCE.getScopedTextBackend(spec);
         if (backend == null || !backend.isReady()) return ModernTextLayout.EMPTY;
         FontRenderTuning.updateFromCurrentGlState(shadow);
-        TextRenderResult result = backend.renderFormattedAtSize(text, color, shadow, spec.size());
-        return new ModernTextLayout(result, alpha(color));
+        TextPostProcessPipeline.initialize();
+        try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                FontRenderTuning.effectiveRasterScale(
+                        neofontrender.core.config.NeofontrenderConfig.fontOversample()))) {
+            return TextPostProcessPipeline.renderStructured(backend,
+                    StructuredTextRuntime.parse(text), color, spec.size(), shadow,
+                    ShadowRenderSpec.fromConfig());
+        }
     }
 
     public static float measureFormatted(String text, int color, boolean shadow,
@@ -30,8 +38,14 @@ public final class AdvancedTextApi {
         if (text == null || text.isEmpty() || spec == null
                 || spec.backend() == FontRenderBackend.VANILLA) return 0.0F;
         TextRenderBackend backend = FontManager.INSTANCE.getScopedTextBackend(spec);
-        return backend == null || !backend.isReady() ? 0.0F
-                : backend.measureFormattedAtSize(text, color, shadow, spec.size());
+        if (backend == null || !backend.isReady()) return 0.0F;
+        FontRenderTuning.updateFromCurrentGlState(shadow);
+        try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                FontRenderTuning.effectiveRasterScale(
+                        neofontrender.core.config.NeofontrenderConfig.fontOversample()))) {
+            return backend.measureStructuredAtSize(StructuredTextRuntime.parse(text),
+                    color, shadow, spec.size());
+        }
     }
 
     public static float drawFormatted(String text, float x, float y, int color, boolean shadow,
@@ -48,12 +62,19 @@ public final class AdvancedTextApi {
         TextRenderBackend backend = FontManager.INSTANCE.getScopedTextBackend(spec);
         if (backend == null || !backend.isReady()) return false;
         FontRenderTuning.updateFromCurrentGlState(false);
+        TextPostProcessPipeline.initialize();
         float alpha = ((color >>> 24) & 255) == 0 ? 1.0F : ((color >>> 24) & 255) / 255.0F;
         int lineY = y;
-        for (String line : wrap(backend, text, width, color, spec.size())) {
-            TextRenderResult result = backend.renderFormattedAtSize(line, color, false, spec.size());
-            result.draw(x, lineY, alpha);
-            lineY += Math.max(1, Math.round(spec.size() + 1.0F));
+        try (FontRenderTuning.RasterScaleScope ignored = FontRenderTuning.pinRasterScale(
+                FontRenderTuning.effectiveRasterScale(
+                        neofontrender.core.config.NeofontrenderConfig.fontOversample()))) {
+            for (String line : wrap(backend, text, width, color, spec.size())) {
+                ModernTextLayout result = TextPostProcessPipeline.renderStructured(
+                        backend, StructuredTextRuntime.parse(line), color, spec.size(), false,
+                        ShadowRenderSpec.fromConfig());
+                result.draw(x, lineY, alpha);
+                lineY += Math.max(1, Math.round(spec.size() + 1.0F));
+            }
         }
         return true;
     }
@@ -69,7 +90,8 @@ public final class AdvancedTextApi {
         StringBuilder line = new StringBuilder();
         for (String word : text.split(" ")) {
             String candidate = line.length() == 0 ? word : line + " " + word;
-            if (line.length() > 0 && backend.measureFormattedAtSize(candidate, color, false, size) > width) {
+            if (line.length() > 0 && backend.measureStructuredAtSize(
+                    StructuredTextRuntime.parse(candidate), color, false, size) > width) {
                 lines.add(line.toString());
                 line.setLength(0);
             }

@@ -95,7 +95,7 @@ public final class ChatContextMenu {
         next.add(item(pinned ? "unpin" : "pin", () -> {
             ChatTabPinPolicy.setPinned(channel, !pinned);
             ChatTray tray = tray();
-            if (tray != null) refreshPins(tray);
+            if (tray != null) tray.refreshPins();
         }));
         next.add(item("delete", () -> TabbyChat.getInstance().getChat().removeChannel(channel)));
         next.add(item("settings", () -> channel.openSettings()));
@@ -105,14 +105,6 @@ public final class ChatContextMenu {
     private static ChatTray tray() {
         Chat chat = TabbyChat.getInstance().getChat();
         return chat instanceof ChatManager ? ((ChatManager) chat).getChatBox().getTray() : null;
-    }
-
-    private static void refreshPins(ChatTray tray) {
-        Chat chat = TabbyChat.getInstance().getChat();
-        if (!(chat instanceof ChatManager)) return;
-        List<Channel> channels = chat.getChannels();
-        for (Channel channel : channels) tray.removeChannel(channel);
-        for (Channel channel : ChatTabPinPolicy.ordered(channels)) tray.addChannel(channel);
     }
 
     public boolean click(int mouseX, int mouseY) {

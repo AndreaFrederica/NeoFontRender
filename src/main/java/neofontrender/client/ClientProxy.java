@@ -10,12 +10,26 @@ import neofontrender.common.CommonProxy;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.splash.ModernSplashDetector;
 import neofontrender.splash.SplashCompat;
+import neofontrender.api.text.StructuredTextApi;
+import neofontrender.core.font.pipeline.builtin.HexChatStructuredMiddleware;
+import neofontrender.core.font.pipeline.builtin.TinkersAntiqueSyntaxProvider;
+import neofontrender.text.pipeline.TextPipelinePlugin;
 
 public class ClientProxy extends CommonProxy {
 
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         NeoFontRender.LOGGER.info("ClientProxy preInit");
+        StructuredTextApi.register(TinkersAntiqueSyntaxProvider.INSTANCE);
+        StructuredTextApi.register(new TextPipelinePlugin() {
+            @Override public String id() { return "neofontrender:builtins"; }
+
+            @Override
+            public java.util.Collection<? extends
+                    neofontrender.text.pipeline.StructuredTextMiddleware> structuredMiddlewares() {
+                return java.util.Collections.singletonList(HexChatStructuredMiddleware.INSTANCE);
+            }
+        });
         super.preInit(event);
     }
 
@@ -23,6 +37,8 @@ public class ClientProxy extends CommonProxy {
     public void init(FMLInitializationEvent event) {
         super.init(event);
 
+        // 1.7.10's ModularUI2 has no MuiTextBackends API; MUI text is integrated by
+        // MixinModularTextRenderer instead.
         if (!NeofontrenderConfig.isLoaded()) {
             NeofontrenderConfig.load();
         }

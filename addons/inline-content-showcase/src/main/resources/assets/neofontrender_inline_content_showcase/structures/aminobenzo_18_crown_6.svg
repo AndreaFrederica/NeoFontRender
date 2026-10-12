@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="265" height="195" viewBox="0 0 265 195">
+  <desc>4'-Aminobenzo-18-crown-6, laid out from PubChem CID 2724802 2D coordinates.</desc>
+  <g id="skeletal-formula" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <g id="single-bonds" data-bond-order="1">
+      <path d="M118 20 L148 32 L177 20 L207 32"/>
+      <line x1="207" y1="56" x2="207" y2="32"/><line x1="207" y1="56" x2="236" y2="68"/>
+      <line x1="89" y1="56" x2="89" y2="32"/><line x1="89" y1="56" x2="60" y2="68"/>
+      <line x1="89" y1="104" x2="89" y2="128"/><line x1="89" y1="104" x2="60" y2="92"/>
+      <line x1="207" y1="104" x2="236" y2="92"/><line x1="207" y1="104" x2="207" y2="128"/>
+      <line x1="148" y1="128" x2="118" y2="140"/><line x1="148" y1="128" x2="177" y2="140"/>
+      <line x1="28" y1="177" x2="58" y2="165"/>
+      <line x1="177" y1="20" x2="207" y2="32"/><line x1="118" y1="20" x2="89" y2="32"/>
+      <line x1="89" y1="128" x2="58" y2="140"/><line x1="236" y1="68" x2="236" y2="92"/>
+      <line x1="118" y1="140" x2="119" y2="165"/><line x1="60" y1="68" x2="60" y2="92"/>
+      <line x1="207" y1="128" x2="177" y2="140"/>
+      <line x1="58" y1="165" x2="88" y2="178"/>
+    </g>
+    <g id="aromatic-double-bonds" data-bond-order="2" stroke-width="3">
+      <line x1="89" y1="128" x2="118" y2="140"/><line x1="91" y1="123" x2="120" y2="135"/>
+      <line x1="58" y1="140" x2="58" y2="165"/><line x1="64" y1="142" x2="64" y2="162"/>
+      <line x1="119" y1="165" x2="88" y2="178"/><line x1="116" y1="159" x2="89" y2="171"/>
+    </g>
+  </g>
+  <g id="heteroatoms" fill="#9ee7ff" stroke="#202020" stroke-width="3"
+     paint-order="stroke" font-family="SansSerif" font-size="18" font-weight="bold"
+     text-anchor="middle" dominant-baseline="central">
+    <text x="148" y="32">O</text><text x="207" y="56">O</text>
+    <text x="89" y="56">O</text><text x="89" y="104">O</text>
+    <text x="207" y="104">O</text><text x="148" y="128">O</text>
+    <text x="20" y="178">NH₂</text>
+  </g>
+</svg>

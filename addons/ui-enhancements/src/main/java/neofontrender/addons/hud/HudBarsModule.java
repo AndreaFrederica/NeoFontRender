@@ -1,20 +1,17 @@
 package neofontrender.addons.hud;
 
 import net.minecraftforge.common.MinecraftForge;
-import neofontrender.addons.hud.compositor.HudCompositorRenderHandler;
 import neofontrender.addons.ui.UiEnhancementModule;
 import neofontrender.api.client.settings.NfrSettingsPageRegistry;
+import neofontrender.addons.hud.compositor.HudCompositorRenderHandler;
 
-/** Loads HUD providers and exposes their live runtime configuration. */
 public final class HudBarsModule implements UiEnhancementModule {
-    @Override
-    public void preInit() {
+    @Override public void preInit() {
         HudBarsConfig.load();
-        VanillaHudBarProviders.register(FoodStatsAccessFactory.create());
+        VanillaHudBarProviders.register();
     }
 
-    @Override
-    public void init() {
+    @Override public void init() {
         NfrSettingsPageRegistry.register(new HudBarsSettingsPage());
         MinecraftForge.EVENT_BUS.register(new HudBarsHandler());
         MinecraftForge.EVENT_BUS.register(HudCompositorRenderHandler.INSTANCE);

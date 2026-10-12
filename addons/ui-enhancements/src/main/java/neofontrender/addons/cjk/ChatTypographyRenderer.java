@@ -2,7 +2,7 @@ package neofontrender.addons.cjk;
 
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.util.IChatComponent;
-import neofontrender.api.text.CjkParagraphLayoutProvider;
+import neofontrender.api.text.paragraph.TextParagraphProvider;
 
 /** Draws and queries the exact Tiqian geometry carried by a chat component line. */
 public final class ChatTypographyRenderer {
@@ -20,7 +20,7 @@ public final class ChatTypographyRenderer {
                     : font.drawString(text, Math.round(x), Math.round(y), color, false);
         }
         PositionedTextLine line = (PositionedTextLine) component;
-        for (CjkParagraphLayoutProvider.Run run : line.nfrUi$runs()) {
+        for (TextParagraphProvider.Run run : line.nfrUi$runs()) {
             float drawX = x + run.xOffset();
             if (shadow) {
                 font.drawStringWithShadow(run.formattedText(), Math.round(drawX), Math.round(y), color);

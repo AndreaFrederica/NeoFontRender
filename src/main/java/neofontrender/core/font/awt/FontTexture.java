@@ -110,7 +110,7 @@ public class FontTexture implements AutoCloseable {
             for (int i = 0; i < data.length; i++) {
                 data[i] = FontPixelUtils.TRANSPARENT_WHITE;
             }
-            dirty = true;
+            this.texture.updateDynamicTexture();
             FontRenderTuning.applyFontTextureFilter(this.texture, rasterScale);
             textureManager.loadTexture(location, this.texture);
             FontRenderTuning.applyFontTextureFilter(this.texture, rasterScale);
@@ -156,7 +156,7 @@ public class FontTexture implements AutoCloseable {
                 int srcRow = row;
                 System.arraycopy(pixels, srcRow * pw, dest, destRow * width + x, pw);
             }
-            this.texture.updateDynamicTexture();
+            dirty = true;
 
             float u0 = (float) x / (float) width;
             float v0 = (float) y / (float) height;
@@ -167,7 +167,8 @@ public class FontTexture implements AutoCloseable {
                     this.location,
                     u0, u1, v0, v1,
                     left, right, up, down,
-                    this.rasterScale
+                    this.rasterScale,
+                    FontPixelUtils.visibleBounds(pixels, pw, ph, left, up, right, down)
             );
         }
 

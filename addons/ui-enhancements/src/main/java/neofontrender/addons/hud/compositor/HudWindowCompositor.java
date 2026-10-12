@@ -112,8 +112,7 @@ public final class HudWindowCompositor {
 
     private static void applyScissor(Rectangle bounds) {
         Minecraft mc = Minecraft.getMinecraft();
-        ScaledResolution resolution = new ScaledResolution(mc,
-                mc.displayWidth, mc.displayHeight);
+        ScaledResolution resolution = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
         int factor = resolution.getScaleFactor();
         int x = Math.max(0, bounds.x * factor);
         int y = Math.max(0, mc.displayHeight - (bounds.y + bounds.height) * factor);

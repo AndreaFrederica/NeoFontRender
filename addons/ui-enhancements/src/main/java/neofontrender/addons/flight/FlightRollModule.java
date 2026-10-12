@@ -19,6 +19,7 @@ public final class FlightRollModule implements UiEnhancementModule {
     }
 
     @Override public void init() {
+        ShoulderSurfingCompat.registerAdaptiveItems();
         ShoulderSurfingFixSettings.register();
         FlightRollNetwork.initializeClient(FlightRollController.INSTANCE);
         // The full UIE jar owns the integrated-server implementation. The separate companion jar
@@ -35,5 +36,6 @@ public final class FlightRollModule implements UiEnhancementModule {
         HudWindowCompositor.INSTANCE.register(FlightHudSurface.INSTANCE);
         NfrSettingsPageRegistry.register(new FlightRollSettingsPage());
         NfrSettingsPageRegistry.register(new CrosshairSettingsPage());
+        NfrSettingsPageRegistry.register(new MiscSettingsPage());
     }
 }

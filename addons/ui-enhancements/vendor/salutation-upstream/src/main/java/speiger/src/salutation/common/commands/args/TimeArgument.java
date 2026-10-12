@@ -12,11 +12,11 @@ import speiger.src.salutation.common.commands.BaseSalutationCommand.CommandConte
 public class TimeArgument implements IArgument<Long> {
 	private static final List<String> EXAMPLES = Arrays.asList(new String[]{"1d", "1s", "1t", "1", "0"});
 	private static final Map<Character, Long> TYPES = createMultipliers();
-
+	
 	public static TimeArgument time() {
 		return new TimeArgument();
 	}
-
+	
 	@Override
 	public Long parse(StringWalker args, CommandContext context) throws CommandException {
 		if(!args.canRead()) throw new CommandException("commands.salutation.error.parse.missing.args");
@@ -32,16 +32,16 @@ public class TimeArgument implements IArgument<Long> {
 		}
 		catch(Exception e) { throw new NumberInvalidException("commands.salutation.error.parse.double", args.poll()); }
 	}
-
+	
 	@Override
 	public List<String> getExamples(CommandContext context, int argumentIndex) {
 		return EXAMPLES;
 	}
-
+	
 	private static boolean isNumber(char character) {
 		return character >= '0' && character <= '9' || character == '.' || character == '-';
 	}
-
+	
 	private static Map<Character, Long> createMultipliers() {
 		Map<Character, Long> data = new HashMap<>();
 		data.put('d', 24000L);

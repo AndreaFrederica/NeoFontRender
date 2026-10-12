@@ -8,6 +8,7 @@ final class WorldLoadingConfig {
     static boolean worldJoin = true;
     static boolean dimensionChange = true;
     static boolean singleplayerServerProgress = true;
+    static boolean modernPrompts = true;
     static boolean lastExitSnapshot = true;
     static boolean bottomShade = true;
     static boolean progressBar = true;
@@ -28,6 +29,8 @@ final class WorldLoadingConfig {
                 .define("worldLoading.dimensionChange", true, "Use the overlay while changing dimensions.")
                 .define("worldLoading.singleplayerServerProgress", true,
                         "Use integrated-server spawn preparation for singleplayer world-entry progress.")
+                .define("worldLoading.modernPrompts", true,
+                        "Modernize Forge startup queries shown while a world is loading.")
                 .define("worldLoading.lastExitSnapshot", true,
                         "Save the last clean singleplayer frame and use it on the next world entry.")
                 .define("worldLoading.bottomShade", true, "Draw a bottom-up dark gradient behind the loading UI.")
@@ -42,6 +45,7 @@ final class WorldLoadingConfig {
         worldJoin = file.getBoolean("worldLoading.worldJoin", true);
         dimensionChange = file.getBoolean("worldLoading.dimensionChange", true);
         singleplayerServerProgress = file.getBoolean("worldLoading.singleplayerServerProgress", true);
+        modernPrompts = file.getBoolean("worldLoading.modernPrompts", true);
         lastExitSnapshot = file.getBoolean("worldLoading.lastExitSnapshot", true);
         bottomShade = file.getBoolean("worldLoading.bottomShade", true);
         progressBar = file.getBoolean("worldLoading.progressBar", true);
@@ -60,6 +64,7 @@ final class WorldLoadingConfig {
                 .set("worldLoading.worldJoin", worldJoin)
                 .set("worldLoading.dimensionChange", dimensionChange)
                 .set("worldLoading.singleplayerServerProgress", singleplayerServerProgress)
+                .set("worldLoading.modernPrompts", modernPrompts)
                 .set("worldLoading.lastExitSnapshot", lastExitSnapshot)
                 .set("worldLoading.bottomShade", bottomShade)
                 .set("worldLoading.progressBar", progressBar)

@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(value = GuiButtonExt.class, remap = false)
 public abstract class MixinGuiButtonExtHover {
-    @Redirect(method = "drawButton", at = @At(value = "INVOKE",
+    @Redirect(method = "drawButton", remap = true, at = @At(value = "INVOKE", remap = false,
             target = "Lcpw/mods/fml/client/config/GuiUtils;drawContinuousTexturedBox(Lnet/minecraft/util/ResourceLocation;IIIIIIIIIIIIF)V"))
     private void nfrUi$crossFadeForgeButton(ResourceLocation texture, int x, int y, int textureX,
                                              int textureY, int width, int height, int textureWidth,
@@ -26,7 +26,7 @@ public abstract class MixinGuiButtonExtHover {
                 leftBorder, rightBorder, zLevel);
     }
 
-    @Redirect(method = "drawButton", at = @At(value = "INVOKE",
+    @Redirect(method = "drawButton", remap = true, at = @At(value = "INVOKE", remap = true,
             target = "Lcpw/mods/fml/client/config/GuiButtonExt;drawCenteredString(Lnet/minecraft/client/gui/FontRenderer;Ljava/lang/String;III)V"))
     private void nfrUi$crossFadeForgeButtonText(GuiButtonExt button, FontRenderer font, String text,
                                                  int x, int y, int color) {

@@ -4,6 +4,7 @@ import net.minecraft.client.resources.I18n;
 import cpw.mods.fml.common.Loader;
 import neofontrender.client.NeofontrenderBranding;
 import neofontrender.client.gui.component.business.NfrSettingsControls;
+import neofontrender.client.NeofontrenderBranding;
 import neofontrender.client.gui.component.base.NfrTextInfoPanel;
 import neofontrender.client.gui.model.NfrSettingsDraft;
 import neofontrender.api.client.settings.NfrInfoLine;

@@ -1,7 +1,20 @@
 NFR UI Enhancements is distributed under the license of Neo Font Render.
 
+This optional addon links against Neo Font Render, which distributes Arc3D Core 2026.2.0.
+
+Arc3D is Copyright (C) BloCamLimb and contributors and is licensed under
+LGPL-3.0-or-later. Its upstream source is available at
+https://github.com/BloCamLimb/Arc3D.
+
 The adaptive tooltip palette is derived from ModernUI-MC and remains subject
 to LGPL-3.0-or-later. See META-INF/NOTICE-ModernUI.md in the built artifact.
+
+The tooltip layout and visual design are an independent Minecraft 1.7.10
+implementation informed by the behavior documented by ModernUI-MC. No
+ModernUI-MC source files are bundled in this addon.
+
+The hold-to-zoom behavior is an independent Minecraft 1.7.10 implementation
+informed by ModernUI-MC's documented OptiFine-like zoom behavior.
 
 The integrated mod-name tooltip behavior is derived from Mod Name Tooltip by mezz,
 Copyright (c) 2014-2015 mezz, licensed under the MIT License. The complete license
@@ -42,6 +55,40 @@ used with attribution. The original Tips mod is available at
 https://www.curseforge.com/minecraft/mc-mods/tips and its source at
 https://github.com/Darkhax-Minecraft/Tips.
 
+# Gosling / Emojicord compatibility data
+
 The optional experimental image-glyph middleware includes the emoji and picker dictionaries
 from TeamFruit's Emojicord/Gosling project and retains compatibility with its message tags.
 Those portions are distributed under the MIT License in `LICENSE-Gosling-Emojicord.txt`.
+
+# Experimental embedded content
+
+SVG parsing and rasterization use JSVG 2.1.0 by Jannis Weis, distributed under the
+MIT License. The complete license is included in `META-INF/LICENSE-JSVG.txt`.
+
+LaTeX parsing and rasterization use the unmodified JLaTeXMath 1.0.7 library and its
+Greek and Cyrillic font artifacts, distributed under GPLv2 with the Classpath Exception
+and the bundled font licenses. The upstream notice is included in
+`META-INF/LICENSE-JLaTeXMath.txt`; the individual font license texts also remain inside
+the embedded upstream JARs.
+
+The bundled default formula font Fira Math Regular is Copyright (C) 2018--2020 Xiangdong
+Zeng and is distributed under the SIL Open Font License 1.1. The complete license is
+included in `META-INF/LICENSE-FiraMath.txt`.
+
+# Camera platform sources
+
+The internal Shoulder Surfing-derived camera rig and collision sampling are
+distributed under the MIT License; the complete notice is in
+`META-INF/licenses/ShoulderSurfing.txt`.
+
+The internal Omnilook-compatible free-look behavior is based on public-domain
+source; the attribution and disclaimer are in `META-INF/licenses/Omnilook.txt`.
+
+# FancyOutlines-derived block outlines
+
+Configurable block-selection outline colors, widths, per-block rules, and
+non-harvestable highlighting are adapted from FancyOutlines by Invadermonky.
+The upstream source is available at https://github.com/Invadermonky/FancyOutlines
+and is distributed under the WTFPL v2. The complete license is included in
+`META-INF/licenses/FancyOutlines-WTFPL.txt`.
