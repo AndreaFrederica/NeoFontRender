@@ -4,10 +4,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import neofontrender.addons.ui.NfrUiEnhancements;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWImage;
+import me.eigenraven.lwjgl3ify.api.Lwjgl3Aware;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.BufferUtils;
+import org.lwjgl.sdl.SDLMouse;
+import org.lwjgl.sdl.SDLPixels;
+import org.lwjgl.sdl.SDLSurface;
+import org.lwjgl.sdl.SDLVideo;
+import org.lwjgl.sdl.SDL_Surface;
 
 import java.nio.ByteBuffer;
 import java.util.EnumMap;
@@ -18,7 +22,12 @@ import java.util.Map;
 /**
  * Single GUI cursor owner. The world crosshair remains owned by CrosshairController.
  * All native handles are created, applied, and destroyed on the Minecraft client thread.
+ *
+ * <p>1.7.10 runs on lwjgl3ify, whose window stack is SDL (no GLFW at runtime), so native
+ * cursor operations go through the LWJGL SDL binding. {@code @Lwjgl3Aware} keeps the
+ * lwjgl3ify redirect transformer from rewriting these {@code org.lwjgl.sdl} references.
  */
+@Lwjgl3Aware
 public final class CursorManager {
     private static final Map<CursorType, Long> STANDARD_HANDLES = new EnumMap<>(CursorType.class);
     private static final Map<String, Long> CUSTOM_HANDLES = new HashMap<>();
@@ -100,10 +109,9 @@ public final class CursorManager {
 
     public static void dispose() {
         restoreDefault();
-        long window = GLFW.glfwGetCurrentContext();
-        if (window != 0L) {
+        if (SDLVideo.SDL_GL_GetCurrentContext() != 0L) {
             for (Long handle : STANDARD_HANDLES.values()) {
-                if (handle != null && handle != 0L) GLFW.glfwDestroyCursor(handle);
+                if (handle != null && handle != 0L) SDLMouse.SDL_DestroyCursor(handle);
             }
         }
         STANDARD_HANDLES.clear();
@@ -123,19 +131,20 @@ public final class CursorManager {
     }
 
     private static void applyHandle(long cursor) {
-        long window = GLFW.glfwGetCurrentContext();
-        if (window == 0L) return;
+        if (SDLVideo.SDL_GL_GetCurrentContext() == 0L) return;
         if (appliedCursor == cursor) return;
-        GLFW.glfwSetCursor(window, cursor);
+        long target = cursor == 0L ? SDLMouse.SDL_GetDefaultCursor() : cursor;
+        if (target == 0L) return;
+        SDLMouse.SDL_SetCursor(target);
         appliedCursor = cursor;
     }
 
     private static long standardHandle(CursorType type) {
         if (type == CursorType.DEFAULT) return 0L;
-        if (type.glfwShape() < 0) return 0L;
+        if (type.sdlShape() < 0) return 0L;
         Long existing = STANDARD_HANDLES.get(type);
         if (existing != null) return existing;
-        long created = GLFW.glfwCreateStandardCursor(type.glfwShape());
+        long created = SDLMouse.SDL_CreateSystemCursor(type.sdlShape());
         if (created != 0L) STANDARD_HANDLES.put(type, created);
         return created;
     }
@@ -156,26 +165,32 @@ public final class CursorManager {
             }
         }
         pixels.flip();
-        try (GLFWImage image = GLFWImage.malloc()) {
-            image.width(asset.width()).height(asset.height()).pixels(pixels);
-            long handle = GLFW.glfwCreateCursor(image, asset.hotspotX(), asset.hotspotY());
+        SDL_Surface surface = SDLSurface.SDL_CreateSurfaceFrom(asset.width(), asset.height(),
+                SDLPixels.SDL_PIXELFORMAT_RGBA8888, pixels, asset.width() * 4);
+        if (surface == null) {
+            NfrUiEnhancements.LOGGER.warn("Unable to create cursor surface for '{}'", id);
+            return 0L;
+        }
+        try {
+            long handle = SDLMouse.SDL_CreateColorCursor(surface, asset.hotspotX(), asset.hotspotY());
             if (handle != 0L) CUSTOM_HANDLES.put(id, handle);
             return handle;
         } catch (RuntimeException error) {
             NfrUiEnhancements.LOGGER.warn("Unable to create native cursor '{}'", id, error);
             return 0L;
+        } finally {
+            SDLSurface.SDL_DestroySurface(surface);
         }
     }
 
     static void releaseCustomHandles() {
-        long window = GLFW.glfwGetCurrentContext();
-        if (window != 0L) {
+        if (SDLVideo.SDL_GL_GetCurrentContext() != 0L) {
             if (CUSTOM_HANDLES.containsValue(appliedCursor)) {
-                GLFW.glfwSetCursor(window, 0L);
-                appliedCursor = 0L;
+                long defaultCursor = SDLMouse.SDL_GetDefaultCursor();
+                if (defaultCursor != 0L) SDLMouse.SDL_SetCursor(defaultCursor);
             }
             for (Long handle : CUSTOM_HANDLES.values()) {
-                if (handle != null && handle != 0L) GLFW.glfwDestroyCursor(handle);
+                if (handle != null && handle != 0L) SDLMouse.SDL_DestroyCursor(handle);
             }
         }
         CUSTOM_HANDLES.clear();

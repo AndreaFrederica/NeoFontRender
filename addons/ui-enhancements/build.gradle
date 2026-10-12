@@ -81,11 +81,13 @@ dependencies {
     runtimeOnlyNonPublishable('com.github.GTNewHorizons:GTNHLib:0.11.19:dev') { transitive = false }
 
     // 1.7.10 is expected to run through lwjgl3ify here; keep LWJGL3 and Arc3D available.
+    // lwjgl3ify 3.x windows through SDL (no GLFW exists in that runtime), so cursor code
+    // compiles against the SDL binding instead of lwjgl-glfw.
     compileOnly('com.github.GTNewHorizons:lwjgl3ify:3.0.25:api') { transitive = false }
     compileOnly 'com.cleanroommc:lwjglxx:1.1.19'
     compileOnly 'org.lwjgl:lwjgl:3.4.1'
     compileOnly 'org.lwjgl:lwjgl-opengl:3.4.1'
-    compileOnly 'org.lwjgl:lwjgl-glfw:3.4.1'
+    compileOnly 'org.lwjgl:lwjgl-sdl:3.4.1'
     compileOnly('dev.icyllis:arc3d-core:2026.2.0') { transitive = false }
 
     implementation project(':engine:audio')
