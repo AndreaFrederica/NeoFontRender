@@ -18,6 +18,7 @@ import neofontrender.client.gui.component.base.NfrTextButton;
 import neofontrender.client.gui.component.base.NfrToggleIndicator;
 import neofontrender.client.gui.component.base.NfrSettingsSearch;
 import neofontrender.client.gui.model.NfrSettingsDraft;
+import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.support.ShadowColorPolicy;
 
 import java.util.Arrays;
@@ -137,7 +138,7 @@ public final class NfrSettingsControls {
     }
 
     public IWidget engine(int route) {
-        List<String> engines = Arrays.asList("sfr", "cosmic", "vanilla");
+        List<String> engines = Arrays.asList("sfr", "cosmic", "compat", "vanilla");
         return tooltip(dropdown("engine", "neofontrender.gui.option.engine",
                 () -> normalizeEngine(draft.engine), value -> {
                     draft.engine = value;
@@ -145,6 +146,45 @@ public final class NfrSettingsControls {
                     reloadRoute.accept(route);
                 }, engines, NfrSettingsControls::engineName).size(260, 24),
                 "neofontrender.tooltip.engine");
+    }
+
+    public IWidget compatRasterBackend(int route) {
+        // Cosmic page rasterization is not selectable until the page pipeline is verified.
+        List<String> backends = Arrays.asList("awt");
+        return tooltip(dropdown("compat_raster", "neofontrender.gui.option.compat_raster",
+                () -> normalizeCompatBackend(draft.compatRasterBackend), value -> {
+                    draft.compatRasterBackend = value;
+                    reloadRoute.accept(route);
+                }, backends, NfrSettingsControls::compatRasterName).size(260, 24),
+                "neofontrender.tooltip.compat_raster");
+    }
+
+    public IWidget debugOverlayEngine(int route) {
+        List<String> modes = Arrays.asList("inherit", "vanilla", "cosmic", "compat");
+        return tooltip(dropdown("overlay_engine", "neofontrender.gui.option.overlay_engine",
+                () -> normalizeOverlayEngine(draft.debugOverlayEngine), value -> {
+                    draft.debugOverlayEngine = value;
+                    // Preview only this override; do not reload or change the global font engine.
+                    // Apply persists it and the existing Cancel path restores the original value.
+                    NeofontrenderConfig.setDebugOverlayEngine(value);
+                }, modes, NfrSettingsControls::overlayEngineName).size(260, 24),
+                "neofontrender.tooltip.overlay_engine");
+    }
+
+    public static String normalizeOverlayEngine(String value) {
+        if (value == null) return "inherit";
+        String mode = value.trim().toLowerCase(Locale.ROOT);
+        return "vanilla".equals(mode) || "cosmic".equals(mode) || "compat".equals(mode)
+                ? mode : "inherit";
+    }
+
+    public static String overlayEngineName(String value) {
+        switch (normalizeOverlayEngine(value)) {
+            case "vanilla": return tr("neofontrender.gui.overlay_engine.vanilla");
+            case "cosmic": return tr("neofontrender.gui.overlay_engine.cosmic");
+            case "compat": return tr("neofontrender.gui.overlay_engine.compat");
+            default: return tr("neofontrender.gui.overlay_engine.inherit");
+        }
     }
 
     public IWidget antialias() {
@@ -317,15 +357,29 @@ public final class NfrSettingsControls {
         switch (normalizeEngine(engine)) {
             case "cosmic": return tr("neofontrender.gui.engine.cosmic");
             case "vanilla": return tr("neofontrender.gui.engine.vanilla");
+            case "compat": return tr("neofontrender.gui.engine.compat");
             case "sfr": return tr("neofontrender.gui.engine.sfr");
             default: return tr("neofontrender.gui.engine.cosmic");
         }
+    }
+
+    public static String compatRasterName(String backend) {
+        return "cosmic".equals(normalizeCompatBackend(backend))
+                ? tr("neofontrender.gui.compat_raster.cosmic")
+                : tr("neofontrender.gui.compat_raster.awt");
+    }
+
+    public static String normalizeCompatBackend(String backend) {
+        if (backend == null) return "awt";
+        String value = backend.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return "cosmic".equals(value) || "native".equals(value) ? "cosmic" : "awt";
     }
 
     public static String normalizeEngine(String engine) {
         if (engine == null) return "cosmic";
         String value = engine.trim().toLowerCase(Locale.ROOT).replace('-', '_');
         if ("cosmic_text".equals(value) || "cosmic".equals(value)) return "cosmic";
+        if ("compat".equals(value) || "compatibility".equals(value)) return "compat";
         if ("vanilla".equals(value) || "original".equals(value) || "minecraft".equals(value)) return "vanilla";
         if ("sfr".equals(value) || "awt".equals(value)) return "sfr";
         return "cosmic";

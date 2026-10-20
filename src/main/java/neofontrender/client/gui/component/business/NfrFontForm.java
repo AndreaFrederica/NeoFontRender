@@ -44,15 +44,20 @@ public final class NfrFontForm extends ParentWidget<NfrFontForm> implements ILay
         child(fontPath);
         child(fallbacks);
         child(shadowMasks);
-        for (NfrLabeledTextField field : cosmicFields) {
-            child(field);
-            field.setEnabled(cosmic);
+        if (cosmic) {
+            for (NfrLabeledTextField field : cosmicFields) {
+                child(field);
+                field.setEnabled(true);
+            }
+            child(variantOnly);
+            variantOnly.setEnabled(true);
+        } else {
+            for (NfrLabeledTextField field : cosmicFields) field.setEnabled(false);
+            variantOnly.setEnabled(false);
         }
-        child(variantOnly);
         child(metrics);
         child(oversample);
         child(preview);
-        variantOnly.setEnabled(cosmic);
     }
 
     public int preferredHeight() {
@@ -62,7 +67,7 @@ public final class NfrFontForm extends ParentWidget<NfrFontForm> implements ILay
         if (visible(fallbacks)) rows++;
         if (visible(shadowMasks)) rows++;
         if (cosmic) for (IWidget field : cosmicFields) if (visible(field)) rows++;
-        if (visible(variantOnly)) rows++;
+        if (cosmic && visible(variantOnly)) rows++;
         if (visible(metrics)) rows++;
         if (visible(oversample)) rows++;
         if (visible(preview)) rows++;

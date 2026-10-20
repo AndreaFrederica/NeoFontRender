@@ -1,5 +1,6 @@
 package neofontrender.client.gui.views;
 
+import com.cleanroommc.modularui.api.widget.IWidget;
 import neofontrender.build.BuildFeatures;
 import neofontrender.api.text.gl.TextGlComponentApi;
 import neofontrender.api.text.postprocess.TextPostProcessApi;
@@ -35,16 +36,28 @@ public final class NfrAdvancedSettingsView extends NfrContentView<NfrAdvancedSet
                         () -> d.shaderTextPipeline, value -> d.shaderTextPipeline = value))
                 .add(c.toggle("neofontrender.gui.option.vanilla_formatting", "neofontrender.tooltip.vanilla_formatting",
                         () -> d.vanillaFormattingCompatibility,
-                        value -> d.vanillaFormattingCompatibility = value))
-                .add(new NfrSectionDivider(I18n.format("neofontrender.gui.section.sdf"), 2).size(260, 20))
-                .add(c.toggle("neofontrender.gui.option.sdf", "neofontrender.tooltip.sdf",
-                        () -> d.sdfEnabled, value -> d.sdfEnabled = value, draftOnly))
+                        value -> d.vanillaFormattingCompatibility = value));
+        options.add(new NfrSectionDivider(I18n.format("neofontrender.gui.section.sdf"), 2).size(260, 20));
+
+        final IWidget[] atlas = new IWidget[1];
+        IWidget sdf = c.toggle("neofontrender.gui.option.sdf", "neofontrender.tooltip.sdf",
+                () -> d.sdfEnabled,
+                value -> {
+                    d.sdfEnabled = value;
+                    if (atlas[0] != null) atlas[0].setEnabled(value);
+                }, draftOnly);
+        atlas[0] = c.toggle("neofontrender.gui.option.glyph_atlas", "neofontrender.tooltip.glyph_atlas",
+                () -> d.glyphAtlasEnabled, value -> d.glyphAtlasEnabled = value, draftOnly);
+        atlas[0].setEnabled(d.sdfEnabled);
+        options.add(sdf).add(atlas[0])
                 .add(c.sdfDistanceRange(draftOnly))
                 .add(c.sdfEdgeSoftness(draftOnly));
         if (BuildFeatures.RENDER_STATS) {
             options.add(c.toggle("neofontrender.gui.option.debug_stats", "neofontrender.tooltip.debug_stats",
                     () -> d.debugRenderStats, value -> d.debugRenderStats = value));
         }
+        options.add(c.toggle("neofontrender.gui.option.cache_overlay", "neofontrender.tooltip.cache_overlay",
+                () -> d.debugCacheOverlay, value -> d.debugCacheOverlay = value));
         return options;
     }
 

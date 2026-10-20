@@ -42,6 +42,24 @@ public final class NfrMixinConfig {
         }
     }
 
+    /**
+     * Reads a boot-time switch without creating a new entry in the user's config file.
+     *
+     * <p>The diagnostics screen uses this method when it reports optional compatibility
+     * patches.  Opening the diagnostics page must not make a patch appear in the TOML merely
+     * because the page inspected it; entries are still created when the mixin plugin actually
+     * queries them during startup.</p>
+     */
+    public static boolean isEnabled(String mixinClassName) {
+        open();
+        synchronized (LOCK) {
+            String simple = mixinClassName.substring(mixinClassName.lastIndexOf('.') + 1);
+            Object value = file.get("mixins." + mixinClassName);
+            if (value == null) value = file.get("mixins." + simple);
+            return !(value instanceof Boolean) || (Boolean) value;
+        }
+    }
+
     static boolean enabled(CommentedFileConfig config, String mixinClassName) {
         String simple = mixinClassName.substring(mixinClassName.lastIndexOf('.') + 1);
         String simpleKey = "mixins." + simple;

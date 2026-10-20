@@ -36,5 +36,6 @@ public final class NfrSettingsLayout extends ParentWidget<NfrSettingsLayout> imp
         NfrLayout.place(footer,PAD,height-PAD-footerHeight,Math.max(0,width-PAD*2),footerHeight);
         return true;
     }
+
     private static int clamp(int v,int min,int max){return Math.max(min,Math.min(max,v));}
 }

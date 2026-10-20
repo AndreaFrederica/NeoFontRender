@@ -45,10 +45,13 @@ public final class NfrSettingsDraft {
     public final String originalFontFallbacks = joinFontList(NeofontrenderConfig.fontFallbacks());
     public final boolean originalBuiltinFallbacks = NeofontrenderConfig.builtinFallbacksEnabled();
     public final String originalEngine = NeofontrenderConfig.renderingEngine();
+    public final String originalCompatRasterBackend = NeofontrenderConfig.compatRasterBackend();
+    public final String originalDebugOverlayEngine = NeofontrenderConfig.debugOverlayEngine();
     public final boolean originalAdvancedStringMode = NeofontrenderConfig.advancedStringMode();
     public final boolean originalSdfEnabled = NeofontrenderConfig.sdfEnabled();
     public final String originalSdfDistanceRange = Integer.toString(NeofontrenderConfig.sdfDistanceRange());
     public final String originalSdfEdgeSoftness = Float.toString(NeofontrenderConfig.sdfEdgeSoftness());
+    public final boolean originalGlyphAtlasEnabled = NeofontrenderConfig.glyphAtlasEnabled();
     public final boolean originalAdaptiveRasterScale = NeofontrenderConfig.adaptiveRasterScale();
     public final boolean originalExcludeIntegerScale = NeofontrenderConfig.excludeIntegerScale();
     public final boolean originalExcludeHighMagnification = NeofontrenderConfig.excludeHighMagnification();
@@ -60,6 +63,9 @@ public final class NfrSettingsDraft {
     public final boolean originalVanillaFormattingCompatibility = NeofontrenderConfig.vanillaFormattingCompatibility();
     public final boolean originalBrilliantTextEnabled = NeofontrenderConfig.brilliantTextEnabled();
     public final boolean originalDebugRenderStats = NeofontrenderConfig.debugRenderStats();
+    public final boolean originalDebugCacheOverlay = NeofontrenderConfig.debugCacheOverlay();
+    public final float originalCacheOverlayOpacity = NeofontrenderConfig.cacheOverlayOpacity();
+    public final boolean originalCacheOverlayFps = NeofontrenderConfig.cacheOverlayFps();
     public final boolean originalSignModelLod = NeofontrenderConfig.signModelLod();
     public final boolean originalSignBlockOcclusionCulling = NeofontrenderConfig.signBlockOcclusionCulling();
     public final String originalBrightness = Float.toString(NeofontrenderConfig.renderingBrightness());
@@ -111,18 +117,25 @@ public final class NfrSettingsDraft {
     public final String originalTextCacheMin = Integer.toString(NeofontrenderConfig.textCacheMinEntries());
     public final String originalTextCacheMax = Integer.toString(NeofontrenderConfig.textCacheMaxEntries());
     public final String originalTextCacheTtl = Float.toString(NeofontrenderConfig.textCacheTtlSeconds());
+    public final boolean originalGenerationalTextCache = NeofontrenderConfig.generationalTextCache();
+    public final boolean originalAdaptiveTextTemplateCache = NeofontrenderConfig.adaptiveTextTemplateCache();
     public final String originalMonospaceCharacterCacheMax = Integer.toString(NeofontrenderConfig.monospaceCharacterCacheMaxEntries());
     public final boolean originalAsyncFontRendering = NeofontrenderConfig.asyncFontRendering();
+    public final String originalAsyncFallbackGlyphMax = Integer.toString(NeofontrenderConfig.asyncFallbackGlyphMaxEntries());
+    public final String originalAsyncWorkerThreads = Integer.toString(NeofontrenderConfig.asyncWorkerThreads());
     public final boolean originalMonospaceCharacterCache = NeofontrenderConfig.monospaceCharacterCache();
     public final String originalMeasureCacheMax = Integer.toString(NeofontrenderConfig.measureCacheMaxEntries());
 
     public boolean enabled = originalEnabled;
     public boolean forceUnicodeFont = originalForceUnicodeFont;
     public String engine = originalEngine;
+    public String compatRasterBackend = originalCompatRasterBackend;
+    public String debugOverlayEngine = originalDebugOverlayEngine;
     public boolean advancedStringMode = originalAdvancedStringMode;
     public boolean sdfEnabled = originalSdfEnabled;
     public String sdfDistanceRange = originalSdfDistanceRange;
     public String sdfEdgeSoftness = originalSdfEdgeSoftness;
+    public boolean glyphAtlasEnabled = originalGlyphAtlasEnabled;
     public boolean adaptiveRasterScale = originalAdaptiveRasterScale;
     public boolean excludeIntegerScale = originalExcludeIntegerScale;
     public boolean excludeHighMagnification = originalExcludeHighMagnification;
@@ -134,6 +147,9 @@ public final class NfrSettingsDraft {
     public boolean vanillaFormattingCompatibility = originalVanillaFormattingCompatibility;
     public boolean brilliantTextEnabled = originalBrilliantTextEnabled;
     public boolean debugRenderStats = originalDebugRenderStats;
+    public boolean debugCacheOverlay = originalDebugCacheOverlay;
+    public float cacheOverlayOpacity = originalCacheOverlayOpacity;
+    public boolean cacheOverlayFps = originalCacheOverlayFps;
     public boolean signModelLod = originalSignModelLod;
     public boolean signBlockOcclusionCulling = originalSignBlockOcclusionCulling;
     public String brightness = originalBrightness;
@@ -202,8 +218,12 @@ public final class NfrSettingsDraft {
     public String textCacheMin = originalTextCacheMin;
     public String textCacheMax = originalTextCacheMax;
     public String textCacheTtl = originalTextCacheTtl;
+    public boolean generationalTextCache = originalGenerationalTextCache;
+    public boolean adaptiveTextTemplateCache = originalAdaptiveTextTemplateCache;
     public String monospaceCharacterCacheMax = originalMonospaceCharacterCacheMax;
     public boolean asyncFontRendering = originalAsyncFontRendering;
+    public String asyncFallbackGlyphMax = originalAsyncFallbackGlyphMax;
+    public String asyncWorkerThreads = originalAsyncWorkerThreads;
     public boolean monospaceCharacterCache = originalMonospaceCharacterCache;
     public String measureCacheMax = originalMeasureCacheMax;
 
@@ -295,12 +315,15 @@ public final class NfrSettingsDraft {
         applyForceUnicodeFont(forceUnicodeFont, save);
         NeofontrenderConfig.setEnabled(enabled);
         NeofontrenderConfig.setRenderingEngine(engine);
+        NeofontrenderConfig.setCompatRasterBackend(compatRasterBackend);
+        NeofontrenderConfig.setDebugOverlayEngine(debugOverlayEngine);
         NeofontrenderConfig.setAdvancedStringMode(advancedStringMode);
         // SDF is edited on the Advanced page like Shadow: keep draft values isolated until Apply.
         if (save) {
             NeofontrenderConfig.setSdfEnabled(sdfEnabled);
             NeofontrenderConfig.setSdfDistanceRange(parseInt(sdfDistanceRange, 4, 2, 8));
             NeofontrenderConfig.setSdfEdgeSoftness(parseFloat(sdfEdgeSoftness, 1.0F, 0.5F, 2.0F));
+            NeofontrenderConfig.setGlyphAtlasEnabled(glyphAtlasEnabled);
         }
         NeofontrenderConfig.setAdaptiveRasterScale(adaptiveRasterScale);
         NeofontrenderConfig.setExcludeIntegerScale(excludeIntegerScale);
@@ -313,6 +336,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setVanillaFormattingCompatibility(vanillaFormattingCompatibility);
         NeofontrenderConfig.setBrilliantTextEnabled(brilliantTextEnabled);
         NeofontrenderConfig.setDebugRenderStats(debugRenderStats);
+        NeofontrenderConfig.setDebugCacheOverlay(debugCacheOverlay);
+        NeofontrenderConfig.setCacheOverlayOpacity(cacheOverlayOpacity);
+        NeofontrenderConfig.setCacheOverlayFps(cacheOverlayFps);
         NeofontrenderConfig.setSignModelLod(signModelLod);
         NeofontrenderConfig.setSignBlockOcclusionCulling(signBlockOcclusionCulling);
         NeofontrenderConfig.setRenderingBrightness(parseFloat(brightness, 3.0F, 0.0F, 12.0F));
@@ -382,8 +408,12 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setTextCacheMinEntries(parseInt(textCacheMin, 256, 0, 65536));
         NeofontrenderConfig.setTextCacheMaxEntries(parseInt(textCacheMax, 2048, 1, 131072));
         NeofontrenderConfig.setTextCacheTtlSeconds(parseFloat(textCacheTtl, 300.0F, 0.0F, 86400.0F));
+        NeofontrenderConfig.setGenerationalTextCache(generationalTextCache);
+        NeofontrenderConfig.setAdaptiveTextTemplateCache(adaptiveTextTemplateCache);
         NeofontrenderConfig.setMonospaceCharacterCacheMaxEntries(parseInt(monospaceCharacterCacheMax, 16384, 1, 262144));
         NeofontrenderConfig.setAsyncFontRendering(asyncFontRendering);
+        NeofontrenderConfig.setAsyncFallbackGlyphMaxEntries(parseInt(asyncFallbackGlyphMax, 512, 1, 65536));
+        NeofontrenderConfig.setAsyncWorkerThreads(parseInt(asyncWorkerThreads, 1, 1, 8));
         NeofontrenderConfig.setMonospaceCharacterCache(monospaceCharacterCache);
         NeofontrenderConfig.setMeasureCacheMaxEntries(parseInt(measureCacheMax, 4096, 1, 262144));
         if (save) {
@@ -395,10 +425,13 @@ public final class NfrSettingsDraft {
         applyForceUnicodeFont(originalForceUnicodeFont, false);
         NeofontrenderConfig.setEnabled(originalEnabled);
         NeofontrenderConfig.setRenderingEngine(originalEngine);
+        NeofontrenderConfig.setCompatRasterBackend(originalCompatRasterBackend);
+        NeofontrenderConfig.setDebugOverlayEngine(originalDebugOverlayEngine);
         NeofontrenderConfig.setAdvancedStringMode(originalAdvancedStringMode);
         NeofontrenderConfig.setSdfEnabled(originalSdfEnabled);
         NeofontrenderConfig.setSdfDistanceRange(parseInt(originalSdfDistanceRange, 4, 2, 8));
         NeofontrenderConfig.setSdfEdgeSoftness(parseFloat(originalSdfEdgeSoftness, 1.0F, 0.5F, 2.0F));
+        NeofontrenderConfig.setGlyphAtlasEnabled(originalGlyphAtlasEnabled);
         NeofontrenderConfig.setAdaptiveRasterScale(originalAdaptiveRasterScale);
         NeofontrenderConfig.setExcludeIntegerScale(originalExcludeIntegerScale);
         NeofontrenderConfig.setExcludeHighMagnification(originalExcludeHighMagnification);
@@ -410,6 +443,9 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setVanillaFormattingCompatibility(originalVanillaFormattingCompatibility);
         NeofontrenderConfig.setBrilliantTextEnabled(originalBrilliantTextEnabled);
         NeofontrenderConfig.setDebugRenderStats(originalDebugRenderStats);
+        NeofontrenderConfig.setDebugCacheOverlay(originalDebugCacheOverlay);
+        NeofontrenderConfig.setCacheOverlayOpacity(originalCacheOverlayOpacity);
+        NeofontrenderConfig.setCacheOverlayFps(originalCacheOverlayFps);
         NeofontrenderConfig.setSignModelLod(originalSignModelLod);
         NeofontrenderConfig.setSignBlockOcclusionCulling(originalSignBlockOcclusionCulling);
         NeofontrenderConfig.setRenderingBrightness(parseFloat(originalBrightness, 3.0F, 0.0F, 12.0F));
@@ -477,8 +513,12 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setTextCacheMinEntries(parseInt(originalTextCacheMin, 256, 0, 65536));
         NeofontrenderConfig.setTextCacheMaxEntries(parseInt(originalTextCacheMax, 2048, 1, 131072));
         NeofontrenderConfig.setTextCacheTtlSeconds(parseFloat(originalTextCacheTtl, 300.0F, 0.0F, 86400.0F));
+        NeofontrenderConfig.setGenerationalTextCache(originalGenerationalTextCache);
+        NeofontrenderConfig.setAdaptiveTextTemplateCache(originalAdaptiveTextTemplateCache);
         NeofontrenderConfig.setMonospaceCharacterCacheMaxEntries(parseInt(originalMonospaceCharacterCacheMax, 16384, 1, 262144));
         NeofontrenderConfig.setAsyncFontRendering(originalAsyncFontRendering);
+        NeofontrenderConfig.setAsyncFallbackGlyphMaxEntries(parseInt(originalAsyncFallbackGlyphMax, 512, 1, 65536));
+        NeofontrenderConfig.setAsyncWorkerThreads(parseInt(originalAsyncWorkerThreads, 1, 1, 8));
         NeofontrenderConfig.setMonospaceCharacterCache(originalMonospaceCharacterCache);
         NeofontrenderConfig.setMeasureCacheMaxEntries(parseInt(originalMeasureCacheMax, 4096, 1, 262144));
     }

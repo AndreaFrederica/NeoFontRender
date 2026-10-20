@@ -25,6 +25,7 @@ import neofontrender.client.gui.pages.NfrSettingsRoute;
 import neofontrender.client.gui.views.NfrAboutSettingsView;
 import neofontrender.client.gui.views.NfrAdvancedSettingsView;
 import neofontrender.client.gui.views.NfrCacheSettingsView;
+import neofontrender.client.gui.views.NfrBenchmarkSettingsView;
 import neofontrender.client.gui.views.NfrCompatibilitySettingsView;
 import neofontrender.client.gui.views.NfrFixesSettingsView;
 import neofontrender.client.gui.views.NfrFontSettingsView;
@@ -171,6 +172,8 @@ public final class NeofontrenderConfigScreen {
                 return new NfrAdvancedSettingsView(draft, controls);
             case CACHE:
                 return new NfrCacheSettingsView(draft, controls);
+            case BENCHMARK:
+                return new NfrBenchmarkSettingsView(draft, controls);
             case SHADOW:
                 return new NfrShadowSettingsView(controls);
             case FIXES:
@@ -286,12 +289,40 @@ public final class NeofontrenderConfigScreen {
         }
 
         private void applyExtensions() {
-            for (NfrSettingsPageSession session : extensionSessions.values()) session.apply();
-            for (NfrSettingsSectionSession session : sectionSessions.values()) session.apply();
+            for (NfrSettingsPageSession session : extensionSessions.values()) {
+                try {
+                    session.apply();
+                } catch (RuntimeException | LinkageError error) {
+                    // A single addon page must never take down the settings screen (and the
+                    // client) because of a bad config key or an unavailable optional dependency.
+                    neofontrender.NeoFontRender.LOGGER.error(
+                            "Settings page failed to apply; keeping the remaining pages", error);
+                }
+            }
+            for (NfrSettingsSectionSession session : sectionSessions.values()) {
+                try {
+                    session.apply();
+                } catch (RuntimeException | LinkageError error) {
+                    neofontrender.NeoFontRender.LOGGER.error(
+                            "Settings section failed to apply; keeping the remaining sections", error);
+                }
+            }
         }
         private void cancelExtensions() {
-            for (NfrSettingsPageSession session : extensionSessions.values()) session.cancel();
-            for (NfrSettingsSectionSession session : sectionSessions.values()) session.cancel();
+            for (NfrSettingsPageSession session : extensionSessions.values()) {
+                try {
+                    session.cancel();
+                } catch (RuntimeException | LinkageError error) {
+                    neofontrender.NeoFontRender.LOGGER.error("Settings page failed to cancel", error);
+                }
+            }
+            for (NfrSettingsSectionSession session : sectionSessions.values()) {
+                try {
+                    session.cancel();
+                } catch (RuntimeException | LinkageError error) {
+                    neofontrender.NeoFontRender.LOGGER.error("Settings section failed to cancel", error);
+                }
+            }
         }
     }
 

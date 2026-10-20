@@ -5,6 +5,7 @@ import neofontrender.addons.compat.CompatImpact;
 import neofontrender.addons.compat.CustomMainMenuCompat;
 import neofontrender.addons.compat.ModCompat;
 import neofontrender.addons.compat.ModCompatRegistry;
+import neofontrender.addons.compat.UiEnhancementsCompatMixinLoader;
 import neofontrender.addons.tooltips.AddonI18n;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.api.client.settings.NfrSettingsPage;
@@ -72,6 +73,25 @@ final class DiagnosticsSettingsPage implements NfrSettingsPage {
                     lines.add(NfrTextInfoPanel.line(text, 0xD8D8D8));
                 }
             }
+        }
+
+        List<UiEnhancementsCompatMixinLoader.CompatibilityPatchStatus> patches =
+                UiEnhancementsCompatMixinLoader.patchStatuses();
+        lines.add(NfrTextInfoPanel.spaced(tr("gui.diagnostics.compat_patches"), 0xFFFFFF));
+        boolean anyPatch = false;
+        for (UiEnhancementsCompatMixinLoader.CompatibilityPatchStatus patch : patches) {
+            if (!patch.enabled()) continue;
+            anyPatch = true;
+            String count = patch.enabledMixins() + "/" + patch.totalMixins();
+            String marker = patch.partial() ? "\u00a7e[~]" : "\u00a7a[\u2713]";
+            lines.add(NfrTextInfoPanel.line(
+                    "  " + marker + " \u00a7r" + patch.name() + " (" + count + ")",
+                    patch.partial() ? 0xFFAA55 : 0x55FF55));
+            lines.add(NfrTextInfoPanel.line(
+                    "      " + patch.id(), 0xA8A8A8));
+        }
+        if (!anyPatch) {
+            lines.add(NfrTextInfoPanel.line(tr("gui.diagnostics.no_compat_patches"), 0x55FF55));
         }
 
         lines.add(NfrTextInfoPanel.spaced(tr("gui.diagnostics.all_compat"), 0xFFFFFF));

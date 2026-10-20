@@ -104,6 +104,7 @@ public final class NfrEmojiTestView extends Widget<NfrEmojiTestView> implements 
     }
 
     private static String activeEngine() {
+        if (FontManager.INSTANCE.isCompatActive()) return "Compat";
         if (FontManager.INSTANCE.isCosmicActive()) return "Cosmic";
         if (FontManager.INSTANCE.isSfrActive()) return "SFR";
         return "Vanilla";
