@@ -58,6 +58,15 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
     private long layoutCacheHits;
     private long layoutCacheMisses;
     private long layoutCacheEvictions;
+    /** WIP until the in-game benchmark demonstrates a benefit for the active font. */
+    private volatile boolean fixedLayoutOptimization = false;
+    private final Map<FixedLayoutKey, FixedLayoutProfile> fixedLayoutCache = Collections.synchronizedMap(
+            new LinkedHashMap<FixedLayoutKey, FixedLayoutProfile>(128, 0.75F, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<FixedLayoutKey, FixedLayoutProfile> eldest) {
+                    return size() > 512;
+                }
+            });
     private final Map<LayoutKey, float[]> layoutCache = Collections.synchronizedMap(
             new LinkedHashMap<LayoutKey, float[]>(MAX_LAYOUT_CACHE_SIZE, 0.75F, true) {
                 @Override
@@ -84,6 +93,32 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
         this.antialiasHint = antialiasHint(antialias, antialiasMode);
         this.antialias = this.antialiasHint != RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
         this.fractionalMetrics = fractionalMetrics;
+    }
+
+    /** The AWT font derived at {@code size * oversample}; exposed for the compat page rasterizer. */
+    public Font awtFont() {
+        return font;
+    }
+
+    public float logicalSize() {
+        return size;
+    }
+
+    public float oversample() {
+        return oversample;
+    }
+
+    public boolean fractionalMetrics() {
+        return fractionalMetrics;
+    }
+
+    public Object textAntialiasHint() {
+        return antialiasHint;
+    }
+
+    /** Hints matching this provider's rasterization, used by the compat page rasterizer. */
+    public FontRenderContext fontRenderContext() {
+        return new FontRenderContext(null, antialias, fractionalMetrics);
     }
 
     @Nullable
@@ -216,6 +251,17 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
         }
         if (BuildFeatures.RENDER_STATS) layoutCacheMisses++;
 
+        float[] fixed = fixedLayoutOptimization ? fixedCharacterPositions(text, bold) : null;
+        if (fixed != null) {
+            layoutCache.put(key, fixed);
+            return fixed;
+        }
+        float[] positions = layoutPositionsExact(text, bold);
+        layoutCache.put(key, positions);
+        return positions;
+    }
+
+    private float[] layoutPositionsExact(String text, boolean bold) {
         int len = text.length();
         float[] positions = new float[len + 1];
         if (len == 0) {
@@ -275,8 +321,157 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
                 i = next;
             }
         }
-        layoutCache.put(key, positions);
         return positions;
+    }
+
+    /**
+     * Detects a truly fixed-width, independently shaped run for this derived font instance.
+     * The decision is cached by a skeleton key so changing values (for example a debug line's
+     * numbers) does not rebuild a full GlyphVector every time. A failed probe stays on the exact
+     * shaping path.
+     */
+    @Nullable
+    private float[] fixedCharacterPositions(String text, boolean bold) {
+        if (text.length() < 2 || text.length() > 256 || !safeFixedText(text)) return null;
+        FixedLayoutKey profileKey = new FixedLayoutKey(fixedSkeleton(text), bold);
+        FixedLayoutProfile cached = fixedLayoutCache.get(profileKey);
+        if (cached != null) {
+            return cached.valid ? composeFixedPositions(text, bold, cached.advance) : null;
+        }
+
+        int codePoints = text.codePointCount(0, text.length());
+        int offset = 0;
+        float reference = Float.NaN;
+        for (int i = 0; i < codePoints; i++) {
+            int codePoint = text.codePointAt(offset);
+            float advance = singleAdvance(codePoint);
+            if (!Float.isFinite(advance) || advance <= 0.0F) {
+                fixedLayoutCache.put(profileKey, FixedLayoutProfile.INVALID);
+                return null;
+            }
+            if (i == 0) reference = advance;
+            if (Math.abs(advance - reference) > 0.0001F) {
+                fixedLayoutCache.put(profileKey, FixedLayoutProfile.INVALID);
+                return null;
+            }
+            offset += Character.charCount(codePoint);
+        }
+
+        // Digits are the changing part of the cache key. Probe the whole ASCII digit set once
+        // before reusing a profile for another value, so an accidentally proportional font cannot
+        // be accepted merely because the first sample contained a subset of the digits.
+        if (profileKey.containsDigits) {
+            for (int digit = '0'; digit <= '9'; digit++) {
+                float advance = singleAdvance(digit);
+                if (!Float.isFinite(advance) || Math.abs(advance - reference) > 0.0001F) {
+                    fixedLayoutCache.put(profileKey, FixedLayoutProfile.INVALID);
+                    return null;
+                }
+            }
+        }
+
+        // A fixed advance alone is insufficient: reject ligatures, contextual substitutions,
+        // fallback changes and kerning that alter the full GlyphVector's cluster boundaries.
+        FontRenderContext frc = new FontRenderContext(null, antialias, fractionalMetrics);
+        char[] chars = text.toCharArray();
+        GlyphVector gv = font.layoutGlyphVector(frc, chars, 0, chars.length, Font.LAYOUT_LEFT_TO_RIGHT);
+        if (gv.getNumGlyphs() != codePoints || glyphsAreNotOneToOne(gv, text)
+                || glyphsAreContextual(gv, frc, text, reference)
+                || Math.abs((float) gv.getGlyphPosition(gv.getNumGlyphs()).getX() / oversample
+                - reference * codePoints) > 0.0001F) {
+            fixedLayoutCache.put(profileKey, FixedLayoutProfile.INVALID);
+            return null;
+        }
+        fixedLayoutCache.put(profileKey, new FixedLayoutProfile(true, reference));
+        return composeFixedPositions(text, bold, reference);
+    }
+
+    private float singleAdvance(int codePoint) {
+        String one = new String(Character.toChars(codePoint));
+        // Measure the actual glyph advance without the synthetic bold offset. The complete run
+        // applies that offset cumulatively after shaping, which composeFixedPositions reproduces.
+        float[] single = layoutPositionsExact(one, false);
+        return single[single.length - 1];
+    }
+
+    private float[] composeFixedPositions(String text, boolean bold, float advance) {
+        float[] positions = new float[text.length() + 1];
+        int offset = 0;
+        float x = 0.0F;
+        while (offset < text.length()) {
+            int codePoint = text.codePointAt(offset);
+            x += advance;
+            int next = offset + Character.charCount(codePoint);
+            for (int i = offset + 1; i <= next && i < positions.length; i++) positions[i] = x;
+            offset = next;
+        }
+        if (bold) {
+            int glyphIndex = 0;
+            for (int i = 0; i < text.length(); ) {
+                glyphIndex++;
+                int next = i + Character.charCount(text.codePointAt(i));
+                for (int p = i + 1; p <= next && p < positions.length; p++) positions[p] += glyphIndex;
+                i = next;
+            }
+        }
+        return positions;
+    }
+
+    private static boolean glyphsAreNotOneToOne(GlyphVector vector, String text) {
+        int expected = 0;
+        for (int glyph = 0; glyph < vector.getNumGlyphs(); glyph++) {
+            int index = vector.getGlyphCharIndex(glyph);
+            if (index != expected || index < 0 || index >= text.length()) return true;
+            expected += Character.charCount(text.codePointAt(index));
+        }
+        return expected != text.length();
+    }
+
+    private boolean glyphsAreContextual(GlyphVector vector, FontRenderContext frc,
+                                         String text, float advance) {
+        int glyphIndex = 0;
+        for (int offset = 0; offset < text.length(); ) {
+            int codePoint = text.codePointAt(offset);
+            String one = new String(Character.toChars(codePoint));
+            GlyphVector single = font.createGlyphVector(frc, one);
+            if (vector.getGlyphCode(glyphIndex) != single.getGlyphCode(0)
+                    || Math.abs((float) vector.getGlyphPosition(glyphIndex).getX() / oversample
+                    - advance * glyphIndex) > 0.0001F) {
+                return true;
+            }
+            glyphIndex++;
+            offset += Character.charCount(codePoint);
+        }
+        return false;
+    }
+
+    private static boolean safeFixedText(String text) {
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            int type = Character.getType(cp);
+            if ((cp >= 0xD800 && cp <= 0xDFFF) || Character.isISOControl(cp)
+                    || type == Character.FORMAT || type == Character.NON_SPACING_MARK
+                    || type == Character.COMBINING_SPACING_MARK || type == Character.ENCLOSING_MARK
+                    || (cp >= 0x300 && cp <= 0x36F) || (cp >= 0x1AB0 && cp <= 0x1AFF)
+                    || (cp >= 0x1DC0 && cp <= 0x1DFF) || (cp >= 0x20D0 && cp <= 0x20FF)
+                    || (cp >= 0xFE00 && cp <= 0xFE0F) || (cp >= 0xE0100 && cp <= 0xE01EF)
+                    || (cp >= 0x1F000 && cp <= 0x1FAFF) || (cp >= 0x2600 && cp <= 0x27BF)) {
+                return false;
+            }
+            i += Character.charCount(cp);
+        }
+        return true;
+    }
+
+    private static String fixedSkeleton(String text) {
+        StringBuilder result = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            if (cp >= '0' && cp <= '9') result.append('0');
+            else result.appendCodePoint(cp);
+            i += Character.charCount(cp);
+        }
+        return result.toString();
     }
 
     public int layoutCacheSize() {
@@ -297,6 +492,28 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
 
     public long layoutCacheEvictions() {
         return layoutCacheEvictions;
+    }
+
+    public int fixedLayoutProfileSize() {
+        return fixedLayoutCache.size();
+    }
+
+    public void setFixedLayoutOptimization(boolean enabled) {
+        fixedLayoutOptimization = enabled;
+    }
+
+    public boolean isFixedLayoutOptimization() {
+        return fixedLayoutOptimization;
+    }
+
+    public void clearLayoutCaches() {
+        layoutCache.clear();
+        fixedLayoutCache.clear();
+    }
+
+    @Override
+    public void close() {
+        clearLayoutCaches();
     }
 
     private static final class LayoutKey {
@@ -323,6 +540,42 @@ public class AwtTtfGlyphProvider implements GlyphProvider {
         @Override
         public int hashCode() {
             return 31 * text.hashCode() + (bold ? 1 : 0);
+        }
+    }
+
+    private static final class FixedLayoutKey {
+        private final String skeleton;
+        private final boolean bold;
+        private final boolean containsDigits;
+
+        private FixedLayoutKey(String skeleton, boolean bold) {
+            this.skeleton = skeleton;
+            this.bold = bold;
+            this.containsDigits = skeleton.indexOf('0') >= 0;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof FixedLayoutKey other)) return false;
+            return bold == other.bold && skeleton.equals(other.skeleton);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * skeleton.hashCode() + (bold ? 1 : 0);
+        }
+    }
+
+    private static final class FixedLayoutProfile {
+        private static final FixedLayoutProfile INVALID = new FixedLayoutProfile(false, 0.0F);
+
+        private final boolean valid;
+        private final float advance;
+
+        private FixedLayoutProfile(boolean valid, float advance) {
+            this.valid = valid;
+            this.advance = advance;
         }
     }
 
