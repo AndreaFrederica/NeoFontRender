@@ -9,6 +9,7 @@ import net.minecraft.world.storage.WorldInfo;
 import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import neofontrender.addons.loading.WorldLoadingSnapshotManager;
 import neofontrender.addons.ui.NfrUiEnhancements;
 
 public enum LastPlayedGameManager {
@@ -55,7 +56,19 @@ public enum LastPlayedGameManager {
         if (target.kind() == LastPlayedTarget.Kind.SINGLEPLAYER) {
             mc.launchIntegratedServer(target.identifier(), target.displayName(), null);
         } else {
-            FMLClientHandler.instance().connectToServer(parent, savedServer(mc, target));
+            try {
+                // GuiConnecting may not publish currentServerData until after the
+                // connection screen opens; preload the client-owned loading frame
+                // using the persisted address for the direct Continue path.
+                WorldLoadingSnapshotManager.INSTANCE.prepareForServer(target.address());
+                FMLClientHandler.instance().connectToServer(parent, savedServer(mc, target));
+            } catch (RuntimeException exception) {
+                // A stale or malformed server entry must fall back to the menu instead of
+                // escaping the GUI event and terminating the client.
+                NfrUiEnhancements.LOGGER.warn("Could not resume last server {}",
+                        target.address(), exception);
+                return false;
+            }
         }
         return true;
     }

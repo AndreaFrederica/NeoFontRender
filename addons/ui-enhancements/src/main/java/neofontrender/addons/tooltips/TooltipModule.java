@@ -58,6 +58,7 @@ public final class TooltipModule implements UiEnhancementModule {
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new ItemZoomOverlay());
         MinecraftForge.EVENT_BUS.register(new AdvancedTooltipHandler());
+        MinecraftForge.EVENT_BUS.register(new RpgHudLiteTooltipCompat());
         MinecraftForge.EVENT_BUS.register(new ModernTooltipHandler());
     }
 

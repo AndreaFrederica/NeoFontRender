@@ -22,6 +22,7 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import neofontrender.addons.mixin.AccessorShaderGroup;
+import neofontrender.addons.hud.compositor.HudGlStateSnapshot;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import org.apache.logging.log4j.Level;
 
@@ -69,8 +70,13 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
 
         float progress = overlayTransition.progress(System.nanoTime());
         if (progress <= 0.0F) return;
-        drawGradient(event.getResolution().getScaledWidth(),
-                event.getResolution().getScaledHeight(), progress);
+        // The gradient is emitted after the HUD and immediately before ModularUI's screen
+        // draw.  Keep its fixed-function state local; a clicked ModularUI button can otherwise
+        // make the next blur pass inherit the gradient's blend/scissor state for one frame.
+        try (HudGlStateSnapshot ignored = HudGlStateSnapshot.capture()) {
+            drawGradient(event.getResolution().getScaledWidth(),
+                    event.getResolution().getScaledHeight(), progress);
+        }
     }
 
     /**
@@ -126,7 +132,7 @@ public enum ScreenEffectsRenderer implements IResourceManagerReloadListener {
             return;
         }
 
-        try {
+        try (HudGlStateSnapshot ignored = HudGlStateSnapshot.capture()) {
             updateParameters(group, effectiveBlurRadius(ScreenEffectsConfig.blurRadius), progress);
             group.render(partialTicks);
         } catch (Throwable throwable) {

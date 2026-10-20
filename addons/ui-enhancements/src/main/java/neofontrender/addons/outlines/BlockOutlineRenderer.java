@@ -2,7 +2,10 @@ package neofontrender.addons.outlines;
 
 import icyllis.arc3d.core.Color;
 import icyllis.arc3d.core.MathUtil;
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.RenderGlobal;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.math.AxisAlignedBB;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import org.lwjgl.BufferUtils;
@@ -264,7 +267,7 @@ public final class BlockOutlineRenderer {
         try {
             GL11.glLineWidth(clampNativeWidth(outline.lineWidth));
             float brightness = Math.min(1.0F, brightness());
-            RenderGlobal.drawSelectionBoundingBox(box,
+            drawNativeEdges(box,
                     Math.min(1.0F, outline.red * brightness),
                     Math.min(1.0F, outline.green * brightness),
                     Math.min(1.0F, outline.blue * brightness),
@@ -272,6 +275,29 @@ public final class BlockOutlineRenderer {
         } finally {
             GL11.glLineWidth(previousWidth);
         }
+    }
+
+    /**
+     * Draw each box edge as an independent line segment.  Vanilla emits one
+     * {@code GL_LINE_STRIP} and inserts transparent vertices between the
+     * disconnected portions of the box.  A shader that smoothly interpolates
+     * vertex colors can turn those transparent sentinels into visible diagonal
+     * connections.  {@code GL_LINES} has no implicit segment between adjacent
+     * edges, so there is nothing to hide and the result remains stable under
+     * Actinium's color interpolation.
+     */
+    private static void drawNativeEdges(AxisAlignedBB box, float red, float green,
+                                        float blue, float alpha) {
+        double[][] corners = corners(box);
+        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        buffer.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
+        for (int[] edge : EDGES) {
+            double[] start = corners[edge[0]];
+            double[] end = corners[edge[1]];
+            buffer.pos(start[0], start[1], start[2]).color(red, green, blue, alpha).endVertex();
+            buffer.pos(end[0], end[1], end[2]).color(red, green, blue, alpha).endVertex();
+        }
+        Tessellator.getInstance().draw();
     }
 
     private static float pulseAlpha() {

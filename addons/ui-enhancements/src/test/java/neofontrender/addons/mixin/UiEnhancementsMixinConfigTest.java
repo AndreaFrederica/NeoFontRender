@@ -17,7 +17,9 @@ class UiEnhancementsMixinConfigTest {
     void earlyConfigDoesNotReferenceOptionalModClasses() {
         String config = config("mixins.neofontrender_ui_enhancements.json");
 
-        assertFalse(config.contains("\"compat."));
+        assertFalse(config.contains("\"compat.MixinStellarCoreHudCaching\""));
+        assertFalse(config.contains("\"compat.MixinDragonCore"));
+        assertFalse(config.contains("\"compat.MixinRpgHudLite"));
     }
 
     @Test

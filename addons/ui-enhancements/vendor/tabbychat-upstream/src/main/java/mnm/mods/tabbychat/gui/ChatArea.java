@@ -147,9 +147,13 @@ public class ChatArea extends GuiComponent implements ReceivedChat {
         List<Message> visible = getVisibleChat();
         int height = visibleHeight(visible);
         ChatVisibility vis = TabbyChat.getInstance().settings.advanced.visibility.get();
+        boolean chatOpen = ChatHudWindowController.isChatExpanded();
 
-        return mc.gameSettings.chatVisibility != EntityPlayer.EnumChatVisibility.HIDDEN
-                && (ChatHudWindowController.isChatExpanded() || vis == ChatVisibility.ALWAYS || height != 0);
+        // The vanilla HUD visibility option only controls the in-world chat overlay.  Once the
+        // chat screen (including DragonCore's GuiChat wrapper) is explicitly open, hiding the
+        // ChatArea would leave only TabbyChat's tray and input field on screen.
+        return (chatOpen || mc.gameSettings.chatVisibility != EntityPlayer.EnumChatVisibility.HIDDEN)
+                && (chatOpen || vis == ChatVisibility.ALWAYS || height != 0);
     }
 
     @Override
