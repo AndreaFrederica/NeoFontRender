@@ -65,8 +65,11 @@ pub(crate) struct CharacterProfile {
     singles: Vec<Option<Shape>>,
     ascii_monospace: bool,
     tabular_digits: bool,
-    cjk_singles: Mutex<HashMap<char, Option<Shape>>>,
+    single_cache: Mutex<HashMap<char, Option<Shape>>>,
 }
+
+pub(crate) const PROFILE_ASCII_MONOSPACE: u32 = 1;
+pub(crate) const PROFILE_TABULAR_DIGITS: u32 = 2;
 
 impl CharacterProfile {
     pub(crate) fn new(fonts: &mut FontSystem, attrs: &Attrs, size: f32) -> Self {
@@ -84,21 +87,29 @@ impl CharacterProfile {
         };
         let ascii_monospace = uniform(b' ', b'~');
         let tabular_digits = uniform(b'0', b'9');
-        Self { singles, ascii_monospace, tabular_digits, cjk_singles: Mutex::new(HashMap::new()) }
+        Self { singles, ascii_monospace, tabular_digits, single_cache: Mutex::new(HashMap::new()) }
     }
 
-    fn cjk_single(&self, fonts: &mut FontSystem, attrs: &Attrs, size: f32, c: char) -> Option<Shape> {
-        let mut cache = self.cjk_singles.lock().ok()?;
+    fn single(&self, fonts: &mut FontSystem, attrs: &Attrs, size: f32, c: char) -> Option<Shape> {
+        let mut cache = self.single_cache.lock().ok()?;
         if cache.len() >= 2048 && !cache.contains_key(&c) {
             if let Some(victim) = cache.keys().next().copied() { cache.remove(&victim); }
         }
         cache.entry(c).or_insert_with(|| shape(fonts, attrs, size, &c.to_string())).clone()
     }
 
+    fn cached_single(&self, fonts: &mut FontSystem, attrs: &Attrs, size: f32, c: char) -> Option<Shape> {
+        if (' '..='~').contains(&c) {
+            self.singles[(c as u8 - b' ') as usize].clone()
+        } else {
+            self.single(fonts, attrs, size, c)
+        }
+    }
+
     fn fixed_cjk(&self, fonts: &mut FontSystem, attrs: &Attrs, size: f32, c: char) -> bool {
         let Some(reference) = cjk_reference(c) else { return false; };
-        let Some(single) = self.cjk_single(fonts, attrs, size, c) else { return false; };
-        let Some(reference) = self.cjk_single(fonts, attrs, size, reference) else { return false; };
+        let Some(single) = self.cached_single(fonts, attrs, size, c) else { return false; };
+        let Some(reference) = self.single(fonts, attrs, size, reference) else { return false; };
         single.glyphs.len() == 1 && reference.glyphs.len() == 1 && reference.width > 0.0
             && single.glyphs[0].glyph_id != 0 && reference.glyphs[0].glyph_id != 0
             && single.glyphs[0].font_id == reference.glyphs[0].font_id
@@ -106,18 +117,49 @@ impl CharacterProfile {
             && near(single.width, reference.width)
     }
 
+    /// Probe a non-ASCII/non-CJK code point against a nearby character in the same run.
+    /// The final shaping comparison still decides whether the split is usable, so an
+    /// accidental equal advance in a proportional or contextual font is harmless.
+    fn fixed_against(&self, fonts: &mut FontSystem, attrs: &Attrs, size: f32,
+                     c: char, reference: &Shape) -> bool {
+        if c.is_control() || is_non_spacing_sequence(c) {
+            return false;
+        }
+        if reference.glyphs.len() != 1 || reference.width <= 0.0 {
+            return false;
+        }
+        let Some(single) = self.cached_single(fonts, attrs, size, c) else { return false; };
+        self.fixed_against_shape(c, &single, reference)
+    }
+
+    fn fixed_against_shape(&self, c: char, single: &Shape, reference: &Shape) -> bool {
+        single.glyphs.len() == 1 && single.glyphs[0].glyph_id != 0
+                && single.glyphs[0].start == 0 && single.glyphs[0].end == c.len_utf8()
+                && single.glyphs[0].font_id == reference.glyphs[0].font_id
+                && near(single.width, reference.width)
+    }
+
     pub(crate) fn boundaries(&self, fonts: &mut FontSystem, attrs: &Attrs, size: f32, text: &str) -> Vec<usize> {
         if text.chars().count() < 2 || text.chars().count() > 256
-                || !text.chars().all(|c| (' '..='~').contains(&c) || cjk_reference(c).is_some()) {
+                || !text.chars().all(|c| (' '..='~').contains(&c) || is_fixed_candidate(c)) {
             return vec![];
         }
         let mut points = vec![0];
+        let mut first_single: Option<Shape> = None;
         for (i, c) in text.char_indices() {
+            let current_single = self.cached_single(fonts, attrs, size, c);
             let eligible = if c.is_ascii() {
                 self.ascii_monospace || (self.tabular_digits && c.is_ascii_digit())
+                    || current_single.as_ref().zip(first_single.as_ref()).is_some_and(|(single, reference)|
+                        self.fixed_against_shape(c, single, reference))
             } else {
                 self.fixed_cjk(fonts, attrs, size, c)
+                    || first_single.as_ref().is_some_and(|reference|
+                        self.fixed_against(fonts, attrs, size, c, reference))
             };
+            if first_single.is_none() {
+                first_single = current_single;
+            }
             if eligible {
                 if *points.last().unwrap() != i { points.push(i); }
                 points.push(i + c.len_utf8());
@@ -127,6 +169,26 @@ impl CharacterProfile {
         if points.len() <= 2 { vec![] } else { points }
     }
 
+    pub(crate) fn flags(&self) -> u32 {
+        (if self.ascii_monospace { PROFILE_ASCII_MONOSPACE } else { 0 })
+            | (if self.tabular_digits { PROFILE_TABULAR_DIGITS } else { 0 })
+    }
+
+}
+
+fn is_non_spacing_sequence(c: char) -> bool {
+    matches!(c,
+        '\u{0300}'..='\u{036f}' | '\u{1ab0}'..='\u{1aff}' |
+        '\u{1dc0}'..='\u{1dff}' | '\u{20d0}'..='\u{20ff}' |
+        '\u{fe00}'..='\u{fe0f}' | '\u{e0100}'..='\u{e01ef}' |
+        '\u{200c}' | '\u{200d}' | '\u{202a}'..='\u{202e}' |
+        '\u{2066}'..='\u{2069}' | '\u{1f3fb}'..='\u{1f3ff}')
+}
+
+fn is_fixed_candidate(c: char) -> bool {
+    !c.is_control() && !is_non_spacing_sequence(c)
+            && !(('\u{1f000}'..='\u{1faff}').contains(&c)
+                || ('\u{2600}'..='\u{27bf}').contains(&c))
 }
 
 /// Fullwidth punctuation uses the Han cell. Exclude halfwidth kana and combining/variation
@@ -167,7 +229,7 @@ fn first_mismatch(fonts: &mut FontSystem, attrs: &Attrs, size: f32, text: &str,
         let part = if piece.len() == 1 {
             profile.singles[(piece.as_bytes()[0] - b' ') as usize].as_ref()
         } else if piece.chars().count() == 1 {
-            owned = profile.cjk_single(fonts, attrs, size, piece.chars().next().unwrap());
+            owned = profile.single(fonts, attrs, size, piece.chars().next().unwrap());
             owned.as_ref()
         } else {
             owned = shape(fonts, attrs, size, piece);

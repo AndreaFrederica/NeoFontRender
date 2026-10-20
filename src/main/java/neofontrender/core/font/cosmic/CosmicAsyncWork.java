@@ -1,6 +1,7 @@
 package neofontrender.core.font.cosmic;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -10,37 +11,51 @@ import java.util.function.Supplier;
 /** Bounded CPU-only mailbox. The worker exclusively owns the context, including destruction. */
 final class CosmicAsyncWork<C> implements AutoCloseable {
     record Payload(Object value, long bytes) {}
-    record Stats(int queued, int running, int ready, long bytes, long completed,
-                 long dropped, long failed, boolean unavailable) {}
+    record Stats(int queued, int running, int ready, int capacity, long bytes, long maxBytes,
+                 long completed, long dropped, long discardedReady, long failed,
+                 boolean unavailable) {}
 
     private final Supplier<C> create;
     private final Consumer<C> destroy;
     private final int capacity;
     private final long maxBytes;
+    private final int workerCount;
     private final Map<Object, Job> jobs = new LinkedHashMap<>(128, 0.75F, true);
     private final ArrayDeque<Job> queue = new ArrayDeque<>();
-    private Thread thread;
+    private final ArrayList<Thread> threads = new ArrayList<>();
     private boolean closed;
     private boolean unavailable;
-    private Job running;
-    private long readyBytes, completed, dropped, failed;
+    private int running;
+    private long readyBytes, completed, dropped, discardedReady, failed;
 
     private final class Job {
         final Object key;
         Function<C, Payload> action;
         Payload result;
         boolean failed;
+        boolean running;
         long requested = System.nanoTime();
         Job(Object key, Function<C, Payload> action) { this.key = key; this.action = action; }
     }
 
     CosmicAsyncWork(Supplier<C> create, Consumer<C> destroy) {
-        this(create, destroy, 128, 32L * 1024 * 1024);
+        this(create, destroy, 1, 128, 32L * 1024 * 1024);
     }
 
+    CosmicAsyncWork(Supplier<C> create, Consumer<C> destroy, int workerCount) {
+        this(create, destroy, workerCount, 128, 32L * 1024 * 1024);
+    }
+
+    /** Compatibility constructor retained for the focused mailbox tests. */
     CosmicAsyncWork(Supplier<C> create, Consumer<C> destroy, int capacity, long maxBytes) {
+        this(create, destroy, 1, capacity, maxBytes);
+    }
+
+    CosmicAsyncWork(Supplier<C> create, Consumer<C> destroy, int workerCount,
+                    int capacity, long maxBytes) {
         this.create = create;
         this.destroy = destroy;
+        this.workerCount = Math.max(1, Math.min(8, workerCount));
         this.capacity = Math.max(2, capacity);
         this.maxBytes = Math.max(1, maxBytes);
     }
@@ -50,6 +65,9 @@ final class CosmicAsyncWork<C> implements AutoCloseable {
         Job existing = jobs.get(key);
         if (existing != null) { existing.requested = System.nanoTime(); return; }
         while (jobs.size() >= capacity) {
+            // Completed payloads for one-shot text are useless once their caller has moved on.
+            // Reclaim those slots before applying the two-second admission guard to live work.
+            if (evict(true)) continue;
             // Let admitted visible text finish even on screens with more unique words than slots.
             // Replacing fresh jobs on every miss can otherwise starve the entire screen forever.
             if (!evict(false)) { dropped++; return; }
@@ -57,13 +75,16 @@ final class CosmicAsyncWork<C> implements AutoCloseable {
         Job job = new Job(key, action);
         jobs.put(key, job);
         queue.addLast(job);
-        if (thread == null) {
-            thread = new Thread(this::run, "NFR Cosmic Rasterizer");
+        while (threads.size() < workerCount) {
+            Thread thread = new Thread(this::run, "NFR Cosmic Rasterizer-" + (threads.size() + 1));
             thread.setDaemon(true);
             thread.setPriority(Thread.NORM_PRIORITY - 1);
+            threads.add(thread);
             thread.start();
         }
-        notifyAll();
+        // Wake one consumer. A consumer that takes a job below hands the wake-up to the next
+        // consumer when more work is queued, avoiding a worker-count-sized thundering herd.
+        notify();
     }
 
     /** Transfers completed CPU data to the caller. Never waits for a job or runs it inline. */
@@ -84,12 +105,16 @@ final class CosmicAsyncWork<C> implements AutoCloseable {
         var iterator = jobs.values().iterator();
         while (iterator.hasNext()) {
             Job job = iterator.next();
-            if (job == running || (completedOnly && job.result == null)) continue;
+            if (job.running || (completedOnly && job.result == null)) continue;
             if (!completedOnly && !job.failed && System.nanoTime() - job.requested < 2_000_000_000L) continue;
             iterator.remove();
             queue.remove(job);
-            if (job.result != null) readyBytes -= job.result.bytes;
-            dropped++;
+            if (job.result != null) {
+                readyBytes -= job.result.bytes;
+                discardedReady++;
+            } else {
+                dropped++;
+            }
             return true;
         }
         return false;
@@ -111,7 +136,9 @@ final class CosmicAsyncWork<C> implements AutoCloseable {
                         dropped++;
                         continue;
                     }
-                    running = job;
+                    job.running = true;
+                    running++;
+                    if (!queue.isEmpty()) notify();
                 }
                 Payload result = null;
                 boolean failure = false;
@@ -122,7 +149,8 @@ final class CosmicAsyncWork<C> implements AutoCloseable {
                     failure = true;
                 }
                 synchronized (this) {
-                    running = null;
+                    running--;
+                    job.running = false;
                     job.action = null;
                     if (closed) return;
                     if (failure) { job.failed = true; failed++; }
@@ -142,7 +170,7 @@ final class CosmicAsyncWork<C> implements AutoCloseable {
             // close() may run while native code is executing. Only this thread can free its handle.
             if (context != null) destroy.accept(context);
             synchronized (this) {
-                running = null;
+                running = Math.max(0, running - 1);
                 if (!closed) unavailable = true;
                 jobs.clear();
                 queue.clear();
@@ -154,8 +182,8 @@ final class CosmicAsyncWork<C> implements AutoCloseable {
     synchronized Stats stats() {
         int ready = 0;
         for (Job job : jobs.values()) if (job.result != null) ready++;
-        return new Stats(queue.size(), running == null ? 0 : 1, ready, readyBytes,
-                completed, dropped, failed, unavailable);
+        return new Stats(queue.size(), running, ready, capacity, readyBytes, maxBytes,
+                completed, dropped, discardedReady, failed, unavailable);
     }
 
     @Override public synchronized void close() {
@@ -163,7 +191,7 @@ final class CosmicAsyncWork<C> implements AutoCloseable {
         jobs.clear();
         queue.clear();
         readyBytes = 0;
-        if (thread != null) thread.interrupt();
+        for (Thread thread : threads) thread.interrupt();
         notifyAll();
     }
 }

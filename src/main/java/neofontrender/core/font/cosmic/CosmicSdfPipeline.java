@@ -14,20 +14,43 @@ import org.lwjgl.opengl.GL20;
 /** Fixed-pipeline-compatible shader for drawing a single-channel SDF texture. */
 final class CosmicSdfPipeline {
     private static int program;
+    private static int msdfProgram;
+    private static int alphaProgram;
     private static int textureUniform = -1;
     private static int colorUniform = -1;
     private static int softnessUniform = -1;
     private static boolean unavailable;
+    private static boolean msdfUnavailable;
+    private static boolean alphaUnavailable;
+    private static int activeTextureUniform = -1;
+    private static int activeColorUniform = -1;
+    private static int activeSoftnessUniform = -1;
 
     private CosmicSdfPipeline() {
     }
 
     static boolean isAvailable() {
-        return getOrCreateProgram() != 0;
+        return getOrCreateProgram(false) != 0;
+    }
+
+    static boolean isMsdfAvailable() {
+        return getOrCreateProgram(true) != 0;
     }
 
     static State begin() {
-        int shader = getOrCreateProgram();
+        return begin(false);
+    }
+
+    static State begin(boolean msdf) {
+        return begin(msdf, false);
+    }
+
+    static State beginAlpha() {
+        return begin(false, true);
+    }
+
+    private static State begin(boolean msdf, boolean alpha) {
+        int shader = getOrCreateProgram(msdf, alpha);
         if (shader == 0) {
             State state = new State();
             state.noop = true;
@@ -50,33 +73,112 @@ final class CosmicSdfPipeline {
         GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
                 FramebufferAlphaBlend.SOURCE_FACTOR, FramebufferAlphaBlend.DESTINATION_FACTOR);
         GL20.glUseProgram(shader);
-        if (textureUniform >= 0) GL20.glUniform1i(textureUniform, 0);
+        activeTextureUniform = alpha ? alphaTextureUniform : msdf ? msdfTextureUniform : textureUniform;
+        activeColorUniform = alpha ? alphaColorUniform : msdf ? msdfColorUniform : colorUniform;
+        activeSoftnessUniform = alpha ? -1 : msdf ? msdfSoftnessUniform : softnessUniform;
+        if (activeTextureUniform >= 0) GL20.glUniform1i(activeTextureUniform, 0);
         state.shaderChanged = true;
         return state;
     }
 
     static void draw(float left, float top, float width, float height, float r, float g, float b,
                      float alpha, float softness) {
-        if (colorUniform >= 0) GL20.glUniform4f(colorUniform, r, g, b, alpha);
-        if (softnessUniform >= 0) GL20.glUniform1f(softnessUniform, softness);
+        drawRegion(left, top, width, height, 0.0F, 0.0F, 1.0F, 1.0F,
+                r, g, b, alpha, softness);
+    }
+
+    static void draw(boolean msdf, float left, float top, float width, float height,
+                     float r, float g, float b, float alpha, float softness) {
+        drawRegion(left, top, width, height, 0.0F, 0.0F, 1.0F, 1.0F,
+                r, g, b, alpha, softness);
+    }
+
+    static void drawAlpha(float left, float top, float width, float height,
+                          float r, float g, float b, float alpha) {
+        drawRegion(left, top, width, height, 0.0F, 0.0F, 1.0F, 1.0F,
+                r, g, b, alpha, 0.0F);
+    }
+
+    static void drawRegion(float left, float top, float width, float height,
+                           float u1, float v1, float u2, float v2,
+                           float r, float g, float b, float alpha, float softness) {
+        setUniforms(r, g, b, alpha, softness);
         Tessellator tessellator = Tessellator.getInstance();
         BufferBuilder buffer = tessellator.getBuffer();
-        buffer.begin(7, DefaultVertexFormats.POSITION_TEX);
-        buffer.pos(left, top, 0).tex(0, 0).endVertex();
-        buffer.pos(left, top + height, 0).tex(0, 1).endVertex();
-        buffer.pos(left + width, top + height, 0).tex(1, 1).endVertex();
-        buffer.pos(left + width, top, 0).tex(1, 0).endVertex();
+        beginQuads(buffer);
+        quad(buffer, left, top, width, height, u1, v1, u2, v2);
         tessellator.draw();
     }
 
-    private static int getOrCreateProgram() {
-        if (unavailable) return 0;
-        if (program != 0) return program;
+    static void setUniforms(float r, float g, float b, float alpha, float softness) {
+        if (activeColorUniform >= 0) GL20.glUniform4f(activeColorUniform, r, g, b, alpha);
+        if (activeSoftnessUniform >= 0) GL20.glUniform1f(activeSoftnessUniform, softness);
+    }
+
+    static BufferBuilder beginBatch() {
+        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        beginQuads(buffer);
+        return buffer;
+    }
+
+    static void addQuad(BufferBuilder buffer, float left, float top, float width, float height,
+                        float u1, float v1, float u2, float v2) {
+        quad(buffer, left, top, width, height, u1, v1, u2, v2);
+    }
+
+    static void endBatch() {
+        Tessellator.getInstance().draw();
+    }
+
+    private static void beginQuads(BufferBuilder buffer) {
+        buffer.begin(7, DefaultVertexFormats.POSITION_TEX);
+    }
+
+    private static void quad(BufferBuilder buffer, float left, float top, float width, float height,
+                             float u1, float v1, float u2, float v2) {
+        buffer.pos(left, top, 0).tex(u1, v1).endVertex();
+        buffer.pos(left, top + height, 0).tex(u1, v2).endVertex();
+        buffer.pos(left + width, top + height, 0).tex(u2, v2).endVertex();
+        buffer.pos(left + width, top, 0).tex(u2, v1).endVertex();
+    }
+
+    private static int getOrCreateProgram() { return getOrCreateProgram(false, false); }
+
+    private static int getOrCreateProgram(boolean msdf) {
+        return getOrCreateProgram(msdf, false);
+    }
+
+    private static int getOrCreateProgram(boolean msdf, boolean alpha) {
+        if (alpha ? alphaUnavailable : msdf ? msdfUnavailable : unavailable) return 0;
+        if (alpha ? alphaProgram != 0 : msdf ? msdfProgram != 0 : program != 0) {
+            return alpha ? alphaProgram : msdf ? msdfProgram : program;
+        }
         try {
             int vertex = compile(GL20.GL_VERTEX_SHADER,
                     "#version 110\n" +
                             "void main() { gl_Position = ftransform(); gl_TexCoord[0] = gl_MultiTexCoord0; }\n");
-            int fragment = compile(GL20.GL_FRAGMENT_SHADER,
+            String fragmentSource = alpha
+                    ? "#version 110\n" +
+                    "uniform sampler2D sdfTexture;\n" +
+                    "uniform vec4 textColor;\n" +
+                    "void main() {\n" +
+                    "  float coverage = texture2D(sdfTexture, gl_TexCoord[0].st).r;\n" +
+                    "  gl_FragColor = vec4(textColor.rgb, textColor.a * coverage);\n" +
+                    "}\n"
+                    : msdf
+                    ? "#version 110\n" +
+                    "uniform sampler2D sdfTexture;\n" +
+                    "uniform vec4 textColor;\n" +
+                    "uniform float sdfSoftness;\n" +
+                    "float median3(float a, float b, float c) { return max(min(a,b), min(max(a,b),c)); }\n" +
+                    "void main() {\n" +
+                    "  vec3 sample = texture2D(sdfTexture, gl_TexCoord[0].st).rgb;\n" +
+                    "  float distance = median3(sample.r, sample.g, sample.b);\n" +
+                    "  float smoothing = max(fwidth(distance) * sdfSoftness, 0.015625);\n" +
+                    "  float coverage = smoothstep(0.5 - smoothing, 0.5 + smoothing, distance);\n" +
+                    "  gl_FragColor = vec4(textColor.rgb, textColor.a * coverage);\n" +
+                    "}\n"
+                    :
                     "#version 110\n" +
                             "uniform sampler2D sdfTexture;\n" +
                             "uniform vec4 textColor;\n" +
@@ -86,9 +188,10 @@ final class CosmicSdfPipeline {
                             "  float smoothing = max(fwidth(distance) * sdfSoftness, 0.015625);\n" +
                             "  float coverage = smoothstep(0.5 - smoothing, 0.5 + smoothing, distance);\n" +
                             "  gl_FragColor = vec4(textColor.rgb, textColor.a * coverage);\n" +
-                            "}\n");
+                            "}\n";
             int created = GL20.glCreateProgram();
             GL20.glAttachShader(created, vertex);
+            int fragment = compile(GL20.GL_FRAGMENT_SHADER, fragmentSource);
             GL20.glAttachShader(created, fragment);
             GL20.glLinkProgram(created);
             if (GL20.glGetProgrami(created, GL20.GL_LINK_STATUS) == 0) {
@@ -96,17 +199,29 @@ final class CosmicSdfPipeline {
             }
             GL20.glDeleteShader(vertex);
             GL20.glDeleteShader(fragment);
-            textureUniform = GL20.glGetUniformLocation(created, "sdfTexture");
-            colorUniform = GL20.glGetUniformLocation(created, "textColor");
-            softnessUniform = GL20.glGetUniformLocation(created, "sdfSoftness");
-            program = created;
+            int texture = GL20.glGetUniformLocation(created, "sdfTexture");
+            int color = GL20.glGetUniformLocation(created, "textColor");
+            int softness = GL20.glGetUniformLocation(created, "sdfSoftness");
+            if (alpha) {
+                alphaTextureUniform = texture; alphaColorUniform = color; alphaProgram = created;
+            } else if (msdf) {
+                msdfTextureUniform = texture; msdfColorUniform = color; msdfSoftnessUniform = softness; msdfProgram = created;
+            } else {
+                textureUniform = texture; colorUniform = color; softnessUniform = softness; program = created;
+            }
             return created;
         } catch (Throwable error) {
-            unavailable = true;
+            if (alpha) alphaUnavailable = true; else if (msdf) msdfUnavailable = true; else unavailable = true;
             NeoFontRender.LOGGER.warn("Cosmic SDF shader is unavailable; using RGBA glyphs", error);
             return 0;
         }
     }
+
+    private static int msdfTextureUniform = -1;
+    private static int msdfColorUniform = -1;
+    private static int msdfSoftnessUniform = -1;
+    private static int alphaTextureUniform = -1;
+    private static int alphaColorUniform = -1;
 
     private static int compile(int type, String source) {
         int shader = GL20.glCreateShader(type);

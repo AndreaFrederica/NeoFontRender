@@ -110,4 +110,23 @@ class CosmicMonospaceComposerTest {
         }
         assertEquals(0, composer.mergedDraws());
     }
+
+    @Test
+    void tabularDigitsDoNotAssumeTheRestOfAsciiIsMonospace() {
+        AtomicInteger calls = new AtomicInteger();
+        CosmicMonospaceComposer composer = new CosmicMonospaceComposer(new CosmicMonospaceComposer.Probe() {
+            @Override
+            public int[] splitPoints(String text, int flags, float size, float scale) {
+                calls.incrementAndGet();
+                return new int[]{1, 2};
+            }
+
+            @Override
+            public int profileFlags(int flags, float size, float scale) {
+                return CosmicNative.PROFILE_TABULAR_DIGITS;
+            }
+        }, () -> 0L);
+        assertEquals(List.of("A", "B"), composer.split("AB", 0, 9, 12, true));
+        assertEquals(1, calls.get());
+    }
 }

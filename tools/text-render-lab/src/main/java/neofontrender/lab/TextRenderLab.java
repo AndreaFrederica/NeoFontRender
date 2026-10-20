@@ -120,11 +120,25 @@ public final class TextRenderLab {
     public static void main(String[] args) {
         List<Path> pluginPaths = new ArrayList<>();
         boolean selfTest = false;
+        boolean rasterBenchmark = false;
+        int rasterIterations = 200;
         for (int index = 0; index < args.length; index++) {
             if ("--self-test".equals(args[index])) selfTest = true;
+            else if ("--benchmark-raster".equals(args[index])) {
+                rasterBenchmark = true;
+                if (index + 1 < args.length) {
+                    try { rasterIterations = Integer.parseInt(args[++index]); }
+                    catch (NumberFormatException ignored) { /* keep default */ }
+                }
+            }
             else if ("--plugin".equals(args[index]) && index + 1 < args.length) {
                 pluginPaths.add(Path.of(args[++index]));
             }
+        }
+        if (rasterBenchmark) {
+            System.setProperty("java.awt.headless", "true");
+            StandaloneRasterBenchmark.run(Math.max(20, Math.min(20_000, rasterIterations)));
+            return;
         }
         if (selfTest) {
             System.setProperty("java.awt.headless", "true");

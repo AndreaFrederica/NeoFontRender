@@ -58,6 +58,7 @@ public class ClientProxy extends CommonProxy {
         }
         NeofontrenderBranding.applyModMetadata();
         NeofontrenderKeyHandler.init();
+        MinecraftForge.EVENT_BUS.register(new CosmicCacheOverlayRenderer());
         MinecraftForge.EVENT_BUS.register(new NeofontrenderMainMenuBranding());
         MinecraftForge.EVENT_BUS.register(new NeofontrenderOptionsButtonHandler());
         ClientCommandHandler.instance.registerCommand(new NeofontrenderCommand());

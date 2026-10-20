@@ -2,7 +2,10 @@ package neofontrender.core.font.cosmic;
 
 /** JNI ABI shared with NeoFontRender's production Cosmic backend. */
 public final class CosmicNative {
-    public static final int ABI_VERSION = 13;
+    /** ABI 15 is shared with the production native library. */
+    public static final int ABI_VERSION = 15;
+    public static final int RASTER_MODEL_PAYLOAD_ALPHA8 = 32;
+    public static final int RASTER_MODEL_PAYLOAD_RGB8 = 64;
 
     private CosmicNative() {}
 
@@ -20,6 +23,14 @@ public final class CosmicNative {
 
     public static native byte[] renderSized(long engine, String text, int argb, int styleFlags,
                                             float fontSize, float rasterScale);
+
+    public static native byte[] renderOutlineSdfSized(long engine, String text, int styleFlags,
+                                                       float fontSize, float rasterScale,
+                                                       int distanceRange);
+
+    public static native byte[] renderMsdfSized(long engine, String text, int styleFlags,
+                                                 float fontSize, float rasterScale,
+                                                 int distanceRange);
 
     public static native void destroyEngine(long engine);
 

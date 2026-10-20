@@ -10,9 +10,14 @@ import java.util.function.LongSupplier;
 final class CosmicMonospaceComposer {
     interface Probe {
         int[] splitPoints(String text, int flags, float size, float scale);
+
+        default int profileFlags(int flags, float size, float scale) {
+            return 0;
+        }
     }
 
     private record Key(String text, int flags, float size, float scale) {}
+    private record ProfileKey(int flags, float size, float scale) {}
 
     // A token bucket limits sustained synchronous probing to 0.3 ms per 16.7 ms.
     // A cold native call cannot be preempted; its entire cost becomes debt before another probe.
@@ -22,20 +27,18 @@ final class CosmicMonospaceComposer {
     private static final long DRAW_GAP_NANOS = 100_000_000L;
 
     private static final class Plan {
-        final List<String> pieces;
-        final List<String> whole;
+        final int[] endpoints;
         long firstDraw;
         long lastDraw;
         int draws;
         boolean merged;
 
-        Plan(String text, List<String> pieces) {
-            this.pieces = pieces;
-            this.whole = List.of(text);
+        Plan(int[] endpoints) {
+            this.endpoints = endpoints;
         }
 
-        List<String> use(long now, boolean rendering) {
-            if (!merged && rendering && pieces.size() > 1) {
+        List<String> use(String text, long now, boolean rendering) {
+            if (!merged && rendering && endpoints.length > 0) {
                 if (draws == 0 || now - lastDraw > DRAW_GAP_NANOS) {
                     firstDraw = now;
                     draws = 0;
@@ -44,7 +47,16 @@ final class CosmicMonospaceComposer {
                 draws++;
                 merged = draws >= 8 && now - firstDraw >= STABLE_NANOS;
             }
-            return merged ? whole : pieces;
+            if (merged) return List.of(text);
+            List<String> pieces = new ArrayList<>(endpoints.length + 1);
+            int start = 0;
+            for (int end : endpoints) {
+                if (end <= start || end > text.length()) return List.of(text);
+                pieces.add(text.substring(start, end));
+                start = end;
+            }
+            if (start != text.length()) return List.of(text);
+            return List.copyOf(pieces);
         }
     }
 
@@ -60,6 +72,12 @@ final class CosmicMonospaceComposer {
         @Override
         protected boolean removeEldestEntry(Map.Entry<Key, Plan> eldest) {
             return size() > 2048;
+        }
+    };
+    private final Map<ProfileKey, Integer> profileFlags = new LinkedHashMap<>(16, 0.75F, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<ProfileKey, Integer> eldest) {
+            return size() > 32;
         }
     };
 
@@ -84,14 +102,26 @@ final class CosmicMonospaceComposer {
     List<String> split(String text, int flags, float size, float scale, boolean enabled, boolean rendering,
                        boolean asynchronous) {
         if (!enabled || text.length() < 2 || text.length() > 256) return List.of(text);
-        Key key = new Key(text, flags, size, scale);
+        int fixedProfile = 0;
+        if (!asynchronous) {
+            ProfileKey profileKey = new ProfileKey(flags, size, scale);
+            Integer cachedProfile = profileFlags.get(profileKey);
+            if (cachedProfile == null) {
+                cachedProfile = probe.profileFlags(flags, size, scale);
+                profileFlags.put(profileKey, cachedProfile);
+            }
+            fixedProfile = cachedProfile;
+        }
+        String keyText = (fixedProfile & CosmicNative.PROFILE_TABULAR_DIGITS) != 0
+                ? normalizeDigits(text) : text;
+        Key key = new Key(keyText, flags, size, scale);
         Plan cached = plans.get(key);
         long now = clock.getAsLong();
-        if (cached != null) return use(cached, now, rendering);
+        if (cached != null) return use(cached, text, now, rendering);
         // Keep combining marks, emoji, variation selectors and bidi on the original path.
         for (int i = 0; i < text.length();) {
             int cp = text.codePointAt(i);
-            if (!(cp >= ' ' && cp <= '~') && !isCjk(cp)) return List.of(text);
+            if (!(cp >= ' ' && cp <= '~') && !isSafeSingleCodePoint(cp)) return List.of(text);
             i += Character.charCount(cp);
         }
         credit = Math.min(BUDGET_NANOS, credit + Math.max(0L, now - budgetTime)
@@ -117,27 +147,17 @@ final class CosmicMonospaceComposer {
             deferredProbes++;
             return List.of(text);
         }
-        List<String> result = List.of(text);
+        int[] endpoints = new int[0];
         if (points != null && points.length > 1 && points[points.length - 1] == text.length()) {
-            List<String> pieces = new ArrayList<>(points.length);
-            int start = 0;
-            for (int end : points) {
-                if (end <= start || end > text.length()) {
-                    pieces.clear();
-                    break;
-                }
-                pieces.add(text.substring(start, end));
-                start = end;
-            }
-            if (!pieces.isEmpty()) result = List.copyOf(pieces);
+            endpoints = points;
         }
-        Plan plan = new Plan(text, result);
+        Plan plan = new Plan(endpoints);
         plans.put(key, plan);
-        return use(plan, now, rendering);
+        return use(plan, text, now, rendering);
     }
 
-    private List<String> use(Plan plan, long now, boolean rendering) {
-        List<String> result = plan.use(now, rendering);
+    private List<String> use(Plan plan, String text, long now, boolean rendering) {
+        List<String> result = plan.use(text, now, rendering);
         if (rendering && plan.merged) mergedDraws++;
         return result;
     }
@@ -146,6 +166,18 @@ final class CosmicMonospaceComposer {
     long probeNanos() { return probeNanos; }
     long deferredProbes() { return deferredProbes; }
     long mergedDraws() { return mergedDraws; }
+
+    private static String normalizeDigits(String text) {
+        StringBuilder result = null;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c >= '0' && c <= '9') {
+                if (result == null) result = new StringBuilder(text);
+                result.setCharAt(i, '0');
+            }
+        }
+        return result == null ? text : result.toString();
+    }
 
     private static boolean isCjk(int cp) {
         if ((cp >= 0xFF01 && cp <= 0xFF60) || (cp >= 0xFFE0 && cp <= 0xFFE6)
@@ -157,8 +189,20 @@ final class CosmicMonospaceComposer {
         };
     }
 
+    private static boolean isSafeSingleCodePoint(int cp) {
+        if (isCjk(cp)) return true;
+        if (Character.isISOControl(cp) || Character.getType(cp) == Character.FORMAT) return false;
+        if ((cp >= 0x300 && cp <= 0x36F) || (cp >= 0x1AB0 && cp <= 0x1AFF)
+                || (cp >= 0x1DC0 && cp <= 0x1DFF) || (cp >= 0x20D0 && cp <= 0x20FF)
+                || (cp >= 0xFE00 && cp <= 0xFE0F) || (cp >= 0xE0100 && cp <= 0xE01EF)
+                || (cp >= 0x1F000 && cp <= 0x1FAFF) || (cp >= 0x2600 && cp <= 0x27BF)
+                || (cp >= 0x1F3FB && cp <= 0x1F3FF)) return false;
+        return true;
+    }
+
     void clear() {
         plans.clear();
+        profileFlags.clear();
         credit = BUDGET_NANOS;
         budgetTime = clock.getAsLong();
     }

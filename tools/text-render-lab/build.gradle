@@ -7,7 +7,7 @@ repositories {
 }
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+    toolchain { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) }
 }
 
 dependencies {
@@ -118,7 +118,7 @@ tasks.register('verifyStandaloneExecutable', Exec) {
     group = 'verification'
     description = 'Launches the packaged executable JAR and runs both raster backends.'
     dependsOn tasks.named('jar')
-    def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+    def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) }
     commandLine launcher.get().executablePath.asFile.absolutePath,
             '-jar', tasks.named('jar').get().archiveFile.get().asFile.absolutePath,
             '--self-test'
@@ -128,7 +128,7 @@ tasks.register('verifyUiEnhancementsPluginJar', Exec) {
     group = 'verification'
     description = 'Loads the real UI Enhancements mod JAR through the isolated text SPI loader.'
     dependsOn tasks.named('jar'), project(':addons:ui-enhancements').tasks.named('jar')
-    def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+    def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) }
     commandLine launcher.get().executablePath.asFile.absolutePath,
             '-jar', tasks.named('jar').get().archiveFile.get().asFile.absolutePath,
             '--self-test', '--plugin',
