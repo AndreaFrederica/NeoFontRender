@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiUtilRenderComponents;
 import net.minecraft.util.text.ITextComponent;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.linebreak.CjkComponentLineWrapper;
+import neofontrender.core.font.linebreak.ProtocolTextWrapper;
 import neofontrender.api.text.paragraph.TextParagraphProvider;
 import neofontrender.api.text.paragraph.TextParagraphApi;
 import net.minecraft.client.Minecraft;
@@ -22,7 +23,8 @@ public abstract class MixinGuiUtilRenderComponents {
                                               FontRenderer font, boolean removeLeadingSpace,
                                               boolean forceTextColor,
                                               CallbackInfoReturnable<List<ITextComponent>> cir) {
-        if (NeofontrenderConfig.fixCjkLineBreak()) {
+        if (NeofontrenderConfig.fixCjkLineBreak()
+                && ProtocolTextWrapper.enabled(ProtocolTextWrapper.Scope.CHAT)) {
             Minecraft minecraft = Minecraft.getMinecraft();
             String language = minecraft == null || minecraft.getLanguageManager() == null
                     || minecraft.getLanguageManager().getCurrentLanguage() == null ? ""

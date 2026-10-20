@@ -57,6 +57,23 @@ public final class TextRenderRouteApi {
                                                 int argb, boolean shadow) {
         TextRenderRoutes.initialize();
         String text = source == null ? "" : source;
+        // A scope (the F3 overlay) may demand a different engine than the rest of the game.
+        // Scoped layouts bypass the shared cache: the cache key does not carry the engine.
+        neofontrender.core.font.support.FontEngineScope.Mode scope =
+                neofontrender.core.font.support.FontEngineScope.current();
+        if (scope == neofontrender.core.font.support.FontEngineScope.Mode.COMPAT) {
+            return TextRenderRoutes.compat(font, text, argb, shadow);
+        }
+        if (scope == neofontrender.core.font.support.FontEngineScope.Mode.VANILLA) {
+            return TextRenderRoutes.passthrough(font, text, argb, shadow, "scoped_vanilla");
+        }
+        if (scope == neofontrender.core.font.support.FontEngineScope.Mode.COSMIC) {
+            TextRenderRouteLayout scoped = TextRenderRoutes.scopedCosmic(font, text, argb, shadow);
+            if (scoped != null) return scoped;
+        }
+        if (NeofontrenderConfig.useCompatEngine()) {
+            return TextRenderRoutes.compat(font, text, argb, shadow);
+        }
         if (ScopedFontRenderBypass.isActive() || Boolean.TRUE.equals(ACTIVE.get())) {
             return TextRenderRoutes.passthrough(font, text, argb, shadow, "reentrant_bypass");
         }
@@ -75,9 +92,11 @@ public final class TextRenderRouteApi {
                 FontRenderTuning.effectiveRasterScale(NeofontrenderConfig.fontOversample()));
         long revision = REVISION.get();
         long structuredRevision = StructuredTextRuntime.revision();
+        int engineBits = engineSignature();
+        long backendState = neofontrender.core.font.FontManager.INSTANCE.backendState();
         CacheKey cacheKey = new CacheKey(text, argb, shadow,
                 Float.floatToIntBits(NeofontrenderConfig.fontSize()), revision,
-                structuredRevision, rasterScaleBits);
+                structuredRevision, rasterScaleBits, engineBits, backendState);
         TextRenderRouteLayout cached = cached(font, cacheKey);
         if (cached != null) {
             lastRoute = new RouteInfo(cached.routeId(), "cached", 0,
@@ -108,7 +127,12 @@ public final class TextRenderRouteApi {
                     entry.selectionCount++;
                     lastRoute = new RouteInfo(entry.id, entry.lastOutcome,
                             entry.selectionCount, request.requiresStructuredRendering());
-                    if (!result.structuredText().animated()) cache(font, cacheKey, result);
+                    // A passthrough result depends on backend readiness; caching it would
+                    // outlive the state that produced it, so later measurement could keep the
+                    // vanilla-width interpretation while drawing already uses the modern route.
+                    if (result.handled() && !result.structuredText().animated()) {
+                        cache(font, cacheKey, result);
+                    }
                     return result;
                 } catch (RuntimeException | LinkageError error) {
                     entry.lastOutcome = "route_error";
@@ -118,7 +142,7 @@ public final class TextRenderRouteApi {
                     font, text, argb, shadow, "no_route");
             lastRoute = new RouteInfo(fallback.routeId(), "passthrough", 0,
                     request.requiresStructuredRendering());
-            cache(font, cacheKey, fallback);
+            // Never cached: this branch encodes a transient absence of a usable route.
             return fallback;
         } finally {
             ACTIVE.remove();
@@ -156,6 +180,14 @@ public final class TextRenderRouteApi {
     public static List<String> wrap(FontRenderer font, String source, int maximumWidth) {
         String remaining = source == null ? "" : source;
         if (remaining.isEmpty()) return Collections.singletonList("");
+        // Color protocols are lookahead-validated, so a raw slice can start inside a token.
+        // Rebuild the lines from the parsed state instead of concatenating source slices.
+        if (neofontrender.core.font.linebreak.ProtocolTextWrapper.enabled(
+                neofontrender.core.font.linebreak.ProtocolTextWrapper.Scope.OTHER)
+                && neofontrender.core.font.linebreak.ProtocolTextWrapper.hasActiveProtocol(remaining)) {
+            return neofontrender.core.font.linebreak.ProtocolTextWrapper.wrap(
+                    font, remaining, maximumWidth, true);
+        }
         List<String> lines = new ArrayList<>();
         String carriedFormat = "";
         int sourceRemaining = remaining.length();
@@ -296,9 +328,12 @@ public final class TextRenderRouteApi {
         final long revision;
         final long structuredRevision;
         final int rasterScaleBits;
+        final int engineBits;
+        final long backendState;
 
         CacheKey(String source, int argb, boolean shadow, int fontSizeBits, long revision,
-                 long structuredRevision, int rasterScaleBits) {
+                 long structuredRevision, int rasterScaleBits, int engineBits,
+                 long backendState) {
             this.source = source;
             this.argb = argb;
             this.shadow = shadow;
@@ -306,6 +341,8 @@ public final class TextRenderRouteApi {
             this.revision = revision;
             this.structuredRevision = structuredRevision;
             this.rasterScaleBits = rasterScaleBits;
+            this.engineBits = engineBits;
+            this.backendState = backendState;
         }
 
         @Override public boolean equals(Object other) {
@@ -314,14 +351,27 @@ public final class TextRenderRouteApi {
             CacheKey key = (CacheKey) other;
             return argb == key.argb && shadow == key.shadow && fontSizeBits == key.fontSizeBits
                     && revision == key.revision && structuredRevision == key.structuredRevision
-                    && rasterScaleBits == key.rasterScaleBits
+                    && rasterScaleBits == key.rasterScaleBits && engineBits == key.engineBits
+                    && backendState == key.backendState
                     && source.equals(key.source);
         }
 
         @Override public int hashCode() {
             return Objects.hash(source, argb, shadow, fontSizeBits, revision, structuredRevision,
-                    rasterScaleBits);
+                    rasterScaleBits, engineBits, backendState);
         }
+    }
+
+    /**
+     * The selected rendering engine is part of every layout's meaning: the same string measures
+     * differently in vanilla/passthrough, compatibility and modern modes. The config snapshot is
+     * cheap to read and the cache itself is per font, so hashing it per lookup is acceptable.
+     */
+    private static int engineSignature() {
+        return Objects.hash(NeofontrenderConfig.enabled(),
+                NeofontrenderConfig.renderingEngine(),
+                NeofontrenderConfig.useCompatEngine(),
+                NeofontrenderConfig.useVanillaEngine());
     }
 
     private static final class LayoutCache extends LinkedHashMap<CacheKey, TextRenderRouteLayout> {

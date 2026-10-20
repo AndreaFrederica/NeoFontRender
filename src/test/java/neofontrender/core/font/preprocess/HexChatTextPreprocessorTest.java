@@ -91,6 +91,24 @@ class HexChatTextPreprocessorTest {
         assertFalse(reset.styleAt(1).hasColorOverride());
     }
 
+    @Test
+    void trailingSeparatorBelongsToTheTokenInsteadOfBecomingContent() {
+        StructuredText result = process("#FF6347-FFA54F-text", true);
+
+        assertEquals("text", result.plainText());
+        for (int i = 0; i < result.plainText().length(); i++) {
+            assertTrue(result.styleAt(i).hasColorOverride(),
+                    "character " + i + " should carry gradient colour");
+        }
+    }
+
+    @Test
+    void danglingSeparatorLeavesNoVisibleGlyph() {
+        StructuredText result = process("#FF6347-", true);
+
+        assertEquals("", result.plainText());
+    }
+
     private static StructuredText process(String value, boolean resetStyles) {
         return HexChatStructuredMiddleware.process(ENGINE.parse(value), resetStyles);
     }

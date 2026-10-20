@@ -1,7 +1,6 @@
 package neofontrender.core.font.linebreak;
 
 import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.util.text.TextComponentString;
 import neofontrender.core.font.pipeline.LayoutText;
 import neofontrender.core.font.pipeline.StructuredTextRuntime;
 import neofontrender.core.font.pipeline.builtin.HexChatStructuredMiddleware;
@@ -9,7 +8,6 @@ import neofontrender.core.font.pipeline.builtin.TinkersAntiqueSyntaxProvider;
 import neofontrender.text.StructuredText;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /** Keeps decoded RGB colors stable when a legacy string API splits a paragraph. */
 public final class FormattedColorWrapping {
@@ -30,11 +28,13 @@ public final class FormattedColorWrapping {
 
     /** Returns null when this text should stay on its existing wrapping path. */
     public static List<String> wrap(FontRenderer font, String source, int width) {
-        String prepared = prepare(source);
-        if (prepared == source) return null;
-        return CjkComponentLineWrapper.wrap(new TextComponentString(prepared), width, font, true, true,
-                CjkComponentLineWrapper::routeSizeToWidth)
-                .stream().map(component -> component.getFormattedText()).collect(Collectors.toList());
+        if (source == null || !ProtocolTextWrapper.enabled(ProtocolTextWrapper.Scope.TOOLTIP)) {
+            return null;
+        }
+        if (prepare(source) == source) return null;
+        // The wrapper rebuilds each line from the parsed state instead of slicing the raw
+        // source, so a color token is never split and every line remains parseable.
+        return ProtocolTextWrapper.wrap(font, source, width, true);
     }
 
     static String continuation(String before, String after) {

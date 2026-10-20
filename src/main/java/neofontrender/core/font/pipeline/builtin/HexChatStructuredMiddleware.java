@@ -9,7 +9,13 @@ import neofontrender.text.pipeline.StructuredTextRewriter;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Converts the laboratory hex and gradient syntax into structured color spans. */
+/**
+ * Converts the laboratory hex and gradient syntax into structured color spans.
+ *
+ * <p>A separator dash that is not followed by another complete six-digit stop is absorbed by
+ * the token. Leaving it as content would paint a stray dash in the first stop colour, because
+ * one-character gradient content always resolves to {@code colors[0]}.</p>
+ */
 public final class HexChatStructuredMiddleware implements StructuredTextMiddleware {
     public static final HexChatStructuredMiddleware INSTANCE =
             new HexChatStructuredMiddleware();
@@ -76,6 +82,10 @@ public final class HexChatStructuredMiddleware implements StructuredTextMiddlewa
                     || !isHex6(text, cursor + 1)) break;
             cursor++;
         }
+        // A separator that does not introduce another complete stop belongs to the token. If it
+        // were left as content, "#FF6347-FFA54F-" would paint a stray dash in the first stop
+        // colour: one-character gradient content always resolves to colors[0].
+        if (cursor < text.length() && text.charAt(cursor) == '-') cursor++;
         return cursor == index + 1 ? 0 : cursor - index;
     }
 

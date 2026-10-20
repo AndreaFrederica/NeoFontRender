@@ -21,10 +21,14 @@ import neofontrender.core.font.support.ScopedFontRenderBypass;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.GlyphInfo;
 import neofontrender.core.font.backend.TextRenderBackend;
+import neofontrender.core.font.compat.CompatBlendScope;
+import neofontrender.core.font.compat.CompatFontEngine;
+import neofontrender.core.font.compat.VanillaAsciiSheet;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.core.font.support.FontEngineScope;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.FontRenderDiagnostics;
-import neofontrender.core.font.linebreak.FormattedColorWrapping;
+import neofontrender.core.font.linebreak.ProtocolTextWrapper;
 
 import java.nio.FloatBuffer;
 import java.util.Arrays;
@@ -39,6 +43,7 @@ public abstract class MixinFontRenderer {
     /** Prevents vanilla's recursive wrapping implementation from re-entering our hook. */
     private static final ThreadLocal<Integer> SFR_WRAP_DEPTH = ThreadLocal.withInitial(() -> 0);
 
+
     @Shadow public float posX;
     @Shadow public float posY;
     @Shadow public int FONT_HEIGHT;
@@ -47,6 +52,8 @@ public abstract class MixinFontRenderer {
     @Shadow private float green;
     @Shadow private float alpha;
     @Shadow private int[] colorCode;
+    @Shadow private int[] charWidth;
+    @Shadow private byte[] glyphWidth;
     @Shadow private boolean boldStyle;
     @Shadow protected abstract void setColor(float red, float green, float blue, float alpha);
 
@@ -71,6 +78,9 @@ public abstract class MixinFontRenderer {
     @Inject(method = "drawString(Ljava/lang/String;FFIZ)I", at = @At("HEAD"), cancellable = true)
     private void sfr$onDrawString(String text, float x, float y, int color, boolean dropShadow,
                                   CallbackInfoReturnable<Integer> cir) {
+        if (sfr$compatMode()) {
+            return;
+        }
         // Vanilla FontRenderer.drawString enables alpha before any path can render or return.
         // This HEAD injection may cancel the method, so it must preserve that public contract.
         // Reassert the driver state too because raw GL calls from other renderers can leave
@@ -96,6 +106,7 @@ public abstract class MixinFontRenderer {
         cir.setReturnValue(sfr$drawStringReturnX(x, routed.advance(), dropShadow));
     }
 
+
     @Inject(method = "renderStringAtPos", at = @At("HEAD"), cancellable = true)
     private void sfr$onRenderStringAtPos(String text, boolean shadow, CallbackInfo ci) {
         FontRenderTuning.updateFromCurrentGlState(shadow);
@@ -116,11 +127,84 @@ public abstract class MixinFontRenderer {
     }
 
     // ================================================================== //
+    //  Compatibility leaf hooks (vanilla owns layout)
+    // ================================================================== //
+
+    private CompatBlendScope nfr$compatBlendScope;
+
+    @Inject(method = "renderStringAtPos", at = @At("HEAD"))
+    private void nfr$compatBeginText(String text, boolean shadow, CallbackInfo ci) {
+        if (!sfr$compatEligible()) return;
+        CompatFontEngine engine = FontManager.INSTANCE.getCompatEngineForRendering();
+        if (engine == null || !engine.isReady()) return;
+        engine.beginTextPass(shadow);
+        nfr$compatBlendScope = new CompatBlendScope();
+    }
+
+    @Inject(method = "renderStringAtPos", at = @At("RETURN"))
+    private void nfr$compatEndText(String text, boolean shadow, CallbackInfo ci) {
+        if (nfr$compatBlendScope != null) {
+            nfr$compatBlendScope.close();
+            nfr$compatBlendScope = null;
+        }
+    }
+
+    @Inject(method = "renderDefaultChar(IZ)F", at = @At("HEAD"), cancellable = true)
+    private void nfr$compatRenderDefaultChar(int index, boolean italic,
+                                             CallbackInfoReturnable<Float> cir) {
+        if (!sfr$compatEligible()) return;
+        CompatFontEngine engine = FontManager.INSTANCE.getCompatEngineForRendering();
+        if (engine == null || !engine.isReady() || this.charWidth == null
+                || index < 0 || index >= this.charWidth.length) {
+            return;
+        }
+        char character = VanillaAsciiSheet.charAt(index);
+        if (character == 0) {
+            return;
+        }
+        if (!engine.ensureMetrics((FontRenderer) (Object) this, character,
+                this.charWidth, this.glyphWidth)) {
+            return;
+        }
+        if (!engine.draw((FontRenderer) (Object) this, character, italic)) {
+            return;
+        }
+        cir.setReturnValue((float) this.charWidth[index]);
+    }
+
+    @Inject(method = "renderUnicodeChar(CZ)F", at = @At("HEAD"), cancellable = true)
+    private void nfr$compatRenderUnicodeChar(char character, boolean italic,
+                                             CallbackInfoReturnable<Float> cir) {
+        if (!sfr$compatEligible()) return;
+        CompatFontEngine engine = FontManager.INSTANCE.getCompatEngineForRendering();
+        if (engine == null || !engine.isReady() || this.glyphWidth == null) {
+            return;
+        }
+        if (!engine.ensureMetrics((FontRenderer) (Object) this, character,
+                this.charWidth, this.glyphWidth)) {
+            return;
+        }
+        if (!engine.draw((FontRenderer) (Object) this, character, italic)) {
+            return;
+        }
+        byte encoded = this.glyphWidth[character];
+        if ((encoded & 0xFF) == 0) {
+            return;
+        }
+        cir.setReturnValue(CompatFontEngine.unicodeAdvance(encoded));
+    }
+
+    // ================================================================== //
     //  Width hook
     // ================================================================== //
 
     @Inject(method = "getCharWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$onGetCharWidth(char character, CallbackInfoReturnable<Integer> cir) {
+        CompatFontEngine compat = FontManager.INSTANCE.getCompatEngineForRendering();
+        if (compat != null && compat.isReady() && sfr$compatEligible()) {
+            compat.ensureMetrics((FontRenderer) (Object) this, character,
+                    this.charWidth, this.glyphWidth);
+        }
         if (!sfr$isAnyActive()) {
             return;
         }
@@ -173,6 +257,7 @@ public abstract class MixinFontRenderer {
 
     @Inject(method = "getStringWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$onGetStringWidth(String text, CallbackInfoReturnable<Integer> cir) {
+        if (sfr$compatMode()) return;
         if (text == null || ScopedFontRenderBypass.isActive()) {
             return;
         }
@@ -183,6 +268,7 @@ public abstract class MixinFontRenderer {
 
     @Inject(method = "trimStringToWidth(Ljava/lang/String;IZ)Ljava/lang/String;", at = @At("HEAD"), cancellable = true)
     private void sfr$onTrimStringToWidth(String text, int width, boolean reverse, CallbackInfoReturnable<String> cir) {
+        if (sfr$compatMode()) return;
         if (text == null || ScopedFontRenderBypass.isActive()) {
             return;
         }
@@ -197,6 +283,7 @@ public abstract class MixinFontRenderer {
 
     @Inject(method = "sizeStringToWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$onSizeStringToWidth(String str, int wrapWidth, CallbackInfoReturnable<Integer> cir) {
+        if (sfr$compatMode()) return;
         if (str == null || ScopedFontRenderBypass.isActive()) {
             return;
         }
@@ -211,12 +298,36 @@ public abstract class MixinFontRenderer {
 
     @Inject(method = "wrapFormattedStringToWidth", at = @At("HEAD"), cancellable = true)
     private void sfr$wrapExtendedColors(String text, int width, CallbackInfoReturnable<String> cir) {
+        if (sfr$compatMode()) return;
         if (text == null || ScopedFontRenderBypass.isActive()
                 || SFR_WRAP_DEPTH.get() > 0) return;
+        if (!ProtocolTextWrapper.enabled(ProtocolTextWrapper.Scope.OTHER)) return;
+        if (!ProtocolTextWrapper.hasActiveProtocol(text)) return;
         SFR_WRAP_DEPTH.set(1);
         try {
-            List<String> lines = FormattedColorWrapping.wrap((FontRenderer) (Object) this, text, width);
-            if (lines != null) cir.setReturnValue(String.join("\n", lines));
+            cir.setReturnValue(String.join("\n", ProtocolTextWrapper.wrap(
+                    (FontRenderer) (Object) this, text, width, true)));
+        } finally {
+            SFR_WRAP_DEPTH.remove();
+        }
+    }
+
+    /**
+     * The raw implementation of this method slices the source with an index that was measured
+     * on a different prefix, so a color protocol can be cut in half and its tail renders as
+     * literal markup. Rebuild every line from the parsed draw state instead.
+     */
+    @Inject(method = "listFormattedStringToWidth", at = @At("HEAD"), cancellable = true)
+    private void sfr$listProtocolAware(String text, int wrapWidth,
+                                       CallbackInfoReturnable<List<String>> cir) {
+        if (text == null || SFR_WRAP_DEPTH.get() > 0) return;
+        if (!sfr$isAnyActive()) return;
+        if (!ProtocolTextWrapper.enabled(ProtocolTextWrapper.Scope.OTHER)) return;
+        if (!ProtocolTextWrapper.hasActiveProtocol(text)) return;
+        SFR_WRAP_DEPTH.set(1);
+        try {
+            cir.setReturnValue(ProtocolTextWrapper.wrap(
+                    (FontRenderer) (Object) this, text, wrapWidth, false));
         } finally {
             SFR_WRAP_DEPTH.remove();
         }
@@ -225,6 +336,7 @@ public abstract class MixinFontRenderer {
     @Inject(method = "drawSplitString", at = @At("HEAD"), cancellable = true)
     private void sfr$drawCjkParagraph(String str, int x, int y, int wrapWidth, int textColor,
                                       CallbackInfo ci) {
+        if (sfr$compatMode()) return;
         if (str == null) return;
         TextParagraphProvider.Layout paragraph = sfr$layoutCjkParagraph(str, wrapWidth);
         if (paragraph == null) return;
@@ -256,12 +368,33 @@ public abstract class MixinFontRenderer {
         return sfr$shouldHook() && (FontManager.INSTANCE.isSfrActive() || FontManager.INSTANCE.isTextBackendActive());
     }
 
+    /** True when vanilla owns layout and the compat leaf hooks supply glyphs. */
+    private boolean sfr$compatMode() {
+        FontEngineScope.Mode scope = FontEngineScope.current();
+        if (scope == FontEngineScope.Mode.VANILLA || scope == FontEngineScope.Mode.COSMIC) return false;
+        if (scope == FontEngineScope.Mode.COMPAT) return true;
+        return NeofontrenderConfig.useCompatEngine();
+    }
+
     private boolean sfr$shouldHook() {
+        if (FontEngineScope.current() == FontEngineScope.Mode.VANILLA) return false;
+        if (sfr$compatMode()) return false;
         if (ScopedFontRenderBypass.isActive()) return false;
         String className = ((Object) this).getClass().getName();
         return !className.equals("net.minecraftforge.fml.client.SplashProgress$SplashFontRenderer")
                 && !className.endsWith("SimpleModelFontRenderer");
     }
+
+    /** Compat keeps vanilla layout but still must not take over splash/model font renderers. */
+    private boolean sfr$compatEligible() {
+        FontEngineScope.Mode scope = FontEngineScope.current();
+        if (scope == FontEngineScope.Mode.VANILLA || scope == FontEngineScope.Mode.COSMIC) return false;
+        if (scope == FontEngineScope.Mode.INHERIT && !NeofontrenderConfig.useCompatEngine()) return false;
+        String className = ((Object) this).getClass().getName();
+        return !className.equals("net.minecraftforge.fml.client.SplashProgress$SplashFontRenderer")
+                && !className.endsWith("SimpleModelFontRenderer");
+    }
+
 
     /**
      * Snapshot the final palette on the FontRenderer instance. Other constructor-tail mixins may

@@ -499,11 +499,15 @@ final class TooltipLayout {
     static List<String> wrapLine(FontRenderer font, String line, int width) {
         if (NfrTooltipAnchor.isAnchorLine(line)) return java.util.Collections.singletonList(line);
         if (!hasInlineContent(font, line)) {
+            // Color protocols must win over CJK typography: Tiqian lays out the visible text,
+            // but a tooltip line that still carries a raw #RRGGBB token is rebuilt per line by
+            // the protocol-aware wrapper so the token can never be split (and its gradient
+            // phase survives the break). Falls through to Tiqian when no protocol is active.
+            List<String> colored = neofontrender.core.font.linebreak.FormattedColorWrapping.wrap(font, line, width);
+            if (colored != null) return colored;
             List<String> tiqian = CjkTypographyRenderer.wrap(
                     font, line, width, TooltipConfig.lineHeight);
             if (tiqian != null) return tiqian;
-            List<String> colored = neofontrender.core.font.linebreak.FormattedColorWrapping.wrap(font, line, width);
-            if (colored != null) return colored;
         }
         return hasInlineContent(font, line)
                 ? TextRenderRouteApi.wrap(font, line, width)

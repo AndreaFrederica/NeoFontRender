@@ -83,6 +83,11 @@ public final class LayoutText {
         return entry == null ? State.EMPTY : entry.getValue();
     }
 
+    /** False when the visible position carries no color or decoration of its own. */
+    public boolean hasDrawState(int visibleOffset) {
+        return !stateAt(visibleOffset).equals(State.EMPTY);
+    }
+
     /** Prefixes an independently drawn layout run with its RGB and legacy formatting state. */
     public String formattedDisplay(int visibleStart, String displayText) {
         State state = stateAt(visibleStart);

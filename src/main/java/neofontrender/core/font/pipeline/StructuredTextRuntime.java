@@ -381,6 +381,12 @@ public final class StructuredTextRuntime {
                 + NeofontrenderConfig.laboratoryTextAnimatorTypewriterMode().hashCode()
                 + Float.floatToIntBits(NeofontrenderConfig.laboratoryTextAnimatorPulseMinimum())
                 + Float.floatToIntBits(NeofontrenderConfig.laboratoryTextAnimatorPulseMaximum())
+                // Middleware and syntax switches change the parsed output just like a syntax
+                // provider does. Without them, toggling a protocol at runtime kept serving the
+                // previously cached parse (and every layout keyed by this revision).
+                + Boolean.hashCode(NeofontrenderConfig.laboratoryHexChat())
+                + Boolean.hashCode(NeofontrenderConfig.laboratoryHexChatResetStyles())
+                + Boolean.hashCode(NeofontrenderConfig.compatTinkersAntique())
                 + Long.hashCode(externalRevision);
         TextSyntaxEngine current = engine;
         if (current != null && signature == nextSignature) return current;
