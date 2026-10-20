@@ -4,12 +4,12 @@ plugins {
 }
 
 group = 'neofontrender.addons'
-version = providers.gradleProperty('ui_enhancements_server_version').get()
+version = nfrVersion('ui_enhancements_server_version')
 
 base { archivesName = 'neofontrender-ui-enhancements-server' }
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+    toolchain { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) }
 }
 
 repositories {
@@ -37,10 +37,10 @@ dependencies {
 }
 
 unimined.minecraft {
-    version '1.12.2'
-    mappings { mcp('stable', '39-1.12') }
+    version nfrVersion('minecraft_version')
+    mappings { mcp(nfrVersion('minecraft_mappings_channel'), nfrVersion('minecraft_mappings_version')) }
     cleanroom {
-        loader providers.gradleProperty('cleanroom_version').get()
+        loader nfrVersion('cleanroom_version')
         runs.off = true
     }
     defaultRemapJar = false
@@ -84,7 +84,7 @@ tasks.withType(JavaCompile).configureEach {
 
 test {
     useJUnitPlatform()
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) })
 }
 
 tasks.named('genSources') {

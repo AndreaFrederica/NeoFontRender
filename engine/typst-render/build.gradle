@@ -3,10 +3,10 @@ plugins {
 }
 
 group = 'neofontrender.engine'
-version = providers.gradleProperty('typst_renderer_version').get()
+version = nfrVersion('typst_renderer_version')
 base { archivesName = 'neofontrender-typst-render' }
 
-java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+java { toolchain { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) } }
 
 def hostOs = System.getProperty('os.name', '').toLowerCase(Locale.ROOT)
 def hostArch = System.getProperty('os.arch', '').toLowerCase(Locale.ROOT)
@@ -104,7 +104,7 @@ tasks.register('stageTypstNativeResources', Sync) {
 test {
     useJUnitPlatform()
     dependsOn processResources
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) })
 }
 
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }

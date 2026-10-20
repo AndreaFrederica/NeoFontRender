@@ -7,7 +7,7 @@ repositories {
 }
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+    toolchain { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) }
 }
 
 dependencies {

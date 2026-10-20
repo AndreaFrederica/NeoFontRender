@@ -1,7 +1,7 @@
 plugins { id 'java-library'; id 'com.gradleup.shadow' }
 
 repositories { mavenCentral() }
-java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+java { toolchain { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) } }
 tasks.withType(JavaCompile).configureEach { options.release = 11 }
 tasks.named('compileTestJava') { options.release = 25 }
 dependencies {

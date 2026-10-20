@@ -48,9 +48,15 @@ import java.util.List;
 public final class NfrUiEnhancements {
     public static final String MOD_ID = "neofontrender_ui_enhancements";
     public static final String MOD_NAME = "Revo UI";
-    public static final String VERSION = "0.8.5";
+    public static final String VERSION = neofontrender.addons.build.UiBuildFeatures.VERSION;
+    /**
+     * Annotation values must be compile-time constants, so the required NFR version cannot be
+     * read at runtime. It comes from the generated {@code UiBuildFeatures} instead of
+     * {@code Tags.VERSION}: the root project's constant would be folded into this class at
+     * compile time and could keep an old version after a bump without recompiling.
+     */
     public static final String DEPENDENCIES =
-            "required-after:" + Tags.MOD_ID + "@[" + Tags.VERSION + "];"
+            "required-after:" + Tags.MOD_ID + "@[" + neofontrender.addons.build.UiBuildFeatures.NFR_VERSION + "];"
                     + "required-after:modularui@[3.2.0-nfr.2,);"
                     + "after:applecore;after:chunkpregenerator;after:classicbar;after:jei;"
                     + "after:legendarytooltips;after:obscure_tooltips;after:optifine;after:quark";

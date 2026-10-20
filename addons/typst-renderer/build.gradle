@@ -5,10 +5,10 @@ plugins {
 }
 
 group = 'neofontrender.addons'
-version = providers.gradleProperty('typst_renderer_version').get()
+version = nfrVersion('typst_renderer_version')
 base { archivesName = 'neofontrender-typst-renderer' }
 
-java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+java { toolchain { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) } }
 
 evaluationDependsOn(':engine:typst-render')
 def typstEngine = project(':engine:typst-render')
@@ -20,9 +20,9 @@ repositories {
 }
 
 unimined.minecraft {
-    version '1.12.2'
-    mappings { mcp('stable', '39-1.12') }
-    cleanroom { loader providers.gradleProperty('cleanroom_version').get(); runs.off = true }
+    version nfrVersion('minecraft_version')
+    mappings { mcp(nfrVersion('minecraft_mappings_channel'), nfrVersion('minecraft_mappings_version')) }
+    cleanroom { loader nfrVersion('cleanroom_version'); runs.off = true }
     defaultRemapJar = false
     remap(tasks.named('jar').get())
 }
@@ -31,7 +31,7 @@ dependencies {
     compileOnly project(':')
     compileOnly project(':addons:ui-enhancements')
     compileOnly project(':engine:text-core')
-    compileOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
+    compileOnly("com.cleanroommc:modularui:${nfrVersion('modularui_version')}") { transitive = false }
     implementation typstEngine
     testImplementation project(':')
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
@@ -40,10 +40,10 @@ dependencies {
 
 processResources {
     inputs.property('version', project.version)
-    inputs.property('nfrVersion', providers.gradleProperty('mod_version').get())
+    inputs.property('nfrVersion', nfrVersion('mod_version'))
     filesMatching('mcmod.info') {
         expand(version: project.version,
-                nfrVersion: providers.gradleProperty('mod_version').get())
+                nfrVersion: nfrVersion('mod_version'))
     }
     from('NOTICE.md') { into 'META-INF'; rename { 'NOTICE-NFR-TYPST-RENDERER.md' } }
     from('vendor/typst/LICENSE') { into 'META-INF'; rename { 'LICENSE-Typst.txt' } }
@@ -68,7 +68,7 @@ tasks.withType(JavaCompile).configureEach {
 
 test {
     useJUnitPlatform()
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) })
 }
 
 tasks.register('verifyBundledTypstNative') {

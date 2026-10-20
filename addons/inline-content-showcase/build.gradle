@@ -4,14 +4,14 @@ plugins {
 }
 
 group = 'neofontrender.addons'
-version = providers.gradleProperty('inline_content_showcase_version').get()
+version = nfrVersion('inline_content_showcase_version')
 
 base { archivesName = 'neofontrender-inline-content-showcase' }
 
 apply from: 'gradle/icons.gradle'
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+    toolchain { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) }
 }
 
 repositories {
@@ -21,10 +21,10 @@ repositories {
 }
 
 unimined.minecraft {
-    version '1.12.2'
-    mappings { mcp('stable', '39-1.12') }
+    version nfrVersion('minecraft_version')
+    mappings { mcp(nfrVersion('minecraft_mappings_channel'), nfrVersion('minecraft_mappings_version')) }
     cleanroom {
-        loader providers.gradleProperty('cleanroom_version').get()
+        loader nfrVersion('cleanroom_version')
         runs.off = true
     }
     defaultRemapJar = false
@@ -47,12 +47,12 @@ dependencies {
 
 processResources {
     inputs.property('version', project.version)
-    inputs.property('nfrVersion', providers.gradleProperty('mod_version').get())
-    inputs.property('uieVersion', providers.gradleProperty('ui_enhancements_version').get())
+    inputs.property('nfrVersion', nfrVersion('mod_version'))
+    inputs.property('uieVersion', nfrVersion('ui_enhancements_version'))
     filesMatching('mcmod.info') {
         expand(version: project.version,
-                nfrVersion: providers.gradleProperty('mod_version').get(),
-                uieVersion: providers.gradleProperty('ui_enhancements_version').get())
+                nfrVersion: nfrVersion('mod_version'),
+                uieVersion: nfrVersion('ui_enhancements_version'))
     }
 }
 
@@ -69,7 +69,7 @@ tasks.withType(JavaCompile).configureEach {
 
 test {
     useJUnitPlatform()
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) })
     dependsOn tasks.named('remapJar')
     inputs.file(tasks.named('remapJar').flatMap { it.archiveFile })
     systemProperty 'showcase.installableJar', tasks.named('remapJar').get().archiveFile.get().asFile.absolutePath
@@ -84,7 +84,7 @@ tasks.register('typstShowcaseSmoke', JavaExec) {
     dependsOn tasks.named('testClasses')
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'neofontrender.addons.inlinecontent.TypstShowcaseSmoke'
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) })
     systemProperty 'java.awt.headless', 'true'
     args layout.buildDirectory.dir('reports/typst-showcase').get().asFile.absolutePath,
             providers.gradleProperty('showcaseTypstLibrary').getOrElse(

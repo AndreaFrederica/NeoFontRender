@@ -4,12 +4,12 @@ plugins {
 }
 
 group = 'neofontrender.addons'
-version = providers.gradleProperty('mui_xml_showcase_version').get()
+version = nfrVersion('mui_xml_showcase_version')
 
 base { archivesName = 'neofontrender-mui-xml-showcase' }
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+    toolchain { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) }
 }
 
 repositories {
@@ -21,10 +21,10 @@ repositories {
 }
 
 unimined.minecraft {
-    version '1.12.2'
-    mappings { mcp('stable', '39-1.12') }
+    version nfrVersion('minecraft_version')
+    mappings { mcp(nfrVersion('minecraft_mappings_channel'), nfrVersion('minecraft_mappings_version')) }
     cleanroom {
-        loader providers.gradleProperty('cleanroom_version').get()
+        loader nfrVersion('cleanroom_version')
         runs.off = true
     }
     defaultRemapJar = false
@@ -37,8 +37,8 @@ dependencies {
         compileOnly files(file(localModularUiPath))
         testImplementation files(file(localModularUiPath))
     } else {
-        compileOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
-        testImplementation("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
+        compileOnly("com.cleanroommc:modularui:${nfrVersion('modularui_version')}") { transitive = false }
+        testImplementation("com.cleanroommc:modularui:${nfrVersion('modularui_version')}") { transitive = false }
     }
     compileOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
     testImplementation 'curse.maven:neverenoughanimation-1062347:6533650-sources-6533651'
@@ -48,10 +48,10 @@ dependencies {
 
 processResources {
     inputs.property('version', project.version)
-    inputs.property('modularuiVersion', providers.gradleProperty('modularui_version').get())
+    inputs.property('modularuiVersion', nfrVersion('modularui_version'))
     filesMatching('mcmod.info') {
         expand(version: project.version,
-                modularuiVersion: providers.gradleProperty('modularui_version').get())
+                modularuiVersion: nfrVersion('modularui_version'))
     }
 }
 
@@ -68,7 +68,7 @@ tasks.withType(JavaCompile).configureEach {
 
 test {
     useJUnitPlatform()
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) })
 }
 
 sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
