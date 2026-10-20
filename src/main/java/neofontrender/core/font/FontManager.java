@@ -13,9 +13,11 @@ import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.awt.FontTexture;
 import neofontrender.core.font.awt.GlyphProvider;
 import neofontrender.core.font.awt.AwtModernTextRenderer;
+import neofontrender.core.font.awt.AwtAsyncFallbackGlyphRenderer;
 import neofontrender.core.font.awt.providers.AwtTtfGlyphProvider;
 import neofontrender.core.font.awt.providers.MissingGlyphProvider;
 import neofontrender.core.font.backend.TextRenderBackend;
+import neofontrender.core.font.compat.CompatFontEngine;
 import neofontrender.core.font.cosmic.CosmicRuntimeSupport;
 import neofontrender.core.font.cosmic.CosmicTextRenderer;
 import neofontrender.core.font.support.FontRenderTuning;
@@ -52,6 +54,9 @@ public class FontManager implements AutoCloseable {
     private FontSet defaultFontSet;
     private TextRenderBackend textRenderBackend;
     private AwtModernTextRenderer modernAwtTextRenderer;
+    private volatile CompatFontEngine compatEngine;
+    /** Lazily created compat provider for a scoped draw (for example the F3 overlay). */
+    private volatile CompatFontEngine scopedCompatEngine;
     private final Map<String, TextRenderBackend> scopedBackends = new LinkedHashMap<>();
     private volatile boolean active = false;
     private volatile boolean cosmicActive = false;
@@ -208,6 +213,33 @@ public class FontManager implements AutoCloseable {
             return;
         }
 
+        if (NeofontrenderConfig.useCompatEngine()) {
+            closeInternal();
+            this.active = false;
+            this.cosmicActive = false;
+            try {
+                this.compatEngine = new CompatFontEngine(resourceManager);
+                if (this.compatEngine.isReady()) {
+                    this.backendVersion = "Compatibility glyph provider";
+                    neofontrender.NeoFontRender.LOGGER.info(
+                            "FontManager reloaded with the compatibility glyph provider");
+                } else {
+                    this.compatEngine.close();
+                    this.compatEngine = null;
+                    this.backendVersion = "vanilla Minecraft font renderer";
+                    neofontrender.NeoFontRender.LOGGER.warn(
+                            "Compatibility provider unavailable; keeping vanilla rendering");
+                }
+            } catch (Throwable error) {
+                this.compatEngine = null;
+                this.backendVersion = "vanilla Minecraft font renderer";
+                neofontrender.NeoFontRender.LOGGER.error(
+                        "Failed to initialize the compatibility provider; keeping vanilla rendering",
+                        error);
+            }
+            return;
+        }
+
         boolean preferCosmic = NeofontrenderConfig.useCosmicEngine();
         if (preferCosmic) {
             CosmicRuntimeSupport.Compatibility compatibility = CosmicRuntimeSupport.ensureLoaded();
@@ -243,6 +275,28 @@ public class FontManager implements AutoCloseable {
     }
 
     private PreparedAwtBackend prepareAwtBackend(IResourceManager resourceManager, long generation) {
+        return prepareAwtBackend(resourceManager, generation, true,
+                4096);
+    }
+
+    /** Creates the glyph-only atlas used while an asynchronous Cosmic result is pending. */
+    public synchronized AwtAsyncFallbackGlyphRenderer createAsyncFallbackGlyphRenderer(
+            IResourceManager resourceManager) {
+        if (textureManager == null || resourceManager == null) return null;
+        PreparedAwtBackend prepared = null;
+        try {
+            prepared = prepareAwtBackend(resourceManager, reloadGeneration.get(), false,
+                    NeofontrenderConfig.asyncFallbackGlyphMaxEntries());
+            if (prepared == null) return null;
+            FontSet set = prepared.takeFontSet();
+            return new AwtAsyncFallbackGlyphRenderer(set, NeofontrenderConfig.adaptiveFontSize());
+        } finally {
+            if (prepared != null) prepared.close();
+        }
+    }
+
+    private PreparedAwtBackend prepareAwtBackend(IResourceManager resourceManager, long generation,
+                                                 boolean buildWidthBuckets, int glyphCacheLimit) {
         List<GlyphProvider> providers = new ArrayList<>();
 
         boolean ttfLoaded = false;
@@ -301,7 +355,8 @@ public class FontManager implements AutoCloseable {
                 new ResourceLocation("neofontrender", "default/reload_" + generation),
                 rasterScale * FontRenderTuning.textureScale(rasterScale));
         try {
-            return new PreparedAwtBackend(new FontSet(providers, atlas), providers.size());
+            return new PreparedAwtBackend(new FontSet(providers, atlas, glyphCacheLimit,
+                    glyphCacheLimit, buildWidthBuckets), providers.size());
         } catch (RuntimeException | Error error) {
             for (GlyphProvider provider : providers) provider.close();
             throw error;
@@ -390,6 +445,49 @@ public class FontManager implements AutoCloseable {
         return cosmicActive && textRenderBackend != null;
     }
 
+    public boolean isCompatActive() {
+        CompatFontEngine engine = compatEngine;
+        return engine != null && engine.isReady();
+    }
+
+    public CompatFontEngine getCompatEngine() {
+        return compatEngine;
+    }
+
+    /**
+     * Engine the compatibility leaf hooks must draw with in the current scope. Outside a scope
+     * this is the active compat engine; inside a COMPAT scope it is a lazily created second
+     * provider so the overlay can use compat while the rest of the game uses another engine.
+     */
+    public synchronized CompatFontEngine getCompatEngineForRendering() {
+        if (neofontrender.core.font.support.FontEngineScope.current()
+                != neofontrender.core.font.support.FontEngineScope.Mode.COMPAT) {
+            return compatEngine;
+        }
+        if (compatEngine != null && compatEngine.isReady()) return compatEngine;
+        if (scopedCompatEngine == null && resourceManager != null) {
+            CompatFontEngine created = new CompatFontEngine(resourceManager);
+            if (created.isReady()) {
+                scopedCompatEngine = created;
+            } else {
+                created.close();
+            }
+        }
+        return scopedCompatEngine;
+    }
+
+    /** Scoped cosmic backend for a draw scope; reuses the active native backend when possible. */
+    public synchronized TextRenderBackend getScopedCosmicBackend() {
+        if (textRenderBackend != null && textRenderBackend.isReady() && isCosmicActive()) {
+            return textRenderBackend;
+        }
+        return getScopedTextBackend(neofontrender.api.text.FontRenderSpec.builder()
+                .backend(neofontrender.api.text.FontRenderBackend.COSMIC)
+                .fonts(NeofontrenderConfig.fontFamily())
+                .size(NeofontrenderConfig.fontSize())
+                .build());
+    }
+
     /** Human-readable renderer implementation and ABI shown in the F3 diagnostics. */
     public synchronized String getBackendVersion() {
         return backendVersion;
@@ -397,6 +495,20 @@ public class FontManager implements AutoCloseable {
 
     public synchronized boolean isTextBackendActive() {
         return cosmicActive && textRenderBackend != null;
+    }
+
+    /**
+     * Backend identity and readiness snapshot used by layout caches.
+     *
+     * <p>A layout measured while the configured backend was unavailable (or before a
+     * resource reload finished) must not be reused once that backend becomes ready; the
+     * reload generation and the active flags together identify that state.</p>
+     */
+    public long backendState() {
+        return (reloadGeneration.get() << 3)
+                | (isSfrActive() ? 1L : 0L)
+                | (isCosmicActive() ? 2L : 0L)
+                | (isTextBackendActive() ? 4L : 0L);
     }
 
     public synchronized FontSet getDefaultFontSet() {
@@ -428,6 +540,9 @@ public class FontManager implements AutoCloseable {
      * and vanilla selections receive a lazily-created AWT adapter with true per-size atlases.
      */
     public synchronized TextRenderBackend getModernTextBackend() {
+        if (NeofontrenderConfig.useCompatEngine()) {
+            return null;
+        }
         if (textRenderBackend != null && textRenderBackend.isReady()
                 && textRenderBackend.supportsNativeFontSize()) {
             return textRenderBackend;
@@ -482,6 +597,14 @@ public class FontManager implements AutoCloseable {
     }
 
     private void closeInternal() {
+        if (compatEngine != null) {
+            compatEngine.close();
+            compatEngine = null;
+        }
+        if (scopedCompatEngine != null) {
+            scopedCompatEngine.close();
+            scopedCompatEngine = null;
+        }
         if (modernAwtTextRenderer != null) {
             modernAwtTextRenderer.close();
             modernAwtTextRenderer = null;

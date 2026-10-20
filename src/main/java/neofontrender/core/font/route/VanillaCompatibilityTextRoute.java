@@ -15,7 +15,9 @@ final class VanillaCompatibilityTextRoute implements TextRenderRoute {
     @Override public String id() { return ID; }
     @Override public int priority() { return 100; }
     @Override public boolean supports(TextRenderRouteRequest request) {
-        return request.requiresStructuredRendering() || NeofontrenderConfig.fixCjkLineBreak();
+        return !NeofontrenderConfig.useCompatEngine()
+                && !NeofontrenderConfig.useVanillaEngine()
+                && (request.requiresStructuredRendering() || NeofontrenderConfig.fixCjkLineBreak());
     }
     @Override public TextRenderRouteLayout layout(TextRenderRouteRequest request) {
         return new VanillaCompatibilityRouteLayout(request);

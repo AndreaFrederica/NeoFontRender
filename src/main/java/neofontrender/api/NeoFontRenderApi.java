@@ -115,7 +115,7 @@ public final class NeoFontRenderApi {
                 FontStyle.fromConfig(NeofontrenderConfig.fontStyle()),
                 NeofontrenderConfig.fontVariableWeight(),
                 RenderingEngine.fromConfig(NeofontrenderConfig.renderingEngine()),
-                manager.isSfrActive() || manager.isTextBackendActive(),
+                manager.isSfrActive() || manager.isTextBackendActive() || manager.isCompatActive(),
                 manager.getBackendVersion());
     }
 

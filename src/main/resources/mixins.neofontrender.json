@@ -13,6 +13,7 @@
 		"MixinForgeGuiUtils",
 		"MixinGuiUtilRenderComponents",
 		"MixinGuiOverlayDebug",
+		"MixinGuiIngameForgeDebugText",
 		"MixinGuiEditSign",
 		"MixinGuiEnchantment",
 		"MixinReagenchantGuiReagentTable",

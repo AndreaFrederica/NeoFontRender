@@ -6,7 +6,8 @@ import java.util.Locale;
 public enum RenderingEngine {
     SFR("sfr"),
     COSMIC("cosmic"),
-    VANILLA("vanilla");
+    VANILLA("vanilla"),
+    COMPAT("compat");
 
     private final String configValue;
 
@@ -22,6 +23,7 @@ public enum RenderingEngine {
         if (value == null) return COSMIC;
         String normalized = value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
         if ("sfr".equals(normalized) || "awt".equals(normalized)) return SFR;
+        if ("compat".equals(normalized) || "compatibility".equals(normalized)) return COMPAT;
         if ("cosmic".equals(normalized) || "cosmic_text".equals(normalized)) return COSMIC;
         if ("vanilla".equals(normalized) || "minecraft".equals(normalized)
                 || "original".equals(normalized)) return VANILLA;

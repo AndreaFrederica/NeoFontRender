@@ -445,6 +445,9 @@ public final class SplashAwtBackend {
         private final int dstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
         private final int srcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
         private final int dstAlpha = GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA);
+        private final int textureBinding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        private final int texEnvMode = GL11.glGetTexEnvi(
+                GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE);
 
         TextGlState() {
             GL11.glEnable(GL11.GL_BLEND);
@@ -458,6 +461,8 @@ public final class SplashAwtBackend {
 
         @Override
         public void close() {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureBinding);
+            GL11.glTexEnvi(GL11.GL_TEXTURE_ENV, GL11.GL_TEXTURE_ENV_MODE, texEnvMode);
             GL14.glBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
             if (alphaTestEnabled) {
                 GL11.glEnable(GL11.GL_ALPHA_TEST);

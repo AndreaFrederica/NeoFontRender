@@ -1,6 +1,7 @@
 package neofontrender.mixin;
 
 import net.minecraft.client.gui.GuiOverlayDebug;
+import net.minecraft.client.gui.ScaledResolution;
 import neofontrender.Tags;
 import neofontrender.build.BuildFeatures;
 import neofontrender.client.render.sign.SignOcclusionCuller;
@@ -9,9 +10,11 @@ import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.backend.BackendTextSegmenter;
 import neofontrender.core.font.cosmic.CosmicTextRenderer;
+import neofontrender.core.font.support.FontEngineScope;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
@@ -23,6 +26,16 @@ public class MixinGuiOverlayDebug {
     private static long sfr$lastSnapshotMillis;
     private static String[] sfr$lastSnapshot = new String[0];
 
+    @Inject(method = "renderDebugInfo", at = @At("HEAD"), cancellable = true)
+    private void nfr$scopedOverlayEngine(ScaledResolution resolution, CallbackInfo ci) {
+        FontEngineScope.Mode mode = FontEngineScope.overlayMode();
+        if (mode == FontEngineScope.Mode.INHERIT) return;
+        // The re-entrant call below must run the real body, not this guard again.
+        if (FontEngineScope.isActive()) return;
+        ci.cancel();
+        GuiOverlayDebug overlay = (GuiOverlayDebug) (Object) this;
+        FontEngineScope.run(mode, () -> overlay.renderDebugInfo(resolution));
+    }
     @Inject(method = "getDebugInfoRight", at = @At("RETURN"))
     private void sfr$appendFontDebug(CallbackInfoReturnable<List<String>> cir) {
         List<String> lines = cir.getReturnValue();
@@ -39,12 +52,22 @@ public class MixinGuiOverlayDebug {
 
     private static String[] sfr$buildSnapshot() {
         FontManager manager = FontManager.INSTANCE;
-        String activeEngine = manager.isCosmicActive() ? "cosmic" : manager.isSfrActive() ? "sfr" : "vanilla";
+        String activeEngine = manager.isCompatActive() ? "compat"
+                : manager.isCosmicActive() ? "cosmic" : manager.isSfrActive() ? "sfr" : "vanilla";
         List<String> lines = new ArrayList<>();
         lines.add("NFR: " + activeEngine + " mod=" + Tags.VERSION + " core=" + manager.getBackendVersion());
         lines.add("NFR cfg=" + NeofontrenderConfig.renderingEngine()
                 + " adv=" + NeofontrenderConfig.advancedStringMode()
                 + " scale=" + String.format(Locale.ROOT, "%.1f", NeofontrenderConfig.fontOversample()));
+
+        if (manager.isCompatActive()) {
+            neofontrender.core.font.compat.CompatFontEngine compat = manager.getCompatEngine();
+            if (compat != null) {
+                lines.add("NFR compat: pages=" + compat.pageCount()
+                        + " raster=" + NeofontrenderConfig.compatRasterBackend()
+                        + " rs=" + NeofontrenderConfig.compatRasterScale());
+            }
+        }
 
         if (manager.isSfrActive()) {
             FontSet.DebugState state = manager.getSfrDebugState();
@@ -74,6 +97,11 @@ public class MixinGuiOverlayDebug {
                         + " measure=" + state.characterMeasurements + "/" + state.characterMax);
                 lines.add("NFR char tex h/m/e: " + state.characterHits + "/"
                         + state.characterMisses + "/" + state.characterEvictions);
+                lines.add("NFR adaptive: " + (NeofontrenderConfig.adaptiveTextTemplateCache() ? "on" : "off")
+                        + " entries=" + state.adaptiveEntries + "/" + state.adaptiveCompiledEntries
+                        + " obs=" + state.adaptiveObservations + " compile=" + state.adaptiveCompiled
+                        + " hit=" + state.adaptiveHits + " reject=" + state.adaptiveRejected
+                        + " evict=" + state.adaptiveEvictions);
                 lines.add(String.format(Locale.ROOT,
                         "NFR char probe%s: %.0f/s %.2fms/s defer=%.0f/s merged=%.0f/s",
                         NeofontrenderConfig.asyncFontRendering() ? " enqueue" : "",

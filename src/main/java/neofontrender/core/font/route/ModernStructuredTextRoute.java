@@ -19,6 +19,7 @@ final class ModernStructuredTextRoute implements TextRenderRoute {
 
     @Override
     public boolean supports(TextRenderRouteRequest request) {
+        if (NeofontrenderConfig.useCompatEngine()) return false;
         if (NeofontrenderConfig.useVanillaEngine()) return false;
         FontManager manager = FontManager.INSTANCE;
         if (!manager.isCosmicActive() && !manager.isSfrActive()
