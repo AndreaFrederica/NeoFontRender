@@ -35,6 +35,7 @@ final class TooltipConfig {
     static boolean advancedNbt = true;
     static boolean advancedNbtRequireShift = true;
     static int advancedNbtCharacterLimit = 0;
+    static boolean numericDurabilityEnabled = true;
     static boolean rounded = true;
     /** Title text alignment: left, center or right. */
     static String titleAlignment = "center";
@@ -185,6 +186,7 @@ final class TooltipConfig {
         advancedNbt = config.getBoolean("tooltip.advanced.nbt", true);
         advancedNbtRequireShift = config.getBoolean("tooltip.advanced.nbtRequireShift", true);
         advancedNbtCharacterLimit = config.getInt("tooltip.advanced.nbtCharacterLimit", 0, 0, 100000);
+        numericDurabilityEnabled = config.getBoolean("tooltip.durability.enabled", true);
         rounded = config.getBoolean("tooltip.rounded", true);
         titleAlignment = normalizeTitleAlignment(config.getString("tooltip.titleAlignment", "center"));
         bodyAlignment = normalizeAlignment(config.getString("tooltip.bodyAlignment", "left"), "left");
@@ -343,6 +345,7 @@ final class TooltipConfig {
                 .set("tooltip.advanced.nbt", advancedNbt)
                 .set("tooltip.advanced.nbtRequireShift", advancedNbtRequireShift)
                 .set("tooltip.advanced.nbtCharacterLimit", advancedNbtCharacterLimit)
+                .set("tooltip.durability.enabled", numericDurabilityEnabled)
                 .set("tooltip.rounded", rounded)
                 .set("tooltip.titleAlignment", titleAlignment)
                 .set("tooltip.bodyAlignment", bodyAlignment)
@@ -486,6 +489,8 @@ final class TooltipConfig {
                 .define("tooltip.advanced.nbt", true, "Show NBT information.")
                 .define("tooltip.advanced.nbtRequireShift", true, "Require Shift to reveal NBT contents.")
                 .define("tooltip.advanced.nbtCharacterLimit", 0, "Maximum NBT characters; zero means unlimited.")
+                .define("tooltip.durability.enabled", true,
+                        "Show exact remaining and maximum durability in item tooltips.")
                 .define("tooltip.rounded", true, "Draw rounded antialiased corners.")
                 .define("tooltip.titleAlignment", "center",
                         "Title text alignment: left, center or right.")
@@ -804,6 +809,7 @@ final class TooltipConfig {
         private final boolean originalAdvancedNbt = advancedNbt;
         private final boolean originalAdvancedNbtRequireShift = advancedNbtRequireShift;
         private final int originalAdvancedNbtCharacterLimit = advancedNbtCharacterLimit;
+        private final boolean originalNumericDurabilityEnabled = numericDurabilityEnabled;
         private final boolean originalRounded = rounded;
         private final String originalTitleAlignment = titleAlignment;
         private final String originalBodyAlignment = bodyAlignment;
@@ -935,6 +941,7 @@ final class TooltipConfig {
             advancedNbt = originalAdvancedNbt;
             advancedNbtRequireShift = originalAdvancedNbtRequireShift;
             advancedNbtCharacterLimit = originalAdvancedNbtCharacterLimit;
+            numericDurabilityEnabled = originalNumericDurabilityEnabled;
             titleBreak = originalTitleBreak; adaptiveBorder = originalAdaptive;
             titleAlignment = originalTitleAlignment;
             bodyAlignment = originalBodyAlignment;

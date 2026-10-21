@@ -79,6 +79,10 @@ final class ModernTooltipSettingsPage implements NfrSettingsPage {
                             () -> TooltipConfig.advancedRegistryName, value -> TooltipConfig.advancedRegistryName = value))
                     .add(c.toggleText(() -> tr("gui.advanced_nbt"), () -> tr("tooltip.advanced.nbt"),
                             () -> TooltipConfig.advancedNbt, value -> TooltipConfig.advancedNbt = value))
+                    .add(c.toggleText(() -> tr("gui.numeric_durability"),
+                            () -> tr("tooltip.durability.enabled"),
+                            () -> TooltipConfig.numericDurabilityEnabled,
+                            value -> TooltipConfig.numericDurabilityEnabled = value))
                     .add(c.dropdownText("tooltip_style", () -> tr("gui.style"),
                             () -> TooltipConfig.renderStyle,
                             value -> TooltipConfig.renderStyle = TooltipConfig.normalizeStyle(value),

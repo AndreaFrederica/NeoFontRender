@@ -45,6 +45,8 @@ public final class TooltipModule implements UiEnhancementModule {
         NfrSettingsPageRegistry.register(new ModernTooltipSettingsPage());
         CompatibilityNotificationPrompt.register();
         NfrSettingsPageRegistry.register(new CompatibilityNotificationsSettingsPage());
+        neofontrender.api.client.tooltip.NfrTooltipApi.registerDocumentFinalizer(
+                DurabilityTooltipHandler::finalizeDocument);
         // The public API has no AE2 dependency. Install the optional AE2 source
         // only when that mod is present; all other visual sources remain usable.
         if (Loader.isModLoaded("ae2")) NfrAe2TooltipApi.register();
@@ -58,6 +60,7 @@ public final class TooltipModule implements UiEnhancementModule {
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new ItemZoomOverlay());
         MinecraftForge.EVENT_BUS.register(new AdvancedTooltipHandler());
+        MinecraftForge.EVENT_BUS.register(new DurabilityTooltipHandler());
         MinecraftForge.EVENT_BUS.register(new RpgHudLiteTooltipCompat());
         MinecraftForge.EVENT_BUS.register(new ModernTooltipHandler());
     }
