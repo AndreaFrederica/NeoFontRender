@@ -13,6 +13,8 @@ import org.lwjgl.opengl.GL20;
 
 /** Fixed-pipeline-compatible shader for drawing a single-channel SDF texture. */
 final class CosmicSdfPipeline {
+    /** Keep SDF/atlas text isolated from item and model renderers using Minecraft's global buffer. */
+    private static final Tessellator FONT_TESSELLATOR = new Tessellator(0x200000);
     private static int program;
     private static int msdfProgram;
     private static int alphaProgram;
@@ -103,7 +105,7 @@ final class CosmicSdfPipeline {
                            float u1, float v1, float u2, float v2,
                            float r, float g, float b, float alpha, float softness) {
         setUniforms(r, g, b, alpha, softness);
-        Tessellator tessellator = Tessellator.getInstance();
+        Tessellator tessellator = FONT_TESSELLATOR;
         BufferBuilder buffer = tessellator.getBuffer();
         beginQuads(buffer);
         quad(buffer, left, top, width, height, u1, v1, u2, v2);
@@ -116,7 +118,7 @@ final class CosmicSdfPipeline {
     }
 
     static BufferBuilder beginBatch() {
-        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        BufferBuilder buffer = FONT_TESSELLATOR.getBuffer();
         beginQuads(buffer);
         return buffer;
     }
@@ -127,7 +129,7 @@ final class CosmicSdfPipeline {
     }
 
     static void endBatch() {
-        Tessellator.getInstance().draw();
+        FONT_TESSELLATOR.draw();
     }
 
     private static void beginQuads(BufferBuilder buffer) {

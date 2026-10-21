@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CosmicGlStateContractTest {
@@ -40,6 +41,13 @@ class CosmicGlStateContractTest {
         assertTrue(close.contains(SDF + "$State.selectTextureUnit"));
     }
 
+    @Test
+    void sdfRendererDoesNotBorrowMinecraftSharedTessellator() throws Exception {
+        Set<String> calls = calls(SDF, null);
+        assertTrue(calls.contains("net/minecraft/client/renderer/Tessellator.<init>"));
+        assertFalse(calls.contains("net/minecraft/client/renderer/Tessellator.getInstance"));
+    }
+
     private static Set<String> calls(String owner, String selectedMethod) throws Exception {
         InputStream stream = CosmicGlStateContractTest.class.getResourceAsStream(
                 "/" + owner + ".class");
@@ -50,7 +58,7 @@ class CosmicGlStateContractTest {
                 @Override
                 public MethodVisitor visitMethod(int access, String name, String descriptor,
                                                  String signature, String[] exceptions) {
-                    if (!selectedMethod.equals(name)) return null;
+                    if (selectedMethod != null && !selectedMethod.equals(name)) return null;
                     return new MethodVisitor(Opcodes.ASM9) {
                         @Override
                         public void visitMethodInsn(int opcode, String methodOwner, String name,
