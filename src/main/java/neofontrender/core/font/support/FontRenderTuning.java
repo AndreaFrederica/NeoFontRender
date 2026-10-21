@@ -48,6 +48,13 @@ public final class FontRenderTuning {
             if (mc == null || mc.displayWidth <= 0 || mc.displayHeight <= 0) {
                 return currentContext;
             }
+            // FontRenderer is also used by Forge's model-only renderers while
+            // JourneyMap builds map data on worker threads.  Those calls do not
+            // own the client OpenGL context; LWJGL aborts the JVM for glGetFloat
+            // instead of reporting a catchable exception.
+            if (!mc.isCallingFromMinecraftThread()) {
+                return currentContext;
+            }
 
             FloatBuffer buffer = BufferUtils.createFloatBuffer(16);
             GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, buffer);

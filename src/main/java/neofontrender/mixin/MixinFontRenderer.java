@@ -81,6 +81,12 @@ public abstract class MixinFontRenderer {
         if (sfr$compatMode()) {
             return;
         }
+        // Some Forge model helpers reuse FontRenderer to build quads from a
+        // worker thread.  Leave those calls on vanilla's thread-safe model path;
+        // neither GL state nor the modern text renderer is valid there.
+        if (!sfr$isMinecraftThread()) {
+            return;
+        }
         // Vanilla FontRenderer.drawString enables alpha before any path can render or return.
         // This HEAD injection may cancel the method, so it must preserve that public contract.
         // Reassert the driver state too because raw GL calls from other renderers can leave
@@ -109,6 +115,9 @@ public abstract class MixinFontRenderer {
 
     @Inject(method = "renderStringAtPos", at = @At("HEAD"), cancellable = true)
     private void sfr$onRenderStringAtPos(String text, boolean shadow, CallbackInfo ci) {
+        if (!sfr$isMinecraftThread()) {
+            return;
+        }
         FontRenderTuning.updateFromCurrentGlState(shadow);
         if (BuildFeatures.RENDER_STATS) {
             FontRenderDiagnostics.logFontEntry("font.renderStringAtPos", text, this.sfr$renderPassColor,
@@ -377,6 +386,7 @@ public abstract class MixinFontRenderer {
     }
 
     private boolean sfr$shouldHook() {
+        if (!sfr$isMinecraftThread()) return false;
         if (FontEngineScope.current() == FontEngineScope.Mode.VANILLA) return false;
         if (sfr$compatMode()) return false;
         if (ScopedFontRenderBypass.isActive()) return false;
@@ -387,12 +397,18 @@ public abstract class MixinFontRenderer {
 
     /** Compat keeps vanilla layout but still must not take over splash/model font renderers. */
     private boolean sfr$compatEligible() {
+        if (!sfr$isMinecraftThread()) return false;
         FontEngineScope.Mode scope = FontEngineScope.current();
         if (scope == FontEngineScope.Mode.VANILLA || scope == FontEngineScope.Mode.COSMIC) return false;
         if (scope == FontEngineScope.Mode.INHERIT && !NeofontrenderConfig.useCompatEngine()) return false;
         String className = ((Object) this).getClass().getName();
         return !className.equals("net.minecraftforge.fml.client.SplashProgress$SplashFontRenderer")
                 && !className.endsWith("SimpleModelFontRenderer");
+    }
+
+    private static boolean sfr$isMinecraftThread() {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        return minecraft != null && minecraft.isCallingFromMinecraftThread();
     }
 
 
