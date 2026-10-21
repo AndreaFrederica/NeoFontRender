@@ -37,6 +37,15 @@ $labJar = Get-ChildItem tools\text-render-lab\build\libs\neofontrender-text-rend
 java -jar $labJar.FullName --self-test
 ```
 
+Run the Minecraft-free pixel-format benchmark. It uses the same bundled Cosmic JNI library,
+includes the Java conversion and modern-shadow blur cost, and reports the projected upload
+bytes for the current composed RGBA path versus split A8 foreground/shadow layers:
+
+```powershell
+java -jar $labJar.FullName --benchmark-raster 500
+# Optional: -DnfrRasterFont=C:\\path\\font.ttf -DnfrRasterText="F3 XYZ ..."
+```
+
 The JAR is platform-specific because it embeds the Cosmic and Typst native libraries. The
 build classifier records the target platform. AWT remains usable when Cosmic
 cannot initialize, and the GUI reports that failure explicitly.

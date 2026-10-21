@@ -21,7 +21,6 @@ import neofontrender.core.font.support.ScopedFontRenderBypass;
 import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.GlyphInfo;
 import neofontrender.core.font.backend.TextRenderBackend;
-import neofontrender.core.font.compat.CompatBlendScope;
 import neofontrender.core.font.compat.CompatFontEngine;
 import neofontrender.core.font.compat.VanillaAsciiSheet;
 import neofontrender.core.config.NeofontrenderConfig;
@@ -139,23 +138,19 @@ public abstract class MixinFontRenderer {
     //  Compatibility leaf hooks (vanilla owns layout)
     // ================================================================== //
 
-    private CompatBlendScope nfr$compatBlendScope;
-
     @Inject(method = "renderStringAtPos", at = @At("HEAD"))
     private void nfr$compatBeginText(String text, boolean shadow, CallbackInfo ci) {
         if (!sfr$compatEligible()) return;
         CompatFontEngine engine = FontManager.INSTANCE.getCompatEngineForRendering();
         if (engine == null || !engine.isReady()) return;
         engine.beginTextPass(shadow);
-        nfr$compatBlendScope = new CompatBlendScope();
     }
 
     @Inject(method = "renderStringAtPos", at = @At("RETURN"))
     private void nfr$compatEndText(String text, boolean shadow, CallbackInfo ci) {
-        if (nfr$compatBlendScope != null) {
-            nfr$compatBlendScope.close();
-            nfr$compatBlendScope = null;
-        }
+        // CompatBlendScope is scoped around each leaf glyph in CompatFontEngine.draw(). Keeping
+        // renderStringAtPos free of a mutable single scope prevents nested/re-entrant text calls
+        // from overwriting the outer state and leaving a page bound after RETURN.
     }
 
     @Inject(method = "renderDefaultChar(IZ)F", at = @At("HEAD"), cancellable = true)

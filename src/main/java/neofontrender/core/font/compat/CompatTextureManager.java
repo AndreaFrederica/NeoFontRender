@@ -3,6 +3,8 @@ package neofontrender.core.font.compat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -52,7 +54,13 @@ final class CompatTextureManager {
             texture = location == null ? null : textures.get(location);
         }
         if (texture == null) return false;
+        // A glyph page is a normal 2D sampler for the fixed-function text path. Always bind it
+        // on texture unit 0; inheriting the lightmap unit from a caller lets the page participate
+        // in unrelated GUI quads after the text call returns.
+        GlStateManager.setActiveTexture(GL13.GL_TEXTURE0);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GlStateManager.bindTexture(texture.getGlTextureId());
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture.getGlTextureId());
         return true;
     }
 
@@ -95,9 +103,43 @@ final class CompatTextureManager {
     private void delete(CompatPageTexture texture) {
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft != null && !minecraft.isCallingFromMinecraftThread()) {
-            minecraft.addScheduledTask(texture::deleteGlTexture);
+            minecraft.addScheduledTask(() -> deleteOnRenderThread(texture));
             return;
         }
+        deleteOnRenderThread(texture);
+    }
+
+    private void deleteOnRenderThread(CompatPageTexture texture) {
+        if (texture == null) return;
+        int textureId = texture.getGlTextureId();
+        int active = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+        int activeBinding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+
+        // A deleted name must not remain bound on the active unit. Also check unit 0 because the
+        // compat renderer deliberately uses it even when the caller entered with another unit.
+        unbindIfCurrent(GL13.GL_TEXTURE0, textureId);
+        if (active != GL13.GL_TEXTURE0) {
+            unbindIfCurrent(active, textureId);
+        }
+        selectTextureUnit(active);
+        if (activeBinding != textureId) {
+            // Keep the driver's binding/cache in sync when the active unit was not the page.
+            GlStateManager.bindTexture(activeBinding);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, activeBinding);
+        }
         texture.deleteGlTexture();
+    }
+
+    private static void unbindIfCurrent(int unit, int textureId) {
+        selectTextureUnit(unit);
+        if (GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D) == textureId) {
+            GlStateManager.bindTexture(0);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+        }
+    }
+
+    private static void selectTextureUnit(int unit) {
+        GlStateManager.setActiveTexture(unit);
+        GL13.glActiveTexture(unit);
     }
 }

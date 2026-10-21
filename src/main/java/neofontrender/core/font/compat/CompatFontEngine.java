@@ -614,54 +614,59 @@ public final class CompatFontEngine implements AutoCloseable {
         if (!cosmicProvider && providerFor(codePoint) < 0) {
             return false;
         }
-        CompatPage page = pageFor(codePoint);
-        if (page == null) {
-            return false;
-        }
-        if (!glyphTextures.bind(page.location)) {
-            return false;
-        }
+        // Keep the page binding and fixed-function combine state local to this glyph. SmoothFont
+        // does the equivalent reset whenever vanilla changes the bound texture; a per-glyph scope
+        // also covers early returns and exceptions without relying on renderStringAtPos RETURN.
+        try (CompatBlendScope ignored = new CompatBlendScope()) {
+            CompatPage page = pageFor(codePoint);
+            if (page == null) {
+                return false;
+            }
+            if (!glyphTextures.bind(page.location)) {
+                return false;
+            }
 
-        int offset = (codePoint & 0xFF) * 4;
-        int minX = page.inkBounds[offset];
-        int minY = page.inkBounds[offset + 1];
-        int maxX = page.inkBounds[offset + 2];
-        int maxY = page.inkBounds[offset + 3];
-        if (maxX <= minX || maxY <= minY) {
+            int offset = (codePoint & 0xFF) * 4;
+            int minX = page.inkBounds[offset];
+            int minY = page.inkBounds[offset + 1];
+            int maxX = page.inkBounds[offset + 2];
+            int maxY = page.inkBounds[offset + 3];
+            if (maxX <= minX || maxY <= minY) {
+                return true;
+            }
+
+            float u0 = (float) (page.cellX(codePoint) + minX) / page.side;
+            float v0 = (float) (page.cellY(codePoint) + minY) / page.side;
+            float u1 = (float) (page.cellX(codePoint) + maxX) / page.side;
+            float v1 = (float) (page.cellY(codePoint) + maxY) / page.side;
+
+            float x0 = font.posX + minX / rasterScale;
+            float y0 = font.posY + referenceBaseline - (page.ascentPixels - minY) / rasterScale;
+            float x1 = font.posX + maxX / rasterScale;
+            float y1 = font.posY + referenceBaseline + (maxY - page.ascentPixels) / rasterScale;
+            float pixel = guiPixel();
+            if (pixel > 0.0F) {
+                float width = x1 - x0;
+                float height = y1 - y0;
+                x0 = Math.round(x0 / pixel) * pixel;
+                y0 = Math.round(y0 / pixel) * pixel;
+                x1 = x0 + width;
+                y1 = y0 + height;
+            }
+            float slant = italic ? 1.0F : 0.0F;
+
+            GlStateManager.glBegin(5);
+            GlStateManager.glTexCoord2f(u0, v0);
+            GlStateManager.glVertex3f(x0 + slant, y0, 0.0F);
+            GlStateManager.glTexCoord2f(u0, v1);
+            GlStateManager.glVertex3f(x0 - slant, y1, 0.0F);
+            GlStateManager.glTexCoord2f(u1, v0);
+            GlStateManager.glVertex3f(x1 + slant, y0, 0.0F);
+            GlStateManager.glTexCoord2f(u1, v1);
+            GlStateManager.glVertex3f(x1 - slant, y1, 0.0F);
+            GlStateManager.glEnd();
             return true;
         }
-
-        float u0 = (float) (page.cellX(codePoint) + minX) / page.side;
-        float v0 = (float) (page.cellY(codePoint) + minY) / page.side;
-        float u1 = (float) (page.cellX(codePoint) + maxX) / page.side;
-        float v1 = (float) (page.cellY(codePoint) + maxY) / page.side;
-
-        float x0 = font.posX + minX / rasterScale;
-        float y0 = font.posY + referenceBaseline - (page.ascentPixels - minY) / rasterScale;
-        float x1 = font.posX + maxX / rasterScale;
-        float y1 = font.posY + referenceBaseline + (maxY - page.ascentPixels) / rasterScale;
-        float pixel = guiPixel();
-        if (pixel > 0.0F) {
-            float width = x1 - x0;
-            float height = y1 - y0;
-            x0 = Math.round(x0 / pixel) * pixel;
-            y0 = Math.round(y0 / pixel) * pixel;
-            x1 = x0 + width;
-            y1 = y0 + height;
-        }
-        float slant = italic ? 1.0F : 0.0F;
-
-        GlStateManager.glBegin(5);
-        GlStateManager.glTexCoord2f(u0, v0);
-        GlStateManager.glVertex3f(x0 + slant, y0, 0.0F);
-        GlStateManager.glTexCoord2f(u0, v1);
-        GlStateManager.glVertex3f(x0 - slant, y1, 0.0F);
-        GlStateManager.glTexCoord2f(u1, v0);
-        GlStateManager.glVertex3f(x1 + slant, y0, 0.0F);
-        GlStateManager.glTexCoord2f(u1, v1);
-        GlStateManager.glVertex3f(x1 - slant, y1, 0.0F);
-        GlStateManager.glEnd();
-        return true;
     }
 
     private float guiPixel() {
