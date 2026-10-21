@@ -17,6 +17,7 @@ on:
       - 'build.gradle'
       - 'settings.gradle'
       - 'gradle.properties'
+      - 'gradle/versions.properties'
       - 'gradle/**'
       - 'gradlew'
       - 'gradlew.bat'
@@ -40,6 +41,7 @@ on:
       - 'build.gradle'
       - 'settings.gradle'
       - 'gradle.properties'
+      - 'gradle/versions.properties'
       - 'gradle/**'
       - 'gradlew'
       - 'gradlew.bat'
@@ -100,7 +102,7 @@ jobs:
         run: |
           set -euo pipefail
           read_property() {
-            sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" gradle.properties | tr -d '\r' | xargs
+            sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" gradle/versions.properties | tr -d '\r' | xargs
           }
           UIE_VERSION="$(read_property ui_enhancements_version)"
           expected=(

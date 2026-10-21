@@ -11,6 +11,7 @@ on:
       - 'addons/typst-renderer/**'
       - 'addons/inline-content-showcase/**'
       - 'gradle.properties'
+      - 'gradle/versions.properties'
       - '.gitmodules'
 
 permissions:
@@ -27,7 +28,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="$(sed -n 's/^typst_renderer_version[[:space:]]*=[[:space:]]*//p' gradle.properties | tr -d '\r' | xargs)"
+          version="$(sed -n 's/^typst_renderer_version[[:space:]]*=[[:space:]]*//p' gradle/versions.properties | tr -d '\r' | xargs)"
           test -n "$version"
           if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "typst/$version" ]]; then
             echo 'Typst tag must match typst_renderer_version' >&2

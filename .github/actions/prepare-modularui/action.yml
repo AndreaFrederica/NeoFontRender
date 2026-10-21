@@ -3,7 +3,7 @@ description: Builds the ModularUI submodule, installs its development artifact, 
 
 outputs:
   version:
-    description: ModularUI version read from gradle.properties
+    description: ModularUI version read from gradle/versions.properties
     value: ${{ steps.coordinates.outputs.version }}
 
 runs:
@@ -15,7 +15,7 @@ runs:
       run: |
         set -euo pipefail
         read_property() {
-          sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" gradle.properties | tr -d '\r' | xargs
+          sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" gradle/versions.properties | tr -d '\r' | xargs
         }
 
         version="$(read_property modularui_version)"
