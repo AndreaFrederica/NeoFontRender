@@ -431,9 +431,13 @@ jobs:
           java-version: '25'
           cache: gradle
 
+      - name: Install audio test encoder
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+
       - name: Build and stage Revo UI bundle
         run: >-
           ./gradlew
+          :engine:audio:testBundledAudio
           :addons:ui-enhancements:stageUiEnhancementsRelease
           :addons:ui-enhancements-controller:stageUiEnhancementsControllerRelease
           :addons:ui-enhancements-server:stageUiEnhancementsServerRelease
