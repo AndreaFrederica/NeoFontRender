@@ -17,7 +17,7 @@ public final class ChatHeadResolver {
     private ChatHeadResolver() {}
 
     public static UUID detect(ITextComponent message) {
-        return EnhancedChatFeatures.playerHeads() ? detectSender(message) : null;
+        return detectSender(message);
     }
 
     public static UUID detectSender(ITextComponent message) {

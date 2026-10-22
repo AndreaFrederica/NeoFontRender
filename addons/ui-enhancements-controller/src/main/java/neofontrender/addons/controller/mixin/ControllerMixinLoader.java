@@ -12,7 +12,9 @@ import java.util.Map;
 @IFMLLoadingPlugin.SortingIndex(2200)
 public final class ControllerMixinLoader implements IFMLLoadingPlugin, IEarlyMixinLoader {
     @Override public List<String> getMixinConfigs() {
-        return Collections.singletonList("mixins.neofontrender_ui_enhancements_controller.json");
+        // Controller input uses events only; registering the empty config makes Mixin
+        // request a refmap that the annotation processor has no reason to generate.
+        return Collections.emptyList();
     }
     @Override public String[] getASMTransformerClass() { return new String[0]; }
     @Override public String getModContainerClass() { return null; }

@@ -26,8 +26,21 @@ public final class CommandCompletionCandidates {
 
     public static String styled(String value, Source source) {
         String plain = plain(value);
+        if (isPlaceholder(plain)) {
+            return TextFormatting.DARK_GRAY + plain + TextFormatting.RESET;
+        }
         TextFormatting color = source == Source.CLIENT ? TextFormatting.GOLD : TextFormatting.AQUA;
         return color + plain + TextFormatting.RESET;
+    }
+
+    /**
+     * Argument placeholders such as FancyMenu's {@code <menu_identifier>} are legitimate entries in
+     * a command's completion list, but inserting one types the angle brackets into the command.
+     * They stay selectable and are shown in a distinct color so they read as a slot, not a value.
+     */
+    public static boolean isPlaceholder(String value) {
+        String plain = plain(value).trim();
+        return plain.length() > 2 && plain.charAt(0) == '<' && plain.charAt(plain.length() - 1) == '>';
     }
 
     private static void add(Map<String, Candidate> candidates, String[] values, Source source) {
@@ -53,6 +66,7 @@ public final class CommandCompletionCandidates {
     public static final class Merge {
         private final List<Candidate> candidates;
         private final Map<String, Source> sources = new LinkedHashMap<>();
+        private List<String> plain;
 
         private Merge(List<Candidate> candidates) {
             this.candidates = candidates;
@@ -62,11 +76,17 @@ public final class CommandCompletionCandidates {
         }
 
         public String[] plainValues() {
-            String[] values = new String[candidates.size()];
-            for (int index = 0; index < candidates.size(); index++) {
-                values[index] = candidates.get(index).value;
+            return plainValuesList().toArray(new String[0]);
+        }
+
+        /** Cached plain values, so callers can compare candidate identity without rebuilding it. */
+        public List<String> plainValuesList() {
+            if (plain == null) {
+                List<String> values = new ArrayList<>(candidates.size());
+                for (Candidate candidate : candidates) values.add(candidate.value);
+                plain = values;
             }
-            return values;
+            return plain;
         }
 
         public List<String> styledValues() {

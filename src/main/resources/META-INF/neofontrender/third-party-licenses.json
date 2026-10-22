@@ -1,0 +1,602 @@
+[
+  {
+    "section": "10_core",
+    "name": "LWJGL / LWJGLX / LWJGLXX",
+    "version": "",
+    "license": "BSD-3-Clause",
+    "source": "https://www.lwjgl.org/license",
+    "evidence": "Cleanroom-provided runtime APIs; not embedded by NFR"
+  },
+  {
+    "section": "10_core",
+    "name": "ModularUI",
+    "version": "",
+    "license": "LGPL-3.0",
+    "source": "https://github.com/CleanroomMC/ModularUI",
+    "evidence": "Runtime mod dependency; upstream LICENSE"
+  },
+  {
+    "section": "10_core",
+    "name": "SpongePowered Mixin",
+    "version": "",
+    "license": "MIT",
+    "source": "https://github.com/SpongePowered/Mixin/blob/master/LICENSE.txt",
+    "evidence": "Compile/runtime integration supplied by Cleanroom"
+  },
+  {
+    "section": "10_core",
+    "name": "arc3d-core",
+    "version": "2026.2.0",
+    "license": "LGPL-3.0-or-later",
+    "source": "https://github.com/BloCamLimb/Arc3D",
+    "evidence": "Maven POM: dev.icyllis:arc3d-core:2026.2.0"
+  },
+  {
+    "section": "10_core",
+    "name": "core",
+    "version": "3.8.3",
+    "license": "LGPL-3.0",
+    "source": "https://github.com/TheElectronWill/night-config",
+    "evidence": "Maven POM: com.electronwill.night-config:core:3.8.3"
+  },
+  {
+    "section": "10_core",
+    "name": "toml",
+    "version": "3.8.3",
+    "license": "LGPL-3.0",
+    "source": "https://github.com/TheElectronWill/night-config",
+    "evidence": "Maven POM: com.electronwill.night-config:toml:3.8.3"
+  },
+  {
+    "section": "11_fonts",
+    "name": "Noto Color Emoji",
+    "version": "",
+    "license": "OFL-1.1",
+    "source": "https://github.com/googlefonts/noto-emoji",
+    "evidence": "assets/neofontrender/fonts/OFL.txt"
+  },
+  {
+    "section": "11_fonts",
+    "name": "Noto Sans SC",
+    "version": "",
+    "license": "OFL-1.1",
+    "source": "https://github.com/notofonts/noto-cjk",
+    "evidence": "assets/neofontrender/fonts/OFL.txt"
+  },
+  {
+    "section": "11_fonts",
+    "name": "SRIC Minecraft Words",
+    "version": "",
+    "license": "Apache-2.0",
+    "source": "https://github.com/AndreaFrederica/NeoFontRender",
+    "evidence": "assets/neofontrender/fonts/LICENSE-SRIC-Minecraft-Words.txt"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "bitflags",
+    "version": "2.13.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/bitflags/bitflags",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "bytemuck",
+    "version": "1.25.1",
+    "license": "Zlib OR Apache-2.0 OR MIT",
+    "source": "https://github.com/Lokathor/bytemuck",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "bytemuck_derive",
+    "version": "1.11.0",
+    "license": "Zlib OR Apache-2.0 OR MIT",
+    "source": "https://github.com/Lokathor/bytemuck",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "bytes",
+    "version": "1.12.1",
+    "license": "MIT",
+    "source": "https://github.com/tokio-rs/bytes",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "cesu8",
+    "version": "1.1.0",
+    "license": "Apache-2.0/MIT",
+    "source": "https://github.com/emk/cesu8-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "cfg-if",
+    "version": "1.0.4",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/cfg-if",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "combine",
+    "version": "4.6.7",
+    "license": "MIT",
+    "source": "https://github.com/Marwes/combine",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "core_maths",
+    "version": "0.1.1",
+    "license": "MIT",
+    "source": "https://github.com/robertbastian/core_maths",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "cosmic-text",
+    "version": "0.19.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/pop-os/cosmic-text",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "font-types",
+    "version": "0.11.3",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/googlefonts/fontations",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "font-types",
+    "version": "0.12.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/googlefonts/fontations",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "fontdb",
+    "version": "0.23.0",
+    "license": "MIT",
+    "source": "https://github.com/RazrFalcon/fontdb",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "harfrust",
+    "version": "0.5.2",
+    "license": "MIT",
+    "source": "https://github.com/harfbuzz/harfrust",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "jni",
+    "version": "0.21.1",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/jni-rs/jni-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "jni-sys",
+    "version": "0.3.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/jni-rs/jni-sys",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "jni-sys",
+    "version": "0.4.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/jni-rs/jni-sys",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "jni-sys-macros",
+    "version": "0.4.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/jni-rs/jni-sys",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "libc",
+    "version": "0.2.186",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/libc",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "libm",
+    "version": "0.2.16",
+    "license": "MIT",
+    "source": "https://github.com/rust-lang/compiler-builtins",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "linebender_resource_handle",
+    "version": "0.1.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/raw_resource_handle",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "log",
+    "version": "0.4.33",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/log",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "memchr",
+    "version": "2.8.3",
+    "license": "Unlicense OR MIT",
+    "source": "https://github.com/BurntSushi/memchr",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "memmap2",
+    "version": "0.9.11",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/RazrFalcon/memmap2-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "once_cell",
+    "version": "1.21.4",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/matklad/once_cell",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "proc-macro2",
+    "version": "1.0.107",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/proc-macro2",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "quote",
+    "version": "1.0.47",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/quote",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "rangemap",
+    "version": "1.7.1",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/jeffparsons/rangemap",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "read-fonts",
+    "version": "0.37.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/googlefonts/fontations",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "read-fonts",
+    "version": "0.41.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/googlefonts/fontations",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "rustc-hash",
+    "version": "2.1.3",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/rust-lang/rustc-hash",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "same-file",
+    "version": "1.0.6",
+    "license": "Unlicense/MIT",
+    "source": "https://github.com/BurntSushi/same-file",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "self_cell",
+    "version": "1.3.0",
+    "license": "Apache-2.0 OR GPL-2.0-only",
+    "source": "https://github.com/Voultapher/self_cell",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "skrifa",
+    "version": "0.40.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/googlefonts/fontations",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "skrifa",
+    "version": "0.44.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/googlefonts/fontations",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "slotmap",
+    "version": "1.1.1",
+    "license": "Zlib",
+    "source": "https://github.com/orlp/slotmap",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "smallvec",
+    "version": "1.15.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/rust-smallvec",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "smol_str",
+    "version": "0.3.6",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/rust-analyzer/tree/master/lib/smol_str",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "swash",
+    "version": "0.2.10",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/dfrg/swash",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "syn",
+    "version": "2.0.119",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/syn",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "sys-locale",
+    "version": "0.3.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/1Password/sys-locale",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "thiserror",
+    "version": "1.0.69",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/thiserror",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "thiserror-impl",
+    "version": "1.0.69",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/thiserror",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "tinyvec",
+    "version": "1.12.0",
+    "license": "Zlib OR Apache-2.0 OR MIT",
+    "source": "https://github.com/Lokathor/tinyvec",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "tinyvec_macros",
+    "version": "0.1.1",
+    "license": "MIT OR Apache-2.0 OR Zlib",
+    "source": "https://github.com/Soveu/tinyvec_macros",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "ttf-parser",
+    "version": "0.25.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/harfbuzz/ttf-parser",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "unicode-bidi",
+    "version": "0.3.18",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/unicode-bidi",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "unicode-ident",
+    "version": "1.0.24",
+    "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+    "source": "https://github.com/dtolnay/unicode-ident",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "unicode-linebreak",
+    "version": "0.1.5",
+    "license": "Apache-2.0",
+    "source": "https://github.com/axelf4/unicode-linebreak",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "unicode-script",
+    "version": "0.5.8",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/unicode-rs/unicode-script",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "unicode-segmentation",
+    "version": "1.13.3",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/unicode-rs/unicode-segmentation",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "version_check",
+    "version": "0.9.5",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/SergioBenitez/version_check",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "walkdir",
+    "version": "2.5.0",
+    "license": "Unlicense/MIT",
+    "source": "https://github.com/BurntSushi/walkdir",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "winapi-util",
+    "version": "0.1.11",
+    "license": "Unlicense OR MIT",
+    "source": "https://github.com/BurntSushi/winapi-util",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "windows-link",
+    "version": "0.2.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "windows-sys",
+    "version": "0.45.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "windows-sys",
+    "version": "0.61.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "windows-targets",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "windows_aarch64_gnullvm",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "windows_aarch64_msvc",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "windows_i686_gnu",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "windows_i686_msvc",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "windows_x86_64_gnu",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "windows_x86_64_gnullvm",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "windows_x86_64_msvc",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "yazi",
+    "version": "0.2.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/dfrg/yazi",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "20_cosmic",
+    "name": "zeno",
+    "version": "0.3.3",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/dfrg/zeno",
+    "evidence": "native/cosmic-text/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  }
+]

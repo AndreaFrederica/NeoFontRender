@@ -46,21 +46,27 @@ public final class HudWindowCompositor {
     }
 
     public void render(float partialTicks) {
-        for (HudSurface surface : snapshot()) {
-            if (!surface.visible()) continue;
-            Rectangle clip = surface.bounds();
-            if (clip == null || clip.width <= 0 || clip.height <= 0) continue;
-            boolean scissorWasEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
-            IntBuffer oldScissor = BufferUtils.createIntBuffer(4);
-            if (scissorWasEnabled) GL11.glGetInteger(GL11.GL_SCISSOR_BOX, oldScissor);
-            applyScissor(clip);
-            try {
-                surface.render(partialTicks);
-            } finally {
-                if (scissorWasEnabled) {
-                    GL11.glScissor(oldScissor.get(0), oldScissor.get(1), oldScissor.get(2), oldScissor.get(3));
-                } else {
-                    GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        try (HudGlStateSnapshot compositorState = HudGlStateSnapshot.capture()) {
+            HudGlStateSnapshot.prepareHud2d();
+            for (HudSurface surface : snapshot()) {
+                if (!surface.visible()) continue;
+                Rectangle clip = surface.bounds();
+                if (clip == null || clip.width <= 0 || clip.height <= 0) continue;
+                boolean scissorWasEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+                IntBuffer oldScissor = BufferUtils.createIntBuffer(4);
+                if (scissorWasEnabled) GL11.glGetInteger(GL11.GL_SCISSOR_BOX, oldScissor);
+                applyScissor(clip);
+                try {
+                    // A surface may contain third-party item/entity renderers. Reassert
+                    // the 2D baseline before each surface so one cannot poison the next.
+                    HudGlStateSnapshot.prepareHud2d();
+                    surface.render(partialTicks);
+                } finally {
+                    if (scissorWasEnabled) {
+                        GL11.glScissor(oldScissor.get(0), oldScissor.get(1), oldScissor.get(2), oldScissor.get(3));
+                    } else {
+                        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+                    }
                 }
             }
         }
@@ -75,7 +81,7 @@ public final class HudWindowCompositor {
             focus(target.id());
             bringToFront(target.id());
         }
-        target.mouseInput();
+        target.mouseInput(mouseX, mouseY, button, pressed);
         if (!pressed && button >= 0) pointerCapture = null;
         return true;
     }

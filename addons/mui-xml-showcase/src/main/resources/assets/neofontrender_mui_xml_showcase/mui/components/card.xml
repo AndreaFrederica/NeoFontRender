@@ -1,0 +1,6 @@
+<mui:component-root xmlns:mui="urn:mui">
+    <mui:container id="${id}" class="settings-card">
+        <mui:text class="card-title" text="${title}"/>
+        <mui:container class="card-body"><mui:slot name="body"/></mui:container>
+    </mui:container>
+</mui:component-root>

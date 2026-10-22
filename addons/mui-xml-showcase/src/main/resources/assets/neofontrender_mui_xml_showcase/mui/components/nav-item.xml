@@ -1,0 +1,5 @@
+<mui:component-root xmlns:mui="urn:mui">
+    <mui:button class="nav-item" id="${id}" data-selected="${selected}">
+        <mui:text text="${label}" class="nav-label"/>
+    </mui:button>
+</mui:component-root>

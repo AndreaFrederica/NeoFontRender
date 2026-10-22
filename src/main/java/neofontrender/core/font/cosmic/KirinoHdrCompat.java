@@ -10,6 +10,10 @@ import com.cleanroommc.kirino.KirinoCommonCore;
  * Minecraft version or loader can replace/remove this file and keep the rest of the renderer
  * unchanged. HDR is only selected when Kirino owns the world render delegate; GUI rendering after
  * Kirino's finalizer remains on the regular Minecraft framebuffer.</p>
+ *
+ * <p>TODO: Add a native Kirino text backend when Kirino exposes a stable text or general-purpose
+ * draw-command API. Cleanroom 0.6.12 only exposes experimental entity/TESR queues, and Kirino's own
+ * HUD still delegates text to Minecraft's {@code FontRenderer}.</p>
  */
 public final class KirinoHdrCompat {
     private KirinoHdrCompat() {

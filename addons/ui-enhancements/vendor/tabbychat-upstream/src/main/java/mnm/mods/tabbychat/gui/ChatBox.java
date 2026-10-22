@@ -18,6 +18,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.MathHelper;
 import org.lwjgl.input.Mouse;
 import neofontrender.addons.chat.ChatHudWindowController;
+import neofontrender.addons.chat.ChatLayoutMemoryController;
 import neofontrender.addons.chat.EnhancedChatConfigAccess;
 
 import java.awt.*;
@@ -107,6 +108,7 @@ public class ChatBox extends GuiPanel implements ChatGui {
             if (event.getType() == MouseEvent.RELEASE) {
                 drag = null;
                 tempbox = null;
+                ChatLayoutMemoryController.dragFinished(this);
             } else if (event.getType() == MouseEvent.DRAG) {
                 if (!dragMode) {
                     setLocation(new Location(
@@ -114,7 +116,6 @@ public class ChatBox extends GuiPanel implements ChatGui {
                             tempbox.getYPos() + y - drag.y,
                             tempbox.getWidth() + x - drag.x,
                             tempbox.getHeight() - y + drag.y));
-                    this.chatArea.markDirty();
                 } else {
                     setLocation(getLocation().copy()
                             .setXPos(tempbox.getXPos() + x - drag.x)
@@ -129,8 +130,11 @@ public class ChatBox extends GuiPanel implements ChatGui {
         return TabbyChat.getInstance().getChatGui().getChatScale();
     }
 
+    public boolean isLayoutDragging() { return drag != null; }
+
     @Override
     public void updateComponent() {
+        ChatLayoutMemoryController.beforeLayout(this);
         ILocation bounds = getLocation();
         ILocation point = getActualLocation();
 
@@ -180,7 +184,7 @@ public class ChatBox extends GuiPanel implements ChatGui {
         final int MIN_X = 0;
         final int MIN_Y = 0;
         final int MAX_X = SCREEN_W - w1;
-        final int MAX_Y = SCREEN_H - h1 - HOTBAR;
+        final int MAX_Y = Math.max(0, SCREEN_H - h1 - HOTBAR);
 
         // calculate x and y coordinates
         x1 = Math.max(MIN_X, x1);
@@ -197,6 +201,7 @@ public class ChatBox extends GuiPanel implements ChatGui {
                     MathHelper.ceil(h1 / scale)));
         }
         super.updateComponent();
+        ChatLayoutMemoryController.afterLayout(this, drag != null);
     }
 
     @Override
@@ -236,6 +241,11 @@ public class ChatBox extends GuiPanel implements ChatGui {
     }
 
     public void onScreenHeightResize(int oldWidth, int oldHeight, int newWidth, int newHeight) {
+
+        if (ChatLayoutMemoryController.enabled()) {
+            updateComponent();
+            return;
+        }
 
         if (oldWidth == 0 || oldHeight == 0)
             return; // first time!

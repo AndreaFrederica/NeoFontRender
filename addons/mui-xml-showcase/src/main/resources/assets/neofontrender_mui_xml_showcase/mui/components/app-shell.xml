@@ -1,0 +1,8 @@
+<mui:component-root xmlns:mui="urn:mui">
+    <mui:container class="app-shell">
+        <mui:container class="shell-header"><mui:slot name="header"/></mui:container>
+        <mui:column class="shell-sidebar"><mui:slot name="sidebar"/></mui:column>
+        <mui:container class="shell-content"><mui:slot name="content"/></mui:container>
+        <mui:container class="shell-footer"><mui:slot name="footer"/></mui:container>
+    </mui:container>
+</mui:component-root>

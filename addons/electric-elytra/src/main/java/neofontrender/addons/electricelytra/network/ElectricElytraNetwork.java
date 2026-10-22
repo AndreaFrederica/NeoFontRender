@@ -14,6 +14,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraft.client.Minecraft;
 import neofontrender.addons.electricelytra.ElectricElytraMod;
+import neofontrender.addons.electricelytra.ElectricBodyAxis;
 import neofontrender.addons.electricelytra.ItemElectricElytra;
 import neofontrender.addons.api.flight.FlightAttitude;
 import neofontrender.addons.electricelytra.client.ElectricRemoteAttitudes;
@@ -81,6 +82,11 @@ public final class ElectricElytraNetwork {
                         message.yaw, message.roll);
                 FlightAttitude attitude = new FlightAttitude(
                         message.qx, message.qy, message.qz, message.qw);
+                ItemStack stack = player.getItemStackFromSlot(EntityEquipmentSlot.CHEST);
+                if (ItemElectricElytra.usesAerodynamicFlightModel(stack)) {
+                    ElectricBodyAxis.setManeuverCommand(player, message.pitch,
+                            message.roll, message.yaw);
+                }
                 CHANNEL.sendToAllAround(new AttitudeMessage(player.getEntityId(), attitude),
                         new NetworkRegistry.TargetPoint(player.dimension, player.posX,
                                 player.posY, player.posZ, 384.0D));

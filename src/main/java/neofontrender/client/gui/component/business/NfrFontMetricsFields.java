@@ -4,12 +4,14 @@ import com.cleanroommc.modularui.api.layout.ILayoutWidget;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import neofontrender.client.gui.component.base.NfrLabeledTextField;
 import neofontrender.client.gui.component.base.NfrLayout;
+import neofontrender.client.gui.component.base.NfrSettingsSearch;
 
 /** Size, variable weight, and baseline controls presented as one business field group. */
 public final class NfrFontMetricsFields extends ParentWidget<NfrFontMetricsFields> implements ILayoutWidget {
     private final NfrLabeledTextField size, weight, baseline;
     public NfrFontMetricsFields(NfrLabeledTextField size,NfrLabeledTextField weight,NfrLabeledTextField baseline){
         this.size=size;this.weight=weight;this.baseline=baseline;child(size);child(weight);child(baseline);
+        NfrSettingsSearch.register(this, () -> "size weight baseline font metrics", "font", "metrics");
     }
     @Override public boolean layoutWidgets(){
         int width=getArea().w(),gap=10,item=Math.max(0,(width-gap*2)/3);

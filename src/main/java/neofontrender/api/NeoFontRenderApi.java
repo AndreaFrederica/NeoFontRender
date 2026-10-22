@@ -21,7 +21,7 @@ import java.util.List;
  */
 @SideOnly(Side.CLIENT)
 public final class NeoFontRenderApi {
-    public static final int API_VERSION = 5;
+    public static final int API_VERSION = 6;
 
     private NeoFontRenderApi() {}
 
@@ -115,7 +115,7 @@ public final class NeoFontRenderApi {
                 FontStyle.fromConfig(NeofontrenderConfig.fontStyle()),
                 NeofontrenderConfig.fontVariableWeight(),
                 RenderingEngine.fromConfig(NeofontrenderConfig.renderingEngine()),
-                manager.isSfrActive() || manager.isTextBackendActive(),
+                manager.isSfrActive() || manager.isTextBackendActive() || manager.isCompatActive(),
                 manager.getBackendVersion());
     }
 

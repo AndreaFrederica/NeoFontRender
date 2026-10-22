@@ -2,8 +2,8 @@ package neofontrender.addons.cjk
 
 import net.minecraft.util.text.ITextComponent
 import net.minecraft.util.text.TextComponentString
-import neofontrender.api.text.CjkParagraphLayoutProvider
-import neofontrender.core.font.preprocess.LayoutText
+import neofontrender.api.text.paragraph.TextParagraphProvider
+import neofontrender.core.font.pipeline.LayoutText
 import org.tiqian.clreq.CjkPunctuationGlyphPolicy
 import org.tiqian.clreq.ClreqProfile
 import org.tiqian.clreq.ClreqProfileResolver
@@ -36,28 +36,36 @@ import java.util.Locale
 import kotlin.math.abs
 
 /** Tiqian-backed paragraph provider kept entirely inside the optional UIE addon. */
-object TiqianParagraphProvider : CjkParagraphLayoutProvider {
+object TiqianParagraphProvider : TextParagraphProvider {
     private const val CACHE_LIMIT = 512
     private const val PROFILE_LOCALE = "zh-Hans"
     private val chatSpeakerPrefix = Regex(
         "^\\s*(?:\\[[^\\]\\r\\n]{1,32}]\\s*)*(<[^<>\\s]{1,64}>)",
     )
 
-    private val cache = object : LinkedHashMap<CacheKey, CjkParagraphLayoutProvider.Layout>(
+    private val cache = object : LinkedHashMap<CacheKey, TextParagraphProvider.Layout>(
         CACHE_LIMIT + 1, 0.75f, true,
     ) {
         override fun removeEldestEntry(
-            eldest: MutableMap.MutableEntry<CacheKey, CjkParagraphLayoutProvider.Layout>,
+            eldest: MutableMap.MutableEntry<CacheKey, TextParagraphProvider.Layout>,
         ): Boolean = size > CACHE_LIMIT
     }
 
-    override fun id(): String = "tiqian"
+    private val componentCache = object : LinkedHashMap<ComponentCacheKey, BuiltLayout>(
+        CACHE_LIMIT + 1, 0.75f, true,
+    ) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<ComponentCacheKey, BuiltLayout>,
+        ): Boolean = size > CACHE_LIMIT
+    }
+
+    override fun id(): String = "neofontrender_ui_enhancements:tiqian"
 
     override fun priority(): Int = 100
 
     override fun layout(
-        request: CjkParagraphLayoutProvider.Request,
-    ): CjkParagraphLayoutProvider.Layout? {
+        request: TextParagraphProvider.Request,
+    ): TextParagraphProvider.Layout? {
         if (!enabledFor(request.languageCode())) return null
         val parsed = LayoutText.process(request.formattedText())
         if (!containsCjk(parsed.visibleText())) return null
@@ -73,10 +81,10 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
     }
 
     override fun splitComponents(
-        request: CjkParagraphLayoutProvider.ComponentRequest,
+        request: TextParagraphProvider.ComponentRequest,
     ): List<ITextComponent>? {
         if (!enabledFor(request.languageCode())) return null
-        if (request.surface() == CjkParagraphLayoutProvider.ComponentRequest.Surface.DEFAULT) return null
+        if (request.surface() == TextParagraphProvider.ComponentRequest.Surface.DEFAULT) return null
 
         val segments = mutableListOf<ComponentSegment>()
         val formatted = StringBuilder()
@@ -84,7 +92,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
         for (component in request.component()) {
             val text = component.unformattedComponentText
             if (text.isEmpty()) continue
-            val componentLayout = LayoutText.process(text)
+            val componentLayout = LayoutText.process(component.style.formattingCode + text)
             formatted.append('\u00a7').append('r')
                 .append(component.style.formattingCode)
                 .append(text)
@@ -96,10 +104,23 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
 
         val parsed = LayoutText.process(formatted.toString())
         if (!containsCjk(parsed.visibleText())) return null
-        val built = buildLayout(
-            parsed, request.maxWidth(), request.lineHeight(), request.measurer(), request.surface(),
+        val cacheKey = ComponentCacheKey(
+            formatted.toString(), request.maxWidth(), request.lineHeight(),
+            normalizeLanguage(request.languageCode()), metricProbe(request.measurer()),
+            parsed.fingerprint(), request.removeLeadingSpace(), request.forceTextColor(), request.surface(),
         )
-        return built.visibleLines.mapIndexed { lineIndex, range ->
+        val built = synchronized(componentCache) { componentCache[cacheKey] }
+            ?: buildLayout(parsed, request.maxWidth(), request.lineHeight(), request.measurer(), request.surface())
+                .also { synchronized(componentCache) { componentCache[cacheKey] = it } }
+        return exportComponents(parsed, segments, built, request)
+    }
+
+    private fun exportComponents(
+        parsed: LayoutText,
+        segments: List<ComponentSegment>,
+        built: BuiltLayout,
+        request: TextParagraphProvider.ComponentRequest,
+    ): List<ITextComponent> = built.visibleLines.mapIndexed { lineIndex, range ->
             var start = range.start
             if (request.removeLeadingSpace() && start < range.end && parsed.visibleText()[start] == ' ') {
                 start++
@@ -123,9 +144,8 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
                 if (overlapStart >= overlapEnd) continue
                 val localStart = overlapStart - segment.start
                 val localEnd = overlapEnd - segment.start
-                val display = segment.layout.visibleText().substring(localStart, localEnd)
                 val child = TextComponentString(segment.source.style.formattingCode +
-                        segment.layout.formattedDisplay(localStart, display))
+                        segment.layout.formattedRange(localStart, localEnd))
                     .setStyle(segment.source.style.createDeepCopy())
                 line.appendSibling(child)
                 line.`nfrUi$addComponentSpan`(
@@ -134,10 +154,10 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
             }
             line
         }.ifEmpty { listOf(TextComponentString("")) }
-    }
 
     fun clearCache() {
         synchronized(cache) { cache.clear() }
+        synchronized(componentCache) { componentCache.clear() }
     }
 
     private fun enabledFor(languageCode: String): Boolean =
@@ -162,7 +182,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
         return false
     }
 
-    private fun metricProbe(measurer: CjkParagraphLayoutProvider.TextMeasurer): Int {
+    private fun metricProbe(measurer: TextParagraphProvider.TextMeasurer): Int {
         var hash = 1
         for (sample in listOf("汉", "Aa", "，。", "\u00a7l汉")) {
             hash = 31 * hash + measurer.measureFormatted(sample).toBits()
@@ -174,13 +194,13 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
         parsed: LayoutText,
         maxWidth: Int,
         lineHeight: Int,
-        measurer: CjkParagraphLayoutProvider.TextMeasurer,
-        surface: CjkParagraphLayoutProvider.ComponentRequest.Surface =
-            CjkParagraphLayoutProvider.ComponentRequest.Surface.DEFAULT,
+        measurer: TextParagraphProvider.TextMeasurer,
+        surface: TextParagraphProvider.ComponentRequest.Surface =
+            TextParagraphProvider.ComponentRequest.Surface.DEFAULT,
     ): BuiltLayout {
         if (parsed.visibleText().isEmpty()) {
-            val line = CjkParagraphLayoutProvider.Line(0, 0, 0f, false, emptyList())
-            return BuiltLayout(CjkParagraphLayoutProvider.Layout(listOf(line)), listOf(TextRange(0, 0)))
+            val line = TextParagraphProvider.Line(0, 0, 0f, false, emptyList())
+            return BuiltLayout(TextParagraphProvider.Layout(listOf(line)), listOf(TextRange(0, 0)))
         }
 
         val em = maxOf(1f, measurer.measureFormatted("汉"))
@@ -205,7 +225,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
         var guiProfile = ClreqProfile.MainlandHorizontal.copy(
             punctuationGlyphPolicy = CjkPunctuationGlyphPolicy.PreserveInput,
         )
-        if (surface == CjkParagraphLayoutProvider.ComponentRequest.Surface.CHAT) {
+        if (surface == TextParagraphProvider.ComponentRequest.Surface.CHAT) {
             guiProfile = guiProfile.copy(
                 kinsokuMode = KinsokuMode.Fixed(
                     KinsokuLevel.Basic, HangingPunctuationStyle.Disabled,
@@ -235,7 +255,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
         )
         val positionedByLine = result.positionedClusters().groupBy { it.lineIndex }
         val apiLines = result.lines.mapIndexed { lineIndex, line ->
-            val runs = mutableListOf<CjkParagraphLayoutProvider.Run>()
+            val runs = mutableListOf<TextParagraphProvider.Run>()
             var pendingText = StringBuilder()
             var pendingStart = -1
             var pendingEnd = -1
@@ -245,7 +265,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
 
             fun flushPending() {
                 if (pendingStart < 0) return
-                runs += CjkParagraphLayoutProvider.Run(
+                runs += TextParagraphProvider.Run(
                     parsed.formattedDisplay(pendingStart, pendingText.toString()),
                     pendingX,
                     parsed.rawStartBoundary(pendingStart),
@@ -283,14 +303,14 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
             if (line.hyphenAdvance > 0f) {
                 val boundary = parsed.rawEndBoundary(line.range.end)
                 val styleOffset = (line.range.end - 1).coerceAtLeast(line.range.start)
-                runs += CjkParagraphLayoutProvider.Run(
+                runs += TextParagraphProvider.Run(
                     parsed.formattedDisplay(styleOffset, "-"),
                     line.indent + line.visualWidth,
                     boundary,
                     boundary,
                 )
             }
-            CjkParagraphLayoutProvider.Line(
+            TextParagraphProvider.Line(
                 parsed.rawStartBoundary(line.range.start),
                 parsed.rawEndBoundary(line.range.end),
                 lineIndex * lineHeight.toFloat(),
@@ -299,7 +319,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
             )
         }
         return BuiltLayout(
-            CjkParagraphLayoutProvider.Layout(apiLines),
+            TextParagraphProvider.Layout(apiLines),
             result.lines.map { it.range },
             result.lines.mapIndexedNotNull { index, line ->
                 index.takeIf { line.hyphenAdvance > 0f }
@@ -317,9 +337,9 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
 
     private fun chatSpeakerDecoration(
         text: String,
-        surface: CjkParagraphLayoutProvider.ComponentRequest.Surface,
+        surface: TextParagraphProvider.ComponentRequest.Surface,
     ): List<DecorationSpan> {
-        if (surface != CjkParagraphLayoutProvider.ComponentRequest.Surface.CHAT) return emptyList()
+        if (surface != TextParagraphProvider.ComponentRequest.Surface.CHAT) return emptyList()
         val token = chatSpeakerPrefix.find(text)?.groups?.get(1) ?: return emptyList()
         return listOf(
             DecorationSpan(
@@ -331,7 +351,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
 
     private class HostTextShaper(
         private val parsed: LayoutText,
-        private val measurer: CjkParagraphLayoutProvider.TextMeasurer,
+        private val measurer: TextParagraphProvider.TextMeasurer,
     ) : TextShaper {
         override fun shape(input: ShapingInput): ShapingResult {
             val source = input.text.substring(input.range.start, input.range.end)
@@ -365,7 +385,7 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
     }
 
     private data class BuiltLayout(
-        val layout: CjkParagraphLayoutProvider.Layout,
+        val layout: TextParagraphProvider.Layout,
         val visibleLines: List<TextRange>,
         val hyphenatedLines: Set<Int> = emptySet(),
         val positionedLines: List<List<PositionedCell>> = emptyList(),
@@ -392,6 +412,18 @@ object TiqianParagraphProvider : CjkParagraphLayoutProvider {
         val language: String,
         val metricProbe: Int,
         val layoutFingerprint: Int,
+    )
+
+    private data class ComponentCacheKey(
+        val formattedText: String,
+        val maxWidth: Int,
+        val lineHeight: Int,
+        val language: String,
+        val metricProbe: Int,
+        val layoutFingerprint: Int,
+        val removeLeadingSpace: Boolean,
+        val forceTextColor: Boolean,
+        val surface: TextParagraphProvider.ComponentRequest.Surface,
     )
 
     private fun styleRanges(parsed: LayoutText): List<Pair<TextRange, LayoutText.State>> {

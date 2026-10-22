@@ -26,31 +26,31 @@ tasks.named('processResources') {
 }
 
 def packagedJar = tasks.named(remapTaskName)
-def coreContainedJars = providers.provider {
-    configurations.contain.files.collect { it.name }.sort()
-}
 tasks.register('fullJar', Zip) {
     group = 'build'; description = 'Packages the complete mod distribution.'
     dependsOn packagedJar
-    archiveBaseName = mod_id; archiveVersion = mod_version; archiveClassifier = 'full'; archiveExtension = 'jar'
+    archiveBaseName = mod_id; archiveVersion = project.version; archiveClassifier = 'full'; archiveExtension = 'jar'
     destinationDirectory = layout.buildDirectory.dir('libs')
     from { zipTree(packagedJar.get().archiveFile.get().asFile) }
+    // Cleanroom's launcher does not consistently expose nested ContainedDeps
+    // to the game classloader. Flatten game-independent engine classes into
+    // the distributable jar so addon APIs are always loadable at runtime.
+    from { configurations.contain.collect { zipTree(it) } }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 tasks.register('coreJar', Jar) {
     group = 'build'; description = 'Packages Cosmic/AWT rendering without bundled fonts.'
     dependsOn packagedJar
-    archiveBaseName = mod_id; archiveVersion = mod_version; archiveClassifier = 'core'; archiveExtension = 'jar'
+    archiveBaseName = mod_id; archiveVersion = project.version; archiveClassifier = 'core'; archiveExtension = 'jar'
     destinationDirectory = layout.buildDirectory.dir('libs')
     from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
         exclude 'META-INF/MANIFEST.MF', 'mcmod.info', 'assets/neofontrender/fonts/**',
                 'neofontrender/resources/**'
     }
     from('src/corePack/resources') {
-        expand(mod_id: mod_id, mod_name: mod_name, mod_version: mod_version, mod_description: mod_description, mod_authors: mod_authors, mod_credits: mod_credits, mod_url: mod_url, mod_update_json: mod_update_json, mod_issue_tracker: mod_issue_tracker, mod_logo_path: mod_logo_path, modularui_version: modularui_version)
+        expand(mod_id: mod_id, mod_name: mod_name, mod_version: project.version, mod_description: mod_description, mod_authors: mod_authors, mod_credits: mod_credits, mod_url: mod_url, mod_update_json: mod_update_json, mod_issue_tracker: mod_issue_tracker, mod_logo_path: mod_logo_path, modularui_version: nfrVersion('modularui_version'))
     }
     doFirst {
-        def contained = coreContainedJars.get()
         def attributes = [
                 'ModType': 'CRL',
                 'FMLCorePlugin': coremod_plugin_class_name,
@@ -58,10 +58,6 @@ tasks.register('coreJar', Jar) {
                 'FMLAT': access_transformer_locations,
                 'Fabric-Loom-Mixin-Remap-Type': 'mixin'
         ]
-        if (!contained.isEmpty()) {
-            attributes['ContainedDeps'] = contained.join(' ')
-            attributes['NonModDeps'] = true
-        }
         manifest.attributes(attributes)
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -69,13 +65,13 @@ tasks.register('coreJar', Jar) {
 tasks.register('resourcesJar', Jar) {
     group = 'build'; description = 'Packages bundled fonts as a standalone resource mod.'
     dependsOn packagedJar
-    archiveBaseName = "${mod_id}-resources"; archiveVersion = mod_version; archiveExtension = 'jar'
+    archiveBaseName = "${mod_id}-resources"; archiveVersion = project.version; archiveExtension = 'jar'
     destinationDirectory = layout.buildDirectory.dir('libs')
     from({ zipTree(packagedJar.get().archiveFile.get().asFile) }) {
         include 'assets/neofontrender/fonts/**', 'assets/neofontrender/logo.png',
                 'neofontrender/resources/NeoFontRenderResources.class'
     }
-    from('src/resourcePack/resources') { expand(mod_version: mod_version, mod_authors: mod_authors, mod_url: mod_url, mod_issue_tracker: mod_issue_tracker) }
+    from('src/resourcePack/resources') { expand(mod_version: project.version, mod_authors: mod_authors, mod_url: mod_url, mod_issue_tracker: mod_issue_tracker) }
     manifest.attributes('ModType': 'CRL')
 }
 tasks.register('verifyPackageVariants') {
@@ -127,6 +123,12 @@ tasks.register('verifyPackageVariants') {
                 }
                 if (!entries.contains('mixins.neofontrender.json')) {
                     throw new GradleException("${archive.name} is missing mixins.neofontrender.json")
+                }
+                if (entries.contains('text-core.jar')) {
+                    throw new GradleException("${archive.name} still contains an external text-core.jar")
+                }
+                if (manifest?.getValue('ContainedDeps') != null) {
+                    throw new GradleException("${archive.name} still declares external contained dependencies")
                 }
                 def declared = (jar.manifest.mainAttributes.getValue('ContainedDeps') ?: '')
                         .split('\\s+').findAll { !it.isEmpty() }
@@ -182,5 +184,16 @@ tasks.register('cosmicFontComparison', JavaExec) {
                 new File(fontDir, 'chakra-petch-medium-italic_ufonts.com.ttf').absolutePath,
                 new File(fontDir, 'chakra-petch-semibold-italic_ufonts.com.ttf').absolutePath
         ])
+    }
+}
+
+tasks.register('cosmicOutlineBenchmark', JavaExec) {
+    group = 'verification'; dependsOn 'classes'
+    description = 'Benchmarks native outline SDF and MSDF outside Minecraft.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'neofontrender.core.font.cosmic.CosmicOutlineBenchmark'
+    ['cosmicOutlineIterations', 'cosmicOutlineFont', 'cosmicOutlineFontSize',
+     'cosmicOutlineScale', 'cosmicOutlineRange', 'cosmicOutlineText'].each { key ->
+        if (project.hasProperty(key)) jvmArgs "-D${key}=${project.property(key)}"
     }
 }

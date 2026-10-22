@@ -1,0 +1,37 @@
+# id|English name|icon base (specimen form)|accent RGB|molecular formula|chemical notation|optional SMILES
+water|Water|liquid|55BDEB|H2O|2 H2 + O2 -> 2 H2O
+methane|Methane|gas|87DBAD|CH4|CH4 + 2 O2 -> CO2 + 2 H2O
+ammonia|Ammonia|gas|ABD5F4|NH3|N2 + 3 H2 -> 2 NH3
+carbon_dioxide|Carbon dioxide|gas|B9CEE1|CO2|CO2 + Ca(OH)2 -> CaCO3 + H2O
+hydrogen_peroxide|Hydrogen peroxide|liquid|A9E9F2|H2O2|2 H2O2 -> 2 H2O + O2
+sulfuric_acid|Sulfuric acid|flask|EAC95C|H2SO4|H2SO4 -> 2 H+ + SO4^2-
+nitric_acid|Nitric acid|flask|E9DA8A|HNO3|HNO3 -> H+ + NO3^-
+hydrochloric_acid|Hydrochloric acid|flask|BCE382|HCl|HCl + NaOH -> NaCl + H2O
+sodium_hydroxide|Sodium hydroxide|crystal|C2E2EB|NaOH|NaOH -> Na+ + OH-
+sodium_chloride|Sodium chloride|crystal|E7EDF6|NaCl|NaCl -> Na+ + Cl-
+calcium_carbonate|Calcium carbonate|powder|DEDACF|CaCO3|CaCO3 -> CaO + CO2
+sodium_bicarbonate|Sodium bicarbonate|powder|D0DDEA|NaHCO3|2 NaHCO3 -> Na2CO3 + CO2 + H2O
+copper_sulfate|Copper(II) sulfate|crystal|469DE8|CuSO4|CuSO4 -> Cu^2+ + SO4^2-
+potassium_permanganate|Potassium permanganate|crystal|C378DA|KMnO4|MnO4^- + 8 H+ + 5 Fe^2+ -> Mn^2+ + 4 H2O + 5 Fe^3+
+ammonium_sulfate|Ammonium sulfate|crystal|DFCCA5|(NH4)2SO4|(NH4)2SO4 -> 2 NH4^+ + SO4^2-
+potassium_ferricyanide|Potassium ferricyanide|crystal|E58B72|K3[Fe(CN)6]|K3[Fe(CN)6] -> 3 K+ + [Fe(CN)6]^3-
+ethanol|Ethanol|liquid|7FD6C1|C2H6O|CH3CH2OH|CCO
+acetic_acid|Acetic acid|flask|D6DD7C|C2H4O2|CH3COOH|CC(=O)O
+acetone|Acetone|liquid|E2B07C|C3H6O|CH3COCH3|CC(=O)C
+ethyl_acetate|Ethyl acetate|liquid|B8D878|C4H8O2|CH3COOCH2CH3|CCOC(C)=O
+benzene|Benzene|flask|E8C175|C6H6|C6H6 + 3 H2 -> C6H12
+phenol|Phenol|solid|DFA28D|C6H6O|C6H5OH
+aniline|Aniline|flask|CCB0E6|C6H7N|C6H5NH2
+glycine|Glycine|powder|99D8CE|C2H5NO2|NH2CH2COOH|NCC(=O)O
+aspirin|Aspirin|tablet|90BDEB|C9H8O4|C6H4(OCOCH3)COOH|CC(=O)Oc1ccccc1C(=O)O
+caffeine|Caffeine|powder|D6AB7C|C8H10N4O2|C8H10N4O2|Cn1c(=O)c2c(ncn2C)n(C)c1=O
+glucose|Glucose|powder|EABB9E|C6H12O6|C6H12O6 + 6 O2 -> 6 CO2 + 6 H2O|OCC(O)C(O)C(O)C(O)C=O
+sucrose|Sucrose|powder|DFCEAF|C12H22O11|C12H22O11 + H2O -> 2 C6H12O6|OCC(O)C(O)C(O)C(O)CO
+carbon_14|Carbon-14|solid|80D7A0|^14_6 C|^14_6 C -> ^14_7 N + ^0_(-1) e
+heavy_water|Heavy water|liquid|79AADF|^2_1 H2O|^2_1 H2 + 1/2 O2 -> ^2_1 H2O
+naphthalene|Naphthalene|crystal|CABCE5|C10H8|C10H8|c1ccc2ccccc2c1
+anthracene|Anthracene|crystal|BBA9DE|C14H10|C14H10|c1ccc2cc3ccccc3cc2c1
+ibuprofen|Ibuprofen|tablet|82BCD4|C13H18O2|C13H18O2|CC(C)Cc1ccc(C(C)C(=O)O)cc1
+tryptophan|L-Tryptophan|powder|D8AACA|C11H12N2O2|C11H12N2O2|N[C@@H](Cc1c[nH]c2ccccc12)C(=O)O
+adenosine|Adenosine|powder|8CCABD|C10H13N5O4|C10H13N5O4|Nc1ncnc2c1ncn2[C@@H]1O[C@H](CO)[C@@H](O)[C@H]1O
+riboflavin|Riboflavin (vitamin B2)|powder|E2CE61|C17H20N4O6|C17H20N4O6|Cc1cc2nc3c(=O)[nH]c(=O)nc-3n(C[C@H](O)[C@H](O)[C@H](O)CO)c2cc1C

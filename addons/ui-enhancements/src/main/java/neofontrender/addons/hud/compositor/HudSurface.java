@@ -11,5 +11,7 @@ public interface HudSurface {
 
     default boolean acceptsPointer() { return true; }
     default void mouseInput() {}
+    /** Pointer event in scaled-screen coordinates; the no-argument hook remains source-compatible. */
+    default void mouseInput(int mouseX, int mouseY, int button, boolean pressed) { mouseInput(); }
     default void focusChanged(boolean focused) {}
 }

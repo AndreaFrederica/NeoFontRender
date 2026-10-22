@@ -13,6 +13,10 @@ public final class EnchantmentTextRenderer {
 
     public static void drawMagicName(FontRenderer vanilla, String text,
                                      int x, int y, int width, int color) {
+        if (NeofontrenderConfig.useCompatEngine()) {
+            ScopedFontRenderBypass.run(() -> vanilla.drawSplitString(text, x, y, width, color));
+            return;
+        }
         FontRenderSpec spec = FontRenderSpec.builder()
                 .backend(backend(NeofontrenderConfig.enchantmentFontBackend()))
                 .fonts(NeofontrenderConfig.enchantmentFonts())

@@ -23,6 +23,7 @@ public class NfrTextButton extends ButtonWidget<NfrTextButton> {
                 .label(label)
                 .actions(NavigationAction.ACTIVATE, NavigationAction.SECONDARY)
                 .build());
+        NfrSettingsSearch.register(this, label, "button", "action");
     }
 
     @Override

@@ -3,8 +3,8 @@ use cosmic_text::{
     Attrs, Buffer, Color, Fallback, Family, FontSystem, Metrics, PhysicalGlyph, PlatformFallback,
     Renderer, Shaping, Style, SwashCache, SwashContent, UnderlineStyle, Weight,
 };
-use jni::objects::{JByteArray, JClass, JObjectArray, JString};
-use jni::sys::{jboolean, jbyteArray, jfloat, jint, jlong, jstring};
+use jni::objects::{JByteArray, JClass, JIntArray, JObjectArray, JString};
+use jni::sys::{jboolean, jbyteArray, jfloat, jint, jintArray, jlong, jstring};
 use jni::JNIEnv;
 use skrifa::prelude::*;
 use skrifa::string::StringId;
@@ -13,7 +13,12 @@ use std::ptr;
 use std::sync::Mutex;
 use unicode_script::Script;
 
-const ABI_VERSION: jint = 11;
+mod composition;
+mod outline;
+
+// ABI 17 adds the one-shaping-pass page entry used by the vanilla-layout compatibility provider; the
+// outline pipeline introduced in ABI 15 and every earlier raster method are unchanged.
+const ABI_VERSION: jint = 17;
 const STYLE_BOLD: jint = 1;
 const STYLE_ITALIC: jint = 2;
 const STYLE_UNDERLINE: jint = 4;
@@ -31,6 +36,14 @@ const RASTER_PADDING: i32 = 4;
 const RASTER_MODEL_MASK: u32 = 1;
 const RASTER_MODEL_FLAT_COLOR: u32 = 2;
 const RASTER_MODEL_GRADIENT_COLOR: u32 = 4;
+/// The payload alpha channel already contains a normalized SDF generated from
+/// vector outlines. Java must not run the legacy mask-to-SDF conversion again.
+const RASTER_MODEL_OUTLINE_SDF: u32 = 8;
+const RASTER_MODEL_OUTLINE_MSDF: u32 = 16;
+/// The payload after the 36-byte header is one byte per pixel (SDF/coverage).
+const RASTER_MODEL_PAYLOAD_ALPHA8: u32 = 32;
+/// The payload after the 36-byte header is three bytes per pixel (RGB MSDF).
+const RASTER_MODEL_PAYLOAD_RGB8: u32 = 64;
 
 struct Engine {
     font_system: Mutex<FontSystem>,
@@ -39,6 +52,7 @@ struct Engine {
     faces: [ResolvedFace; 4],
     resolution_warnings: String,
     font_size: f32,
+    composition_profiles: Mutex<composition::ProfileCache<std::sync::Arc<composition::CharacterProfile>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -386,6 +400,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_createEn
             let engine = Box::new(Engine {
                 font_system: Mutex::new(font_system),
                 swash_cache: Mutex::new(SwashCache::new()),
+                composition_profiles: Mutex::new(composition::ProfileCache::new(128)),
                 primary_family,
                 faces,
                 resolution_warnings: warnings.join("\n"),
@@ -987,7 +1002,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_measure(
         style_flags,
         font_size,
         1.0,
-        |buffer, _, _| {
+        |buffer, _, _, _| {
             Ok(buffer
                 .layout_runs()
                 .map(|run| run.line_w)
@@ -1024,7 +1039,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_render(
         style_flags,
         font_size,
         raster_scale.max(1.0),
-        |buffer, engine, scale| {
+        |buffer, engine, scale, _| {
             rasterize(buffer, engine, argb as u32, scale, style_flags, font_size)
         },
     );
@@ -1047,7 +1062,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_measureS
         style_flags,
         font_size.max(1.0),
         1.0,
-        |buffer, _, _| {
+        |buffer, _, _, _| {
             Ok(buffer
                 .layout_runs()
                 .map(|run| run.line_w)
@@ -1080,7 +1095,7 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_renderSi
         style_flags,
         font_size.max(1.0),
         raster_scale.max(1.0),
-        |buffer, engine, scale| {
+        |buffer, engine, scale, _| {
             rasterize(
                 buffer,
                 engine,
@@ -1088,6 +1103,73 @@ pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_renderSi
                 scale,
                 style_flags,
                 font_size.max(1.0),
+            )
+        },
+    );
+    encode_render_result(&mut env, result)
+}
+
+/// Rasterizes shaped monochrome glyphs directly from swash outlines. This is deliberately a
+/// separate entry point so older callers keep the existing Alpha-mask contract. The returned
+/// payload uses the normal COSM header and stores the normalized outline SDF in the alpha byte
+/// of each packed pixel, marked with RASTER_MODEL_OUTLINE_SDF.
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_renderOutlineSdfSized(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    text: JString,
+    style_flags: jint,
+    font_size: jfloat,
+    raster_scale: jfloat,
+    distance_range: jint,
+) -> jbyteArray {
+    let result = with_text(
+        &mut env,
+        handle,
+        text,
+        style_flags,
+        font_size.max(1.0),
+        raster_scale.max(1.0),
+        |buffer, engine, scale, _| {
+            outline_sdf_rasterize(
+                buffer,
+                engine,
+                scale,
+                style_flags,
+                font_size.max(1.0),
+                distance_range.max(1) as f32,
+            )
+        },
+    );
+    encode_render_result(&mut env, result)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_renderMsdfSized(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    text: JString,
+    style_flags: jint,
+    font_size: jfloat,
+    raster_scale: jfloat,
+    distance_range: jint,
+) -> jbyteArray {
+    let result = with_text(
+        &mut env,
+        handle,
+        text,
+        style_flags,
+        font_size.max(1.0),
+        raster_scale.max(1.0),
+        |buffer, engine, scale, _| {
+            outline_msdf_rasterize(
+                buffer,
+                engine,
+                scale,
+                style_flags,
+                distance_range.max(1) as f32,
             )
         },
     );
@@ -1110,6 +1192,159 @@ fn encode_render_result(env: &mut JNIEnv, result: Result<Vec<u8>, String>) -> jb
     }
 }
 
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_clusterRangesSized(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    text: JString,
+    style_flags: jint,
+    font_size: jfloat,
+) -> jintArray {
+    let result = with_text(
+        &mut env,
+        handle,
+        text,
+        style_flags,
+        font_size.max(1.0),
+        1.0,
+        |buffer, _, _, value| {
+            let mut ranges = Vec::<(usize, usize)>::new();
+            for run in buffer.layout_runs() {
+                for glyph in run.glyphs {
+                    if glyph.end > glyph.start {
+                        ranges.push((glyph.start, glyph.end));
+                    }
+                }
+            }
+            ranges.sort_unstable();
+            ranges.dedup();
+            let mut encoded = Vec::<jint>::with_capacity(ranges.len() * 2);
+            for (start, end) in ranges {
+                if start <= value.len() && end <= value.len()
+                    && value.is_char_boundary(start) && value.is_char_boundary(end)
+                {
+                    encoded.push(utf16_offset(value, start));
+                    encoded.push(utf16_offset(value, end));
+                }
+            }
+            Ok(encoded)
+        },
+    );
+    match result {
+        Ok(values) => match env.new_int_array(values.len() as i32) {
+            Ok(array) => {
+                if let Err(error) = env.set_int_array_region(&array, 0, &values) {
+                    throw(&mut env, &error.to_string());
+                    ptr::null_mut()
+                } else {
+                    array.into_raw()
+                }
+            }
+            Err(error) => {
+                throw(&mut env, &error.to_string());
+                ptr::null_mut()
+            }
+        },
+        Err(message) => {
+            throw(&mut env, &message);
+            ptr::null_mut()
+        }
+    }
+}
+
+/// Safe fixed-width character split endpoints; empty means preserve the original run. Both logical and
+/// raster sizes are checked because shaping can depend on size (e.g. optical-size fonts).
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_monospaceSplitPointsSized(
+    mut env: JNIEnv, _class: JClass, handle: jlong, text: JString,
+    style_flags: jint, font_size: jfloat, raster_scale: jfloat,
+) -> jintArray {
+    let result = with_text(&mut env, handle, text, style_flags, font_size.max(1.0), 1.0,
+        |buffer, engine, _, value| {
+            let Some(full) = composition::snapshot(buffer) else { return Ok(vec![]); };
+            let mut fonts = engine.font_system.lock().map_err(|_| "font system lock poisoned")?;
+            let mut profiles = engine.composition_profiles.lock().map_err(|_| "composition lock poisoned")?;
+            let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
+            let attrs = attrs_for_style(face, style_flags);
+            let size = font_size.max(1.0);
+            // Profiles belong to this engine/face selection and are bounded across sizes/styles.
+            let profile = profiles.get_or_insert_with((style_flags, size.to_bits()), ||
+                std::sync::Arc::new(composition::CharacterProfile::new(&mut fonts, &attrs, size)));
+            let points = profile.boundaries(&mut fonts, &attrs, size, value);
+            if points.is_empty() { return Ok(vec![]); }
+            let mut points = composition::refine(&mut fonts, &attrs, size, value, &full, &profile, points);
+            if points.is_empty() { return Ok(vec![]); }
+            let scaled_size = size * raster_scale.max(1.0);
+            if scaled_size != size {
+                let scaled = profiles.get_or_insert_with((style_flags, scaled_size.to_bits()), ||
+                    std::sync::Arc::new(composition::CharacterProfile::new(&mut fonts, &attrs, scaled_size)));
+                let allowed = scaled.boundaries(&mut fonts, &attrs, scaled_size, value);
+                if !points.iter().all(|p| allowed.contains(p)) { return Ok(vec![]); }
+                points = composition::refine_scaled(&mut fonts, &attrs, scaled_size, value, &scaled, points);
+                if points.is_empty() || !composition::matches(&mut fonts, &attrs, size, value,
+                        &full, &profile, &points) { return Ok(vec![]); }
+            }
+            // Java substring offsets use UTF-16, including supplementary-plane Han characters.
+            Ok(points.into_iter().skip(1).map(|p| utf16_offset(value, p)).collect::<Vec<_>>())
+        });
+    match result {
+        Ok(values) => match env.new_int_array(values.len() as i32) {
+            Ok(array) => {
+                if let Err(error) = env.set_int_array_region(&array, 0, &values) {
+                    throw(&mut env, &error.to_string());
+                    ptr::null_mut()
+                } else { array.into_raw() }
+            }
+            Err(error) => { throw(&mut env, &error.to_string()); ptr::null_mut() }
+        },
+        Err(message) => { throw(&mut env, &message); ptr::null_mut() }
+    }
+}
+
+/// Returns fixed-width profile flags for the logical and raster sizes. A flag is set only when
+/// both sizes prove it, because optical sizing can change shaping decisions.
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_monospaceProfileFlagsSized(
+    mut env: JNIEnv, _class: JClass, handle: jlong, style_flags: jint,
+    font_size: jfloat, raster_scale: jfloat,
+) -> jint {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        if handle == 0 {
+            return Err("cosmic-text engine is closed".to_string());
+        }
+        let engine = unsafe { &*(handle as *const Engine) };
+        let mut fonts = engine.font_system.lock().map_err(|_| "font system lock poisoned".to_string())?;
+        let mut profiles = engine.composition_profiles.lock().map_err(|_| "composition lock poisoned".to_string())?;
+        let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
+        let attrs = attrs_for_style(face, style_flags);
+        let size = font_size.max(1.0);
+        let profile = profiles.get_or_insert_with((style_flags, size.to_bits()), ||
+            std::sync::Arc::new(composition::CharacterProfile::new(&mut fonts, &attrs, size)));
+        let mut flags = profile.flags();
+        let scaled_size = size * raster_scale.max(1.0);
+        if scaled_size != size {
+            let scaled = profiles.get_or_insert_with((style_flags, scaled_size.to_bits()), ||
+                std::sync::Arc::new(composition::CharacterProfile::new(&mut fonts, &attrs, scaled_size)));
+            flags &= scaled.flags();
+        }
+        Ok(flags as jint)
+    }))
+    .map_err(|_| "panic in cosmic-text profile probe".to_string())
+    .and_then(|value| value);
+    match result {
+        Ok(flags) => flags,
+        Err(message) => {
+            throw(&mut env, &message);
+            0
+        }
+    }
+}
+
+fn utf16_offset(value: &str, byte_offset: usize) -> jint {
+    value[..byte_offset].encode_utf16().count() as jint
+}
+
 fn with_text<T, F>(
     env: &mut JNIEnv,
     handle: jlong,
@@ -1120,39 +1355,117 @@ fn with_text<T, F>(
     operation: F,
 ) -> Result<T, String>
 where
-    F: FnOnce(&mut Buffer, &Engine, f32) -> Result<T, String>,
+    F: FnOnce(&mut Buffer, &Engine, f32, &str) -> Result<T, String>,
 {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         if handle == 0 {
             return Err("cosmic-text engine is closed".to_string());
         }
-        let engine = unsafe { &*(handle as *const Engine) };
         let value: String = env.get_string(&text).map_err(|e| e.to_string())?.into();
-        let scale = raster_scale.max(1.0);
-        let font_size = logical_font_size.max(1.0) * scale;
-        let metrics = Metrics::new(font_size, font_size * 1.4);
-        let mut font_system = engine
-            .font_system
-            .lock()
-            .map_err(|_| "font system lock poisoned".to_string())?;
-        let mut buffer = Buffer::new(&mut font_system, metrics);
-        buffer.set_size(None, Some(metrics.line_height * 2.0));
-        // Each style slot is resolved once at engine creation. Keeping the requested weight here
-        // is essential for variable fonts whose OS/2 default weight differs from the desired
-        // `wght` coordinate.
-        let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
-        let attrs = attrs_for_style(face, style_flags);
-        buffer.set_text(&value, &attrs, Shaping::Advanced, None);
-        buffer.shape_until_scroll(&mut font_system, false);
-        drop(font_system);
-        operation(&mut buffer, engine, scale)
+        with_str(handle, &value, style_flags, logical_font_size, raster_scale, operation)
     }))
     .map_err(|_| "panic in cosmic-text operation".to_string())?
+}
+
+/// Shapes and prepares one string on an existing engine. Kept separate from [`with_text`] so the
+/// per-glyph ABI entry can reuse the exact same shaping, fallback and style resolution without
+/// going through a JNI string.
+fn with_str<T, F>(
+    handle: jlong,
+    value: &str,
+    style_flags: jint,
+    logical_font_size: f32,
+    raster_scale: f32,
+    operation: F,
+) -> Result<T, String>
+where
+    F: FnOnce(&mut Buffer, &Engine, f32, &str) -> Result<T, String>,
+{
+    if handle == 0 {
+        return Err("cosmic-text engine is closed".to_string());
+    }
+    let engine = unsafe { &*(handle as *const Engine) };
+    let scale = raster_scale.max(1.0);
+    let font_size = logical_font_size.max(1.0) * scale;
+    let metrics = Metrics::new(font_size, font_size * 1.4);
+    let mut font_system = engine
+        .font_system
+        .lock()
+        .map_err(|_| "font system lock poisoned".to_string())?;
+    let mut buffer = Buffer::new(&mut font_system, metrics);
+    buffer.set_size(None, Some(metrics.line_height * 2.0));
+    // Each style slot is resolved once at engine creation. Keeping the requested weight here
+    // is essential for variable fonts whose OS/2 default weight differs from the desired
+    // `wght` coordinate.
+    let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
+    let attrs = attrs_for_style(face, style_flags);
+    buffer.set_text(value, &attrs, Shaping::Advanced, None);
+    buffer.shape_until_scroll(&mut font_system, false);
+    drop(font_system);
+    operation(&mut buffer, engine, scale, value)
+}
+
+/// ABI 16: rasterizes exactly one code point. This is the entry point the vanilla-layout
+/// compatibility provider uses to fill glyph pages; it takes a code point instead of a string so
+/// the Java side never has to fabricate a one-character run, and it shares the shaping/fallback
+/// path so color fonts (emoji) resolve exactly like the modern renderer.
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_renderGlyphSized(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    code_point: jint,
+    argb: jint,
+    style_flags: jint,
+    font_size: jfloat,
+    raster_scale: jfloat,
+) -> jbyteArray {
+    let character = match u32::try_from(code_point).ok().and_then(char::from_u32) {
+        Some(value) => value,
+        None => {
+            throw(&mut env, &format!("invalid code point {code_point}"));
+            return ptr::null_mut();
+        }
+    };
+    let mut storage = [0u8; 4];
+    let text: &str = character.encode_utf8(&mut storage);
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        with_str(handle, text, style_flags, font_size.max(1.0), raster_scale.max(1.0),
+                 |buffer, engine, scale, _| {
+                     rasterize(buffer, engine, argb as u32, scale, style_flags, font_size.max(1.0))
+                 })
+    }))
+    .map_err(|_| "panic in cosmic-text operation".to_string())
+    .and_then(|value| value);
+    encode_render_result(&mut env, result)
 }
 
 fn rasterize(
     buffer: &mut Buffer,
     engine: &Engine,
+    argb: u32,
+    scale: f32,
+    style_flags: jint,
+    logical_font_size: f32,
+) -> Result<Vec<u8>, String> {
+    let mut cache = engine
+        .swash_cache
+        .lock()
+        .map_err(|_| "swash cache lock poisoned".to_string())?;
+    let mut font_system = engine
+        .font_system
+        .lock()
+        .map_err(|_| "font system lock poisoned".to_string())?;
+    rasterize_locked(buffer, engine, &mut font_system, &mut cache, argb, scale, style_flags, logical_font_size)
+}
+
+/// Rasterizes with the engine locks already held. The batch entry below reuses one lock
+/// acquisition for a whole glyph page, exactly like the AWT page pass.
+fn rasterize_locked(
+    buffer: &mut Buffer,
+    engine: &Engine,
+    font_system: &mut FontSystem,
+    cache: &mut SwashCache,
     argb: u32,
     scale: f32,
     style_flags: jint,
@@ -1172,16 +1485,7 @@ fn rasterize(
         (argb & 0xFF) as u8,
         ((argb >> 24) & 0xFF) as u8,
     );
-    let mut cache = engine
-        .swash_cache
-        .lock()
-        .map_err(|_| "swash cache lock poisoned".to_string())?;
-    {
-        let mut font_system = engine
-            .font_system
-            .lock()
-            .map_err(|_| "font system lock poisoned".to_string())?;
-        let mut renderer = RasterRenderer::new(&mut font_system, &mut cache);
+    let mut renderer = RasterRenderer::new(font_system, cache);
         for run in buffer.layout_runs() {
             for glyph in run.glyphs {
                 let physical = glyph.physical((0.0, run.line_y), 1.0);
@@ -1238,6 +1542,186 @@ fn rasterize(
         }
 
         return encode_rects(rects, advance_px, baseline_px, scale, raster_model_flags);
+}
+
+fn outline_sdf_rasterize(
+    buffer: &mut Buffer,
+    engine: &Engine,
+    scale: f32,
+    style_flags: jint,
+    _logical_font_size: f32,
+    distance_range: f32,
+) -> Result<Vec<u8>, String> {
+    // Underline and strike-through are rectangles rather than glyph outlines. Preserve the
+    // existing raster path for those calls instead of silently dropping decorations.
+    if style_flags & (STYLE_UNDERLINE | STYLE_STRIKETHROUGH) != 0 {
+        return Err("outline SDF does not handle text decorations".to_string());
+    }
+    let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
+    if face.synthetic_bold {
+        return Err("outline SDF does not synthesize bold strokes".to_string());
+    }
+    let mut advance_px = 0.0_f32;
+    let mut baseline_px = 0.0_f32;
+    let mut paths: Option<outline::OutlinePath> = None;
+    for (index, run) in buffer.layout_runs().enumerate() {
+        advance_px = advance_px.max(run.line_w);
+        if index == 0 {
+            baseline_px = run.line_y;
+        }
+    }
+    let mut cache = engine
+        .swash_cache
+        .lock()
+        .map_err(|_| "swash cache lock poisoned".to_string())?;
+    let mut font_system = engine
+        .font_system
+        .lock()
+        .map_err(|_| "font system lock poisoned".to_string())?;
+    for run in buffer.layout_runs() {
+        for glyph in run.glyphs {
+            let physical = glyph.physical((0.0, run.line_y), 1.0);
+            // Color glyphs can expose a geometric color outline through swash, but flattening
+            // that outline into a tintable SDF would lose the glyph's intrinsic palette.
+            let monochrome = matches!(
+                cache.get_image(&mut font_system, physical.cache_key).as_ref().map(|image| image.content),
+                Some(SwashContent::Mask)
+            );
+            if !monochrome {
+                return Err("outline SDF requires a monochrome glyph".to_string());
+            }
+            let Some(commands) = cache.get_outline_commands(&mut font_system, physical.cache_key) else {
+                return Err("outline unavailable for shaped glyph".to_string());
+            };
+            let Some(path) = outline::OutlinePath::from_commands(commands, physical.x as f32, physical.y as f32) else {
+                continue;
+            };
+            if let Some(existing) = paths.as_mut() {
+                existing.append(path);
+            } else {
+                paths = Some(path);
+            }
+        }
+    }
+    drop(font_system);
+    drop(cache);
+    let Some(path) = paths else {
+        return Ok(encode_raster_field(
+            0, 0, 0, 0, advance_px / scale, baseline_px / scale, scale,
+            RASTER_MODEL_OUTLINE_SDF | RASTER_MODEL_PAYLOAD_ALPHA8, &[], 1,
+        ));
+    };
+    let padding = distance_range.ceil() as i32 + 2;
+    let min_x = path.bounds.min_x.floor() as i32 - padding;
+    let min_y = path.bounds.min_y.floor() as i32 - padding;
+    let max_x = path.bounds.max_x.ceil() as i32 + padding;
+    let max_y = path.bounds.max_y.ceil() as i32 + padding;
+    let width = max_x.saturating_sub(min_x);
+    let height = max_y.saturating_sub(min_y);
+    if width <= 0 || height <= 0 || width > MAX_TEXTURE_DIMENSION || height > MAX_TEXTURE_DIMENSION {
+        return Err(format!("invalid outline SDF raster size {width}x{height}"));
+    }
+    let mut pixels = path.rasterize_sdf(min_x, min_y, width as usize, height as usize, distance_range);
+    // swash outlines use the font Cartesian Y direction while the COSM payload is consumed
+    // as a top-to-bottom screen image. Keep the geometric bounds and baseline unchanged, but
+    // reverse rows so the uploaded field has the same orientation as the legacy raster path.
+    flip_raster_rows(&mut pixels, width as usize, height as usize);
+    // Outline commands use a Cartesian Y axis and are translated by the glyph baseline.
+    // After row reversal, the image top is the Cartesian max-Y edge.  Encoding min_y here
+    // (which is the old bottom-edge value) makes fonts with a large ascender render too low.
+    // Convert the top edge back to the same screen-space offset used by encode_rects.
+    let screen_offset_y = outline_screen_offset_y(baseline_px, max_y);
+    Ok(encode_raster_field(
+        width,
+        height,
+        min_x,
+        screen_offset_y as i32,
+        advance_px / scale,
+        baseline_px / scale,
+        scale,
+        RASTER_MODEL_MASK | RASTER_MODEL_OUTLINE_SDF | RASTER_MODEL_PAYLOAD_ALPHA8,
+        &pixels, 1,
+    ))
+}
+
+fn outline_msdf_rasterize(
+    buffer: &mut Buffer,
+    engine: &Engine,
+    scale: f32,
+    style_flags: jint,
+    distance_range: f32,
+) -> Result<Vec<u8>, String> {
+    if style_flags & (STYLE_UNDERLINE | STYLE_STRIKETHROUGH) != 0 {
+        return Err("MSDF does not handle text decorations".to_string());
+    }
+    let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
+    if face.synthetic_bold {
+        return Err("MSDF does not synthesize bold strokes".to_string());
+    }
+    let mut advance_px = 0.0_f32;
+    let mut baseline_px = 0.0_f32;
+    for (index, run) in buffer.layout_runs().enumerate() {
+        advance_px = advance_px.max(run.line_w);
+        if index == 0 { baseline_px = run.line_y; }
+    }
+    let mut cache = engine.swash_cache.lock().map_err(|_| "swash cache lock poisoned".to_string())?;
+    let mut font_system = engine.font_system.lock().map_err(|_| "font system lock poisoned".to_string())?;
+    let mut paths: Option<outline::OutlinePath> = None;
+    for run in buffer.layout_runs() {
+        for glyph in run.glyphs {
+            let physical = glyph.physical((0.0, run.line_y), 1.0);
+            let monochrome = matches!(
+                cache.get_image(&mut font_system, physical.cache_key).as_ref().map(|image| image.content),
+                Some(SwashContent::Mask)
+            );
+            if !monochrome { return Err("MSDF requires a monochrome glyph".to_string()); }
+            let Some(commands) = cache.get_outline_commands(&mut font_system, physical.cache_key) else {
+                return Err("outline unavailable for shaped glyph".to_string());
+            };
+            let Some(path) = outline::OutlinePath::from_commands(commands, physical.x as f32, physical.y as f32) else {
+                continue;
+            };
+            if let Some(existing) = paths.as_mut() { existing.append(path); } else { paths = Some(path); }
+        }
+    }
+    drop(font_system);
+    drop(cache);
+    let Some(path) = paths else {
+        return Ok(encode_raster_field(0, 0, 0, 0, advance_px / scale, baseline_px / scale, scale,
+            RASTER_MODEL_OUTLINE_MSDF | RASTER_MODEL_PAYLOAD_RGB8, &[], 3));
+    };
+    let padding = distance_range.ceil() as i32 + 2;
+    let min_x = path.bounds.min_x.floor() as i32 - padding;
+    let min_y = path.bounds.min_y.floor() as i32 - padding;
+    let max_x = path.bounds.max_x.ceil() as i32 + padding;
+    let max_y = path.bounds.max_y.ceil() as i32 + padding;
+    let width = max_x.saturating_sub(min_x);
+    let height = max_y.saturating_sub(min_y);
+    if width <= 0 || height <= 0 || width > MAX_TEXTURE_DIMENSION || height > MAX_TEXTURE_DIMENSION {
+        return Err(format!("invalid MSDF raster size {width}x{height}"));
+    }
+    let mut pixels = path.rasterize_msdf(min_x, min_y, width as usize, height as usize, distance_range);
+    flip_raster_rows(&mut pixels, width as usize, height as usize);
+    let screen_offset_y = outline_screen_offset_y(baseline_px, max_y);
+    Ok(encode_raster_field(width, height, min_x, screen_offset_y as i32,
+        advance_px / scale, baseline_px / scale, scale,
+        RASTER_MODEL_MASK | RASTER_MODEL_OUTLINE_MSDF | RASTER_MODEL_PAYLOAD_RGB8, &pixels, 3))
+}
+
+fn outline_screen_offset_y(baseline_px: f32, padded_max_y: i32) -> f32 {
+    // max_y is in the same physical pixel space as baseline_px.  The factor of two removes
+    // the baseline translation already present in the outline command coordinates while keeping
+    // the transparent SDF padding attached to the glyph image.
+    baseline_px * 2.0 - padded_max_y as f32
+}
+
+fn flip_raster_rows(pixels: &mut [u32], width: usize, height: usize) {
+    if width == 0 || height <= 1 { return; }
+    for row in 0..(height / 2) {
+        let other = height - 1 - row;
+        for column in 0..width {
+            pixels.swap(row * width + column, other * width + column);
+        }
     }
 }
 
@@ -1373,6 +1857,45 @@ fn encode_raster(
     bytes
 }
 
+/// Encodes outline fields without carrying an unused fourth channel. The native rasterizer
+/// internally uses u32 pixels for cheap SIMD writes, then packs the requested channels once at
+/// the JNI boundary. Java can consume the compact bytes directly.
+#[allow(clippy::too_many_arguments)]
+fn encode_raster_field(
+    width: i32,
+    height: i32,
+    offset_x: i32,
+    offset_y: i32,
+    advance: f32,
+    baseline: f32,
+    scale: f32,
+    model_flags: u32,
+    pixels: &[u32],
+    channels: usize,
+) -> Vec<u8> {
+    let channels = channels.clamp(1, 3);
+    let mut bytes = Vec::with_capacity(HEADER_SIZE + pixels.len() * channels);
+    bytes.extend_from_slice(&RASTER_MAGIC.to_le_bytes());
+    bytes.extend_from_slice(&width.to_le_bytes());
+    bytes.extend_from_slice(&height.to_le_bytes());
+    bytes.extend_from_slice(&offset_x.to_le_bytes());
+    bytes.extend_from_slice(&offset_y.to_le_bytes());
+    bytes.extend_from_slice(&advance.to_le_bytes());
+    bytes.extend_from_slice(&baseline.to_le_bytes());
+    bytes.extend_from_slice(&scale.to_le_bytes());
+    bytes.extend_from_slice(&model_flags.to_le_bytes());
+    for pixel in pixels {
+        if channels == 1 {
+            bytes.push((pixel >> 24) as u8);
+        } else {
+            bytes.push(*pixel as u8);
+            bytes.push((pixel >> 8) as u8);
+            bytes.push((pixel >> 16) as u8);
+        }
+    }
+    bytes
+}
+
 fn throw(env: &mut JNIEnv, message: &str) {
     let _ = env.throw_new("java/lang/IllegalStateException", message);
 }
@@ -1386,6 +1909,13 @@ impl<T> Pipe for T {}
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn outline_screen_offset_uses_top_edge_after_row_flip() {
+        // A baseline at 10 px and a padded Cartesian top at 18 px maps to the
+        // same screen-space top as the regular raster path: 2*10 - 18 = 2.
+        assert_eq!(super::outline_screen_offset_y(10.0, 18), 2.0);
+    }
+
     use super::*;
     use std::path::Path;
     use std::sync::Arc;
@@ -1402,6 +1932,16 @@ mod tests {
     fn normalizes_face_names_without_style_punctuation() {
         assert_eq!(normalize_font_name("MiSans Demi-Bold"), "misansdemibold");
         assert_eq!(normalize_font_name("  Noto Sans SC  "), "notosanssc");
+    }
+
+    #[test]
+    fn converts_native_utf8_cluster_offsets_to_java_utf16_indices() {
+        let value = "a😀中b";
+        assert_eq!(utf16_offset(value, 0), 0);
+        assert_eq!(utf16_offset(value, 1), 1);
+        assert_eq!(utf16_offset(value, 5), 3);
+        assert_eq!(utf16_offset(value, 8), 4);
+        assert_eq!(utf16_offset(value, value.len()), 5);
     }
 
     #[test]
@@ -1667,4 +2207,237 @@ mod tests {
             .next();
         assert_eq!(used_id, Some(resolved.id));
     }
+}
+
+/// ABI 16 batch entry: rasterizes a whole glyph page in one JNI call. The engine locks, shaping
+/// and fallback resolution are paid once per page instead of once per glyph, which is what makes
+/// the compatibility provider's cost comparable to the AWT page pass.
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_renderGlyphBatch(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    code_points: JIntArray,
+    argb: jint,
+    style_flags: jint,
+    font_size: jfloat,
+    raster_scale: jfloat,
+) -> jbyteArray {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        if handle == 0 {
+            return Err("cosmic-text engine is closed".to_string());
+        }
+        let engine = unsafe { &*(handle as *const Engine) };
+        let length = env
+            .get_array_length(&code_points)
+            .map_err(|e| e.to_string())? as usize;
+        let mut points = vec![0i32; length];
+        env.get_int_array_region(&code_points, 0, &mut points)
+            .map_err(|e| e.to_string())?;
+        let scale = raster_scale.max(1.0);
+        let logical_size = font_size.max(1.0);
+        let pixel_size = logical_size * scale;
+        let metrics = Metrics::new(pixel_size, pixel_size * 1.4);
+        let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
+        let attrs = attrs_for_style(face, style_flags);
+        let mut cache = engine
+            .swash_cache
+            .lock()
+            .map_err(|_| "swash cache lock poisoned".to_string())?;
+        let mut font_system = engine
+            .font_system
+            .lock()
+            .map_err(|_| "font system lock poisoned".to_string())?;
+        let mut output = Vec::new();
+        output.extend_from_slice(&(length as u32).to_le_bytes());
+        for point in points {
+            let bytes = match u32::try_from(point).ok().and_then(char::from_u32) {
+                Some(character) => {
+                    let mut storage = [0u8; 4];
+                    let text: &str = character.encode_utf8(&mut storage);
+                    let mut buffer = Buffer::new(&mut font_system, metrics);
+                    buffer.set_size(None, Some(metrics.line_height * 2.0));
+                    buffer.set_text(text, &attrs, Shaping::Advanced, None);
+                    buffer.shape_until_scroll(&mut font_system, false);
+                    rasterize_locked(&mut buffer, engine, &mut font_system, &mut cache,
+                        argb as u32, scale, style_flags, logical_size)?
+                }
+                None => Vec::new(),
+            };
+            output.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+            output.extend_from_slice(&bytes);
+        }
+        Ok(output)
+    }))
+    .map_err(|_| "panic in cosmic-text operation".to_string())
+    .and_then(|value| value);
+    encode_render_result(&mut env, result)
+}
+#[no_mangle]
+pub extern "system" fn Java_neofontrender_core_font_cosmic_CosmicNative_renderGlyphPage(
+    mut env: JNIEnv,
+    _class: JClass,
+    handle: jlong,
+    code_points: JIntArray,
+    argb: jint,
+    style_flags: jint,
+    font_size: jfloat,
+    raster_scale: jfloat,
+) -> jbyteArray {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        if handle == 0 {
+            return Err("cosmic-text engine is closed".to_string());
+        }
+        let engine = unsafe { &*(handle as *const Engine) };
+        let length = env
+            .get_array_length(&code_points)
+            .map_err(|e| e.to_string())? as usize;
+        let mut points = vec![0i32; length];
+        env.get_int_array_region(&code_points, 0, &mut points)
+            .map_err(|e| e.to_string())?;
+        let scale = raster_scale.max(1.0);
+        let logical_size = font_size.max(1.0);
+        let pixel_size = logical_size * scale;
+        let metrics = Metrics::new(pixel_size, pixel_size * 1.4);
+
+        let mut text = String::new();
+        let mut starts: Vec<(usize, usize)> = Vec::with_capacity(length);
+        for (index, point) in points.iter().enumerate() {
+            let Some(character) = u32::try_from(*point).ok().and_then(char::from_u32) else {
+                continue;
+            };
+            starts.push((text.len(), index));
+            text.push(character);
+        }
+        if text.is_empty() {
+            return Ok(Vec::new());
+        }
+        let face = &engine.faces[(style_flags & (STYLE_BOLD | STYLE_ITALIC)) as usize];
+        let attrs = attrs_for_style(face, style_flags);
+        let mut font_system = engine
+            .font_system
+            .lock()
+            .map_err(|_| "font system lock poisoned".to_string())?;
+        let mut cache = engine
+            .swash_cache
+            .lock()
+            .map_err(|_| "swash cache lock poisoned".to_string())?;
+        let mut buffer = Buffer::new(&mut font_system, metrics);
+        buffer.set_size(None, Some(metrics.line_height * 2.0));
+        buffer.set_text(&text, &attrs, Shaping::Advanced, None);
+        buffer.shape_until_scroll(&mut font_system, false);
+
+        let color = Color::rgba(
+            ((argb >> 16) & 0xFF) as u8,
+            ((argb >> 8) & 0xFF) as u8,
+            (argb & 0xFF) as u8,
+            ((argb >> 24) & 0xFF) as u8,
+        );
+        let mut entries: Vec<(usize, Vec<u8>)> = Vec::new();
+        for run in buffer.layout_runs() {
+            for glyph in run.glyphs {
+                let offset = match starts.binary_search_by_key(&glyph.start, |entry| entry.0) {
+                    Ok(position) => starts[position].1,
+                    Err(position) => {
+                        if position >= starts.len() {
+                            continue;
+                        }
+                        starts[position].1
+                    }
+                };
+                let physical = glyph.physical((0.0, run.line_y), 1.0);
+                let Some(image) = cache.get_image(&mut font_system, physical.cache_key).as_ref()
+                else {
+                    continue;
+                };
+                let width = image.placement.width as usize;
+                let height = image.placement.height as usize;
+                if width == 0 || height == 0 {
+                    continue;
+                }
+                let advance = glyph.w / scale;
+                let blob = match image.content {
+                    SwashContent::Mask => {
+                        let mut pixels = vec![0u32; width * height];
+                        for index in 0..width * height {
+                            let alpha = image.data[index];
+                            if alpha != 0 {
+                                pixels[index] = (u32::from(alpha) << 24) | (color.0 & 0x00FF_FFFF);
+                            }
+                        }
+                        encode_raster_field(
+                            width as i32,
+                            height as i32,
+                            image.placement.left,
+                            -image.placement.top,
+                            advance,
+                            0.0,
+                            scale,
+                            RASTER_MODEL_MASK | RASTER_MODEL_PAYLOAD_ALPHA8,
+                            &pixels,
+                            1,
+                        )
+                    }
+                    SwashContent::Color => {
+                        let mut flat_rgb = None;
+                        let mut flat = true;
+                        for index in 0..width * height {
+                            let base = index * 4;
+                            let alpha = image.data[base + 3];
+                            if alpha != 0 {
+                                let rgb = (u32::from(image.data[base]) << 16)
+                                    | (u32::from(image.data[base + 1]) << 8)
+                                    | u32::from(image.data[base + 2]);
+                                match flat_rgb {
+                                    Some(previous) if previous != rgb => flat = false,
+                                    None => flat_rgb = Some(rgb),
+                                    _ => {}
+                                }
+                            }
+                        }
+                        let flags = if flat {
+                            RASTER_MODEL_FLAT_COLOR
+                        } else {
+                            RASTER_MODEL_GRADIENT_COLOR
+                        };
+                        let mut pixels = vec![0u32; width * height];
+                        for index in 0..width * height {
+                            let base = index * 4;
+                            let alpha = image.data[base + 3];
+                            if alpha != 0 {
+                                pixels[index] = (u32::from(alpha) << 24)
+                                    | (u32::from(image.data[base]) << 16)
+                                    | (u32::from(image.data[base + 1]) << 8)
+                                    | u32::from(image.data[base + 2]);
+                            }
+                        }
+                        encode_raster(
+                            width as i32,
+                            height as i32,
+                            image.placement.left,
+                            -image.placement.top,
+                            advance,
+                            0.0,
+                            scale,
+                            flags,
+                            &pixels,
+                        )
+                    }
+                    SwashContent::SubpixelMask => continue,
+                };
+                entries.push((offset, blob));
+            }
+        }
+        let mut output = Vec::new();
+        output.extend_from_slice(&(entries.len() as u32).to_le_bytes());
+        for (index, blob) in entries {
+            output.extend_from_slice(&(index as u32).to_le_bytes());
+            output.extend_from_slice(&(blob.len() as u32).to_le_bytes());
+            output.extend_from_slice(&blob);
+        }
+        Ok(output)
+    }))
+    .map_err(|_| "panic in cosmic-text operation".to_string())
+    .and_then(|value| value);
+    encode_render_result(&mut env, result)
 }

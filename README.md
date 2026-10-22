@@ -29,6 +29,9 @@ Neo Font Render replaces Minecraft 1.12.2's bitmap-font path with configurable m
 - Enhanced and shader text pipelines for improved anti-aliased edge quality.
 - Brightness compensation with auto-detection from sample glyph rasterization.
 - Segment cache for efficient partial-text rendering without advanced string mode.
+- Optional character caching for monospaced ASCII, CJK and tabular digits, validated against actual shaping to preserve ligatures and positioning. The cache settings page exposes an independent toggle (off by default) and limit (16,384 entries by default), also available as `performance.monospaceCharacterCache` and `performance.monospaceCharacterCacheMaxEntries`. F3 reports texture/measurement occupancy and texture hits, misses and evictions in ordinary builds.
+- Experimental asynchronous rendering for all Cosmic text: enable `performance.asyncFontRendering` in Cache settings (off by default). Like the Typst raster pipeline, a worker handles raster shaping, shadows/SDF and character probes. It owns a separate font engine so foreground measurements cannot wait on its native locks. Exact measurements, animation cluster queries and GL uploads/draws remain synchronous. Pending text temporarily uses vanilla glyphs at the Cosmic advance. Each renderer keeps at most 128 jobs and 32 MiB of ready CPU data; uploads admit at most 8 textures / about 1 ms per 16.7 ms window (one upload cannot be interrupted). F3 shows queued/running/ready jobs, bytes, completions, drops and failures; char probe enqueue measures foreground submission overhead. This targets cold-cache stalls, does not reduce draw calls, uses extra font-engine memory, and does not guarantee higher average FPS.
+- Character probing has a sustained time budget and falls back to word caching when deferred. Stable text returns to a combined texture; font profiles use an LRU per size/style. F3 `char probe` reports probes, probe milliseconds, deferrals and stable-text merges per second.
 - §n underline and §m strikethrough text decorations (native in Cosmic, composited in AWT).
 - Hex chat gradients: `#RRGGBB-RRGGBB` multi-stop color interpolation in chat text.
 - Synthetic bold in the Cosmic engine when a real bold face is unavailable.
@@ -89,6 +92,13 @@ The project ships as a main mod and several optional modules. All UIE modules sh
   <td><code>neofontrender_ui_enhancements_server</code></td>
   <td>MIT</td>
   <td>Server-side self-message network support, server-side chat history persistence (H2), group chat commands (`/nfrgroup`, `/msg`). Optional, only needed on dedicated servers.</td>
+</tr>
+<tr>
+  <td><img src="src/main/resources/assets/neofontrender/logo.png" width="32"></td>
+  <td><b>NFR Typst Renderer</b></td>
+  <td><code>neofontrender_typst_renderer</code></td>
+  <td>Apache-2.0 (Typst)</td>
+  <td>Optional client addon for complete Typst inline rendering through an isolated JNI engine and direct RGBA raster protocol. Building the platform-specific addon JAR requires Rust 1.92+.</td>
 </tr>
 </tbody>
 </table>

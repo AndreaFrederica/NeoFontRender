@@ -7,4 +7,5 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Mixin(GuiTextField.class)
 public interface AccessorGuiTextFieldNavigation {
     @Accessor("isEnabled") boolean nfrUi$isEnabled();
+    @Accessor("lineScrollOffset") int nfrUi$getLineScrollOffset();
 }

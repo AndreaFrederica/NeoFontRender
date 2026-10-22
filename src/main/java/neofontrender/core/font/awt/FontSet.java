@@ -31,6 +31,8 @@ public class FontSet implements AutoCloseable {
     private final FontTexture atlas;
     private final AwtTtfGlyphProvider layoutProvider;
     private final List<AwtTtfGlyphProvider> layoutProviders = new ArrayList<>();
+    private final int maxBakedGlyphs;
+    private final int maxGlyphInfos;
     private final Map<Integer, GlyphInfo> glyphInfos;
     private final Map<Integer, BakedGlyph> bakedGlyphs;
     private final Map<Integer, List<Integer>> glyphsByWidth = new HashMap<>();
@@ -40,18 +42,30 @@ public class FontSet implements AutoCloseable {
     private long bakedGlyphMisses;
 
     public FontSet(List<GlyphProvider> providers, FontTexture atlas) {
+        this(providers, atlas, MAX_BAKED_GLYPHS, MAX_GLYPH_INFOS, true);
+    }
+
+    /**
+     * Creates a font set with caller-controlled cache limits.  The lightweight fallback atlas
+     * does not need obfuscation width buckets, so it can also skip the eager provider scan and
+     * keep all glyph discovery lazy.
+     */
+    public FontSet(List<GlyphProvider> providers, FontTexture atlas,
+                   int maxBakedGlyphs, int maxGlyphInfos, boolean buildWidthBuckets) {
         this.providers = providers;
         this.atlas = atlas;
+        this.maxBakedGlyphs = Math.max(1, maxBakedGlyphs);
+        this.maxGlyphInfos = Math.max(1, maxGlyphInfos);
         this.glyphInfos = new LinkedHashMap<Integer, GlyphInfo>(64, 0.75F, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<Integer, GlyphInfo> eldest) {
-                return size() > MAX_GLYPH_INFOS;
+                return size() > FontSet.this.maxGlyphInfos;
             }
         };
         this.bakedGlyphs = new LinkedHashMap<Integer, BakedGlyph>(64, 0.75F, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<Integer, BakedGlyph> eldest) {
-                return size() > MAX_BAKED_GLYPHS;
+                return size() > FontSet.this.maxBakedGlyphs;
             }
         };
         AwtTtfGlyphProvider awtProvider = null;
@@ -63,20 +77,22 @@ public class FontSet implements AutoCloseable {
         }
         this.layoutProvider = awtProvider;
 
-        Set<Integer> seen = new HashSet<>();
-        for (GlyphProvider provider : providers) {
-            for (int cp : provider.getSupportedGlyphs()) {
-                if (seen.add(cp) && cp != ' ') {
-                    addGlyphWidthBucket(cp, provider.getGlyph(cp));
+        if (buildWidthBuckets) {
+            Set<Integer> seen = new HashSet<>();
+            for (GlyphProvider provider : providers) {
+                for (int cp : provider.getSupportedGlyphs()) {
+                    if (seen.add(cp) && cp != ' ') {
+                        addGlyphWidthBucket(cp, provider.getGlyph(cp));
+                    }
                 }
             }
-        }
-        for (int i = 0; i < OBFUSCATED_CANDIDATES.length(); ) {
-            int cp = OBFUSCATED_CANDIDATES.codePointAt(i);
-            if (seen.add(cp)) {
-                addGlyphWidthBucket(cp, getGlyphInfo(cp));
+            for (int i = 0; i < OBFUSCATED_CANDIDATES.length(); ) {
+                int cp = OBFUSCATED_CANDIDATES.codePointAt(i);
+                if (seen.add(cp)) {
+                    addGlyphWidthBucket(cp, getGlyphInfo(cp));
+                }
+                i += Character.charCount(cp);
             }
-            i += Character.charCount(cp);
         }
     }
 
@@ -190,6 +206,74 @@ public class FontSet implements AutoCloseable {
         atlas.flushIfDirty();
     }
 
+    /** Compares exact GlyphVector layout with the shaping-validated fixed-run path. */
+    public synchronized BenchmarkResult benchmarkCharacterLayout(int iterations) {
+        int count = Math.max(100, Math.min(20_000, iterations));
+        String[] samples = new String[count];
+        for (int i = 0; i < count; i++) {
+            int a = 1000 + ((i * 37) % 9000);
+            int b = 10 + ((i * 13) % 990);
+            samples[i] = switch (i % 3) {
+                case 0 -> "XYZ: " + a + " / " + b;
+                case 1 -> "Block " + a + ": " + b + " ms";
+                default -> "Pos " + a + ", " + b + ", " + (i % 64);
+            };
+        }
+        boolean[] previousOptimization = new boolean[layoutProviders.size()];
+        for (int i = 0; i < layoutProviders.size(); i++) {
+            AwtTtfGlyphProvider provider = layoutProviders.get(i);
+            previousOptimization[i] = provider.isFixedLayoutOptimization();
+            provider.setFixedLayoutOptimization(false);
+            provider.clearLayoutCaches();
+        }
+        float[] exact = new float[count];
+        long started = System.nanoTime();
+        for (int i = 0; i < count; i++) exact[i] = layoutPositions(samples[i], false)[samples[i].length()];
+        long exactNanos = System.nanoTime() - started;
+
+        for (AwtTtfGlyphProvider provider : layoutProviders) {
+            provider.setFixedLayoutOptimization(true);
+            provider.clearLayoutCaches();
+        }
+        float maxError = 0.0F;
+        double totalError = 0.0;
+        started = System.nanoTime();
+        for (int i = 0; i < count; i++) {
+            float measured = layoutPositions(samples[i], false)[samples[i].length()];
+            float error = Math.abs(measured - exact[i]);
+            maxError = Math.max(maxError, error);
+            totalError += error;
+        }
+        long fixedNanos = System.nanoTime() - started;
+        for (int i = 0; i < layoutProviders.size(); i++) {
+            AwtTtfGlyphProvider provider = layoutProviders.get(i);
+            provider.setFixedLayoutOptimization(previousOptimization[i]);
+            provider.clearLayoutCaches();
+        }
+        return new BenchmarkResult(count, exactNanos, fixedNanos, maxError, totalError / count);
+    }
+
+    public static final class BenchmarkResult {
+        public final int iterations;
+        public final long exactNanos;
+        public final long fixedNanos;
+        public final float maxWidthError;
+        public final double averageWidthError;
+
+        private BenchmarkResult(int iterations, long exactNanos, long fixedNanos,
+                                float maxWidthError, double averageWidthError) {
+            this.iterations = iterations;
+            this.exactNanos = exactNanos;
+            this.fixedNanos = fixedNanos;
+            this.maxWidthError = maxWidthError;
+            this.averageWidthError = averageWidthError;
+        }
+
+        public double exactMillis() { return exactNanos / 1_000_000.0; }
+        public double fixedMillis() { return fixedNanos / 1_000_000.0; }
+        public double speedup() { return fixedNanos <= 0 ? 0.0 : (double) exactNanos / fixedNanos; }
+    }
+
     public void prewarmBasicLatin() {
         for (int cp = 32; cp <= 126; cp++) {
             prewarmGlyph(cp);
@@ -231,6 +315,18 @@ public class FontSet implements AutoCloseable {
             return null;
         }
         int cp = bucket.get(RANDOM.nextInt(bucket.size()));
+        return getGlyph(cp);
+    }
+
+    /** Deterministic variant used to keep foreground and shadow aligned in one animation frame. */
+    @Nullable
+    public BakedGlyph getRandomGlyph(float advance, long seed) {
+        int w = (int) Math.ceil(advance);
+        List<Integer> bucket = glyphsByWidth.get(w);
+        if (bucket == null || bucket.isEmpty()) bucket = findNearestGlyphBucket(w);
+        if (bucket == null || bucket.isEmpty()) return null;
+        int mixed = (int) (seed ^ seed >>> 32);
+        int cp = bucket.get(Math.floorMod(mixed, bucket.size()));
         return getGlyph(cp);
     }
 

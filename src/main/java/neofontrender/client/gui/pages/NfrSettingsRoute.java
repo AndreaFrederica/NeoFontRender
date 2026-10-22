@@ -8,6 +8,7 @@ public enum NfrSettingsRoute {
     PERFORMANCE(3,"neofontrender.gui.category.performance"),
     ADVANCED(4,"neofontrender.gui.category.advanced"),
     CACHE(5,"neofontrender.gui.category.cache"),
+    BENCHMARK(12,"neofontrender.gui.category.benchmark"),
     SHADOW(8,"neofontrender.gui.category.shadow"),
     FIXES(9,"neofontrender.gui.category.fixes"),
     COMPATIBILITY(11,"neofontrender.gui.category.compatibility"),

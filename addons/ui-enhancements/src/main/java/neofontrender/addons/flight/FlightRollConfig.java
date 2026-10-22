@@ -32,16 +32,9 @@ final class FlightRollConfig {
     static boolean hudHorizon = true;
     static boolean hudInputIndicator = true;
     static int hudScalePercent = 100;
-    static boolean hudHideHotbar;
-    static boolean hudHidePlayerStatus;
-    static boolean hudHideExperience;
-    static boolean hudHideChat;
-    static boolean hudHideBossBars;
-    static boolean hudHidePotionIcons;
-    static boolean hudHideSubtitles;
-    static boolean hudHidePlayerList;
-    static boolean hudHideText;
-    static boolean hudHideFirstPersonHand;
+    static boolean hudMaskEnabled = false;
+    static int hudMaskColor = 0xFF808080;
+    static int hudMaskOpacityPercent = 15;
 
     private FlightRollConfig() {}
 
@@ -89,26 +82,13 @@ final class FlightRollConfig {
                 .define("flightRoll.hud.inputIndicator", true,
                         "Show momentum/controller input position.")
                 .define("flightRoll.hud.scalePercent", 100, "Flight HUD scale percentage.")
-                .define("flightRoll.hud.hideHotbar", false,
-                        "Hide the vanilla hotbar while the flight HUD is visible.")
-                .define("flightRoll.hud.hidePlayerStatus", false,
-                        "Hide health, armor, food, air, mount health, and jump bars while flying.")
-                .define("flightRoll.hud.hideExperience", false,
-                        "Hide the experience bar while the flight HUD is visible.")
-                .define("flightRoll.hud.hideChat", false,
-                        "Hide chat while the flight HUD is visible.")
-                .define("flightRoll.hud.hideBossBars", false,
-                        "Hide boss bars while the flight HUD is visible.")
-                .define("flightRoll.hud.hidePotionIcons", false,
-                        "Hide potion-effect icons while the flight HUD is visible.")
-                .define("flightRoll.hud.hideSubtitles", false,
-                        "Hide subtitles while the flight HUD is visible.")
-                .define("flightRoll.hud.hidePlayerList", false,
-                        "Hide the player list while the flight HUD is visible.")
-                .define("flightRoll.hud.hideText", false,
-                        "Hide vanilla overlay text while the flight HUD is visible.")
-                .define("flightRoll.hud.hideFirstPersonHand", false,
-                        "Hide the first-person hand while the flight HUD is visible.");
+                .define("flightRoll.hud.mask.enabled", false,
+                        "Draw a configurable translucent mask behind the flight HUD.")
+                .define("flightRoll.hud.mask.color", "#FF808080",
+                        "Flight HUD mask RGB color.")
+                .define("flightRoll.hud.mask.opacityPercent", 15,
+                        "Flight HUD mask opacity percentage.")
+                ;
         enabled = file.getBoolean("flightRoll.enabled", false);
         allowInWater = file.getBoolean("flightRoll.allowInWater", false);
         keyboardYaw = file.getBoolean("flightRoll.keyboardYaw", false);
@@ -145,17 +125,10 @@ final class FlightRollConfig {
         hudHorizon = file.getBoolean("flightRoll.hud.horizon", true);
         hudInputIndicator = file.getBoolean("flightRoll.hud.inputIndicator", true);
         hudScalePercent = file.getInt("flightRoll.hud.scalePercent", 100, 50, 100);
-        hudHideHotbar = file.getBoolean("flightRoll.hud.hideHotbar", false);
-        hudHidePlayerStatus = file.getBoolean("flightRoll.hud.hidePlayerStatus", false);
-        hudHideExperience = file.getBoolean("flightRoll.hud.hideExperience", false);
-        hudHideChat = file.getBoolean("flightRoll.hud.hideChat", false);
-        hudHideBossBars = file.getBoolean("flightRoll.hud.hideBossBars", false);
-        hudHidePotionIcons = file.getBoolean("flightRoll.hud.hidePotionIcons", false);
-        hudHideSubtitles = file.getBoolean("flightRoll.hud.hideSubtitles", false);
-        hudHidePlayerList = file.getBoolean("flightRoll.hud.hidePlayerList", false);
-        hudHideText = file.getBoolean("flightRoll.hud.hideText", false);
-        hudHideFirstPersonHand = file.getBoolean(
-                "flightRoll.hud.hideFirstPersonHand", false);
+        hudMaskEnabled = file.getBoolean("flightRoll.hud.mask.enabled", false);
+        hudMaskColor = parseColor(file.getString("flightRoll.hud.mask.color", "#FF808080"),
+                0xFF808080);
+        hudMaskOpacityPercent = file.getInt("flightRoll.hud.mask.opacityPercent", 15, 0, 100);
         file.save();
     }
 
@@ -169,6 +142,8 @@ final class FlightRollConfig {
         controllerYawSensitivity = clampSensitivity(controllerYawSensitivity);
         controllerRollSensitivity = clampSensitivity(controllerRollSensitivity);
         hudScalePercent = Math.max(50, Math.min(100, hudScalePercent));
+        hudMaskColor = 0xFF000000 | (hudMaskColor & 0x00FFFFFF);
+        hudMaskOpacityPercent = Math.max(0, Math.min(100, hudMaskOpacityPercent));
         barrelDurationTicks = Math.max(6, Math.min(40, barrelDurationTicks));
         UiEnhancementsConfig.file()
                 .set("flightRoll.enabled", enabled)
@@ -199,17 +174,15 @@ final class FlightRollConfig {
                 .set("flightRoll.hud.horizon", hudHorizon)
                 .set("flightRoll.hud.inputIndicator", hudInputIndicator)
                 .set("flightRoll.hud.scalePercent", hudScalePercent)
-                .set("flightRoll.hud.hideHotbar", hudHideHotbar)
-                .set("flightRoll.hud.hidePlayerStatus", hudHidePlayerStatus)
-                .set("flightRoll.hud.hideExperience", hudHideExperience)
-                .set("flightRoll.hud.hideChat", hudHideChat)
-                .set("flightRoll.hud.hideBossBars", hudHideBossBars)
-                .set("flightRoll.hud.hidePotionIcons", hudHidePotionIcons)
-                .set("flightRoll.hud.hideSubtitles", hudHideSubtitles)
-                .set("flightRoll.hud.hidePlayerList", hudHidePlayerList)
-                .set("flightRoll.hud.hideText", hudHideText)
-                .set("flightRoll.hud.hideFirstPersonHand", hudHideFirstPersonHand)
+                .set("flightRoll.hud.mask.enabled", hudMaskEnabled)
+                .set("flightRoll.hud.mask.color", String.format("#%08X", hudMaskColor))
+                .set("flightRoll.hud.mask.opacityPercent", hudMaskOpacityPercent)
                 .save();
+    }
+
+    static int hudMaskArgb() {
+        int alpha = (hudMaskOpacityPercent * 255 + 50) / 100;
+        return (hudMaskColor & 0x00FFFFFF) | (Math.max(0, Math.min(255, alpha)) << 24);
     }
 
     private static float clampSensitivity(float value) {
@@ -220,5 +193,21 @@ final class FlightRollConfig {
         String normalized = value == null ? "" : value.trim().toUpperCase(java.util.Locale.ROOT);
         for (String candidate : allowed) if (candidate.equals(normalized)) return candidate;
         return fallback;
+    }
+
+    private static int parseColor(String value, int fallback) {
+        if (value == null) return fallback;
+        String normalized = value.trim();
+        if (normalized.startsWith("#")) normalized = normalized.substring(1);
+        else if (normalized.startsWith("0x") || normalized.startsWith("0X")) {
+            normalized = normalized.substring(2);
+        }
+        try {
+            long parsed = Long.parseLong(normalized, 16);
+            if (normalized.length() <= 6) parsed |= 0xFF000000L;
+            return (int) parsed;
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
     }
 }

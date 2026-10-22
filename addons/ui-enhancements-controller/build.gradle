@@ -4,12 +4,12 @@ plugins {
 }
 
 group = 'neofontrender.addons'
-version = providers.gradleProperty('ui_enhancements_controller_version').get()
+version = nfrVersion('ui_enhancements_controller_version')
 
 base { archivesName = 'neofontrender-ui-enhancements-controller' }
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+    toolchain { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) }
 }
 
 repositories {
@@ -31,14 +31,14 @@ configurations {
     sdlNativeWindowsX86_64
 }
 
-def sdlJavaVersion = 'release-3.4.14-7'
-def sdlNativeVersion = 'release-3.4.14'
+def sdlJavaVersion = nfrVersion('sdl_java_version')
+def sdlNativeVersion = nfrVersion('sdl_native_version')
 
 unimined.minecraft {
-    version '1.12.2'
-    mappings { mcp('stable', '39-1.12') }
+    version nfrVersion('minecraft_version')
+    mappings { mcp(nfrVersion('minecraft_mappings_channel'), nfrVersion('minecraft_mappings_version')) }
     cleanroom {
-        loader '0.6.1-alpha'
+        loader nfrVersion('cleanroom_version')
         runs.off = true
     }
     defaultRemapJar = false
@@ -48,11 +48,11 @@ unimined.minecraft {
 dependencies {
     compileOnly project(':')
     compileOnly project(':addons:ui-enhancements')
-    compileOnly("com.cleanroommc:modularui:${providers.gradleProperty('modularui_version').get()}") { transitive = false }
+    compileOnly("com.cleanroommc:modularui:${nfrVersion('modularui_version')}") { transitive = false }
     compileOnly 'com.cleanroommc:lwjglxx:1.1.21'
     compileOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
     compileOnly 'org.lwjgl:lwjgl:3.4.1'
-    annotationProcessor 'com.cleanroommc:sponge-mixin:0.20.13+mixin.0.8.7'
+    annotationProcessor "com.cleanroommc:sponge-mixin:${nfrVersion('sponge_mixin_version')}"
 
     // SDL stays entirely inside this optional addon; UIE itself has no controller runtime cost.
     contain "dev.isxander.sdl:sdl-api:${sdlJavaVersion}"
@@ -91,11 +91,11 @@ tasks.named('compileJava', JavaCompile).configure {
 processResources {
     inputs.property('version', project.version)
     inputs.property('nfrVersion', rootProject.version)
-    inputs.property('uieVersion', providers.gradleProperty('ui_enhancements_version').get())
+    inputs.property('uieVersion', nfrVersion('ui_enhancements_version'))
     filesMatching('mcmod.info') {
         expand(version: project.version,
                 nfrVersion: rootProject.version,
-                uieVersion: providers.gradleProperty('ui_enhancements_version').get())
+                uieVersion: nfrVersion('ui_enhancements_version'))
     }
     from('vendor/controlify-upstream/LICENSE') {
         into 'META-INF'
@@ -168,7 +168,7 @@ tasks.withType(JavaCompile).configureEach {
 
 test {
     useJUnitPlatform()
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) })
 }
 
 tasks.register('smokeTestBundledSdl', JavaExec) {
@@ -177,7 +177,7 @@ tasks.register('smokeTestBundledSdl', JavaExec) {
     dependsOn tasks.named('testClasses')
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'neofontrender.addons.controller.sdl.SdlNativeSmoke'
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) })
     jvmArgs '--enable-native-access=ALL-UNNAMED'
 }
 
@@ -190,7 +190,7 @@ tasks.register('probeGamepad', JavaExec) {
     dependsOn tasks.named('testClasses')
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'neofontrender.addons.controller.sdl.SdlGamepadProbe'
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) })
     jvmArgs '--enable-native-access=ALL-UNNAMED'
 }
 

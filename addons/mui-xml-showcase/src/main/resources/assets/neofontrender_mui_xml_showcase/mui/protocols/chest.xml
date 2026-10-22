@@ -1,0 +1,30 @@
+<protocol id="neofontrender_mui_xml_showcase:chest" schema-version="2">
+    <slot key="machine.storage.0" type="showcase:machine-slot" version="1" ordinal="0"/>
+    <slot key="machine.storage.1" type="showcase:machine-slot" version="1" ordinal="1"/>
+    <slot key="machine.storage.2" type="showcase:machine-slot" version="1" ordinal="2"/>
+    <slot key="machine.storage.3" type="showcase:machine-slot" version="1" ordinal="3"/>
+    <slot key="machine.storage.4" type="showcase:machine-slot" version="1" ordinal="4"/>
+    <slot key="machine.storage.5" type="showcase:machine-slot" version="1" ordinal="5"/>
+    <slot key="machine.storage.6" type="showcase:machine-slot" version="1" ordinal="6"/>
+    <slot key="machine.storage.7" type="showcase:machine-slot" version="1" ordinal="7"/>
+    <slot key="machine.storage.8" type="showcase:machine-slot" version="1" ordinal="8"/>
+    <slot key="machine.storage.9" type="showcase:machine-slot" version="1" ordinal="9"/>
+    <slot key="machine.storage.10" type="showcase:machine-slot" version="1" ordinal="10"/>
+    <slot key="machine.storage.11" type="showcase:machine-slot" version="1" ordinal="11"/>
+    <slot key="machine.storage.12" type="showcase:machine-slot" version="1" ordinal="12"/>
+    <slot key="machine.storage.13" type="showcase:machine-slot" version="1" ordinal="13"/>
+    <slot key="machine.storage.14" type="showcase:machine-slot" version="1" ordinal="14"/>
+    <slot key="machine.storage.15" type="showcase:machine-slot" version="1" ordinal="15"/>
+    <slot key="machine.storage.16" type="showcase:machine-slot" version="1" ordinal="16"/>
+    <slot key="machine.storage.17" type="showcase:machine-slot" version="1" ordinal="17"/>
+    <slot key="machine.storage.18" type="showcase:machine-slot" version="1" ordinal="18"/>
+    <slot key="machine.storage.19" type="showcase:machine-slot" version="1" ordinal="19"/>
+    <slot key="machine.storage.20" type="showcase:machine-slot" version="1" ordinal="20"/>
+    <slot key="machine.storage.21" type="showcase:machine-slot" version="1" ordinal="21"/>
+    <slot key="machine.storage.22" type="showcase:machine-slot" version="1" ordinal="22"/>
+    <slot key="machine.storage.23" type="showcase:machine-slot" version="1" ordinal="23"/>
+    <slot key="machine.storage.24" type="showcase:machine-slot" version="1" ordinal="24"/>
+    <slot key="machine.storage.25" type="showcase:machine-slot" version="1" ordinal="25"/>
+    <slot key="machine.storage.26" type="showcase:machine-slot" version="1" ordinal="26"/>
+    <component src="protocol-components/player-inventory.xml" ordinal-offset="27"/>
+</protocol>

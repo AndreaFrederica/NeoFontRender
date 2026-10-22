@@ -3,7 +3,7 @@
   "minVersion": "0.8.5",
   "package": "neofontrender.addons.mixin",
   "refmap": "mixins.neofontrender_ui_enhancements-refmap.json",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_25",
   "target": "@env(DEFAULT)",
   "mixins": [],
   "server": [],
@@ -11,7 +11,9 @@
     "compat.MixinJeiIngredientRendererHover",
     "compat.MixinHeiCollapsedGroupHover",
     "compat.MixinJeiIngredientGridHover",
+    "compat.MixinHeiIngredientPreviewHover",
     "compat.MixinHeiCollapsedGroupTooltip",
-    "compat.MixinHeiTooltipRenderer"
+    "compat.MixinHeiTooltipRenderer",
+    "compat.MixinHeiScrollBar"
   ]
 }

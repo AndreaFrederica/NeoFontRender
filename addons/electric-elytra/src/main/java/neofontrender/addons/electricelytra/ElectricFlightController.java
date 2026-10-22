@@ -1,5 +1,6 @@
 package neofontrender.addons.electricelytra;
 
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.EntityEquipmentSlot;
@@ -17,7 +18,26 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class ElectricFlightController {
-    private final Set<UUID> activeFlights = new HashSet<>();
+    private static final Set<UUID> ACTIVE_FLIGHTS = new HashSet<>();
+
+    public static boolean isAerodynamicFlightActive(EntityLivingBase entity) {
+        if (!(entity instanceof EntityPlayer) || entity.world.isRemote) return false;
+        EntityPlayer player = (EntityPlayer) entity;
+        ItemStack chest = player.getItemStackFromSlot(EntityEquipmentSlot.CHEST);
+        return shouldMaintainAerodynamicFlight(ACTIVE_FLIGHTS.contains(player.getUniqueID()),
+                player.capabilities.isFlying, player.isInWater(), player.isInLava(),
+                player.isRiding(), ItemElectricElytra.usesAerodynamicFlightModel(chest));
+    }
+
+    /** Bounds-checks the client-owned velocity before it is accepted as a movement snapshot. */
+    public static boolean isClientVelocityValid(EntityLivingBase entity) {
+        if (entity == null) return false;
+        double x = entity.motionX, y = entity.motionY, z = entity.motionZ;
+        if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) return false;
+        double speed = Math.sqrt(x * x + y * y + z * z) * 20.0D;
+        return Double.isFinite(speed)
+                && speed <= ElectricElytraConfig.hardSpeedLimitBlocksPerSecond + 1.0E-6D;
+    }
 
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -26,7 +46,7 @@ public final class ElectricFlightController {
         UUID id = player.getUniqueID();
         ItemStack elytra = player.getItemStackFromSlot(EntityEquipmentSlot.CHEST);
         if (!ItemElectricElytra.isElectricElytra(elytra)) {
-            activeFlights.remove(id);
+            ACTIVE_FLIGHTS.remove(id);
             ElectricBodyAxis.reset(player);
             return;
         }
@@ -48,11 +68,13 @@ public final class ElectricFlightController {
             ItemElectricElytra.setEngineEnabled(elytra, false);
             notify(player, "message.neofontrender_electric_elytra.empty");
         }
+        boolean launching = !vanillaFlightModel && engine && throttle > 0
+                && jump && player.onGround;
 
         // Creative/spectator flight owns movement and must never be converted into Elytra flight
         // merely because the shared jump key is held while descending.
         if (player.capabilities.isFlying) {
-            activeFlights.remove(id);
+            ACTIVE_FLIGHTS.remove(id);
             if (player.isElytraFlying()) player.setFlag(7, false);
             ElectricBodyAxis.reset(player);
             ItemElectricElytra.setEnginePower(elytra, 0);
@@ -60,22 +82,20 @@ public final class ElectricFlightController {
         }
 
         if (player.onGround) {
-            activeFlights.remove(id);
+            ACTIVE_FLIGHTS.remove(id);
             if (player.isElytraFlying()) player.setFlag(7, false);
-            ElectricBodyAxis.reset(player);
+            if (shouldResetGroundAttitude(true, launching)) ElectricBodyAxis.reset(player);
         }
         // Adopt a legitimate already-active glide (for example after reconnecting or enabling
         // the engine in flight), but never let engine-on alone create the flying state.
-        if (!player.onGround && player.isElytraFlying()) activeFlights.add(id);
+        if (!player.onGround && player.isElytraFlying()) ACTIVE_FLIGHTS.add(id);
         boolean canStart = shouldStartFlight(player.capabilities.isFlying, player.onGround,
                 player.isInWater(), player.isRiding(), vanillaFlightModel ? false : engine,
                 jump, player.motionY);
-        if (canStart) activeFlights.add(id);
+        if (canStart) ACTIVE_FLIGHTS.add(id);
 
-        boolean launching = !vanillaFlightModel && engine && throttle > 0
-                && jump && player.onGround;
         if (launching) {
-            activeFlights.add(id);
+            ACTIVE_FLIGHTS.add(id);
             double takeoffScale = 0.35D + throttleFraction * 0.65D;
             player.motionY = Math.max(player.motionY,
                     ElectricElytraConfig.takeoffVelocity * takeoffScale);
@@ -85,8 +105,9 @@ public final class ElectricFlightController {
             player.velocityChanged = true;
         }
 
-        boolean flying = activeFlights.contains(id) && !player.onGround && !player.isRiding();
+        boolean flying = ACTIVE_FLIGHTS.contains(id) && !player.onGround && !player.isRiding();
         if (flying) player.setFlag(7, true);
+        if (flying) validateClientVelocity(player);
 
         int power = engine ? (flying
                 ? ElectricFlightMath.indicatedPower(throttle) : 12) : 0;
@@ -110,7 +131,7 @@ public final class ElectricFlightController {
 
     @SubscribeEvent
     public void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        activeFlights.remove(event.player.getUniqueID());
+        ACTIVE_FLIGHTS.remove(event.player.getUniqueID());
         ElectricBodyAxis.reset(event.player);
         ServerInputState.remove(event.player);
     }
@@ -119,10 +140,57 @@ public final class ElectricFlightController {
         if (player instanceof EntityPlayerMP) player.sendStatusMessage(new TextComponentTranslation(key), true);
     }
 
+    private static void validateClientVelocity(EntityPlayer player) {
+        if (isClientVelocityValid(player)) return;
+        double x = player.motionX, y = player.motionY, z = player.motionZ;
+        double speed = Math.sqrt(x * x + y * y + z * z);
+        double limit = ElectricElytraConfig.hardSpeedLimitBlocksPerSecond / 20.0D;
+        if (!Double.isFinite(speed) || speed < 1.0E-12D) {
+            player.motionX = player.motionY = player.motionZ = 0.0D;
+        } else {
+            double scale = Math.min(1.0D, limit / speed);
+            player.motionX = x * scale;
+            player.motionY = y * scale;
+            player.motionZ = z * scale;
+        }
+        player.velocityChanged = true;
+    }
+
     static boolean shouldStartFlight(boolean creativeFlying, boolean onGround,
                                      boolean inWater, boolean riding, boolean engine,
                                      boolean jump, double verticalMotion) {
         return !creativeFlying && !onGround && !inWater && !riding && jump
                 && (engine || verticalMotion < 0.0D);
+    }
+
+    static boolean shouldMaintainAerodynamicFlight(boolean active, boolean creativeFlying,
+                                                    boolean inWater, boolean inLava,
+                                                    boolean riding, boolean aerodynamicModel) {
+        return active && !creativeFlying && !inWater && !inLava && !riding
+                && aerodynamicModel;
+    }
+
+    static boolean shouldResetGroundAttitude(boolean onGround, boolean launching) {
+        return onGround && !launching;
+    }
+
+    public static boolean shouldMaintainClientAerodynamicFlight(boolean latchedFlight,
+                                                                 boolean elytraFlying,
+                                                                 boolean localPlayer,
+                                                                 boolean creativeFlying,
+                                                                 boolean onGround,
+                                                                 boolean inLiquid,
+                                                                 boolean riding,
+                                                                 boolean aerodynamicModel,
+                                                                 boolean engine,
+                                                                 int throttle,
+                                                                 boolean jumpHeld,
+                                                                 double verticalMotion) {
+        if (!localPlayer || creativeFlying || inLiquid || riding || !aerodynamicModel) {
+            return false;
+        }
+        if (onGround) return engine && throttle > 0 && jumpHeld;
+        return latchedFlight || elytraFlying
+                || jumpHeld && (engine || verticalMotion < 0.0D);
     }
 }

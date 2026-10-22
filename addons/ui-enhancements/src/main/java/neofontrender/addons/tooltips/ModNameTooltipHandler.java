@@ -2,26 +2,32 @@ package neofontrender.addons.tooltips;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.ModContainer;
-import net.minecraftforge.fml.common.eventhandler.EventPriority;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Map;
+import neofontrender.api.client.tooltip.NfrTooltipApi;
 
 /** Mod Name Tooltip-compatible item provenance line, integrated into the addon tooltip pipeline. */
 final class ModNameTooltipHandler {
-    @SubscribeEvent(priority = EventPriority.LOW)
-    public void onTooltip(ItemTooltipEvent event) {
-        if (!TooltipConfig.modNameEnabled) return;
-
-        String modName = getModName(event.getItemStack());
-        if (modName == null || ModNameTooltipSupport.containsModName(event.getToolTip(), modName)) return;
-        event.getToolTip().add(ModNameTooltipSupport.format(TooltipConfig.modNameFormat) + modName);
+    static NfrTooltipApi.TooltipDocument finalizeDocument(NfrTooltipApi.TooltipDocument document) {
+        if (!TooltipConfig.modNameEnabled || document == null || document.stack == null
+                || document.stack.isEmpty()) return document;
+        String modName = getModName(document.stack);
+        if (modName == null || ModNameTooltipSupport.containsModName(document.lines, modName)) return document;
+        List<String> lines = new java.util.ArrayList<>(document.lines);
+        lines.add(ModNameTooltipSupport.format(TooltipConfig.modNameFormat) + modName);
+        return new NfrTooltipApi.TooltipDocument(document.stack, lines, document.nodes);
     }
 
+
+    /**
+     * Configured ownership-line index, or -1 when the option is off or the line is absent.
+     * Integrations that relocate the ownership line themselves use this to derive the
+     * visual anchor from the line's original position.
+     */
     @Nullable
     static String getModName(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return null;

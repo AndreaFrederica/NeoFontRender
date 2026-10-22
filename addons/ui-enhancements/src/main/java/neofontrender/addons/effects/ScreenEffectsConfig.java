@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.List;
 
 final class ScreenEffectsConfig {
-    private static final int[] LEGACY_PURPLE_COLORS = {0x80101828, 0x80101018, 0xA0101018, 0xA0181028};
     private static final int[] DEFAULT_COLORS = {0x70000000, 0x70000000, 0x90000000, 0x90000000};
     static boolean enabled = true;
     static boolean fade = true;
@@ -30,49 +29,41 @@ final class ScreenEffectsConfig {
 
     static void load() {
         NfrConfigFile file = UiEnhancementsConfig.file();
-        boolean legacyMenus = file.getBoolean("effects.applyToMenus", true);
-        boolean legacyContainers = file.getBoolean("effects.applyToContainers", true);
-        boolean legacyChat = file.getBoolean("effects.applyToChat", true);
         file.define("effects.enabled", true, "Replace the in-world GUI background with configurable effects.")
                 .define("effects.fade", true, "Fade the background overlay in and out at screen-session boundaries.")
                 .define("effects.fadeDurationMillis", 220, "Fade-in and fade-out duration in milliseconds (0-1000).")
-                .define("effects.fadeMenus", legacyMenus, "Animate transitions for menu screens.")
-                .define("effects.fadeContainers", legacyContainers, "Animate transitions for inventory and container screens.")
-                .define("effects.fadeChat", legacyChat, "Animate transitions for chat screens.")
+                .define("effects.fadeMenus", true, "Animate transitions for menu screens.")
+                .define("effects.fadeContainers", true, "Animate transitions for inventory and container screens.")
+                .define("effects.fadeChat", true, "Animate transitions for chat screens.")
                 .define("effects.blur", true, "Use Minecraft's two-pass Gaussian post shader while a screen is open.")
-                .define("effects.blurMenus", legacyMenus, "Apply blur to menu screens.")
-                .define("effects.blurContainers", legacyContainers, "Apply blur to inventory and container screens.")
-                .define("effects.blurChat", legacyChat, "Apply blur to chat screens.")
+                .define("effects.blurMenus", true, "Apply blur to menu screens.")
+                .define("effects.blurContainers", true, "Apply blur to inventory and container screens.")
+                .define("effects.blurChat", true, "Apply blur to chat screens.")
                 .define("effects.blurRadius", 5, "Integer Gaussian blur radius (1-16).")
                 .define("effects.gradient", true, "Draw a four-corner color gradient over the blurred world.")
-                .define("effects.gradientMenus", legacyMenus, "Apply the dark overlay to menu screens.")
-                .define("effects.gradientContainers", legacyContainers, "Apply the dark overlay to inventory and container screens.")
-                .define("effects.gradientChat", legacyChat, "Apply the dark overlay to chat screens.")
+                .define("effects.gradientMenus", true, "Apply the dark overlay to menu screens.")
+                .define("effects.gradientContainers", true, "Apply the dark overlay to inventory and container screens.")
+                .define("effects.gradientChat", true, "Apply the dark overlay to chat screens.")
                 .define("effects.gradientColors", colorStrings(DEFAULT_COLORS), "Four ARGB colors: UL, UR, LR, LL.");
         enabled = file.getBoolean("effects.enabled", true);
         fade = file.getBoolean("effects.fade", true);
         fadeDurationMillis = file.getInt("effects.fadeDurationMillis", 220, 0, 1000);
-        fadeMenus = file.getBoolean("effects.fadeMenus", legacyMenus);
-        fadeContainers = file.getBoolean("effects.fadeContainers", legacyContainers);
-        fadeChat = file.getBoolean("effects.fadeChat", legacyChat);
+        fadeMenus = file.getBoolean("effects.fadeMenus", true);
+        fadeContainers = file.getBoolean("effects.fadeContainers", true);
+        fadeChat = file.getBoolean("effects.fadeChat", true);
         blur = file.getBoolean("effects.blur", true);
-        blurMenus = file.getBoolean("effects.blurMenus", legacyMenus);
-        blurContainers = file.getBoolean("effects.blurContainers", legacyContainers);
-        blurChat = file.getBoolean("effects.blurChat", legacyChat);
+        blurMenus = file.getBoolean("effects.blurMenus", true);
+        blurContainers = file.getBoolean("effects.blurContainers", true);
+        blurChat = file.getBoolean("effects.blurChat", true);
         blurRadius = Math.round((float) file.getDouble("effects.blurRadius", 5.0D, 1.0D, 16.0D));
         gradient = file.getBoolean("effects.gradient", true);
-        gradientMenus = file.getBoolean("effects.gradientMenus", legacyMenus);
-        gradientContainers = file.getBoolean("effects.gradientContainers", legacyContainers);
-        gradientChat = file.getBoolean("effects.gradientChat", legacyChat);
+        gradientMenus = file.getBoolean("effects.gradientMenus", true);
+        gradientContainers = file.getBoolean("effects.gradientContainers", true);
+        gradientChat = file.getBoolean("effects.gradientChat", true);
         colors = parseColors(file.getStringList("effects.gradientColors", colorStrings(DEFAULT_COLORS)));
         file.remove("effects.applyToMenus");
         file.remove("effects.applyToContainers");
         file.remove("effects.applyToChat");
-        // Migrate only the original generated palette. Explicitly customized colors are preserved.
-        if (Arrays.equals(colors, LEGACY_PURPLE_COLORS)) {
-            colors = DEFAULT_COLORS.clone();
-            file.set("effects.gradientColors", colorStrings(colors));
-        }
         file.save();
     }
 

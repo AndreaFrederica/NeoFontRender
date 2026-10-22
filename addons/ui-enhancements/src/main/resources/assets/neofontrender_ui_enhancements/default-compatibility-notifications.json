@@ -1,0 +1,22 @@
+{
+  "notifications": [
+    {
+      "modid": "modnametooltip",
+      "enabled": true,
+      "showOnce": true,
+      "priority": 100
+    },
+    {
+      "modid": "rgbchat",
+      "enabled": true,
+      "showOnce": true,
+      "priority": 90
+    },
+    {
+      "modid": "colouredtooltips",
+      "enabled": true,
+      "showOnce": true,
+      "priority": 110
+    }
+  ]
+}

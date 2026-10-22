@@ -57,7 +57,13 @@ public final class PlayerMovementInputBridge {
         float forward = axis(frame, InputAction.PLAYER_MOVE_FORWARD, fallbackForward);
         float strafe = suppressStrafe ? 0.0F
                 : axis(frame, InputAction.PLAYER_MOVE_STRAFE, fallbackStrafe);
-        boolean jump = button(frame, InputAction.PLAYER_JUMP, fallbackJump);
+        // Keep jump on the vanilla tick path.  The frame is sampled at the render seam, so using
+        // its physical jump state here can lag a press/release and interfere with double-jump
+        // flight detection.  The fallback is MovementInputFromOptions' current tick result and
+        // therefore also includes any KeyBinding extensions (for example controller input).
+        boolean jump = frame == null || frame.getSampleId() == 0L
+                || frame.disposition(InputAction.PLAYER_JUMP) != InputDisposition.BLOCK
+                ? fallbackJump : false;
         boolean sneak = button(frame, InputAction.PLAYER_SNEAK, fallbackSneak);
         if (sneak) {
             forward *= SNEAK_MULTIPLIER;

@@ -4,12 +4,12 @@ plugins {
 }
 
 group = 'neofontrender.addons'
-version = providers.gradleProperty('electric_elytra_version').get()
+version = nfrVersion('electric_elytra_version')
 
 base { archivesName = 'neofontrender-electric-elytra' }
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+    toolchain { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) }
 }
 
 repositories {
@@ -19,10 +19,10 @@ repositories {
 }
 
 unimined.minecraft {
-    version '1.12.2'
-    mappings { mcp('stable', '39-1.12') }
+    version nfrVersion('minecraft_version')
+    mappings { mcp(nfrVersion('minecraft_mappings_channel'), nfrVersion('minecraft_mappings_version')) }
     cleanroom {
-        loader '0.6.1-alpha'
+        loader nfrVersion('cleanroom_version')
         accessTransformer project.file('src/main/resources/neofontrender_electric_elytra_at.cfg')
         runs.off = true
     }
@@ -42,10 +42,10 @@ dependencies {
 processResources {
     rename '(.+_at.cfg)', 'META-INF/$1'
     inputs.property('version', project.version)
-    inputs.property('uieVersion', providers.gradleProperty('ui_enhancements_version').get())
+    inputs.property('uieVersion', nfrVersion('ui_enhancements_version'))
     filesMatching('mcmod.info') {
         expand(version: project.version,
-                uieVersion: providers.gradleProperty('ui_enhancements_version').get())
+                uieVersion: nfrVersion('ui_enhancements_version'))
     }
 }
 
@@ -69,7 +69,7 @@ tasks.withType(JavaCompile).configureEach {
 
 test {
     useJUnitPlatform()
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) })
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) })
 }
 
 sourceSets.test.compileClasspath += sourceSets.main.compileClasspath

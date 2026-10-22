@@ -1,6 +1,7 @@
 package neofontrender.client;
 
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.InputUpdateEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -30,12 +31,18 @@ public final class NeofontrenderKeyHandler {
             Keyboard.KEY_P,
             "key.categories.neofontrender." + BRAND_SUFFIX
     );
+    public static final KeyBinding OPEN_AUDIO = new KeyBinding(
+            "key.neofontrender.openAudio",
+            Keyboard.KEY_M,
+            "key.categories.neofontrender." + BRAND_SUFFIX
+    );
 
     private NeofontrenderKeyHandler() {}
 
     public static void init() {
         ClientRegistry.registerKeyBinding(OPEN_CONFIG);
         ClientRegistry.registerKeyBinding(OPEN_EMOJI_TEST);
+        ClientRegistry.registerKeyBinding(OPEN_AUDIO);
         MinecraftForge.EVENT_BUS.register(new NeofontrenderKeyHandler());
     }
 
@@ -46,6 +53,10 @@ public final class NeofontrenderKeyHandler {
         }
         if (OPEN_EMOJI_TEST.isPressed()) {
             NeofontrenderEmojiTestScreen.open();
+        }
+        if (OPEN_AUDIO.isPressed()) {
+            Minecraft.getMinecraft().displayGuiScreen(NeofontrenderConfigScreen.createConfigGui(null,
+                    "neofontrender_ui_enhancements:music"));
         }
     }
 }
