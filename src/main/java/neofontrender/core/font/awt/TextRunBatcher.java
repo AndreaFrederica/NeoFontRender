@@ -11,9 +11,6 @@ import neofontrender.core.font.support.FontRenderPerfStats;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.OptionalGlProgramBinding;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Batches multiple glyph renders into a single draw call when they share the same texture.
  *
@@ -28,7 +25,8 @@ public class TextRunBatcher {
 
     private static final int MAX_VERTICES = 65536; // ~16384 quads, well under 2MB buffer limit
 
-    private final List<QuadEntry> entries = new ArrayList<>();
+    // x, y, u, v, r, g, b, a per vertex. Reusing this storage avoids one heap object per glyph.
+    private final float[] vertexData = new float[MAX_VERTICES * 8];
     private ResourceLocation currentTexture;
     private float currentRasterScale;
     private int vertexCount;
@@ -79,8 +77,10 @@ public class TextRunBatcher {
             currentTexture = texture;
             currentRasterScale = rasterScale;
         }
-        entries.add(new QuadEntry(x0, y0, x1, y1, x2, y2, x3, y3,
-                u0, v0, u1, v1, u2, v2, u3, v3, red, green, blue, alpha));
+        writeVertex(vertexCount, x0, y0, u0, v0, red, green, blue, alpha);
+        writeVertex(vertexCount + 1, x1, y1, u1, v1, red, green, blue, alpha);
+        writeVertex(vertexCount + 2, x2, y2, u2, v2, red, green, blue, alpha);
+        writeVertex(vertexCount + 3, x3, y3, u3, v3, red, green, blue, alpha);
         vertexCount += 4;
         if (vertexCount >= MAX_VERTICES) {
             flush();
@@ -93,7 +93,7 @@ public class TextRunBatcher {
      * Flush all accumulated glyphs to the GPU in a single draw call.
      */
     public void flush() {
-        if (entries.isEmpty()) {
+        if (vertexCount <= 0) {
             return;
         }
 
@@ -108,8 +108,13 @@ public class TextRunBatcher {
             BufferBuilder buffer = tessellator.getBuffer();
             buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
 
-            for (QuadEntry entry : entries) {
-                entry.write(buffer);
+            for (int vertex = 0; vertex < vertexCount; vertex++) {
+                int offset = vertex * 8;
+                buffer.pos(vertexData[offset], vertexData[offset + 1], 0.0D)
+                        .tex(vertexData[offset + 2], vertexData[offset + 3])
+                        .color(vertexData[offset + 4], vertexData[offset + 5],
+                                vertexData[offset + 6], vertexData[offset + 7])
+                        .endVertex();
             }
 
             tessellator.draw();
@@ -118,7 +123,6 @@ public class TextRunBatcher {
             FontRenderPerfStats.recordBatchFlush(flushedVertices, System.nanoTime() - started);
         }
 
-        entries.clear();
         currentTexture = null;
         vertexCount = 0;
     }
@@ -127,30 +131,19 @@ public class TextRunBatcher {
      * Check if there are any pending glyphs.
      */
     public boolean hasPendingGlyphs() {
-        return !entries.isEmpty();
+        return vertexCount > 0;
     }
 
-    private static final class QuadEntry {
-        final float x0, y0, x1, y1, x2, y2, x3, y3;
-        final float u0, v0, u1, v1, u2, v2, u3, v3;
-        final float red, green, blue, alpha;
-
-        QuadEntry(float x0, float y0, float x1, float y1, float x2, float y2,
-                  float x3, float y3, float u0, float v0, float u1, float v1,
-                  float u2, float v2, float u3, float v3,
-                  float red, float green, float blue, float alpha) {
-            this.x0 = x0; this.y0 = y0; this.x1 = x1; this.y1 = y1;
-            this.x2 = x2; this.y2 = y2; this.x3 = x3; this.y3 = y3;
-            this.u0 = u0; this.v0 = v0; this.u1 = u1; this.v1 = v1;
-            this.u2 = u2; this.v2 = v2; this.u3 = u3; this.v3 = v3;
-            this.red = red; this.green = green; this.blue = blue; this.alpha = alpha;
-        }
-
-        void write(BufferBuilder buffer) {
-            buffer.pos(x0, y0, 0.0D).tex(u0, v0).color(red, green, blue, alpha).endVertex();
-            buffer.pos(x1, y1, 0.0D).tex(u1, v1).color(red, green, blue, alpha).endVertex();
-            buffer.pos(x2, y2, 0.0D).tex(u2, v2).color(red, green, blue, alpha).endVertex();
-            buffer.pos(x3, y3, 0.0D).tex(u3, v3).color(red, green, blue, alpha).endVertex();
-        }
+    private void writeVertex(int vertex, float x, float y, float u, float v,
+                             float red, float green, float blue, float alpha) {
+        int offset = vertex * 8;
+        vertexData[offset] = x;
+        vertexData[offset + 1] = y;
+        vertexData[offset + 2] = u;
+        vertexData[offset + 3] = v;
+        vertexData[offset + 4] = red;
+        vertexData[offset + 5] = green;
+        vertexData[offset + 6] = blue;
+        vertexData[offset + 7] = alpha;
     }
 }
