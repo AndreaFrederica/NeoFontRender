@@ -14,8 +14,11 @@ import neofontrender.core.font.FontManager;
 import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.backend.BackendTextSegmenter;
 import neofontrender.core.font.backend.TextRenderBackend;
+import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.cosmic.CosmicTextRenderer;
 import neofontrender.core.font.pipeline.StructuredTextRuntime;
+import neofontrender.core.font.support.FontBatchingPolicy;
+import neofontrender.core.font.support.FontRenderPerfStats;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -41,7 +44,7 @@ public final class NeofontrenderCommand extends CommandBase {
     public String getName() { return "neofontrender"; }
 
     @Override
-    public String getUsage(ICommandSender sender) { return "/neofontrender fonts|info|reload|test|benchmark [sdf|async|atlas]|gui"; }
+    public String getUsage(ICommandSender sender) { return "/neofontrender fonts|info|reload|test|benchmark [draw|sdf|async|atlas]|gui"; }
 
     @Override
     public int getRequiredPermissionLevel() { return 0; }
@@ -145,6 +148,25 @@ public final class NeofontrenderCommand extends CommandBase {
 
     private static void benchmark(ICommandSender sender, String[] args) {
         int iterations = 2000;
+        boolean draw = args.length >= 2 && "draw".equalsIgnoreCase(args[1]);
+        if (draw) {
+            if (args.length >= 3) {
+                try {
+                    iterations = Integer.parseInt(args[2]);
+                } catch (NumberFormatException ignored) {
+                    message(sender, TextFormatting.YELLOW,
+                            "Usage: /neofontrender benchmark draw [100-20000]");
+                    return;
+                }
+            }
+            if (iterations < 100 || iterations > 20_000) {
+                message(sender, TextFormatting.YELLOW,
+                        "Usage: /neofontrender benchmark draw [100-20000]");
+                return;
+            }
+            runDrawBenchmark(sender, iterations);
+            return;
+        }
         boolean async = args.length >= 2 && "async".equalsIgnoreCase(args[1]);
         boolean atlas = args.length >= 2 && "atlas".equalsIgnoreCase(args[1]);
         boolean sdf = args.length >= 2 && "sdf".equalsIgnoreCase(args[1]);
@@ -223,6 +245,36 @@ public final class NeofontrenderCommand extends CommandBase {
                 result.exactMillis(), result.fixedMillis(), result.speedup()));
         message(sender, TextFormatting.WHITE, String.format(java.util.Locale.ROOT,
                 "  width error: max=%.5f avg=%.5f", result.maxWidthError, result.averageWidthError));
+    }
+
+    private static void runDrawBenchmark(ICommandSender sender, int iterations) {
+        TextRenderBackend backend = FontManager.INSTANCE.getModernTextBackend();
+        if (backend == null || !backend.isReady()) {
+            message(sender, TextFormatting.YELLOW, "No active text backend is available for draw benchmark.");
+            return;
+        }
+        TextRenderResult result = backend.render("NFR Actinium benchmark 0123456789", 0xFFFFFFFF, false, false);
+        String[] modes = {"off", "auto"};
+        message(sender, TextFormatting.GOLD, "NFR draw benchmark (" + iterations + " iterations)");
+        message(sender, TextFormatting.GRAY, "Actinium detected: " + FontBatchingPolicy.actiniumStreamingAvailable());
+        for (String mode : modes) {
+            try (FontBatchingPolicy.Scope ignored = FontBatchingPolicy.overrideForBenchmark(mode)) {
+                for (int warmup = 0; warmup < 20; warmup++) result.draw(-10000.0F, -10000.0F, 1.0F);
+                FontRenderPerfStats.reset();
+                long started = System.nanoTime();
+                for (int index = 0; index < iterations; index++) {
+                    result.draw(-10000.0F, -10000.0F, 1.0F);
+                }
+                double millis = (System.nanoTime() - started) / 1_000_000.0;
+                FontRenderPerfStats.Snapshot stats = FontRenderPerfStats.snapshot();
+                message(sender, TextFormatting.WHITE, String.format(java.util.Locale.ROOT,
+                        "  %s (%s): %.2f ms, %.2f us/draw, batches=%d, glyphs=%d, sdf=%d",
+                        mode, FontBatchingPolicy.activePath(), millis,
+                        millis * 1000.0 / iterations, stats.batchFlushes(),
+                        stats.glyphDraws(), stats.sdfDraws()));
+            }
+        }
+        result = null;
     }
 
     private static void runAsyncBenchmark(CosmicTextRenderer cosmic, ICommandSender sender, int iterations) {

@@ -16,13 +16,14 @@ public final class FontBatchingPolicy {
             "com.gtnewhorizons.angelica.glsm.streaming.TessellatorStreamingDrawer";
 
     private static volatile Boolean actiniumStreamingAvailable;
+    private static final ThreadLocal<String> BENCHMARK_OVERRIDE = new ThreadLocal<>();
 
     private FontBatchingPolicy() {
     }
 
     /** Returns whether the AWT renderer may use NFR's ordered quad batcher. */
     public static boolean useAwtBatching() {
-        String mode = NeofontrenderConfig.glyphBatchingMode();
+        String mode = selectedMode();
         if ("off".equals(mode)) return false;
         if ("force".equals(mode)) return true;
         return actiniumStreamingAvailable();
@@ -65,5 +66,34 @@ public final class FontBatchingPolicy {
     public static String activePath() {
         if (!useAwtBatching()) return "legacy";
         return actiniumStreamingAvailable() ? "nfr-batch+actinium-stream" : "nfr-batch";
+    }
+
+    /** Temporarily selects a batching mode for a render-thread benchmark. */
+    public static Scope overrideForBenchmark(String mode) {
+        String normalized = "off".equals(mode) || "force".equals(mode) || "auto".equals(mode)
+                ? mode : "auto";
+        String previous = BENCHMARK_OVERRIDE.get();
+        BENCHMARK_OVERRIDE.set(normalized);
+        return new Scope(previous);
+    }
+
+    private static String selectedMode() {
+        String override = BENCHMARK_OVERRIDE.get();
+        return override == null ? NeofontrenderConfig.glyphBatchingMode() : override;
+    }
+
+    public static final class Scope implements AutoCloseable {
+        private final String previous;
+        private boolean closed;
+
+        private Scope(String previous) { this.previous = previous; }
+
+        @Override
+        public void close() {
+            if (closed) return;
+            closed = true;
+            if (previous == null) BENCHMARK_OVERRIDE.remove();
+            else BENCHMARK_OVERRIDE.set(previous);
+        }
     }
 }

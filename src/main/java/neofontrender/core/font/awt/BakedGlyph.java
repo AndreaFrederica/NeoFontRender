@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.core.font.support.FontRenderPipeline;
+import neofontrender.core.font.support.FontRenderPerfStats;
 import neofontrender.core.font.support.OptionalGlProgramBinding;
 import neofontrender.core.font.support.FontRenderTuning;
 
@@ -128,6 +129,7 @@ public class BakedGlyph {
         // AWT glyph pages are normalized to white straight-alpha in AwtTtfGlyphProvider.
         // Do not use premultiplied blending here: GL_ONE blending makes
         // low-coverage white edge texels contribute at full strength and produces a bright halo.
+        final long started = FontRenderPerfStats.enabled() ? System.nanoTime() : 0L;
         try (FontRenderPipeline.State state = FontRenderPipeline.begin(rasterScale, false);
              OptionalGlProgramBinding.ExternalProgramScope ignored = state.preserveExternalProgram()) {
             Tessellator tessellator = Tessellator.getInstance();
@@ -152,6 +154,10 @@ public class BakedGlyph {
                   .endVertex();
 
             tessellator.draw();
+        } finally {
+            if (FontRenderPerfStats.enabled()) {
+                FontRenderPerfStats.recordGlyphDraw(System.nanoTime() - started);
+            }
         }
     }
 

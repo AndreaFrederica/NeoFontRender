@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import neofontrender.NeoFontRender;
 import neofontrender.core.font.support.FramebufferAlphaBlend;
 import neofontrender.core.font.support.OptionalGlProgramBinding;
+import neofontrender.core.font.support.FontRenderPerfStats;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
@@ -108,6 +109,7 @@ final class CosmicSdfPipeline {
     static void drawRegion(float left, float top, float width, float height,
                            float u1, float v1, float u2, float v2,
                            float r, float g, float b, float alpha, float softness) {
+        final long started = FontRenderPerfStats.enabled() ? System.nanoTime() : 0L;
         setUniforms(r, g, b, alpha, softness);
         Tessellator tessellator = FONT_TESSELLATOR;
         BufferBuilder buffer = tessellator.getBuffer();
@@ -116,6 +118,10 @@ final class CosmicSdfPipeline {
         try (OptionalGlProgramBinding.ExternalProgramScope ignored =
                      OptionalGlProgramBinding.preserveExternalProgram()) {
             tessellator.draw();
+        } finally {
+            if (FontRenderPerfStats.enabled()) {
+                FontRenderPerfStats.recordSdfDraw(System.nanoTime() - started);
+            }
         }
     }
 

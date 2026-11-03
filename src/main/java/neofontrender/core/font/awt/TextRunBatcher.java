@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.core.font.support.FontRenderPipeline;
+import neofontrender.core.font.support.FontRenderPerfStats;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.OptionalGlProgramBinding;
 
@@ -96,6 +97,8 @@ public class TextRunBatcher {
             return;
         }
 
+        final int flushedVertices = vertexCount;
+        final long started = FontRenderPerfStats.enabled() ? System.nanoTime() : 0L;
         Minecraft.getMinecraft().getTextureManager().bindTexture(currentTexture);
         FontRenderTuning.applyBoundTextureFilter(currentRasterScale);
 
@@ -110,6 +113,9 @@ public class TextRunBatcher {
             }
 
             tessellator.draw();
+        }
+        if (FontRenderPerfStats.enabled()) {
+            FontRenderPerfStats.recordBatchFlush(flushedVertices, System.nanoTime() - started);
         }
 
         entries.clear();
