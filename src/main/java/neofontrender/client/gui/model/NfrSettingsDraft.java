@@ -60,6 +60,7 @@ public final class NfrSettingsDraft {
     public final boolean originalMipmap = NeofontrenderConfig.renderingMipmap();
     public final boolean originalEnhancedTextPipeline = NeofontrenderConfig.enhancedTextPipeline();
     public final boolean originalShaderTextPipeline = NeofontrenderConfig.shaderTextPipeline();
+    public final String originalGlyphBatchingMode = NeofontrenderConfig.glyphBatchingMode();
     public final boolean originalVanillaFormattingCompatibility = NeofontrenderConfig.vanillaFormattingCompatibility();
     public final boolean originalBrilliantTextEnabled = NeofontrenderConfig.brilliantTextEnabled();
     public final boolean originalDebugRenderStats = NeofontrenderConfig.debugRenderStats();
@@ -144,6 +145,7 @@ public final class NfrSettingsDraft {
     public boolean mipmap = originalMipmap;
     public boolean enhancedTextPipeline = originalEnhancedTextPipeline;
     public boolean shaderTextPipeline = originalShaderTextPipeline;
+    public String glyphBatchingMode = originalGlyphBatchingMode;
     public boolean vanillaFormattingCompatibility = originalVanillaFormattingCompatibility;
     public boolean brilliantTextEnabled = originalBrilliantTextEnabled;
     public boolean debugRenderStats = originalDebugRenderStats;
@@ -333,6 +335,7 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setRenderingMipmap(mipmap);
         NeofontrenderConfig.setEnhancedTextPipeline(enhancedTextPipeline);
         NeofontrenderConfig.setShaderTextPipeline(shaderTextPipeline);
+        NeofontrenderConfig.setGlyphBatchingMode(glyphBatchingMode);
         NeofontrenderConfig.setVanillaFormattingCompatibility(vanillaFormattingCompatibility);
         NeofontrenderConfig.setBrilliantTextEnabled(brilliantTextEnabled);
         NeofontrenderConfig.setDebugRenderStats(debugRenderStats);
@@ -440,6 +443,7 @@ public final class NfrSettingsDraft {
         NeofontrenderConfig.setRenderingMipmap(originalMipmap);
         NeofontrenderConfig.setEnhancedTextPipeline(originalEnhancedTextPipeline);
         NeofontrenderConfig.setShaderTextPipeline(originalShaderTextPipeline);
+        NeofontrenderConfig.setGlyphBatchingMode(originalGlyphBatchingMode);
         NeofontrenderConfig.setVanillaFormattingCompatibility(originalVanillaFormattingCompatibility);
         NeofontrenderConfig.setBrilliantTextEnabled(originalBrilliantTextEnabled);
         NeofontrenderConfig.setDebugRenderStats(originalDebugRenderStats);

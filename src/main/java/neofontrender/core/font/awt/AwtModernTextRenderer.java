@@ -14,6 +14,7 @@ import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.support.FontRenderTuning;
 import neofontrender.core.font.support.FramebufferAlphaBlend;
+import neofontrender.core.font.support.FontBatchingPolicy;
 import neofontrender.core.font.support.ShadowColorPolicy;
 import neofontrender.core.font.support.ShadowRenderSpec;
 import org.lwjgl.opengl.GL11;
@@ -489,6 +490,8 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
         public void draw(float x, float y, float alpha) {
             Minecraft mc = Minecraft.getMinecraft();
             GlStateManager.enableTexture2D();
+            TextRunBatcher batcher = FontBatchingPolicy.useAwtBatching()
+                    ? new TextRunBatcher() : null;
             try (StraightAlphaBlendState ignored = new StraightAlphaBlendState()) {
                 for (GlyphDraw draw : glyphs) {
                     BakedGlyph glyph = draw.glyph;
@@ -499,7 +502,9 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
                                         ^ Float.floatToIntBits(draw.x) * 0xC2B2AE3D27D4EB4FL);
                         if (random != null) glyph = random;
                     }
-                    mc.getTextureManager().bindTexture(glyph.getTextureLocation());
+                    if (batcher == null) {
+                        mc.getTextureManager().bindTexture(glyph.getTextureLocation());
+                    }
                     TextAnimationSampler.Sample animation = draw.animation;
                     for (TextAnimationSampler.Sample layer : animation.layers()) {
                         if (!layer.visible || layer.alpha == 0.0F) continue;
@@ -511,30 +516,131 @@ public final class AwtModernTextRenderer implements TextRenderBackend {
                         boolean fractional = layer.x != 0.0 || layer.y != 0.0;
                         try (FontRenderTuning.FractionalPositionScope fractionalScope = fractional
                                 ? FontRenderTuning.allowFractionalPosition() : null) {
-                            renderGlyph(glyph, draw, drawX, drawY, red, green, blue,
-                                    alpha * layer.alpha, layer, layer.maskTop, layer.maskBottom);
-                            if (!TextAnimationFrame.neonOverdrawSuppressed()) {
-                                for (TextAnimationSampler.Glow glow : animation.glows()) {
-                                    if (glow.passes <= 0 || glow.alphaMultiplier <= 0.0F) continue;
-                                    for (int pass = 0; pass < glow.passes; pass++) {
-                                        double angle = Math.PI * 2.0 * pass / glow.passes;
-                                        renderGlyph(glyph, draw,
-                                                drawX + (float) Math.cos(angle) * glow.radius,
-                                                drawY + (float) Math.sin(angle) * glow.radius,
-                                                red, green, blue,
-                                                alpha * layer.alpha * glow.alphaMultiplier, layer,
-                                                0.0F, 0.0F);
+                            if (batcher != null) {
+                                appendAnimatedGlyph(batcher, glyph, draw, drawX, drawY,
+                                        red, green, blue, alpha * layer.alpha, layer, animation);
+                            } else {
+                                renderGlyph(glyph, draw, drawX, drawY, red, green, blue,
+                                        alpha * layer.alpha, layer, layer.maskTop, layer.maskBottom);
+                                if (!TextAnimationFrame.neonOverdrawSuppressed()) {
+                                    for (TextAnimationSampler.Glow glow : animation.glows()) {
+                                        if (glow.passes <= 0 || glow.alphaMultiplier <= 0.0F) continue;
+                                        for (int pass = 0; pass < glow.passes; pass++) {
+                                            double angle = Math.PI * 2.0 * pass / glow.passes;
+                                            renderGlyph(glyph, draw,
+                                                    drawX + (float) Math.cos(angle) * glow.radius,
+                                                    drawY + (float) Math.sin(angle) * glow.radius,
+                                                    red, green, blue,
+                                                    alpha * layer.alpha * glow.alphaMultiplier, layer,
+                                                    0.0F, 0.0F);
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+                if (batcher != null) batcher.flush();
                 for (EffectDraw effect : effects) {
                     drawSolidQuad(x + effect.left, y + effect.top, x + effect.right,
                             y + effect.bottom, effect.argb, alpha * effect.alpha);
                 }
             }
+        }
+
+        private static void appendAnimatedGlyph(TextRunBatcher batcher, BakedGlyph glyph,
+                                                GlyphDraw draw, float x, float y,
+                                                float red, float green, float blue, float alpha,
+                                                TextAnimationSampler.Sample layer,
+                                                TextAnimationSampler.Sample animation) {
+            double radians = layer.rotation != 0.0 ? layer.rotation : layer.pendulumRotation;
+            boolean transformed = radians != 0.0 || layer.scale != 1.0F;
+            float pivotX = transformed ? draw.obfuscatedAdvance * 0.5F : 0.0F;
+            float pivotY = transformed && layer.rotation != 0.0 ? draw.lineHeight * 0.5F : 0.0F;
+            float originX = transformed ? x + pivotX : 0.0F;
+            float originY = transformed ? y + pivotY : 0.0F;
+            float localX = transformed ? -pivotX : x;
+            float localY = transformed ? -pivotY : y;
+
+            appendGlyphQuad(batcher, glyph, draw.italic, localX, localY,
+                    originX, originY, radians, layer.scale,
+                    red, green, blue, alpha, layer.maskTop, layer.maskBottom);
+            if (draw.bold) {
+                appendGlyphQuad(batcher, glyph, draw.italic, localX + draw.boldOffset, localY,
+                        originX, originY, radians, layer.scale,
+                        red, green, blue, alpha, layer.maskTop, layer.maskBottom);
+            }
+
+            if (TextAnimationFrame.neonOverdrawSuppressed()) return;
+            for (TextAnimationSampler.Glow glow : animation.glows()) {
+                if (glow.passes <= 0 || glow.alphaMultiplier <= 0.0F) continue;
+                for (int pass = 0; pass < glow.passes; pass++) {
+                    double angle = Math.PI * 2.0 * pass / glow.passes;
+                    float glowX = x + (float) Math.cos(angle) * glow.radius;
+                    float glowY = y + (float) Math.sin(angle) * glow.radius;
+                    // renderGlyph() translates to the glow position plus the same pivot and
+                    // renders at -pivot. Keep that matrix order here; including glowX/glowY in
+                    // the local coordinates would apply the offset twice after rotation.
+                    float glowLocalX = transformed ? -pivotX : glowX;
+                    float glowLocalY = transformed ? -pivotY : glowY;
+                    float glowOriginX = transformed ? glowX + pivotX : 0.0F;
+                    float glowOriginY = transformed ? glowY + pivotY : 0.0F;
+                    float glowAlpha = alpha * glow.alphaMultiplier;
+                    appendGlyphQuad(batcher, glyph, draw.italic, glowLocalX, glowLocalY,
+                            glowOriginX, glowOriginY, radians, layer.scale,
+                            red, green, blue, glowAlpha, 0.0F, 0.0F);
+                    if (draw.bold) {
+                        appendGlyphQuad(batcher, glyph, draw.italic,
+                                glowLocalX + draw.boldOffset, glowLocalY,
+                                glowOriginX, glowOriginY, radians, layer.scale,
+                                red, green, blue, glowAlpha, 0.0F, 0.0F);
+                    }
+                }
+            }
+        }
+
+        private static void appendGlyphQuad(TextRunBatcher batcher, BakedGlyph glyph,
+                                            boolean italic, float x, float y,
+                                            float originX, float originY, double radians,
+                                            float scale, float red, float green, float blue,
+                                            float alpha, float maskTop, float maskBottom) {
+            float left = FontRenderTuning.alignToPixel(x + glyph.getLeft());
+            float right = FontRenderTuning.alignToPixel(x + glyph.getRight());
+            float topBase = FontRenderTuning.alignToPixel(y + glyph.getUp());
+            float bottom = FontRenderTuning.alignToPixel(y + glyph.getDown());
+            float top = topBase;
+            float clippedTop = Math.max(0.0F, Math.min(1.0F, maskTop));
+            float clippedBottom = Math.max(0.0F, Math.min(1.0F, maskBottom));
+            float v0 = glyph.getV0() + (glyph.getV1() - glyph.getV0()) * clippedTop;
+            float v1 = glyph.getV1() - (glyph.getV1() - glyph.getV0()) * clippedBottom;
+            top += (bottom - top) * clippedTop;
+            bottom -= (bottom - topBase) * clippedBottom;
+            if (bottom <= top || v1 <= v0) return;
+            float slantTop = italic ? 1.0F - 0.25F * glyph.getUp() : 0.0F;
+            float slantBottom = italic ? 1.0F - 0.25F * glyph.getDown() : 0.0F;
+            double cosine = Math.cos(radians) * scale;
+            double sine = Math.sin(radians) * scale;
+            float x0 = left + slantTop;
+            float y0 = top;
+            float x1 = left + slantBottom;
+            float y1 = bottom;
+            float x2 = right + slantBottom;
+            float y2 = bottom;
+            float x3 = right + slantTop;
+            float y3 = top;
+            float tx0 = originX + (float) (x0 * cosine - y0 * sine);
+            float ty0 = originY + (float) (x0 * sine + y0 * cosine);
+            float tx1 = originX + (float) (x1 * cosine - y1 * sine);
+            float ty1 = originY + (float) (x1 * sine + y1 * cosine);
+            float tx2 = originX + (float) (x2 * cosine - y2 * sine);
+            float ty2 = originY + (float) (x2 * sine + y2 * cosine);
+            float tx3 = originX + (float) (x3 * cosine - y3 * sine);
+            float ty3 = originY + (float) (x3 * sine + y3 * cosine);
+            batcher.addQuad(glyph.getTextureLocation(), glyph.getRasterScale(),
+                    tx0, ty0, tx1, ty1, tx2, ty2, tx3, ty3,
+                    glyph.getU0(), v0, glyph.getU0(), v1,
+                    glyph.getU1(), v1, glyph.getU1(), v0,
+                    red, green, blue, alpha);
         }
 
         private static void renderGlyph(BakedGlyph glyph, GlyphDraw draw, float x, float y,

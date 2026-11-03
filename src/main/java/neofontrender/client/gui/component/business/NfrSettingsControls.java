@@ -159,6 +159,15 @@ public final class NfrSettingsControls {
                 "neofontrender.tooltip.compat_raster");
     }
 
+    public IWidget glyphBatching() {
+        return tooltip(dropdown("glyph_batching", "neofontrender.gui.option.glyph_batching",
+                () -> draft.glyphBatchingMode,
+                value -> draft.glyphBatchingMode = value,
+                Arrays.asList("auto", "off", "force"),
+                value -> tr("neofontrender.gui.glyph_batching." + value)).size(260, 24),
+                "neofontrender.tooltip.glyph_batching");
+    }
+
     public IWidget debugOverlayEngine(int route) {
         List<String> modes = Arrays.asList("inherit", "vanilla", "cosmic", "compat");
         return tooltip(dropdown("overlay_engine", "neofontrender.gui.option.overlay_engine",

@@ -34,6 +34,7 @@ public final class NfrAdvancedSettingsView extends NfrContentView<NfrAdvancedSet
                         () -> d.enhancedTextPipeline, value -> d.enhancedTextPipeline = value))
                 .add(c.toggle("neofontrender.gui.option.shader", "neofontrender.tooltip.shader",
                         () -> d.shaderTextPipeline, value -> d.shaderTextPipeline = value))
+                .add(c.glyphBatching())
                 .add(c.toggle("neofontrender.gui.option.vanilla_formatting", "neofontrender.tooltip.vanilla_formatting",
                         () -> d.vanillaFormattingCompatibility,
                         value -> d.vanillaFormattingCompatibility = value));

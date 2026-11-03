@@ -459,6 +459,15 @@ public final class NeofontrenderConfig {
         return cached.shaderTextPipeline;
     }
 
+    /**
+     * Controls the modern AWT glyph submission path.  {@code auto} keeps the legacy
+     * per-glyph path unless Actinium's generic streaming renderer is present; {@code off}
+     * always keeps the legacy path and {@code force} enables NFR's own batcher for comparison.
+     */
+    public static String glyphBatchingMode() {
+        return cached.glyphBatchingMode;
+    }
+
     public static boolean vanillaFormattingCompatibility() {
         return cached.vanillaFormattingCompatibility;
     }
@@ -1108,6 +1117,10 @@ public final class NeofontrenderConfig {
         setValue("rendering.shaderTextPipeline", value);
     }
 
+    public static void setGlyphBatchingMode(String value) {
+        setValue("rendering.glyphBatching", normalizeGlyphBatchingMode(value));
+    }
+
     public static void setVanillaFormattingCompatibility(boolean value) {
         setValue("rendering.vanillaFormattingCompatibility", value);
     }
@@ -1474,6 +1487,7 @@ public final class NeofontrenderConfig {
             w.write("smoothShadowThreshold = 24.0\n");
             w.write("enhancedTextPipeline = false\n");
             w.write("shaderTextPipeline = false\n");
+            w.write("glyphBatching = \"auto\"\n");
             w.write("vanillaFormattingCompatibility = true\n");
             w.write("brightness = 0.0\n");
             w.write("brightnessAuto = true\n");
@@ -1670,6 +1684,7 @@ public final class NeofontrenderConfig {
         config.setComment("rendering.smoothShadowThreshold", "Minimum effective font resolution where shadow text is allowed to use smooth filtering.");
         config.setComment("rendering.enhancedTextPipeline", "Use a dedicated text draw pipeline that forces straight-alpha blending and restores previous GL state after rendering. Keep this OFF for color emoji; it can alter emoji colors.");
         config.setComment("rendering.shaderTextPipeline", "Use a tiny fixed-pipeline-compatible shader to compensate thin anti-aliased glyph edges. Automatically falls back if shader compilation fails.");
+        config.setComment("rendering.glyphBatching", "Modern AWT glyph submission: auto uses batching only with Actinium's generic streaming renderer, off keeps the legacy per-glyph path, force enables NFR batching for comparison.");
         config.setComment("rendering.vanillaFormattingCompatibility", "Match Minecraft FontRenderer behavior for unknown section-sign formatting codes, including consuming the code pair and resetting styles.");
         config.setComment("rendering.brightness", "Text edge compensation strength used by the enhanced shader pipeline. 0 disables extra alpha boost; 3 is close to SmoothFont-style defaults.");
         config.setComment("rendering.brightnessAuto", "Automatically detect brightness compensation from sample glyph rasterization. When true, rendering.brightness is ignored.");
@@ -1838,6 +1853,7 @@ public final class NeofontrenderConfig {
         private final float smoothShadowThreshold;
         private final boolean enhancedTextPipeline;
         private final boolean shaderTextPipeline;
+        private final String glyphBatchingMode;
         private final boolean vanillaFormattingCompatibility;
         private final boolean brilliantTextEnabled;
         private final boolean debugCacheOverlay;
@@ -1969,6 +1985,7 @@ public final class NeofontrenderConfig {
             smoothShadowThreshold = 24.0F;
             enhancedTextPipeline = false;
             shaderTextPipeline = false;
+            glyphBatchingMode = "auto";
             vanillaFormattingCompatibility = true;
             brilliantTextEnabled = true;
             debugCacheOverlay = false;
@@ -2111,6 +2128,8 @@ public final class NeofontrenderConfig {
             smoothShadowThreshold = getFloat(config, "rendering.smoothShadowThreshold", 24.0F);
             enhancedTextPipeline = config.getOrElse("rendering.enhancedTextPipeline", false);
             shaderTextPipeline = config.getOrElse("rendering.shaderTextPipeline", false);
+            glyphBatchingMode = normalizeGlyphBatchingMode(
+                    config.getOrElse("rendering.glyphBatching", "auto"));
             vanillaFormattingCompatibility = config.getOrElse("rendering.vanillaFormattingCompatibility", true);
             brilliantTextEnabled = config.getOrElse("brilliant.enabled", true);
             debugCacheOverlay = config.getOrElse("debug.cacheOverlay", false);
@@ -2369,6 +2388,12 @@ public final class NeofontrenderConfig {
         String mode = value.trim().toLowerCase(Locale.ROOT);
         return "vanilla".equals(mode) || "cosmic".equals(mode) || "compat".equals(mode)
                 ? mode : "inherit";
+    }
+
+    private static String normalizeGlyphBatchingMode(String value) {
+        if (value == null) return "auto";
+        String mode = value.trim().toLowerCase(Locale.ROOT);
+        return "off".equals(mode) || "force".equals(mode) ? mode : "auto";
     }
 
     private static String normalizeCompatRasterBackend(String value) {

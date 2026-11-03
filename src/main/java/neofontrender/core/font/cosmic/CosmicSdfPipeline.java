@@ -6,6 +6,7 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import neofontrender.NeoFontRender;
 import neofontrender.core.font.support.FramebufferAlphaBlend;
+import neofontrender.core.font.support.OptionalGlProgramBinding;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
@@ -74,7 +75,10 @@ final class CosmicSdfPipeline {
                 FramebufferAlphaBlend.SOURCE_FACTOR, FramebufferAlphaBlend.DESTINATION_FACTOR);
         GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
                 FramebufferAlphaBlend.SOURCE_FACTOR, FramebufferAlphaBlend.DESTINATION_FACTOR);
-        GL20.glUseProgram(shader);
+        // Keep Actinium/Angelica's cached active-program state in sync so its streaming drawer
+        // preserves this SDF shader during Tessellator.draw(). The bridge falls back to raw GL20
+        // when the optional renderer is absent.
+        OptionalGlProgramBinding.useProgram(shader);
         activeTextureUniform = alpha ? alphaTextureUniform : msdf ? msdfTextureUniform : textureUniform;
         activeColorUniform = alpha ? alphaColorUniform : msdf ? msdfColorUniform : colorUniform;
         activeSoftnessUniform = alpha ? -1 : msdf ? msdfSoftnessUniform : softnessUniform;
@@ -109,7 +113,10 @@ final class CosmicSdfPipeline {
         BufferBuilder buffer = tessellator.getBuffer();
         beginQuads(buffer);
         quad(buffer, left, top, width, height, u1, v1, u2, v2);
-        tessellator.draw();
+        try (OptionalGlProgramBinding.ExternalProgramScope ignored =
+                     OptionalGlProgramBinding.preserveExternalProgram()) {
+            tessellator.draw();
+        }
     }
 
     static void setUniforms(float r, float g, float b, float alpha, float softness) {
@@ -129,7 +136,10 @@ final class CosmicSdfPipeline {
     }
 
     static void endBatch() {
-        FONT_TESSELLATOR.draw();
+        try (OptionalGlProgramBinding.ExternalProgramScope ignored =
+                     OptionalGlProgramBinding.preserveExternalProgram()) {
+            FONT_TESSELLATOR.draw();
+        }
     }
 
     private static void beginQuads(BufferBuilder buffer) {
@@ -278,7 +288,7 @@ final class CosmicSdfPipeline {
         @Override
         public void close() {
             if (noop) return;
-            if (shaderChanged) GL20.glUseProgram(previousProgram);
+            if (shaderChanged) OptionalGlProgramBinding.useProgram(previousProgram);
             GlStateManager.tryBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
             GL14.glBlendFuncSeparate(srcRgb, dstRgb, srcAlpha, dstAlpha);
             if (blendEnabled) {

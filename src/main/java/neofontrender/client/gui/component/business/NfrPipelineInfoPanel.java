@@ -12,6 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.resources.I18n;
 import neofontrender.core.font.support.FontRenderTuning;
+import neofontrender.core.font.support.FontBatchingPolicy;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -80,6 +81,9 @@ public final class NfrPipelineInfoPanel extends ParentWidget<NfrPipelineInfoPane
                 flag("neofontrender.gui.option.high_mag", state.highMagnification),
                 flag("neofontrender.gui.option.anisotropic", state.anisotropic)),
                 8, infoY + line * 5, 0xD8D8D8);
+        draw(minecraft, tr("neofontrender.gui.option.glyph_batching") + ": "
+                        + FontBatchingPolicy.activePath(),
+                8, infoY + line * 6, 0xD8D8D8);
     }
 
     /** Keep the hover help live so newly registered modules appear immediately. */
