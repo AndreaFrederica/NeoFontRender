@@ -1344,6 +1344,10 @@ public final class NeofontrenderConfig {
             }
         }
 
+        // 0.8.0 accidentally emitted two [compat] tables. Repair that file before
+        // NightConfig parses it so upgrading does not require deleting user settings.
+        repairDuplicateCompatTables(configPath);
+
         CommentedFileConfig loadedConfig = CommentedFileConfig.builder(configPath, TomlFormat.instance())
                 .preserveInsertionOrder()
                 .build();
@@ -1361,6 +1365,78 @@ public final class NeofontrenderConfig {
         ensureFontDirectory();
         earlyLoadFailed = false;
         loaded = true;
+    }
+
+    private static void repairDuplicateCompatTables(Path path) {
+        if (!Files.isRegularFile(path)) {
+            return;
+        }
+        try {
+            List<String> lines = Files.readAllLines(path, java.nio.charset.StandardCharsets.UTF_8);
+            List<Integer> compatHeaders = new ArrayList<>();
+            for (int i = 0; i < lines.size(); i++) {
+                if ("[compat]".equals(lines.get(i).trim())) {
+                    compatHeaders.add(i);
+                }
+            }
+            if (compatHeaders.size() < 2) {
+                return;
+            }
+
+            int firstHeader = compatHeaders.get(0);
+            int firstEnd = lines.size();
+            for (int i = firstHeader + 1; i < lines.size(); i++) {
+                if (isTomlTableHeader(lines.get(i))) {
+                    firstEnd = i;
+                    break;
+                }
+            }
+
+            List<String> movedEntries = new ArrayList<>();
+            List<int[]> duplicateRanges = new ArrayList<>();
+            for (int headerIndex : compatHeaders.subList(1, compatHeaders.size())) {
+                int end = lines.size();
+                for (int i = headerIndex + 1; i < lines.size(); i++) {
+                    if (isTomlTableHeader(lines.get(i))) {
+                        end = i;
+                        break;
+                    }
+                }
+                movedEntries.addAll(lines.subList(headerIndex + 1, end));
+                duplicateRanges.add(new int[] {headerIndex, end});
+            }
+
+            List<String> repaired = new ArrayList<>(lines.size());
+            for (int i = 0; i < lines.size();) {
+                if (i == firstEnd) {
+                    repaired.addAll(movedEntries);
+                }
+                boolean duplicate = false;
+                for (int[] range : duplicateRanges) {
+                    if (i >= range[0] && i < range[1]) {
+                        duplicate = true;
+                        i = range[1];
+                        break;
+                    }
+                }
+                if (!duplicate) {
+                    repaired.add(lines.get(i));
+                    i++;
+                }
+            }
+            if (firstEnd == lines.size()) {
+                repaired.addAll(movedEntries);
+            }
+            Files.write(path, repaired, java.nio.charset.StandardCharsets.UTF_8);
+            NeoFontRender.LOGGER.warn("Repaired duplicate [compat] tables in {}", path);
+        } catch (IOException e) {
+            NeoFontRender.LOGGER.warn("Failed to repair duplicate [compat] tables in {}", path, e);
+        }
+    }
+
+    private static boolean isTomlTableHeader(String line) {
+        String trimmed = line.trim();
+        return trimmed.startsWith("[") && trimmed.endsWith("]") && trimmed.length() > 2;
     }
 
     private static void refreshCachedOptions() {
@@ -1502,6 +1578,12 @@ public final class NeofontrenderConfig {
             w.write("diskCache = true\n");
             w.write("diskMaxBytes = 67108864\n");
             w.write("prefetchBasicLatin = true\n");
+            w.write("modernsplash.enabled = true\n");
+            w.write("tinkersantique.enabled = true\n");
+            w.write("custommainmenu.novaBranding = true\n");
+            w.write("fancymenu.novaBranding = true\n");
+            w.write("colorPalette.provider = \"auto\"\n");
+            w.write("colorPalette.custom = \"" + DEFAULT_TEXT_COLOR_PALETTE + "\"\n");
             w.write("\n");
             w.write("[brilliant]\n");
             w.write("enabled = true\n");
@@ -1554,14 +1636,6 @@ public final class NeofontrenderConfig {
             w.write("\n");
             w.write("[ui]\n");
             w.write("showMainMenuBranding = true\n\n");
-            w.write("[compat]\n");
-            w.write("modernsplash.enabled = true\n");
-            w.write("tinkersantique.enabled = true\n");
-            w.write("custommainmenu.novaBranding = true\n");
-            w.write("fancymenu.novaBranding = true\n");
-            w.write("colorPalette.provider = \"auto\"\n");
-            w.write("colorPalette.custom = \"" + DEFAULT_TEXT_COLOR_PALETTE + "\"\n");
-            w.write("\n");
             w.write("[enchantment]\n");
             w.write("backend = \"awt\"\n");
             w.write("fonts = [\"" + ENCHANTMENT_FONT + "\"]\n");
