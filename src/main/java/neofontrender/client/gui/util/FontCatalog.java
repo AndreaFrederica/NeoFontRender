@@ -2,6 +2,7 @@ package neofontrender.client.gui.util;
 
 import neofontrender.client.gui.font.FontEntry;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.api.client.font.BuiltinFontRegistry;
 
 import java.awt.GraphicsEnvironment;
 import java.io.File;
@@ -47,8 +48,9 @@ public final class FontCatalog {
 
     public static List<FontEntry> builtinFonts() {
         List<FontEntry> fonts = new ArrayList<>();
-        for (NeofontrenderConfig.BuiltinFont font : NeofontrenderConfig.builtinFonts()) {
-            fonts.add(new FontEntry(font.displayName(), font.displayName(), font.location()));
+        for (BuiltinFontRegistry.Entry font : NeofontrenderConfig.builtinFonts()) {
+            fonts.add(new FontEntry(font.id() + "  " + font.familyName(),
+                    font.familyName(), font.familyName(), font.location()));
         }
         return fonts;
     }

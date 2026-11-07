@@ -4,6 +4,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Loader;
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.build.UiBuildFeatures;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -83,7 +84,9 @@ final class AppleCoreCompat {
             getFoodValuesForPlayer = accessor.getMethod("getFoodValuesForPlayer", ItemStack.class, EntityPlayer.class);
             foodHunger = values.getField("hunger");
             foodSaturationModifier = values.getField("saturationModifier");
-            NfrUiEnhancements.LOGGER.info("AppleCore hunger API detected; HUD bars will use its dynamic values");
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                NfrUiEnhancements.LOGGER.info("AppleCore hunger API detected; HUD bars will use its dynamic values");
+            }
         } catch (ReflectiveOperationException | LinkageError error) {
             accessorField = null;
             NfrUiEnhancements.LOGGER.warn("AppleCore is present but its hunger API could not be linked", error);

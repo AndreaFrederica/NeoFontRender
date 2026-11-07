@@ -10,28 +10,33 @@ final class QuarkMapTooltipLayout {
 
     static Placement placeForTooltip(int screenWidth, int screenHeight, int tooltipContentX,
                                      int tooltipY, int tooltipContentWidth,
-                                     int horizontalPadding, int verticalPadding) {
-        int tooltipLeft = tooltipContentX - horizontalPadding;
-        int tooltipTop = tooltipY - verticalPadding;
-        int tooltipOuterWidth = tooltipContentWidth + horizontalPadding * 2;
+                                     int leftPadding, int rightPadding, int topPadding) {
+        int tooltipLeft = tooltipContentX - leftPadding;
+        int tooltipTop = tooltipY - topPadding;
+        int tooltipOuterWidth = tooltipContentWidth + leftPadding + rightPadding;
         return place(screenWidth, screenHeight, tooltipLeft, tooltipTop, tooltipOuterWidth);
     }
 
     private static Placement place(int screenWidth, int screenHeight, int tooltipLeft,
                                    int tooltipTop, int tooltipOuterWidth) {
-        int maxX = Math.max(SCREEN_MARGIN, screenWidth - PANEL_SIZE - SCREEN_MARGIN);
-        int maxY = Math.max(SCREEN_MARGIN, screenHeight - PANEL_SIZE - SCREEN_MARGIN);
-        int alignedX = clamp(tooltipLeft, SCREEN_MARGIN, maxX);
+        TooltipVisualExtents extents = TooltipVisualExtents.current();
+        int minX = Math.max(SCREEN_MARGIN, extents.left);
+        int minY = Math.max(SCREEN_MARGIN, extents.top);
+        int maxX = Math.max(minX, screenWidth - PANEL_SIZE
+                - Math.max(SCREEN_MARGIN, extents.right));
+        int maxY = Math.max(minY, screenHeight - PANEL_SIZE
+                - Math.max(SCREEN_MARGIN, extents.bottom));
+        int alignedX = clamp(tooltipLeft, minX, maxX);
         int aboveY = tooltipTop - PANEL_SIZE - PANEL_GAP;
-        if (aboveY >= SCREEN_MARGIN) return new Placement(alignedX, aboveY);
+        if (aboveY >= minY) return new Placement(alignedX, aboveY);
 
-        int sideY = clamp(tooltipTop, SCREEN_MARGIN, maxY);
+        int sideY = clamp(tooltipTop, minY, maxY);
         int rightX = tooltipLeft + tooltipOuterWidth + PANEL_GAP;
         if (rightX <= maxX) return new Placement(rightX, sideY);
 
         int leftX = tooltipLeft - PANEL_SIZE - PANEL_GAP;
-        if (leftX >= SCREEN_MARGIN) return new Placement(leftX, sideY);
-        return new Placement(alignedX, SCREEN_MARGIN);
+        if (leftX >= minX) return new Placement(leftX, sideY);
+        return new Placement(alignedX, minY);
     }
 
     private static int clamp(int value, int min, int max) {

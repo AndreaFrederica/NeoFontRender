@@ -10,6 +10,7 @@ public final class MainMenuModule implements UiEnhancementModule {
     @Override public void init() {
         LastPlayedGameManager.INSTANCE.initialize();
         MinecraftForge.EVENT_BUS.register(LastPlayedGameManager.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(new CustomMainMenuButtonInjector());
         NfrSettingsPageRegistry.register(new MainMenuSettingsPage());
     }
 }

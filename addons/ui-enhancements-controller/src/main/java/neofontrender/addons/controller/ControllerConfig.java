@@ -184,7 +184,7 @@ public final class ControllerConfig {
     private static NfrConfigFile file() {
         if (file == null) {
             file = NfrConfigApi.builder(ControllerAddonMod.MOD_ID)
-                    .storage(NfrConfigStorage.INDEPENDENT)
+                    .storage(NfrConfigStorage.LAYERED)
                     .fileName("neofontrender-ui-enhancements-controller.toml")
                     .open();
         }

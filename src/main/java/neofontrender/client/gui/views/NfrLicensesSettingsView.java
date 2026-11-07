@@ -6,6 +6,7 @@ import neofontrender.api.client.settings.NfrInfoLine;
 import neofontrender.api.client.settings.NfrInfoPage;
 import neofontrender.api.client.settings.NfrInfoPageContribution;
 import neofontrender.api.client.settings.NfrInfoPageRegistry;
+import neofontrender.client.licenses.ThirdPartyLicenseCatalog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,23 +18,30 @@ public final class NfrLicensesSettingsView extends NfrContentView<NfrLicensesSet
     }
 
     private NfrLicensesSettingsView(NfrTextInfoPanel content) {
-        super(section(content, width -> content.preferredHeight()));
+        super(section(content, width -> content.preferredHeight(Math.max(0, width - 6))));
     }
 
     private static NfrTextInfoPanel content() {
         List<NfrTextInfoPanel.Line> lines = new ArrayList<>();
         lines.add(NfrTextInfoPanel.line(tr("neofontrender.gui.licenses.title"), 0xFFFFFF));
-        lines.add(NfrTextInfoPanel.spaced("cosmic-text - MIT / Apache-2.0", 0xD8D8D8));
-        lines.add(NfrTextInfoPanel.line("Arc3D Core - LGPL-3.0-or-later", 0xD8D8D8));
-        lines.add(NfrTextInfoPanel.line("NightConfig - LGPL-3.0", 0xD8D8D8));
-        lines.add(NfrTextInfoPanel.line("ModularUI - LGPL-3.0", 0xD8D8D8));
-        lines.add(NfrTextInfoPanel.line("LWJGL / LWJGLX - BSD-3-Clause", 0xD8D8D8));
-        lines.add(NfrTextInfoPanel.line("SpongePowered Mixin - MIT", 0xD8D8D8));
-        lines.add(NfrTextInfoPanel.line("Noto Sans SC - SIL OFL-1.1", 0xD8D8D8));
-        lines.add(NfrTextInfoPanel.line("Noto Color Emoji - SIL OFL-1.1", 0xD8D8D8));
-        appendContributions(lines);
         lines.add(NfrTextInfoPanel.spaced(tr("neofontrender.gui.licenses.notice"), 0xBFC7D1));
-        return new NfrTextInfoPanel(lines);
+        try {
+            String section = "";
+            for (ThirdPartyLicenseCatalog.Entry entry : ThirdPartyLicenseCatalog.load(
+                    NfrLicensesSettingsView.class.getClassLoader())) {
+                if (!section.equals(entry.section)) {
+                    section = entry.section;
+                    lines.add(NfrTextInfoPanel.spaced(tr("neofontrender.gui.licenses.section." + section), 0x00DCE8));
+                }
+                lines.add(NfrTextInfoPanel.line(entry.name + (entry.version.isEmpty() ? "" : " " + entry.version)
+                        + " — " + entry.license, 0xD8D8D8));
+            }
+        } catch (java.io.IOException exception) {
+            lines.add(NfrTextInfoPanel.spaced(tr("neofontrender.gui.licenses.load_error"), 0xFF9999));
+            neofontrender.NeoFontRender.LOGGER.warn("Could not read third-party license catalogs", exception);
+        }
+        appendContributions(lines);
+        return new NfrTextInfoPanel(lines, true);
     }
 
     private static void appendContributions(List<NfrTextInfoPanel.Line> target) {

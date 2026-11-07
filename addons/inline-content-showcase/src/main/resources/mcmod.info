@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "neofontrender_inline_content_showcase",
+    "name": "NFR Inline Content Showcase",
+    "version": "${version}",
+    "mcversion": "1.12.2",
+    "description": "Client test addon for LaTeX formula and organic chemistry SVG rendering through NFR inline middleware.",
+    "authorList": ["Revo Font contributors"],
+    "clientSideOnly": true,
+    "requiredMods": [
+      "neofontrender@[${nfrVersion},)",
+      "neofontrender_ui_enhancements@[${uieVersion},)"
+    ],
+    "dependencies": []
+  }
+]

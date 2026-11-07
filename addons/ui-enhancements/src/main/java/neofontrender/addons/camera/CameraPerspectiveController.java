@@ -10,6 +10,7 @@ import net.minecraft.util.ResourceLocation;
 
 import java.util.List;
 import neofontrender.addons.compat.CameraExternalCompat;
+import neofontrender.addons.build.UiBuildFeatures;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -94,7 +95,9 @@ public final class CameraPerspectiveController {
             CameraPerspectiveConfig.defaultMode = id(mode);
             CameraPerspectiveConfig.save();
         }
-        LOGGER.info("Camera perspective mode changed from {} to {}", previous, mode);
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            LOGGER.info("Camera perspective mode changed from {} to {}", previous, mode);
+        }
         return true;
     }
 

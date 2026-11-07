@@ -1,14 +1,18 @@
 package neofontrender.addons.camera;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.inventory.EntityEquipmentSlot;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumHandSide;
 import net.minecraft.world.World;
+
+import java.util.Collections;
 
 /**
  * Client-only render-view anchor for a detached camera. It is never spawned, ticked, or synced;
  * Minecraft only reads its interpolated position and yaw/pitch while rendering the world.
  */
-final class CameraProxyEntity extends Entity {
+final class CameraProxyEntity extends EntityLivingBase {
     CameraProxyEntity(World world) {
         super(world);
         noClip = true;
@@ -23,8 +27,20 @@ final class CameraProxyEntity extends Entity {
         prevRotationPitch = rotationPitch = pitch;
     }
 
-    @Override protected void entityInit() {}
-    @Override protected void readEntityFromNBT(NBTTagCompound compound) {}
-    @Override protected void writeEntityToNBT(NBTTagCompound compound) {}
+    @Override public Iterable<ItemStack> getArmorInventoryList() {
+        return Collections.emptyList();
+    }
+
+    @Override public ItemStack getItemStackFromSlot(EntityEquipmentSlot slot) {
+        return ItemStack.EMPTY;
+    }
+
+    @Override public void setItemStackToSlot(EntityEquipmentSlot slot, ItemStack stack) {
+    }
+
+    @Override public EnumHandSide getPrimaryHand() {
+        return EnumHandSide.RIGHT;
+    }
+
     @Override public float getEyeHeight() { return 0.0F; }
 }

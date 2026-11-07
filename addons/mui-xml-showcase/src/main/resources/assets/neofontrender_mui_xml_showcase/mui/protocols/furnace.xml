@@ -1,0 +1,8 @@
+<protocol id="neofontrender_mui_xml_showcase:furnace" schema-version="2">
+    <slot key="machine.input" type="showcase:machine-slot" version="1" ordinal="0"/>
+    <slot key="machine.fuel" type="showcase:machine-slot" version="1" ordinal="1"/>
+    <slot key="machine.output" type="showcase:machine-slot" version="1" ordinal="2"/>
+    <component src="protocol-components/player-inventory.xml" ordinal-offset="3"/>
+    <handler key="cook_progress" type="showcase:furnace-progress" version="1"/>
+    <handler key="burn_progress" type="showcase:furnace-progress" version="1"/>
+</protocol>

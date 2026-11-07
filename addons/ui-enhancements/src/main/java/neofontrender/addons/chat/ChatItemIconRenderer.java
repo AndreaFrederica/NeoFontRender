@@ -23,7 +23,12 @@ import java.util.Map;
 /** Adds and renders an inline icon for standard SHOW_ITEM chat components. */
 public final class ChatItemIconRenderer {
     private static final String MARKER_TAG = "nfrUiChatItemIcon";
-    private static final String PADDING = "  ";
+    // Use non-breaking spaces for the icon slot. GuiUtilRenderComponents (and the
+    // Tiqian component splitter) may remove ordinary leading spaces from a wrapped
+    // chat line. Losing one of the two slot spaces leaves the 8px icon overlapping
+    // the first glyph, which makes item icons appear to jump into the message text.
+    // Minecraft's FontRenderer measures NBSP with the same advance as a regular space.
+    private static final String PADDING = "\u00A0\u00A0";
     private static final float ICON_SCALE = 0.5F;
     private static final int CACHE_LIMIT = 4096;
     // Minecraft 1.12 Style.hashCode() throws when optional style fields are null, so chat

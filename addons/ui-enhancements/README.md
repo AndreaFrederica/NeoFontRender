@@ -34,7 +34,7 @@ Current feature modules:
 
 ## Runtime design
 
-- Requires Neo Font Render 0.5.1 or newer.
+- Requires Revo Font 0.6.0 or newer.
 - Uses Arc3D Core 2026.2.0 distributed by the required NFR main mod.
 - Uses Cleanroom's host LWJGL 3.4.1 and never bundles LWJGL or native files.
 - Yields to LegendaryTooltips by default when that mod is present.
@@ -155,7 +155,7 @@ the `-dev` classifier.
 
 GitHub Actions builds the pinned `AndreaFrederica/ModularUI` fork first, installs its development
 artifact into Maven Local for compilation, and exports its remapped JAR with the Revo UI bundle.
-Tags use the form `uie/<version>` (for example `uie/0.6.0`). The GitHub Release contains ModularUI,
+Tags use the form `uie/<version>` (for example `uie/0.7.0`). The GitHub Release contains ModularUI,
 Revo UI, the optional controller and server companions, and Electric Elytra. CurseForge publishing
 for this bundle will be enabled separately after each project and dependency relationship is ready.
 

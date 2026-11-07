@@ -24,7 +24,7 @@ public final class NfrConfigApi {
             return this;
         }
 
-        /** File name used only by {@link NfrConfigStorage#INDEPENDENT}. */
+        /** File name used by independent and layered storage. */
         public Builder fileName(String fileName) {
             this.fileName = NfrConfigFile.validateFileName(fileName);
             return this;

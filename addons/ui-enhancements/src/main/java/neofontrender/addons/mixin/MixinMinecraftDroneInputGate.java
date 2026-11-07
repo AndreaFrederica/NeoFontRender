@@ -1,13 +1,11 @@
 package neofontrender.addons.mixin;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.entity.player.InventoryPlayer;
 import neofontrender.addons.api.input.InputAction;
 import neofontrender.addons.api.input.InputApi;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Blocks player interaction entry points while the drone input context is active. */
@@ -56,9 +54,4 @@ public abstract class MixinMinecraftDroneInputGate {
         ci.cancel();
     }
 
-    @Redirect(method = "runTickMouse", at = @At(value = "INVOKE", target =
-            "Lnet/minecraft/entity/player/InventoryPlayer;changeCurrentItem(I)V"), require = 1)
-    private void nfrUi$blockDroneMouseWheelHotbar(InventoryPlayer inventory, int direction) {
-        if (!InputApi.isBlocked(InputAction.PLAYER_HOTBAR)) inventory.changeCurrentItem(direction);
-    }
 }

@@ -10,6 +10,8 @@ public final class ModCompatRegistry {
 
     static {
         register(new BTFixesCompat());
+        register(new CustomMainMenuCompat());
+        register(new FancyMenuCompat());
         // Future compats: register(new SomeModCompat());
     }
 
@@ -39,7 +41,9 @@ public final class ModCompatRegistry {
      */
     public static boolean shouldApplyMixin(String mixinClassName) {
         for (ModCompat compat : COMPATS) {
-            if (compat.isActive() && !compat.shouldApplyMixin(mixinClassName)) {
+            // Runtime-only rules (CMM/FancyMenu) must never query Forge's Loader during
+            // mixin selection, before mod discovery has initialized its namedMods map.
+            if (!compat.shouldApplyMixin(mixinClassName) && compat.isActive()) {
                 return false;
             }
         }

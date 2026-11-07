@@ -53,8 +53,9 @@ public class GuiText extends GuiComponent implements IGuiInput<String> {
 
     @Subscribe
     public void textboxType(GuiKeyboardEvent event) {
-        if (Keyboard.isKeyDown(event.getKey())) {
-            textField.textboxKeyTyped(event.getCharacter(), event.getKey());
+        char character = event.getCharacter();
+        if (event.getKey() == 0 || Keyboard.isKeyDown(event.getKey())) {
+            textField.textboxKeyTyped(character, event.getKey());
         }
     }
 

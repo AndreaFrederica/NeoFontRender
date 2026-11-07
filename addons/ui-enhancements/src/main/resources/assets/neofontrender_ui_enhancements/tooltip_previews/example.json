@@ -1,0 +1,32 @@
+{
+  "styles": [
+    {
+      "id": "example_base",
+      "scale": 3.0,
+      "pitch": -25,
+      "effects": ["shimmer", "pulse_frame"],
+      "sound": {
+        "enabled": true,
+        "event": "ui.button.click",
+        "volume": 0.25,
+        "pitch": 1.1,
+        "cooldownMillis": 250
+      }
+    },
+    {
+      "id": "example",
+      "extends": "example_base",
+      "items": ["examplemod:example_item"],
+      "priority": 100,
+      "roll": -40,
+      "rotationSpeed": -22,
+      "width": 36,
+      "height": 72,
+      "armorModel": "player",
+      "armorMode": "full_set",
+      "nbt": {
+        "display.Name": "Example Item"
+      }
+    }
+  ]
+}

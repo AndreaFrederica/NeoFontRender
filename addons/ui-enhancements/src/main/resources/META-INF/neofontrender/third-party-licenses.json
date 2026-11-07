@@ -1,0 +1,410 @@
+[
+  {
+    "section": "30_uie",
+    "name": "Revo UI",
+    "version": "",
+    "license": "LGPL-3.0",
+    "source": "https://github.com/AndreaFrederica/NeoFontRender",
+    "evidence": "addons/ui-enhancements/LICENSE"
+  },
+  {
+    "section": "30_uie",
+    "name": "Salutation 1.12.2",
+    "version": "",
+    "license": "Apache-2.0",
+    "source": "https://github.com/Speiger/Salutation/tree/1.12.2",
+    "evidence": "META-INF/LICENSE-Salutation-1.12.2.txt"
+  },
+  {
+    "section": "30_uie",
+    "name": "TabbyChat 2 Reforged",
+    "version": "",
+    "license": "Apache-2.0",
+    "source": "https://github.com/AndreaFrederica/NeoFontRender",
+    "evidence": "META-INF/LICENSE-TabbyChat-2-Reforged.txt"
+  },
+  {
+    "section": "30_uie",
+    "name": "Tiqian",
+    "version": "",
+    "license": "MPL-2.0",
+    "source": "https://github.com/tiqian-cjk/tiqian",
+    "evidence": "META-INF/LICENSE-Tiqian.txt; NOTICE-Tiqian.md; revision d25567f3324747ee16585edeccfc9c98c69a9adb"
+  },
+  {
+    "section": "30_uie",
+    "name": "annotations",
+    "version": "13.0",
+    "license": "Apache-2.0",
+    "source": "https://github.com/JetBrains/java-annotations/blob/master/LICENSE.txt",
+    "evidence": "Maven POM: org.jetbrains:annotations:13.0; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "30_uie",
+    "name": "error_prone_annotations",
+    "version": "2.36.0",
+    "license": "Apache-2.0",
+    "source": "https://github.com/google/error-prone/blob/v2.36.0/COPYING",
+    "evidence": "Maven POM: com.google.errorprone:error_prone_annotations:2.36.0; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "30_uie",
+    "name": "gson",
+    "version": "2.12.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/google/gson/blob/gson-parent-2.12.1/LICENSE",
+    "evidence": "Maven POM: com.google.code.gson:gson:2.12.1; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "30_uie",
+    "name": "h2",
+    "version": "2.3.232",
+    "license": "MPL-2.0 OR EPL-1.0",
+    "source": "https://github.com/h2database/h2database/blob/version-2.3.232/LICENSE.txt",
+    "evidence": "Maven POM: com.h2database:h2:2.3.232; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "30_uie",
+    "name": "jaudiotagger",
+    "version": "3.0.1",
+    "license": "LGPL-2.1-or-later",
+    "source": "https://repo.maven.apache.org/maven2/net/jthink/jaudiotagger/3.0.1/jaudiotagger-3.0.1-sources.jar",
+    "evidence": "Maven POM: net.jthink:jaudiotagger:3.0.1; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "30_uie",
+    "name": "jazzy",
+    "version": "0.5.2-rtext-1.4.1-2",
+    "license": "LGPL-2.1-or-later",
+    "source": "https://repo.maven.apache.org/maven2/net/sf/jazzy/jazzy/0.5.2-rtext-1.4.1-2/jazzy-0.5.2-rtext-1.4.1-2-sources.jar",
+    "evidence": "Maven POM: net.sf.jazzy:jazzy:0.5.2-rtext-1.4.1-2; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "30_uie",
+    "name": "jieba-analysis",
+    "version": "1.0.2",
+    "license": "Apache-2.0",
+    "source": "https://github.com/huaban/jieba-analysis/blob/master/LICENSE",
+    "evidence": "Maven POM: com.huaban:jieba-analysis:1.0.2; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "30_uie",
+    "name": "jlatexmath",
+    "version": "1.0.7",
+    "license": "GPL-2.0-or-later WITH Classpath exception; font terms also apply",
+    "source": "https://github.com/opencollab/jlatexmath/",
+    "evidence": "Maven POM: org.scilab.forge:jlatexmath:1.0.7"
+  },
+  {
+    "section": "30_uie",
+    "name": "jlatexmath-font-cyrillic",
+    "version": "1.0.7",
+    "license": "GPL-2.0-or-later WITH Classpath exception; font terms also apply",
+    "source": "https://github.com/opencollab/jlatexmath/",
+    "evidence": "Maven POM: org.scilab.forge:jlatexmath-font-cyrillic:1.0.7"
+  },
+  {
+    "section": "30_uie",
+    "name": "jlatexmath-font-greek",
+    "version": "1.0.7",
+    "license": "GPL-2.0-or-later WITH Classpath exception; font terms also apply",
+    "source": "https://github.com/opencollab/jlatexmath/",
+    "evidence": "Maven POM: org.scilab.forge:jlatexmath-font-greek:1.0.7"
+  },
+  {
+    "section": "30_uie",
+    "name": "jsvg",
+    "version": "2.1.0",
+    "license": "MIT",
+    "source": "https://github.com/weisJ/jsvg",
+    "evidence": "Maven POM: com.github.weisj:jsvg:2.1.0"
+  },
+  {
+    "section": "30_uie",
+    "name": "kotlin-stdlib",
+    "version": "2.3.20",
+    "license": "Apache-2.0",
+    "source": "https://github.com/JetBrains/kotlin/blob/v2.3.20/license/LICENSE.txt",
+    "evidence": "Maven POM: org.jetbrains.kotlin:kotlin-stdlib:2.3.20; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "31_content",
+    "name": "American English hyphenation patterns",
+    "version": "",
+    "license": "Permissive notice (retain copyright and permission notice)",
+    "source": "https://www.hyphenation.org/tex",
+    "evidence": "Tiqian hyphenation/hyph-en-us.tex header; Gerard D.C. Kuiken 1990, 2004, 2005"
+  },
+  {
+    "section": "31_content",
+    "name": "ChatAnimation",
+    "version": "",
+    "license": "MIT",
+    "source": "https://github.com/Ezzenix/ChatAnimation",
+    "evidence": "META-INF/licenses/ChatAnimation.txt"
+  },
+  {
+    "section": "31_content",
+    "name": "FancyOutlines",
+    "version": "",
+    "license": "WTFPL-2.0",
+    "source": "https://github.com/Invadermonky/FancyOutlines",
+    "evidence": "META-INF/licenses/FancyOutlines-WTFPL.txt"
+  },
+  {
+    "section": "31_content",
+    "name": "Fira Math",
+    "version": "",
+    "license": "OFL-1.1",
+    "source": "https://github.com/firamath/firamath",
+    "evidence": "META-INF/LICENSE-FiraMath.txt"
+  },
+  {
+    "section": "31_content",
+    "name": "Gosling / Emojicord dictionaries",
+    "version": "",
+    "license": "MIT",
+    "source": "https://github.com/Team-Fruit/Emojicord",
+    "evidence": "META-INF/LICENSE-Gosling-Emojicord.txt"
+  },
+  {
+    "section": "31_content",
+    "name": "Mod Name Tooltip",
+    "version": "",
+    "license": "MIT",
+    "source": "https://github.com/mezz/ModNameTooltip",
+    "evidence": "META-INF/licenses/ModNameTooltip.txt"
+  },
+  {
+    "section": "31_content",
+    "name": "Omnilook",
+    "version": "",
+    "license": "Unlicense",
+    "source": "https://github.com/AndreaFrederica/NeoFontRender",
+    "evidence": "META-INF/licenses/Omnilook.txt"
+  },
+  {
+    "section": "31_content",
+    "name": "Shoulder Surfing",
+    "version": "",
+    "license": "MIT",
+    "source": "https://github.com/Exopandora/ShoulderSurfing",
+    "evidence": "META-INF/licenses/ShoulderSurfing.txt"
+  },
+  {
+    "section": "31_content",
+    "name": "Tips content / translations",
+    "version": "",
+    "license": "LGPL-2.1; upstream asset-specific terms apply",
+    "source": "https://github.com/Darkhax-Minecraft/Tips",
+    "evidence": "NOTICE.md attribution; upstream gradle.properties mod_license=LGPL v2.1. Runelic font is not included."
+  },
+  {
+    "section": "40_audio",
+    "name": "FDK-AAC",
+    "version": "2.0.0",
+    "license": "Fraunhofer FDK AAC Codec Library license",
+    "source": "https://github.com/mstorsjo/fdk-aac/blob/v2.0.0/NOTICE",
+    "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+  },
+  {
+    "section": "40_audio",
+    "name": "Opus",
+    "version": "1.3",
+    "license": "BSD-3-Clause; upstream royalty-free patent notices",
+    "source": "https://github.com/xiph/opus/blob/v1.3/COPYING",
+    "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+  },
+  {
+    "section": "40_audio",
+    "name": "annotations",
+    "version": "24.0.0",
+    "license": "Apache-2.0",
+    "source": "https://github.com/JetBrains/java-annotations/blob/master/LICENSE.txt",
+    "evidence": "Maven POM: org.jetbrains:annotations:24.0.0; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "40_audio",
+    "name": "base64",
+    "version": "2.3.9",
+    "license": "Public domain",
+    "source": "http://iharder.net/base64/",
+    "evidence": "Maven POM: net.iharder:base64:2.3.9"
+  },
+  {
+    "section": "40_audio",
+    "name": "commons-codec",
+    "version": "1.11",
+    "license": "Apache-2.0",
+    "source": "https://commons.apache.org/proper/commons-codec/",
+    "evidence": "Maven POM: commons-codec:commons-codec:1.11; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "40_audio",
+    "name": "commons-io",
+    "version": "2.13.0",
+    "license": "Apache-2.0",
+    "source": "https://commons.apache.org/proper/commons-io/",
+    "evidence": "Maven POM: commons-io:commons-io:2.13.0; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "40_audio",
+    "name": "commons-logging",
+    "version": "1.2",
+    "license": "Apache-2.0",
+    "source": "https://commons.apache.org/proper/commons-logging/",
+    "evidence": "Maven POM: commons-logging:commons-logging:1.2; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "40_audio",
+    "name": "httpclient",
+    "version": "4.5.14",
+    "license": "Apache-2.0",
+    "source": "http://hc.apache.org/httpcomponents-client-ga",
+    "evidence": "Maven POM: org.apache.httpcomponents:httpclient:4.5.14"
+  },
+  {
+    "section": "40_audio",
+    "name": "httpcore",
+    "version": "4.4.16",
+    "license": "Apache-2.0",
+    "source": "http://hc.apache.org/httpcomponents-core-ga",
+    "evidence": "Maven POM: org.apache.httpcomponents:httpcore:4.4.16"
+  },
+  {
+    "section": "40_audio",
+    "name": "jackson-annotations",
+    "version": "2.15.2",
+    "license": "Apache-2.0",
+    "source": "https://github.com/FasterXML/jackson",
+    "evidence": "Maven POM: com.fasterxml.jackson.core:jackson-annotations:2.15.2"
+  },
+  {
+    "section": "40_audio",
+    "name": "jackson-core",
+    "version": "2.15.2",
+    "license": "Apache-2.0",
+    "source": "https://github.com/FasterXML/jackson-core",
+    "evidence": "Maven POM: com.fasterxml.jackson.core:jackson-core:2.15.2"
+  },
+  {
+    "section": "40_audio",
+    "name": "jackson-databind",
+    "version": "2.15.2",
+    "license": "Apache-2.0",
+    "source": "https://github.com/FasterXML/jackson",
+    "evidence": "Maven POM: com.fasterxml.jackson.core:jackson-databind:2.15.2"
+  },
+  {
+    "section": "40_audio",
+    "name": "jaudiotagger",
+    "version": "3.0.1",
+    "license": "LGPL-2.1-or-later",
+    "source": "https://repo.maven.apache.org/maven2/net/jthink/jaudiotagger/3.0.1/jaudiotagger-3.0.1-sources.jar",
+    "evidence": "Maven POM: net.jthink:jaudiotagger:3.0.1; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "40_audio",
+    "name": "json",
+    "version": "20240303",
+    "license": "Public domain",
+    "source": "https://github.com/stleary/JSON-java/blob/20240303/LICENSE",
+    "evidence": "Maven POM: org.json:json:20240303; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "40_audio",
+    "name": "jsoup",
+    "version": "1.16.1",
+    "license": "MIT",
+    "source": "https://jsoup.org/",
+    "evidence": "Maven POM: org.jsoup:jsoup:1.16.1"
+  },
+  {
+    "section": "40_audio",
+    "name": "lava-common",
+    "version": "2.2.7",
+    "license": "Apache-2.0",
+    "source": "https://github.com/lavalink-devs/lavaplayer",
+    "evidence": "Maven POM: dev.arbjerg:lava-common:2.2.7"
+  },
+  {
+    "section": "40_audio",
+    "name": "lavaplayer",
+    "version": "2.2.7",
+    "license": "Apache-2.0",
+    "source": "https://github.com/lavalink-devs/lavaplayer",
+    "evidence": "Maven POM: dev.arbjerg:lavaplayer:2.2.7"
+  },
+  {
+    "section": "40_audio",
+    "name": "lavaplayer-natives",
+    "version": "2.2.7",
+    "license": "Apache-2.0",
+    "source": "https://github.com/lavalink-devs/lavaplayer",
+    "evidence": "Maven POM: dev.arbjerg:lavaplayer-natives:2.2.7"
+  },
+  {
+    "section": "40_audio",
+    "name": "libogg",
+    "version": "1.3.3",
+    "license": "BSD-3-Clause",
+    "source": "https://github.com/xiph/ogg/blob/v1.3.3/COPYING",
+    "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+  },
+  {
+    "section": "40_audio",
+    "name": "libsamplerate",
+    "version": "0.1.9",
+    "license": "BSD-2-Clause",
+    "source": "https://github.com/libsndfile/libsamplerate/blob/0.1.9/COPYING",
+    "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+  },
+  {
+    "section": "40_audio",
+    "name": "libvorbis",
+    "version": "1.3.6",
+    "license": "BSD-3-Clause",
+    "source": "https://github.com/xiph/vorbis/blob/v1.3.6/COPYING",
+    "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+  },
+  {
+    "section": "40_audio",
+    "name": "mpg123 (non-Windows native builds)",
+    "version": "1.25.10",
+    "license": "LGPL-2.1-only",
+    "source": "https://www.mpg123.de/download/mpg123-1.25.10.tar.bz2",
+    "evidence": "LavaPlayer 2.2.7 natives/build.gradle pinned download; upstream COPYING/NOTICE at the linked version. Build recipe: https://github.com/lavalink-devs/lavaplayer/blob/2.2.7/natives/build.gradle"
+  },
+  {
+    "section": "40_audio",
+    "name": "rhino",
+    "version": "1.7.14",
+    "license": "MPL-2.0",
+    "source": "https://mozilla.github.io/rhino/",
+    "evidence": "Maven POM: org.mozilla:rhino:1.7.14"
+  },
+  {
+    "section": "40_audio",
+    "name": "rhino-engine",
+    "version": "1.7.14",
+    "license": "MPL-2.0",
+    "source": "https://mozilla.github.io/rhino/",
+    "evidence": "Maven POM: org.mozilla:rhino-engine:1.7.14"
+  },
+  {
+    "section": "40_audio",
+    "name": "slf4j-api",
+    "version": "2.0.13",
+    "license": "MIT",
+    "source": "http://www.slf4j.org",
+    "evidence": "Maven POM: org.slf4j:slf4j-api:2.0.13"
+  },
+  {
+    "section": "40_audio",
+    "name": "slf4j-simple",
+    "version": "2.0.13",
+    "license": "MIT",
+    "source": "http://www.slf4j.org",
+    "evidence": "Maven POM: org.slf4j:slf4j-simple:2.0.13"
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "section": "50_controller",
+    "name": "Controlify sources and assets",
+    "version": "",
+    "license": "LGPL-3.0",
+    "source": "https://github.com/isXander/Controlify",
+    "evidence": "META-INF/LICENSE-Controlify.txt"
+  },
+  {
+    "section": "50_controller",
+    "name": "SDL",
+    "version": "3.4.14",
+    "license": "Zlib",
+    "source": "https://github.com/libsdl-org/SDL/tree/release-3.4.14",
+    "evidence": "META-INF/LICENSE-SDL3.txt; NOTICE-controller-runtime.md"
+  },
+  {
+    "section": "50_controller",
+    "name": "SDL GameControllerDB",
+    "version": "",
+    "license": "Zlib",
+    "source": "https://github.com/mdqinc/SDL_GameControllerDB/blob/master/LICENSE",
+    "evidence": "Source header in bundled gamecontrollerdb-sdl3.txt; upstream LICENSE"
+  },
+  {
+    "section": "50_controller",
+    "name": "sdl-api",
+    "version": "release-3.4.14-7",
+    "license": "MPL-2.0",
+    "source": "https://github.com/isXander/controlify-sdl",
+    "evidence": "Maven POM: dev.isxander.sdl:sdl-api:release-3.4.14-7; upstream license/source or bundled META-INF/LICENSE"
+  },
+  {
+    "section": "50_controller",
+    "name": "sdl-backend-ffm",
+    "version": "release-3.4.14-7",
+    "license": "MPL-2.0",
+    "source": "https://github.com/isXander/controlify-sdl",
+    "evidence": "Maven POM: dev.isxander.sdl:sdl-backend-ffm:release-3.4.14-7; upstream license/source or bundled META-INF/LICENSE"
+  }
+]

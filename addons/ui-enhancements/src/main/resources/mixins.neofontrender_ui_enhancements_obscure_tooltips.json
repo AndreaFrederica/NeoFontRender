@@ -3,12 +3,11 @@
   "minVersion": "0.8.5",
   "package": "neofontrender.addons.mixin",
   "refmap": "mixins.neofontrender_ui_enhancements-refmap.json",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_25",
   "target": "@env(DEFAULT)",
   "mixins": [],
   "server": [],
   "client": [
-    "compat.MixinObscureHeaderComponent",
-    "compat.MixinObscureTooltipState"
+    "compat.MixinObscureTooltipEventHandler"
   ]
 }

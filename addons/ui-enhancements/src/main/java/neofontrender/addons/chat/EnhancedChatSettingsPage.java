@@ -31,10 +31,14 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
         private final boolean logRestored = EnhancedChatConfig.logRestoredHistory;
         private final boolean search = EnhancedChatConfig.messageSearch;
         private final boolean commandCompletion = EnhancedChatConfig.commandCompletion;
+        private final String completionEngine = EnhancedChatConfig.completionEngine;
+        private final String completionDisplay = EnhancedChatConfig.completionDisplay;
         private final boolean privateCommandBlock = EnhancedChatConfig.privateCommandBlock;
         private final boolean copySelection = EnhancedChatConfig.copySelection;
         private final boolean copyFormattingCodes = EnhancedChatConfig.copyFormattingCodes;
         private final boolean ampersandFormatting = EnhancedChatConfig.ampersandFormatting;
+        private final boolean allowSectionSignInput = EnhancedChatConfig.allowSectionSignInput;
+        private final boolean sourcePreview = EnhancedChatConfig.sourcePreview;
         private final boolean forceServerTranslations = EnhancedChatConfig.salutationForceServerTranslations;
         private final boolean disableSalutationOverride = EnhancedChatConfig.salutationDisableOverride;
 
@@ -51,6 +55,12 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
                             () -> tr("tooltip.chat.command_completion"),
                             () -> EnhancedChatConfig.commandCompletion,
                             value -> EnhancedChatConfig.commandCompletion = value))
+                    .add(c.dropdownText("chat_completion_engine", () -> tr("gui.chat.completion_engine"),
+                            CommandCompletionOptions::engine, value -> EnhancedChatConfig.completionEngine = value,
+                            CommandCompletionOptions.engines(), value -> tr("gui.chat.completion_option." + value)).size(260, 24))
+                    .add(c.dropdownText("chat_completion_display", () -> tr("gui.chat.completion_display"),
+                            CommandCompletionOptions::display, value -> EnhancedChatConfig.completionDisplay = value,
+                            CommandCompletionOptions.displays(), value -> tr("gui.chat.completion_option." + value)).size(260, 24))
                     .add(c.toggleText(() -> tr("gui.chat.private_command_block"),
                             () -> tr("tooltip.chat.private_command_block"),
                             () -> EnhancedChatConfig.privateCommandBlock,
@@ -62,7 +72,15 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
                     .add(c.toggleText(() -> tr("gui.chat.salutation_disable_override"),
                             () -> tr("tooltip.chat.salutation_disable_override"),
                             () -> EnhancedChatConfig.salutationDisableOverride,
-                            value -> EnhancedChatConfig.salutationDisableOverride = value));
+                            value -> EnhancedChatConfig.salutationDisableOverride = value))
+                    .add(c.toggleText(() -> tr("gui.chat.allow_section_sign"),
+                            () -> tr("tooltip.chat.allow_section_sign"),
+                            () -> EnhancedChatConfig.allowSectionSignInput,
+                            value -> EnhancedChatConfig.allowSectionSignInput = value))
+                    .add(c.toggleText(() -> tr("gui.chat.source_preview"),
+                            () -> tr("tooltip.chat.source_preview"),
+                            () -> EnhancedChatConfig.sourcePreview,
+                            value -> EnhancedChatConfig.sourcePreview = value));
             NfrOptionsGrid history = c.grid()
                     .add(c.toggleText(() -> tr("gui.chat.extended_history"), () -> tr("tooltip.chat.extended_history"),
                             () -> EnhancedChatConfig.extendedHistory, value -> EnhancedChatConfig.extendedHistory = value))
@@ -106,10 +124,14 @@ final class EnhancedChatSettingsPage implements NfrSettingsPage {
             EnhancedChatConfig.logRestoredHistory = logRestored;
             EnhancedChatConfig.messageSearch = search;
             EnhancedChatConfig.commandCompletion = commandCompletion;
+            EnhancedChatConfig.completionEngine = completionEngine;
+            EnhancedChatConfig.completionDisplay = completionDisplay;
             EnhancedChatConfig.privateCommandBlock = privateCommandBlock;
             EnhancedChatConfig.copySelection = copySelection;
             EnhancedChatConfig.copyFormattingCodes = copyFormattingCodes;
             EnhancedChatConfig.ampersandFormatting = ampersandFormatting;
+            EnhancedChatConfig.allowSectionSignInput = allowSectionSignInput;
+            EnhancedChatConfig.sourcePreview = sourcePreview;
             EnhancedChatConfig.salutationForceServerTranslations = forceServerTranslations;
             EnhancedChatConfig.salutationDisableOverride = disableSalutationOverride;
         }

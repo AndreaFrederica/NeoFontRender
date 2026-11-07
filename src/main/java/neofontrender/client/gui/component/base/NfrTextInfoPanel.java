@@ -14,6 +14,7 @@ import java.util.function.Supplier;
 /** Reusable read-only text panel. Route views supply the actual content. */
 public final class NfrTextInfoPanel extends ParentWidget<NfrTextInfoPanel> implements ILayoutWidget {
     private final List<Line> lines;
+    private boolean wrap;
 
     public NfrTextInfoPanel(Line... lines) {
         this.lines = Arrays.asList(lines);
@@ -23,10 +24,19 @@ public final class NfrTextInfoPanel extends ParentWidget<NfrTextInfoPanel> imple
         this.lines = new java.util.ArrayList<>(lines);
     }
 
+    public NfrTextInfoPanel(List<Line> lines, boolean wrap) {
+        this(lines);
+        this.wrap = wrap;
+    }
+
     public int preferredHeight() {
+        return preferredHeight(getArea().w());
+    }
+
+    public int preferredHeight(int width) {
         int lineHeight = lineHeight();
         int height = 4;
-        for (Line line : lines) height += line.gapBefore + lineHeight;
+        for (Line line : lines) height += line.gapBefore + lineHeight * (wrap ? rows(line, width).size() : 1);
         return height;
     }
 
@@ -44,12 +54,29 @@ public final class NfrTextInfoPanel extends ParentWidget<NfrTextInfoPanel> imple
         int y = 4;
         for (Line line : lines) {
             y += line.gapBefore;
-            String text = line.text.get();
-            minecraft.fontRenderer.drawString(
-                    minecraft.fontRenderer.trimStringToWidth(text, Math.max(1, getArea().w() - 12)),
-                    6, y, line.color);
-            y += lineHeight;
+            for (String text : rows(line, getArea().w())) {
+                minecraft.fontRenderer.drawString(text, 6, y, line.color);
+                y += lineHeight;
+            }
         }
+    }
+
+    private List<String> rows(Line line, int width) {
+        net.minecraft.client.gui.FontRenderer font = Minecraft.getMinecraft().fontRenderer;
+        int available = Math.max(1, width - 12);
+        if (!wrap) return java.util.Collections.singletonList(font.trimStringToWidth(line.text.get(), available));
+        String text = line.text.get();
+        if (line.wrappedRows == null || line.wrappedWidth != available || !text.equals(line.wrappedText)
+                || line.wrappedFont != font || line.wrappedFontHeight != font.FONT_HEIGHT) {
+            // A long license inventory should only be laid out again when its width/text changes.
+            List<String> rows = font.listFormattedStringToWidth(text, Math.max(32, available));
+            line.wrappedRows = rows.isEmpty() ? java.util.Collections.singletonList("") : rows;
+            line.wrappedWidth = available;
+            line.wrappedText = text;
+            line.wrappedFont = font;
+            line.wrappedFontHeight = font.FONT_HEIGHT;
+        }
+        return line.wrappedRows;
     }
 
     private static int lineHeight() {
@@ -80,6 +107,11 @@ public final class NfrTextInfoPanel extends ParentWidget<NfrTextInfoPanel> imple
         private final Supplier<String> text;
         private final int color;
         private final int gapBefore;
+        private List<String> wrappedRows;
+        private int wrappedWidth;
+        private int wrappedFontHeight;
+        private String wrappedText;
+        private net.minecraft.client.gui.FontRenderer wrappedFont;
 
         private Line(Supplier<String> text, int color, int gapBefore) {
             this.text = text;

@@ -6,6 +6,8 @@ import mnm.mods.tabbychat.gui.ChatBox;
 import mnm.mods.util.ILocation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
+import net.minecraft.client.gui.GuiNewChat;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
@@ -16,6 +18,7 @@ import neofontrender.addons.hud.compositor.HudSurface;
 import neofontrender.addons.hud.compositor.HudWindowCompositor;
 
 import java.awt.Rectangle;
+import java.lang.reflect.Field;
 
 /** Hosts TabbyChat in the generic HUD compositor and manages hold-to-interact cursor capture. */
 public final class ChatHudWindowController {
@@ -41,7 +44,27 @@ public final class ChatHudWindowController {
         Minecraft mc = Minecraft.getMinecraft();
         return mc.currentScreen instanceof GuiChat
                 || EnhancedChatConfigAccess.persistentChatHudEnabled()
-                && mc.currentScreen == null && mc.player != null && mc.world != null;
+                && mc.currentScreen == null && mc.player != null && mc.world != null
+                || dragonCoreWrappedChat(mc.currentScreen);
+    }
+
+    /** Recognizes DragonCore's GuiChat wrapper without linking against DragonCore. */
+    private static boolean dragonCoreWrappedChat(GuiScreen screen) {
+        if (screen == null || !"eos.moe.dragoncore.sl".equals(screen.getClass().getName())) return false;
+        return dragonCoreOriginalChat(screen) != null;
+    }
+
+    /** Returns DragonCore's retained original screen when it wrapped Tabby's GuiChat. */
+    private static GuiChat dragonCoreOriginalChat(GuiScreen screen) {
+        if (screen == null || !"eos.moe.dragoncore.sl".equals(screen.getClass().getName())) return null;
+        try {
+            Field originalGui = screen.getClass().getField("e");
+            Object retained = originalGui.get(screen);
+            if (retained instanceof GuiChat) return (GuiChat) retained;
+            return null;
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
     }
 
     public static boolean isHudInteractive() {
@@ -60,6 +83,15 @@ public final class ChatHudWindowController {
 
     @SubscribeEvent
     public void render(RenderGameOverlayEvent.Post event) {
+        if (event.getType() == RenderGameOverlayEvent.ElementType.ALL) {
+            // DragonCore can cancel the CHAT element before GuiIngame invokes
+            // GuiNewChatTC.drawChat(). Refresh the embedded instance at the final
+            // overlay boundary so the compositor does not lose its frame.
+            GuiNewChat current = GuiNewChatTC.getInstance();
+            if (current instanceof GuiNewChatTC && mc.ingameGUI != null) {
+                queue((GuiNewChatTC) current, mc.ingameGUI.getUpdateCounter());
+            }
+        }
         if (event.getType() == RenderGameOverlayEvent.ElementType.ALL && queuedGui != null) {
             if (hudInteractive && mc.currentScreen == null) {
                 ChatInlineImageInteraction.draw(0, 0);

@@ -1,0 +1,2738 @@
+[
+  {
+    "section": "60_typst_assets",
+    "name": "DejaVu fonts",
+    "version": "",
+    "license": "Bitstream Vera / Arev font licenses; DejaVu changes public domain",
+    "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+    "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+  },
+  {
+    "section": "60_typst_assets",
+    "name": "Foxit fonts",
+    "version": "",
+    "license": "BSD-3-Clause",
+    "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+    "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+  },
+  {
+    "section": "60_typst_assets",
+    "name": "HTML / MathML reference data",
+    "version": "",
+    "license": "Upstream notices including W3C Document License",
+    "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+    "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+  },
+  {
+    "section": "60_typst_assets",
+    "name": "ICC profiles",
+    "version": "",
+    "license": "CC0-1.0",
+    "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+    "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+  },
+  {
+    "section": "60_typst_assets",
+    "name": "Libertinus Serif",
+    "version": "",
+    "license": "OFL-1.1",
+    "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+    "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+  },
+  {
+    "section": "60_typst_assets",
+    "name": "NewCM10-Regular",
+    "version": "",
+    "license": "GPL-3.0-or-later WITH Font Exception and Distribution Exception",
+    "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+    "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+  },
+  {
+    "section": "60_typst_assets",
+    "name": "NewComputerModern (except NewCM10-Regular)",
+    "version": "",
+    "license": "GUST Font License 1.0 / LPPL-1.3c-or-later",
+    "source": "https://github.com/typst/typst-assets/blob/94dcb99/NOTICE",
+    "evidence": "typst-assets pinned NOTICE; asset-specific terms, not the crate Apache-2.0 license"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "adler2",
+    "version": "2.0.1",
+    "license": "0BSD OR MIT OR Apache-2.0",
+    "source": "https://github.com/oyvindln/adler2",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "aho-corasick",
+    "version": "1.1.5",
+    "license": "Unlicense OR MIT",
+    "source": "https://github.com/BurntSushi/aho-corasick",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "approx",
+    "version": "0.5.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/brendanzab/approx",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "ar_archive_writer",
+    "version": "0.5.3",
+    "license": "Apache-2.0 WITH LLVM-exception",
+    "source": "https://github.com/rust-lang/ar_archive_writer",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "arrayref",
+    "version": "0.3.9",
+    "license": "BSD-2-Clause",
+    "source": "https://github.com/droundy/arrayref",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "arrayvec",
+    "version": "0.7.8",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/bluss/arrayvec",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "autocfg",
+    "version": "1.5.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/cuviper/autocfg",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "az",
+    "version": "1.3.0",
+    "license": "MIT/Apache-2.0",
+    "source": "https://gitlab.com/tspiteri/az",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "base64",
+    "version": "0.22.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/marshallpierce/rust-base64",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "biblatex",
+    "version": "0.12.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/typst/biblatex",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "bincode",
+    "version": "1.3.3",
+    "license": "MIT",
+    "source": "https://github.com/servo/bincode",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "bit-set",
+    "version": "0.8.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/contain-rs/bit-set",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "bit-vec",
+    "version": "0.8.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/contain-rs/bit-vec",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "bitflags",
+    "version": "2.13.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/bitflags/bitflags",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "bumpalo",
+    "version": "3.20.3",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/fitzgen/bumpalo",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "by_address",
+    "version": "1.2.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/mbrubeck/by_address",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "bytemuck",
+    "version": "1.25.2",
+    "license": "Zlib OR Apache-2.0 OR MIT",
+    "source": "https://github.com/Lokathor/bytemuck",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "bytemuck_derive",
+    "version": "1.12.0",
+    "license": "Zlib OR Apache-2.0 OR MIT",
+    "source": "https://github.com/Lokathor/bytemuck",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "byteorder-lite",
+    "version": "0.1.0",
+    "license": "Unlicense OR MIT",
+    "source": "https://github.com/image-rs/byteorder-lite",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "bytes",
+    "version": "1.12.1",
+    "license": "MIT",
+    "source": "https://github.com/tokio-rs/bytes",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "cc",
+    "version": "1.4.4",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/cc-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "cesu8",
+    "version": "1.1.0",
+    "license": "Apache-2.0/MIT",
+    "source": "https://github.com/emk/cesu8-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "cfg-if",
+    "version": "1.0.4",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/cfg-if",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "chinese-number",
+    "version": "0.7.8",
+    "license": "MIT",
+    "source": "https://github.com/magiclen/chinese-number",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "chinese-variant",
+    "version": "1.1.6",
+    "license": "MIT",
+    "source": "https://github.com/magiclen/chinese-variant",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "ciborium",
+    "version": "0.2.2",
+    "license": "Apache-2.0",
+    "source": "https://github.com/enarx/ciborium",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "ciborium-io",
+    "version": "0.2.2",
+    "license": "Apache-2.0",
+    "source": "https://github.com/enarx/ciborium",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "ciborium-ll",
+    "version": "0.2.2",
+    "license": "Apache-2.0",
+    "source": "https://github.com/enarx/ciborium",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "citationberg",
+    "version": "0.7.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/typst/citationberg",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "cobs",
+    "version": "0.3.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/jamesmunns/cobs.rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "codex",
+    "version": "0.3.0",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/codex",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "color",
+    "version": "0.3.3",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/color",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "color_quant",
+    "version": "1.1.0",
+    "license": "MIT",
+    "source": "https://github.com/image-rs/color_quant.git",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "combine",
+    "version": "4.6.7",
+    "license": "MIT",
+    "source": "https://github.com/Marwes/combine",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "comemo",
+    "version": "0.5.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/typst/comemo",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "comemo-macros",
+    "version": "0.5.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/typst/comemo",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "core-foundation",
+    "version": "0.10.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/core-foundation-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "core-foundation-sys",
+    "version": "0.8.7",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/core-foundation-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "core_maths",
+    "version": "0.1.1",
+    "license": "MIT",
+    "source": "https://github.com/robertbastian/core_maths",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "crc32fast",
+    "version": "1.5.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/srijs/rust-crc32fast",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "crossbeam-deque",
+    "version": "0.8.7",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/crossbeam-rs/crossbeam",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "crossbeam-epoch",
+    "version": "0.9.20",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/crossbeam-rs/crossbeam",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "crossbeam-utils",
+    "version": "0.8.22",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/crossbeam-rs/crossbeam",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "crunchy",
+    "version": "0.2.4",
+    "license": "MIT",
+    "source": "https://github.com/eira-fransham/crunchy",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "csv",
+    "version": "1.4.0",
+    "license": "Unlicense/MIT",
+    "source": "https://github.com/BurntSushi/rust-csv",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "csv-core",
+    "version": "0.1.13",
+    "license": "Unlicense/MIT",
+    "source": "https://github.com/BurntSushi/rust-csv",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "data-url",
+    "version": "0.3.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/rust-url",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "deranged",
+    "version": "0.5.8",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/jhpratt/deranged",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "dirs",
+    "version": "6.0.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/soc/dirs-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "dirs-sys",
+    "version": "0.5.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dirs-dev/dirs-sys-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "displaydoc",
+    "version": "0.2.7",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/yaahc/displaydoc",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "ecow",
+    "version": "0.2.6",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/typst/ecow",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "either",
+    "version": "1.18.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rayon-rs/either",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "enum-ordinalize",
+    "version": "4.4.2",
+    "license": "MIT",
+    "source": "https://github.com/magiclen/enum-ordinalize",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "enum-ordinalize-derive",
+    "version": "4.4.2",
+    "license": "MIT",
+    "source": "https://github.com/magiclen/enum-ordinalize",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "env_proxy",
+    "version": "0.4.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/inejge/env_proxy",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "equivalent",
+    "version": "1.0.2",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/indexmap-rs/equivalent",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "errno",
+    "version": "0.3.14",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/lambda-fairy/rust-errno",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "euclid",
+    "version": "0.22.14",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/euclid",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "fancy-regex",
+    "version": "0.16.2",
+    "license": "MIT",
+    "source": "https://github.com/fancy-regex/fancy-regex",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "fastrand",
+    "version": "2.5.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/smol-rs/fastrand",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "fdeflate",
+    "version": "0.3.7",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/image-rs/fdeflate",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "fearless_simd",
+    "version": "0.4.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/fearless_simd",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "filetime",
+    "version": "0.2.29",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/alexcrichton/filetime",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "find-msvc-tools",
+    "version": "0.1.11",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/cc-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "flate2",
+    "version": "1.1.10",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/flate2-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "float-cmp",
+    "version": "0.9.0",
+    "license": "MIT",
+    "source": "https://github.com/mikedilger/float-cmp",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "fnv",
+    "version": "1.0.7",
+    "license": "Apache-2.0 / MIT",
+    "source": "https://github.com/servo/rust-fnv",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "foldhash",
+    "version": "0.2.0",
+    "license": "Zlib",
+    "source": "https://github.com/orlp/foldhash",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "font-types",
+    "version": "0.11.3",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/googlefonts/fontations",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "fontdb",
+    "version": "0.23.0",
+    "license": "MIT",
+    "source": "https://github.com/RazrFalcon/fontdb",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "foreign-types",
+    "version": "0.3.2",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/sfackler/foreign-types",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "foreign-types-shared",
+    "version": "0.1.1",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/sfackler/foreign-types",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "form_urlencoded",
+    "version": "1.2.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/rust-url",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "getrandom",
+    "version": "0.2.17",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-random/getrandom",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "getrandom",
+    "version": "0.4.3",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-random/getrandom",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "gif",
+    "version": "0.14.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/image-rs/image-gif",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "glidesort",
+    "version": "0.1.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/orlp/glidesort",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "glifo",
+    "version": "0.1.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/vello",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "guillotiere",
+    "version": "0.7.0",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/nical/guillotiere",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "half",
+    "version": "2.7.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/VoidStarKat/half-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hashbrown",
+    "version": "0.17.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/hashbrown",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hayagriva",
+    "version": "0.10.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/typst/hayagriva",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hayro",
+    "version": "0.7.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/LaurenzV/hayro",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hayro-ccitt",
+    "version": "0.3.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/LaurenzV/hayro",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hayro-cmap",
+    "version": "0.1.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/LaurenzV/hayro",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hayro-interpret",
+    "version": "0.7.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/LaurenzV/hayro",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hayro-jbig2",
+    "version": "0.3.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/LaurenzV/hayro",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hayro-jpeg2000",
+    "version": "0.4.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/LaurenzV/hayro",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hayro-postscript",
+    "version": "0.1.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/LaurenzV/hayro",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hayro-svg",
+    "version": "0.7.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/LaurenzV/hayro",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hayro-syntax",
+    "version": "0.7.2",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/LaurenzV/hayro",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "heck",
+    "version": "0.5.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/withoutboats/heck",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "hypher",
+    "version": "0.1.7",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/typst/hypher",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_collator",
+    "version": "2.3.1",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_collator_data",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_collections",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_locale",
+    "version": "2.3.1",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_locale_core",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_locale_data",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_locale_fallback",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_locale_fallback_data",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_normalizer",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_normalizer_data",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_properties",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_properties_data",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_provider",
+    "version": "2.3.1",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_provider_blob",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_segmenter",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "icu_segmenter_data",
+    "version": "2.3.0",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "idna",
+    "version": "1.1.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/rust-url/",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "idna_adapter",
+    "version": "1.2.2",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/hsivonen/idna_adapter",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "image",
+    "version": "0.25.10",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/image-rs/image",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "image-webp",
+    "version": "0.2.4",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/image-rs/image-webp",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "imagesize",
+    "version": "0.14.0",
+    "license": "MIT",
+    "source": "https://github.com/Roughsketch/imagesize",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "indexmap",
+    "version": "2.14.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/indexmap-rs/indexmap",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "itoa",
+    "version": "1.0.18",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/itoa",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "jni",
+    "version": "0.21.1",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/jni-rs/jni-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "jni-sys",
+    "version": "0.3.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/jni-rs/jni-sys",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "jni-sys",
+    "version": "0.4.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/jni-rs/jni-sys",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "jni-sys-macros",
+    "version": "0.4.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/jni-rs/jni-sys",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "kamadak-exif",
+    "version": "0.6.1",
+    "license": "BSD-2-Clause",
+    "source": "https://github.com/kamadak/exif-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "kurbo",
+    "version": "0.13.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/kurbo",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "libc",
+    "version": "0.2.189",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/libc",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "libm",
+    "version": "0.2.16",
+    "license": "MIT",
+    "source": "https://github.com/rust-lang/compiler-builtins",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "libredox",
+    "version": "0.1.23",
+    "license": "MIT",
+    "source": "https://gitlab.redox-os.org/redox-os/libredox.git",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "linebender_resource_handle",
+    "version": "0.1.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/raw_resource_handle",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "linked-hash-map",
+    "version": "0.5.6",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/contain-rs/linked-hash-map",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "linux-raw-sys",
+    "version": "0.12.1",
+    "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "source": "https://github.com/sunfishcode/linux-raw-sys",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "lipsum",
+    "version": "0.9.1",
+    "license": "MIT",
+    "source": "https://github.com/mgeisler/lipsum/",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "litemap",
+    "version": "0.8.3",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "lock_api",
+    "version": "0.4.14",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/Amanieu/parking_lot",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "log",
+    "version": "0.4.34",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/log",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "memchr",
+    "version": "2.8.3",
+    "license": "Unlicense OR MIT",
+    "source": "https://github.com/BurntSushi/memchr",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "miniz_oxide",
+    "version": "0.8.9",
+    "license": "MIT OR Zlib OR Apache-2.0",
+    "source": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "miniz_oxide",
+    "version": "0.9.1",
+    "license": "MIT OR Zlib OR Apache-2.0",
+    "source": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "moxcms",
+    "version": "0.8.1",
+    "license": "BSD-3-Clause OR Apache-2.0",
+    "source": "https://github.com/awxkee/moxcms.git",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "mutate_once",
+    "version": "0.1.2",
+    "license": "BSD-2-Clause",
+    "source": "https://github.com/kamadak/mutate_once-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "native-tls",
+    "version": "0.2.18",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-native-tls/rust-native-tls",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "num-bigint",
+    "version": "0.4.8",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-num/num-bigint",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "num-conv",
+    "version": "0.2.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/jhpratt/num-conv",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "num-integer",
+    "version": "0.1.47",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-num/num-integer",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "num-traits",
+    "version": "0.2.19",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-num/num-traits",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "object",
+    "version": "0.39.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/gimli-rs/object",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "once_cell",
+    "version": "1.21.4",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/matklad/once_cell",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "openssl",
+    "version": "0.10.81",
+    "license": "Apache-2.0",
+    "source": "https://github.com/rust-openssl/rust-openssl",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "openssl-macros",
+    "version": "0.1.1",
+    "license": "MIT/Apache-2.0",
+    "source": "https://crates.io/crates/openssl-macros",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "openssl-probe",
+    "version": "0.2.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rustls/openssl-probe",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "openssl-sys",
+    "version": "0.9.117",
+    "license": "MIT",
+    "source": "https://github.com/rust-openssl/rust-openssl",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "option-ext",
+    "version": "0.2.0",
+    "license": "MPL-2.0",
+    "source": "https://github.com/soc/option-ext.git",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "palette",
+    "version": "0.7.7",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/Ogeon/palette",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "palette_derive",
+    "version": "0.7.7",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/Ogeon/palette",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "palette_math",
+    "version": "0.7.7",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/Ogeon/palette",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "parking_lot",
+    "version": "0.12.5",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/Amanieu/parking_lot",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "parking_lot_core",
+    "version": "0.9.12",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/Amanieu/parking_lot",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "paste",
+    "version": "1.0.15",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/paste",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "peniko",
+    "version": "0.6.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/peniko",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "percent-encoding",
+    "version": "2.3.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/rust-url/",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "phf",
+    "version": "0.13.1",
+    "license": "MIT",
+    "source": "https://github.com/rust-phf/rust-phf",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "phf_generator",
+    "version": "0.13.1",
+    "license": "MIT",
+    "source": "https://github.com/rust-phf/rust-phf",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "phf_macros",
+    "version": "0.13.1",
+    "license": "MIT",
+    "source": "https://github.com/rust-phf/rust-phf",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "phf_shared",
+    "version": "0.13.1",
+    "license": "MIT",
+    "source": "https://github.com/rust-phf/rust-phf",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "pic-scale",
+    "version": "0.7.11",
+    "license": "BSD-3-Clause OR Apache-2.0",
+    "source": "https://github.com/awxkee/pic-scale",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "pico-args",
+    "version": "0.5.0",
+    "license": "MIT",
+    "source": "https://github.com/RazrFalcon/pico-args",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "pixglyph",
+    "version": "0.6.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/pixglyph",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "pkg-config",
+    "version": "0.3.32",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/pkg-config-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "plist",
+    "version": "1.10.0",
+    "license": "MIT",
+    "source": "https://github.com/ebarnard/rust-plist/",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "png",
+    "version": "0.18.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/image-rs/image-png",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "polycool",
+    "version": "0.4.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/linebender/kurbo",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "portable-atomic",
+    "version": "1.15.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/taiki-e/portable-atomic",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "postcard",
+    "version": "1.1.3",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/jamesmunns/postcard",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "potential_utf",
+    "version": "0.1.6",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "powerfmt",
+    "version": "0.2.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/jhpratt/powerfmt",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "ppv-lite86",
+    "version": "0.2.21",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/cryptocorrosion/cryptocorrosion",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "proc-macro-hack",
+    "version": "0.5.20+deprecated",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/proc-macro-hack",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "proc-macro2",
+    "version": "1.0.107",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/proc-macro2",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "psm",
+    "version": "0.1.32",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/stacker/",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "pxfm",
+    "version": "0.1.30",
+    "license": "BSD-3-Clause OR Apache-2.0",
+    "source": "https://github.com/awxkee/pxfm",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "quick-error",
+    "version": "2.0.1",
+    "license": "MIT/Apache-2.0",
+    "source": "http://github.com/tailhook/quick-error",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "quick-xml",
+    "version": "0.38.4",
+    "license": "MIT",
+    "source": "https://github.com/tafia/quick-xml",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "quick-xml",
+    "version": "0.41.0",
+    "license": "MIT",
+    "source": "https://github.com/tafia/quick-xml",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "quote",
+    "version": "1.0.47",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/quote",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "r-efi",
+    "version": "6.0.0",
+    "license": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+    "source": "https://github.com/r-efi/r-efi",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "rand",
+    "version": "0.8.8",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-random/rand",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "rand_chacha",
+    "version": "0.3.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-random/rand",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "rand_core",
+    "version": "0.6.4",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-random/rand",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "rayon",
+    "version": "1.12.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rayon-rs/rayon",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "rayon-core",
+    "version": "1.13.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rayon-rs/rayon",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "read-fonts",
+    "version": "0.39.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/googlefonts/fontations",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "redox_syscall",
+    "version": "0.5.18",
+    "license": "MIT",
+    "source": "https://gitlab.redox-os.org/redox-os/syscall",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "redox_users",
+    "version": "0.5.2",
+    "license": "MIT",
+    "source": "https://gitlab.redox-os.org/redox-os/users",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "regex",
+    "version": "1.13.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/regex",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "regex-automata",
+    "version": "0.4.18",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/regex",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "regex-syntax",
+    "version": "0.8.11",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/regex",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "resvg",
+    "version": "0.47.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/resvg",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "rgb",
+    "version": "0.8.53",
+    "license": "MIT",
+    "source": "https://github.com/kornelski/rust-rgb",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "roman-numerals-rs",
+    "version": "3.1.0",
+    "license": "0BSD OR CC0-1.0",
+    "source": "https://github.com/AA-Turner/roman-numerals/",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "roxmltree",
+    "version": "0.21.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/RazrFalcon/roxmltree",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "rust_decimal",
+    "version": "1.43.0",
+    "license": "MIT",
+    "source": "https://github.com/paupino/rust-decimal",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "rustc-hash",
+    "version": "2.1.3",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/rust-lang/rustc-hash",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "rustix",
+    "version": "1.1.4",
+    "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "source": "https://github.com/bytecodealliance/rustix",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "rustybuzz",
+    "version": "0.20.1",
+    "license": "MIT",
+    "source": "https://github.com/harfbuzz/rustybuzz",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "ryu",
+    "version": "1.0.23",
+    "license": "Apache-2.0 OR BSL-1.0",
+    "source": "https://github.com/dtolnay/ryu",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "same-file",
+    "version": "1.0.6",
+    "license": "Unlicense/MIT",
+    "source": "https://github.com/BurntSushi/same-file",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "schannel",
+    "version": "0.1.29",
+    "license": "MIT",
+    "source": "https://github.com/steffengy/schannel-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "scopeguard",
+    "version": "1.2.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/bluss/scopeguard",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "security-framework",
+    "version": "3.7.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/kornelski/rust-security-framework",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "security-framework-sys",
+    "version": "2.17.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/kornelski/rust-security-framework",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "semver",
+    "version": "1.0.28",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/semver",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "serde",
+    "version": "1.0.229",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/serde-rs/serde",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "serde_core",
+    "version": "1.0.229",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/serde-rs/serde",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "serde_derive",
+    "version": "1.0.229",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/serde-rs/serde",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "serde_json",
+    "version": "1.0.151",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/serde-rs/json",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "serde_path_to_error",
+    "version": "0.1.20",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/path-to-error",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "serde_spanned",
+    "version": "0.6.9",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/toml-rs/toml",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "serde_yaml",
+    "version": "0.9.34+deprecated",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/serde-yaml",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "shlex",
+    "version": "2.0.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/comex/rust-shlex",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "simd-adler32",
+    "version": "0.3.10",
+    "license": "MIT",
+    "source": "https://github.com/mcountryman/simd-adler32",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "simplecss",
+    "version": "0.2.2",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/simplecss",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "siphasher",
+    "version": "1.0.3",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/jedisct1/rust-siphash",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "skrifa",
+    "version": "0.42.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/googlefonts/fontations",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "slab",
+    "version": "0.4.12",
+    "license": "MIT",
+    "source": "https://github.com/tokio-rs/slab",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "slotmap",
+    "version": "1.1.1",
+    "license": "Zlib",
+    "source": "https://github.com/orlp/slotmap",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "smallvec",
+    "version": "1.16.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/rust-smallvec",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "spin",
+    "version": "0.9.9",
+    "license": "MIT",
+    "source": "https://github.com/mvdnes/spin-rs.git",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "stable_deref_trait",
+    "version": "1.2.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/storyyeller/stable_deref_trait",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "stacker",
+    "version": "0.1.25",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/rust-lang/stacker",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "strict-num",
+    "version": "0.1.1",
+    "license": "MIT",
+    "source": "https://github.com/RazrFalcon/strict-num",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "strum",
+    "version": "0.27.2",
+    "license": "MIT",
+    "source": "https://github.com/Peternator7/strum",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "strum_macros",
+    "version": "0.27.2",
+    "license": "MIT",
+    "source": "https://github.com/Peternator7/strum",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "svgtypes",
+    "version": "0.16.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/svgtypes",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "syn",
+    "version": "2.0.119",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/syn",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "syn",
+    "version": "3.0.4",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/syn",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "synstructure",
+    "version": "0.13.2",
+    "license": "MIT",
+    "source": "https://github.com/mystor/synstructure",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "syntect",
+    "version": "5.3.0",
+    "license": "MIT",
+    "source": "https://github.com/trishume/syntect",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "tar",
+    "version": "0.4.46",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/composefs/tar-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "tempfile",
+    "version": "3.27.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/Stebalien/tempfile",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "thin-vec",
+    "version": "0.2.19",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/mozilla/thin-vec",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "thiserror",
+    "version": "1.0.69",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/thiserror",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "thiserror",
+    "version": "2.0.20",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/thiserror",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "thiserror-impl",
+    "version": "1.0.69",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/thiserror",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "thiserror-impl",
+    "version": "2.0.20",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/dtolnay/thiserror",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "time",
+    "version": "0.3.55",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/time-rs/time",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "time-core",
+    "version": "0.1.9",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/time-rs/time",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "time-macros",
+    "version": "0.2.32",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/time-rs/time",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "tiny-skia",
+    "version": "0.12.0",
+    "license": "BSD-3-Clause",
+    "source": "https://github.com/linebender/tiny-skia",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "tiny-skia-path",
+    "version": "0.12.0",
+    "license": "BSD-3-Clause",
+    "source": "https://github.com/linebender/tiny-skia/tree/master/path",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "tinystr",
+    "version": "0.8.4",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "tinyvec",
+    "version": "1.12.0",
+    "license": "Zlib OR Apache-2.0 OR MIT",
+    "source": "https://github.com/Lokathor/tinyvec",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "tinyvec_macros",
+    "version": "0.1.1",
+    "license": "MIT OR Apache-2.0 OR Zlib",
+    "source": "https://github.com/Soveu/tinyvec_macros",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "toml",
+    "version": "0.8.23",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/toml-rs/toml",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "toml_datetime",
+    "version": "0.6.11",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/toml-rs/toml",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "toml_edit",
+    "version": "0.22.27",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/toml-rs/toml",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "toml_write",
+    "version": "0.1.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/toml-rs/toml",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "ttf-parser",
+    "version": "0.25.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/harfbuzz/ttf-parser",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "two-face",
+    "version": "0.4.5",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/CosmicHorrorDev/two-face",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typed-arena",
+    "version": "2.0.2",
+    "license": "MIT",
+    "source": "https://github.com/SimonSapin/rust-typed-arena",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-assets",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst-assets",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-eval",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-html",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-kit",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-layout",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-library",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-macros",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-realize",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-render",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-svg",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-syntax",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-timing",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "typst-utils",
+    "version": "0.15.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/typst/typst",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unic-langid",
+    "version": "0.9.6",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/zbraniecki/unic-locale",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unic-langid-impl",
+    "version": "0.9.6",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/zbraniecki/unic-locale",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unic-langid-macros",
+    "version": "0.9.6",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/zbraniecki/unic-locale",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unic-langid-macros-impl",
+    "version": "0.9.6",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/zbraniecki/unic-locale",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unicode-bidi",
+    "version": "0.3.18",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/unicode-bidi",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unicode-bidi-mirroring",
+    "version": "0.4.0",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/RazrFalcon/unicode-bidi-mirroring",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unicode-ccc",
+    "version": "0.4.0",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/RazrFalcon/unicode-ccc",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unicode-ident",
+    "version": "1.0.24",
+    "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+    "source": "https://github.com/dtolnay/unicode-ident",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unicode-math-class",
+    "version": "0.1.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/typst/unicode-math-class",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unicode-normalization",
+    "version": "0.1.25",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/unicode-rs/unicode-normalization",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unicode-properties",
+    "version": "0.1.4",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/unicode-rs/unicode-properties",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unicode-script",
+    "version": "0.5.8",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/unicode-rs/unicode-script",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unicode-segmentation",
+    "version": "1.13.3",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/unicode-rs/unicode-segmentation",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unicode-vo",
+    "version": "0.1.0",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/RazrFalcon/unicode-vo",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unsafe-libyaml",
+    "version": "0.2.11",
+    "license": "MIT",
+    "source": "https://github.com/dtolnay/unsafe-libyaml",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "unscanny",
+    "version": "0.1.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/typst/unscanny",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "ureq",
+    "version": "2.12.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/algesten/ureq",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "url",
+    "version": "2.5.8",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/servo/rust-url",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "usvg",
+    "version": "0.47.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/resvg",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "utf16_iter",
+    "version": "1.0.5",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/hsivonen/utf16_iter",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "utf8_iter",
+    "version": "1.0.4",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/hsivonen/utf8_iter",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "vcpkg",
+    "version": "0.2.15",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/mcgoo/vcpkg-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "vello_common",
+    "version": "0.0.9",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/vello",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "vello_cpu",
+    "version": "0.0.9",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/linebender/vello",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "version_check",
+    "version": "0.9.5",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/SergioBenitez/version_check",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "walkdir",
+    "version": "2.5.0",
+    "license": "Unlicense/MIT",
+    "source": "https://github.com/BurntSushi/walkdir",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "wasi",
+    "version": "0.11.1+wasi-snapshot-preview1",
+    "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "source": "https://github.com/bytecodealliance/wasi",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "wasmi",
+    "version": "1.1.0",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/wasmi-labs/wasmi",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "wasmi_collections",
+    "version": "1.1.0",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/wasmi-labs/wasmi",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "wasmi_core",
+    "version": "1.1.0",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/wasmi-labs/wasmi",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "wasmi_ir",
+    "version": "1.1.0",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/wasmi-labs/wasmi",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "wasmparser",
+    "version": "0.239.0",
+    "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+    "source": "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "weezl",
+    "version": "0.1.12",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/image-rs/weezl",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "winapi-util",
+    "version": "0.1.11",
+    "license": "Unlicense OR MIT",
+    "source": "https://github.com/BurntSushi/winapi-util",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "windows-link",
+    "version": "0.2.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "windows-sys",
+    "version": "0.45.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "windows-sys",
+    "version": "0.61.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "windows-targets",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "windows_aarch64_gnullvm",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "windows_aarch64_msvc",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "windows_i686_gnu",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "windows_i686_msvc",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "windows_x86_64_gnu",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "windows_x86_64_gnullvm",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "windows_x86_64_msvc",
+    "version": "0.42.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/microsoft/windows-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "winnow",
+    "version": "0.7.15",
+    "license": "MIT",
+    "source": "https://github.com/winnow-rs/winnow",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "write16",
+    "version": "1.0.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://github.com/hsivonen/write16",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "writeable",
+    "version": "0.6.4",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "xattr",
+    "version": "1.6.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/Stebalien/xattr",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "xmlwriter",
+    "version": "0.1.0",
+    "license": "MIT",
+    "source": "https://github.com/RazrFalcon/xmlwriter",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "yaml-rust",
+    "version": "0.4.5",
+    "license": "MIT/Apache-2.0",
+    "source": "https://github.com/chyh1990/yaml-rust",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "yoke",
+    "version": "0.8.3",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "yoke-derive",
+    "version": "0.8.2",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "zerocopy",
+    "version": "0.8.56",
+    "license": "BSD-2-Clause OR Apache-2.0 OR MIT",
+    "source": "https://github.com/google/zerocopy",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "zerocopy-derive",
+    "version": "0.8.56",
+    "license": "BSD-2-Clause OR Apache-2.0 OR MIT",
+    "source": "https://github.com/google/zerocopy",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "zerofrom",
+    "version": "0.1.8",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "zerofrom-derive",
+    "version": "0.1.7",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "zerotrie",
+    "version": "0.2.5",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "zerovec",
+    "version": "0.11.8",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "zerovec-derive",
+    "version": "0.11.6",
+    "license": "Unicode-3.0",
+    "source": "https://github.com/unicode-org/icu4x",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "zlib-rs",
+    "version": "0.6.7",
+    "license": "Zlib",
+    "source": "https://github.com/trifectatechfoundation/zlib-rs",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "zmij",
+    "version": "1.0.23",
+    "license": "MIT",
+    "source": "https://github.com/dtolnay/zmij",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "zune-core",
+    "version": "0.5.3",
+    "license": "MIT OR Apache-2.0 OR Zlib",
+    "source": "https://github.com/etemesi254/zune-image",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  },
+  {
+    "section": "70_typst_native",
+    "name": "zune-jpeg",
+    "version": "0.5.15",
+    "license": "MIT OR Apache-2.0 OR Zlib",
+    "source": "https://github.com/etemesi254/zune-image/tree/dev/crates/zune-jpeg",
+    "evidence": "engine/typst-render/native/Cargo.toml / Cargo.lock; resolved package Cargo.toml license field; includes build/platform dependencies"
+  }
+]

@@ -1,0 +1,6 @@
+<mui:component-root xmlns:mui="urn:mui">
+    <mui:container class="field-row">
+        <mui:text class="field-label" text="${label}"/>
+        <mui:container class="field-control"><mui:slot name="control"/></mui:container>
+    </mui:container>
+</mui:component-root>

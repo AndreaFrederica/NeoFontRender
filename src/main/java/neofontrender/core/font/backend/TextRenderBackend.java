@@ -1,6 +1,7 @@
 package neofontrender.core.font.backend;
 
 import neofontrender.core.font.support.ShadowRenderSpec;
+import neofontrender.text.StructuredText;
 
 /**
  * Minimal abstraction for shaped-text backends.
@@ -14,15 +15,11 @@ public interface TextRenderBackend extends AutoCloseable {
 
     float measure(String text, boolean bold, boolean italic);
 
-    float measureFormatted(String text, int baseArgb, boolean shadow);
-
     TextRenderResult render(String text, int argb, boolean bold, boolean italic);
 
     default TextRenderResult renderSegment(String text, int argb, boolean bold, boolean italic) {
         return render(text, argb, bold, italic);
     }
-
-    TextRenderResult renderFormatted(String text, int baseArgb, boolean shadow);
 
     /** Updates the 32 legacy formatting colors used by complete-string rendering paths. */
     default void updateLegacyColorCodes(int[] colorCodes) {
@@ -36,42 +33,34 @@ public interface TextRenderBackend extends AutoCloseable {
         return false;
     }
 
-    /**
-     * Renders at the requested logical font size. Callers must check
-     * {@link #supportsNativeFontSize()} before using this method.
-     */
-    default TextRenderResult renderFormattedAtSize(String text, int baseArgb, boolean shadow,
-                                                   float fontSize) {
-        return renderFormatted(text, baseArgb, shadow);
+    /** Renders syntax-engine output without asking the backend to parse control codes again. */
+    default TextRenderResult renderStructuredAtSize(
+            StructuredText text, int baseArgb, boolean shadow, float fontSize) {
+        return render(text == null ? "" : text.plainText(), baseArgb, false, false);
     }
 
-    default float measureFormattedAtSize(String text, int baseArgb, boolean shadow,
-                                         float fontSize) {
-        return renderFormattedAtSize(text, baseArgb, shadow, fontSize).advance();
-    }
-
-    default boolean supportsModernShadow() {
-        return false;
-    }
-
-    default TextRenderResult renderFormattedWithShadow(String text, int baseArgb) {
-        return renderFormatted(text, baseArgb, false);
+    default float measureStructuredAtSize(
+            StructuredText text, int baseArgb, boolean shadow, float fontSize) {
+        return renderStructuredAtSize(text, baseArgb, shadow, fontSize).advance();
     }
 
     /**
-     * Produces a complete foreground plus modern shadow at a caller-selected logical size.
-     * Backends advertising {@link #supportsModernShadow()} should override this when they also
-     * advertise native font-size support.
+     * Produces a shadow-only draw result for the modern post-process stage. The default keeps
+     * compatibility with backends that only expose a legacy shadow-colored raster.
      */
-    default TextRenderResult renderFormattedWithShadowAtSize(
-            String text, int baseArgb, float fontSize) {
-        return renderFormattedWithShadow(text, baseArgb);
+    default TextRenderResult renderStructuredShadowSourceAtSize(
+            StructuredText text, int baseArgb, float fontSize, ShadowRenderSpec spec) {
+        return renderStructuredAtSize(text, baseArgb, true, fontSize);
     }
 
-    /** Renders modern shadow text with an explicit per-call spec, without mutating global config. */
-    default TextRenderResult renderFormattedWithShadowAtSize(
-            String text, int baseArgb, float fontSize, ShadowRenderSpec spec) {
-        return renderFormattedWithShadowAtSize(text, baseArgb, fontSize);
+    /**
+     * Optionally produces a complete foreground plus soft-shadow result using a backend-native
+     * raster operation. Returning {@code null} asks the shadow post-processor to use its generic
+     * sampled fallback. The post-processor remains the sole owner of shadow orchestration.
+     */
+    default TextRenderResult renderStructuredModernShadowAtSize(
+            StructuredText text, int baseArgb, float fontSize, ShadowRenderSpec spec) {
+        return null;
     }
 
     /**

@@ -2,6 +2,7 @@ package neofontrender.addons.loading;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiIngameMenu;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
@@ -22,18 +23,23 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Stores one user-owned screenshot inside each singleplayer save and exposes it as a temporary
- * loading texture on the next visit. No image assets are bundled with the addon.
+ * Stores user-owned last-exit screenshots for local saves and remote server addresses, then
+ * exposes the matching image as a temporary loading texture on the next visit. No image assets
+ * are bundled with the addon.
  */
 public enum WorldLoadingSnapshotManager {
     INSTANCE;
 
     private static final String SNAPSHOT_DIRECTORY = "neofontrender-ui";
     private static final String SNAPSHOT_FILE = "last-exit.png";
+    private static final String SERVER_SNAPSHOT_DIRECTORY = "neofontrender-ui-loading";
     private static final int MAX_CAPTURE_WIDTH = 1920;
     private static final int MAX_CAPTURE_HEIGHT = 1080;
     private final ExecutorService writer = Executors.newSingleThreadExecutor(runnable -> {
@@ -44,9 +50,12 @@ public enum WorldLoadingSnapshotManager {
 
     private BufferedImage cleanExitFrame;
     private String cleanExitWorld;
+    private String cleanExitServer;
     private boolean cleanCaptureRequested;
     private volatile BufferedImage pendingExitFrame;
     private volatile String pendingExitWorld;
+    private volatile BufferedImage pendingServerFrame;
+    private volatile String pendingServerAddress;
     private DynamicTexture texture;
     private ResourceLocation textureLocation;
     private int textureWidth;
@@ -57,9 +66,13 @@ public enum WorldLoadingSnapshotManager {
         if (!WorldLoadingConfig.lastExitSnapshot) return;
         Minecraft mc = Minecraft.getMinecraft();
         IntegratedServer server = mc.getIntegratedServer();
-        if (mc.world == null || server == null) return;
+        if (mc.world == null) return;
         cleanCaptureRequested = true;
-        cleanExitWorld = server.getFolderName();
+        cleanExitWorld = server == null ? null : server.getFolderName();
+        ServerData serverData = mc.getCurrentServerData();
+        cleanExitServer = server == null && serverData != null
+                ? cleanServerAddress(serverData.serverIP) : null;
+        if (cleanExitWorld == null && cleanExitServer == null) cleanCaptureRequested = false;
     }
 
     /**
@@ -71,9 +84,15 @@ public enum WorldLoadingSnapshotManager {
         if (!cleanCaptureRequested) return;
         Minecraft mc = Minecraft.getMinecraft();
         IntegratedServer server = mc.getIntegratedServer();
-        if (!WorldLoadingConfig.lastExitSnapshot || mc.world == null || server == null
+        ServerData serverData = mc.getCurrentServerData();
+        String currentServer = serverData == null
+                ? cleanExitServer : cleanServerAddress(serverData.serverIP);
+        boolean matchingWorld = server != null && server.getFolderName().equals(cleanExitWorld);
+        boolean matchingServer = server == null && cleanExitServer != null
+                && cleanExitServer.equalsIgnoreCase(currentServer);
+        if (!WorldLoadingConfig.lastExitSnapshot || mc.world == null
                 || !(mc.currentScreen instanceof GuiIngameMenu)
-                || !server.getFolderName().equals(cleanExitWorld)) {
+                || (!matchingWorld && !matchingServer)) {
             cleanCaptureRequested = false;
             return;
         }
@@ -85,6 +104,7 @@ public enum WorldLoadingSnapshotManager {
             NfrUiEnhancements.LOGGER.warn("Could not capture the world-only exit frame", throwable);
             cleanExitFrame = null;
             cleanExitWorld = null;
+            cleanExitServer = null;
         }
     }
 
@@ -95,18 +115,25 @@ public enum WorldLoadingSnapshotManager {
         // launchIntegratedServer starts with loadWorld(null) even though there is no old world.
         // Keep the snapshot prepared at launch HEAD across that harmless cleanup call.
         if (mc.world == null) return;
-        if (!WorldLoadingConfig.lastExitSnapshot || server == null) {
+        ServerData serverData = mc.getCurrentServerData();
+        String address = server == null
+                ? cleanServerAddress(serverData == null ? cleanExitServer : serverData.serverIP) : null;
+        if (!WorldLoadingConfig.lastExitSnapshot || (server == null && address == null)) {
             releaseActive();
             return;
         }
 
-        String folder = server.getFolderName();
-        BufferedImage image = folder != null && folder.equals(cleanExitWorld) ? cleanExitFrame : null;
+        String folder = server == null ? null : server.getFolderName();
+        boolean matchingWorld = folder != null && folder.equals(cleanExitWorld);
+        boolean matchingServer = address != null && address.equalsIgnoreCase(cleanExitServer);
+        BufferedImage image = (matchingWorld || matchingServer) ? cleanExitFrame : null;
         // Never fall back to this framebuffer: loadWorld(null) runs after the pause/menu HUD.
         cleanCaptureRequested = false;
         cleanExitFrame = null;
         cleanExitWorld = null;
-        if (image != null) enqueueWrite(folder, image);
+        cleanExitServer = null;
+        if (image != null && folder != null) enqueueWrite(folder, image);
+        if (image != null && address != null) enqueueServerWrite(address, image);
         releaseActive();
     }
 
@@ -128,6 +155,31 @@ public enum WorldLoadingSnapshotManager {
                     .getDynamicTextureLocation("nfr_world_loading", texture);
         } catch (Throwable throwable) {
             NfrUiEnhancements.LOGGER.warn("Could not load world snapshot {}", file, throwable);
+            releaseActive();
+        }
+    }
+
+    /** Loads the matching client-owned screenshot for a remote multiplayer server. */
+    public void prepareForServer(String address) {
+        releaseActive();
+        if (!WorldLoadingConfig.lastExitSnapshot) return;
+        String safeAddress = cleanServerAddress(address);
+        if (safeAddress == null) return;
+        BufferedImage pending = safeAddress.equalsIgnoreCase(pendingServerAddress)
+                ? pendingServerFrame : null;
+        File file = serverSnapshotFile(address);
+        if (pending == null && (file == null || !file.isFile())) return;
+        try {
+            BufferedImage image = pending == null ? ImageIO.read(file) : pending;
+            if (image == null || image.getWidth() <= 0 || image.getHeight() <= 0) return;
+            textureWidth = image.getWidth();
+            textureHeight = image.getHeight();
+            texture = new DynamicTexture(image);
+            texture.setBlurMipmap(true, false);
+            textureLocation = Minecraft.getMinecraft().getTextureManager()
+                    .getDynamicTextureLocation("nfr_server_loading", texture);
+        } catch (Throwable throwable) {
+            NfrUiEnhancements.LOGGER.warn("Could not load server snapshot {}", file, throwable);
             releaseActive();
         }
     }
@@ -194,6 +246,21 @@ public enum WorldLoadingSnapshotManager {
         });
     }
 
+    private void enqueueServerWrite(String address, BufferedImage image) {
+        File destination = serverSnapshotFile(address);
+        if (destination == null) return;
+        String safeAddress = cleanServerAddress(address);
+        pendingServerAddress = safeAddress;
+        pendingServerFrame = image;
+        writer.execute(() -> {
+            writeAtomically(destination.toPath(), image);
+            if (pendingServerFrame == image) {
+                pendingServerFrame = null;
+                pendingServerAddress = null;
+            }
+        });
+    }
+
     private static void writeAtomically(Path destination, BufferedImage image) {
         Path temporary = null;
         try {
@@ -229,6 +296,39 @@ public enum WorldLoadingSnapshotManager {
         } catch (IOException exception) {
             NfrUiEnhancements.LOGGER.warn("Could not resolve snapshot path for world {}", folder, exception);
             return null;
+        }
+    }
+
+    private static File serverSnapshotFile(String address) {
+        String safeAddress = cleanServerAddress(address);
+        if (safeAddress == null) return null;
+        try {
+            File config = new File(Minecraft.getMinecraft().gameDir, "config").getCanonicalFile();
+            File root = new File(config, SERVER_SNAPSHOT_DIRECTORY).getCanonicalFile();
+            return new File(root, serverSnapshotName(safeAddress));
+        } catch (IOException exception) {
+            NfrUiEnhancements.LOGGER.warn("Could not resolve snapshot path for server {}", address,
+                    exception);
+            return null;
+        }
+    }
+
+    private static String cleanServerAddress(String address) {
+        if (address == null) return null;
+        String result = address.replace('\r', ' ').replace('\n', ' ').trim();
+        return result.isEmpty() ? null : result;
+    }
+
+    private static String serverSnapshotName(String address) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(address.toLowerCase(java.util.Locale.ROOT)
+                            .getBytes(StandardCharsets.UTF_8));
+            StringBuilder result = new StringBuilder(digest.length * 2 + 9);
+            for (byte value : digest) result.append(String.format("%02x", value & 0xFF));
+            return result.append("-last-exit.png").toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
         }
     }
 

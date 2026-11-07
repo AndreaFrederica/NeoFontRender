@@ -19,8 +19,8 @@ import org.apache.logging.log4j.Logger;
         modid = ControllerAddonMod.MOD_ID,
         name = ControllerAddonMod.MOD_NAME,
         version = ControllerAddonMod.VERSION,
-        dependencies = "required-after:neofontrender@[0.5.0,);"
-                + "required-after:neofontrender_ui_enhancements@[0.6.0,)",
+        dependencies = "required-after:neofontrender@[0.6.0,);"
+                + "required-after:neofontrender_ui_enhancements@[0.7.0,)",
         clientSideOnly = true,
         acceptedMinecraftVersions = "[1.12,1.13)"
 )

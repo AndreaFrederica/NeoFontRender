@@ -18,8 +18,27 @@ plugins {
 
 rootProject.name = rootProject.projectDir.getName()
 
+// Inject the single version catalog before project build scripts are evaluated.
+def nfrVersions = new Properties()
+file('gradle/versions.properties').withInputStream { nfrVersions.load(it) }
+gradle.ext.nfrVersions = nfrVersions
+gradle.beforeProject { project ->
+    project.ext.nfrVersion = { key ->
+        project.providers.gradleProperty(key.toString())
+                .getOrElse(gradle.nfrVersions.getProperty(key.toString()))
+    }
+}
+
 include 'addons:ui-enhancements'
+include 'addons:ui-enhancements-text'
 include 'addons:ui-enhancements:tiqian-jvm'
 include 'addons:ui-enhancements-controller'
 include 'addons:ui-enhancements-server'
 include 'addons:electric-elytra'
+include 'addons:mui-xml-showcase'
+include 'addons:inline-content-showcase'
+include 'addons:typst-renderer'
+include 'engine:text-core'
+include 'engine:audio'
+include 'engine:typst-render'
+include 'tools:text-render-lab'

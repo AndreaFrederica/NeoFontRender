@@ -15,4 +15,7 @@ public interface AccessorGuiContainer {
 
     @Invoker("handleMouseClick")
     void nfrUi$invokeHandleMouseClick(Slot slot, int slotId, int mouseButton, ClickType type);
+
+    @Invoker("getSlotAtPosition")
+    Slot nfrUi$getSlotAtPosition(int mouseX, int mouseY);
 }

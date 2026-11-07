@@ -1,5 +1,7 @@
 package neofontrender.core.font.backend;
 
+import neofontrender.api.text.TextVisualBounds;
+
 /**
  * Draw-ready shaped text result produced by a {@link TextRenderBackend}.
  */
@@ -17,6 +19,11 @@ public interface TextRenderResult {
     };
 
     float advance();
+
+    default TextVisualBounds visualBounds() {
+        return new TextVisualBounds(
+                visualLeft(), visualTop(), visualRight(), visualBottom());
+    }
 
     /** Pixel-space bounds relative to the draw origin; advance alone excludes glyph overhang. */
     default float visualLeft() {

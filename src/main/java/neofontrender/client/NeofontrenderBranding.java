@@ -6,7 +6,10 @@ import net.minecraftforge.fml.common.ModContainer;
 
 import java.time.LocalDate;
 
-/** Resolves the client-facing brand from the date and installed companion mods. */
+/**
+ * Resolves the client-facing brand from the date, installed companion mods, and whether Custom Main
+ * Menu currently owns the title screen.
+ */
 public final class NeofontrenderBranding {
     private static final String UI_ENHANCEMENTS_MOD_ID = "neofontrender_ui_enhancements";
     private static final String NOVA_ENGINE_CORE_MOD_ID = "novaeng_core";
@@ -23,7 +26,9 @@ public final class NeofontrenderBranding {
         String brand;
         if (date.getMonthValue() == 4 && date.getDayOfMonth() == 1) {
             brand = "modern";
-        } else if (Loader.isModLoaded(NOVA_ENGINE_CORE_MOD_ID)) {
+        } else if (NeofontrenderCustomMainMenu.brandOverrideActive()
+                && NeofontrenderFancyMenu.brandOverrideActive()
+                && Loader.isModLoaded(NOVA_ENGINE_CORE_MOD_ID)) {
             brand = "nova";
         } else {
             brand = "revo";

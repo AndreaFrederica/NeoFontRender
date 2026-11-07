@@ -50,20 +50,20 @@ public final class FontRenderPipeline {
             GlStateManager.tryBlendFuncSeparate(
                     GL11.GL_ONE,
                     GL11.GL_ONE_MINUS_SRC_ALPHA,
-                    GL11.GL_ONE,
-                    GL11.GL_ZERO);
+                    FramebufferAlphaBlend.SOURCE_FACTOR,
+                    FramebufferAlphaBlend.DESTINATION_FACTOR);
         } else {
             GlStateManager.tryBlendFuncSeparate(
                     GL11.GL_SRC_ALPHA,
                     GL11.GL_ONE_MINUS_SRC_ALPHA,
-                    GL11.GL_ONE,
-                    GL11.GL_ZERO);
+                    FramebufferAlphaBlend.SOURCE_FACTOR,
+                    FramebufferAlphaBlend.DESTINATION_FACTOR);
         }
 
         if (enhanced && NeofontrenderConfig.shaderTextPipeline() && state.previousProgram == 0) {
             int shader = getOrCreateProgram();
             if (shader != 0) {
-                GL20.glUseProgram(shader);
+                OptionalGlProgramBinding.useProgram(shader);
                 if (textureUniform >= 0) {
                     GL20.glUniform1i(textureUniform, 0);
                 }
@@ -221,7 +221,7 @@ public final class FontRenderPipeline {
                 return;
             }
             if (shaderChanged) {
-                GL20.glUseProgram(previousProgram);
+                OptionalGlProgramBinding.useProgram(previousProgram);
             }
             // GlStateManager caches blend factors in 1.12. Restoring through raw GL would make its
             // cache disagree with the driver and cause the next premultiplied draw to use SRC_ALPHA.
@@ -231,6 +231,13 @@ public final class FontRenderPipeline {
             }
             if (alphaTestEnabled) GlStateManager.enableAlpha();
             else GlStateManager.disableAlpha();
+        }
+
+        /** Opens Actinium's optional external-program scope only for the custom shader path. */
+        public OptionalGlProgramBinding.ExternalProgramScope preserveExternalProgram() {
+            return shaderChanged
+                    ? OptionalGlProgramBinding.preserveExternalProgram()
+                    : OptionalGlProgramBinding.ExternalProgramScope.NOOP;
         }
 
         private static int getInteger(int key, int fallback) {
