@@ -173,7 +173,7 @@ jobs:
             target: x86_64-apple-darwin
             resource: macos-x86_64
             library: libneofontrender_cosmic.dylib
-          - runner: macos-14
+          - runner: macos-15
             target: aarch64-apple-darwin
             resource: macos-aarch64
             library: libneofontrender_cosmic.dylib
