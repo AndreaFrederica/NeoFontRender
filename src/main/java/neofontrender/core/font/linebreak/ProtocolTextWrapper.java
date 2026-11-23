@@ -7,6 +7,7 @@ import neofontrender.text.layout.CjkLineBreakProvider;
 
 import java.text.BreakIterator;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -57,6 +58,14 @@ public final class ProtocolTextWrapper {
     public static boolean hasActiveProtocol(String source) {
         if (source == null || source.isEmpty()) return false;
         return FormattedColorWrapping.prepare(source) != source;
+    }
+
+    /** Wraps ordinary formatted text using the same width as callers' layout calculations. */
+    public static List<String> wrapLegacy(FontRenderer font, String source, int maxWidth) {
+        if (source.indexOf('\n') < 0 && font.getStringWidth(source) <= maxWidth) {
+            return Arrays.asList(source);
+        }
+        return wrap(font, source, maxWidth, false);
     }
 
     /**

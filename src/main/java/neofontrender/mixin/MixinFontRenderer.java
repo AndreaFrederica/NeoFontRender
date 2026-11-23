@@ -16,6 +16,7 @@ import neofontrender.api.text.paragraph.TextParagraphProvider;
 import neofontrender.api.text.paragraph.TextParagraphApi;
 import neofontrender.api.text.route.TextRenderRouteApi;
 import neofontrender.api.text.route.TextRenderRouteLayout;
+import neofontrender.api.text.route.TextRenderRouteRequest;
 import neofontrender.build.BuildFeatures;
 import neofontrender.core.font.support.ScopedFontRenderBypass;
 import neofontrender.core.font.FontManager;
@@ -316,22 +317,27 @@ public abstract class MixinFontRenderer {
         }
     }
 
-    /**
-     * The raw implementation of this method slices the source with an index that was measured
-     * on a different prefix, so a color protocol can be cut in half and its tail renders as
-     * literal markup. Rebuild every line from the parsed draw state instead.
-     */
     @Inject(method = "listFormattedStringToWidth", at = @At("HEAD"), cancellable = true)
-    private void sfr$listProtocolAware(String text, int wrapWidth,
-                                       CallbackInfoReturnable<List<String>> cir) {
+    private void sfr$listFormattedLines(String text, int wrapWidth,
+                                         CallbackInfoReturnable<List<String>> cir) {
         if (text == null || SFR_WRAP_DEPTH.get() > 0) return;
         if (!sfr$isAnyActive()) return;
-        if (!ProtocolTextWrapper.enabled(ProtocolTextWrapper.Scope.OTHER)) return;
-        if (!ProtocolTextWrapper.hasActiveProtocol(text)) return;
+        FontRenderer font = (FontRenderer) (Object) this;
+        boolean protocolAware = ProtocolTextWrapper.enabled(ProtocolTextWrapper.Scope.OTHER)
+                && ProtocolTextWrapper.hasActiveProtocol(text);
+        if (!protocolAware) {
+            // Cleanroom's list wrapper adds the integer width of each character. Use the
+            // same shaped advance as getStringWidth, including for ordinary short labels.
+            TextRenderRouteLayout routed = TextRenderRouteApi.layout(font, text);
+            // The line serializer supports legacy styles and the enabled color protocols.
+            // Other structured syntax can carry data that cannot be serialized as styles.
+            if (!routed.handled()
+                    || TextRenderRouteRequest.requiresStructuredRendering(routed.structuredText(), false)) return;
+        }
         SFR_WRAP_DEPTH.set(1);
         try {
-            cir.setReturnValue(ProtocolTextWrapper.wrap(
-                    (FontRenderer) (Object) this, text, wrapWidth, false));
+            cir.setReturnValue(protocolAware ? ProtocolTextWrapper.wrap(font, text, wrapWidth, false)
+                    : ProtocolTextWrapper.wrapLegacy(font, text, wrapWidth));
         } finally {
             SFR_WRAP_DEPTH.remove();
         }

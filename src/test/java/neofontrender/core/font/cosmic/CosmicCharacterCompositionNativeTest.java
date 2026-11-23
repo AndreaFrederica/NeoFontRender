@@ -50,6 +50,21 @@ class CosmicCharacterCompositionNativeTest {
     }
 
     @Test
+    void obfuscationCanReplaceAGlyphWithAUniqueAdvance() {
+        float width = CosmicNative.measureSized(engine, "W", 0, 9);
+        String[] candidates = CosmicTextRenderer.obfuscatedCandidates(width,
+                text -> CosmicNative.measureSized(engine, text, 0, 9));
+
+        assertEquals("W", candidates[0]);
+        assertTrue(candidates.length >= 2);
+        assertNotEquals("W", candidates[1]);
+        assertTrue(Math.abs(CosmicNative.measureSized(engine, candidates[1], 0, 9) - width) > 0.01F);
+        assertFalse(java.util.Arrays.equals(
+                CosmicNative.renderSized(engine, "W", 0xFFFFFFFF, 0, 9, 4),
+                CosmicNative.renderSized(engine, candidates[1], 0xFFFFFFFF, 0, 9, 4)));
+    }
+
+    @Test
     void independentBackgroundEngineMatchesForegroundPixelsWhileForegroundMeasures() throws Exception {
         byte[] font;
         try (InputStream stream = getClass().getResourceAsStream("/assets/neofontrender/fonts/noto_sans_sc-regular.otf")) {

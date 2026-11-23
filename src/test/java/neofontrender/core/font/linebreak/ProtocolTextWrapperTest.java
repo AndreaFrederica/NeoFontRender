@@ -130,6 +130,23 @@ class ProtocolTextWrapperTest {
     }
 
     @Test
+    void wrapsShortLabelsUsingTheWholeStringWidth() {
+        StructuredFont fractional = (StructuredFont) font;
+        fractional.advance = 7.5F;
+        for (String label : List.of("金制背包", "记忆设置", "设置标签页")) {
+            int limit = fractional.getStringWidth(label) + 1;
+            assertEquals(List.of(label.substring(0, label.length() - 1),
+                    label.substring(label.length() - 1)), font.listFormattedStringToWidth(label, limit));
+            assertEquals(List.of(label), ProtocolTextWrapper.wrapLegacy(font, label, limit));
+        }
+        String styled = "\u00a7e\u00a7k金制背包";
+        assertEquals(List.of(styled), ProtocolTextWrapper.wrapLegacy(font, styled, 31));
+        List<String> lines = ProtocolTextWrapper.wrapLegacy(font, styled, 23);
+        assertEquals(List.of("金制背", "包"), visibleLines(lines));
+        assertPreserved(styled, lines);
+    }
+
+    @Test
     void everyScopeIsEnabledByDefault() {
         for (ProtocolTextWrapper.Scope scope : ProtocolTextWrapper.Scope.values()) {
             assertTrue(ProtocolTextWrapper.enabled(scope), "scope " + scope + " should default to enabled");
@@ -184,11 +201,18 @@ class ProtocolTextWrapperTest {
 
     /** Five pixels per visible code point, parsed through the same protocol pipeline. */
     private static final class StructuredFont extends FontRenderer {
+        private float advance;
+
         private StructuredFont() { super(null, null, null, false); }
+
+        @Override public int getCharWidth(char character) {
+            return (int) Math.ceil(advance == 0.0F ? 5.0F : advance);
+        }
 
         @Override public int getStringWidth(String source) {
             LayoutText parsed = LayoutText.process(source);
-            return parsed.visibleText().codePointCount(0, parsed.visibleText().length()) * 5;
+            return (int) Math.ceil(parsed.visibleText().codePointCount(0, parsed.visibleText().length())
+                    * (advance == 0.0F ? 5.0F : advance));
         }
     }
 }

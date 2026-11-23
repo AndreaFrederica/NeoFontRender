@@ -63,6 +63,7 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.ToDoubleFunction;
 import org.lwjgl.BufferUtils;
 
 /** cosmic-text shaping/Swash rasterization with Minecraft's LWJGL2 texture submission. */
@@ -3272,15 +3273,37 @@ public final class CosmicTextRenderer implements TextRenderBackend {
         }
     }
 
+    private static final String OBFUSCATED_CANDIDATES =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                    + "\u5929\u5730\u7384\u9ec4\u5b87\u5b99\u6d2a\u8352\u4e2d\u6587\u6d4b\u8bd5";
+
+    static String[] obfuscatedCandidates(float target, ToDoubleFunction<String> measure) {
+        List<ObfuscatedCandidate> candidates = new ArrayList<>(OBFUSCATED_CANDIDATES.length());
+        for (int index = 0; index < OBFUSCATED_CANDIDATES.length(); index++) {
+            String glyph = String.valueOf(OBFUSCATED_CANDIDATES.charAt(index));
+            double width = measure.applyAsDouble(glyph);
+            if (width > 0.0 && Double.isFinite(width)) {
+                candidates.add(new ObfuscatedCandidate(glyph, Math.abs(width - target)));
+            }
+        }
+        if (candidates.isEmpty()) return new String[]{"?"};
+        candidates.sort((left, right) -> Double.compare(left.distance(), right.distance()));
+        // The single closest glyph can be the original glyph in a proportional font.
+        // Include the next closest match so the slot can change across frames.
+        double cutoff = candidates.get(Math.min(1, candidates.size() - 1)).distance() + 0.01;
+        return candidates.stream().takeWhile(candidate -> candidate.distance() <= cutoff)
+                .map(ObfuscatedCandidate::glyph).toArray(String[]::new);
+    }
+
+    private record ObfuscatedCandidate(String glyph, double distance) {}
+
     private final class AnimatedObfuscatedResult implements TextRenderResult {
-        private static final String CANDIDATES =
-                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-                        + "\u5929\u5730\u7384\u9ec4\u5b87\u5b99\u6d2a\u8352\u4e2d\u6587\u6d4b\u8bd5";
         private final FormattedRun run;
         private final float fontSize;
         private final float scale;
         private final List<ObfuscatedSlot> slots = new ArrayList<>();
         private final float advance;
+        private final float positionScale;
 
         private AnimatedObfuscatedResult(FormattedRun run, float fontSize, float scale) {
             this.run = run;
@@ -3291,14 +3314,15 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                 int codePoint = run.text.codePointAt(index);
                 String original = new String(Character.toChars(codePoint));
                 float width = measureAtSize(original, run.bold, run.italic, fontSize);
-                if (!Character.isWhitespace(codePoint)) {
+                if (width > 0.0F && !Character.isWhitespace(codePoint) && !Character.isSpaceChar(codePoint)) {
                     slots.add(new ObfuscatedSlot(cursor, width,
                             candidatesNearestTo(width, run.bold, run.italic, fontSize), index));
                 }
                 cursor += width;
                 index += Character.charCount(codePoint);
             }
-            advance = cursor;
+            advance = measureAtSize(run.text, run.bold, run.italic, fontSize);
+            positionScale = cursor > 0.0F ? advance / cursor : 1.0F;
         }
 
         @Override public float advance() { return advance; }
@@ -3314,7 +3338,8 @@ public final class CosmicTextRenderer implements TextRenderBackend {
                 String selected = slot.candidates[Math.floorMod(mixed, slot.candidates.length)];
                 TextRenderResult glyph = renderAtScale(selected, run.argb, run.bold, run.italic,
                         run.underline, run.strikethrough, fontSize, scale);
-                glyph.draw(x + slot.x, y, alpha);
+                float slotWidth = slot.advance * positionScale;
+                glyph.draw(x + slot.x * positionScale + (slotWidth - glyph.advance()) * 0.5F, y, alpha);
             }
         }
 
@@ -3323,20 +3348,7 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             ObfuscatedCandidateKey key = new ObfuscatedCandidateKey(target, bold, italic, size);
             String[] cached = obfuscatedCandidateCache.get(key);
             if (cached != null) return cached;
-            List<String> candidates = new ArrayList<>();
-            float best = Float.POSITIVE_INFINITY;
-            for (int index = 0; index < CANDIDATES.length();) {
-                int codePoint = CANDIDATES.codePointAt(index);
-                String value = new String(Character.toChars(codePoint));
-                float delta = Math.abs(measureAtSize(value, bold, italic, size) - target);
-                if (delta + 0.01F < best) {
-                    candidates.clear();
-                    best = delta;
-                }
-                if (Math.abs(delta - best) <= 0.01F) candidates.add(value);
-                index += Character.charCount(codePoint);
-            }
-            String[] result = candidates.isEmpty() ? new String[]{"?"} : candidates.toArray(new String[0]);
+            String[] result = obfuscatedCandidates(target, value -> measureAtSize(value, bold, italic, size));
             obfuscatedCandidateCache.put(key, result);
             return result;
         }
