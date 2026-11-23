@@ -89,32 +89,30 @@ public class GuiNewChatTC extends GuiNewChat implements ChatScreen {
 //            return;
 
         ChatBox chatbox = chat.getChatBox();
+        // This also detects GUI/chat scale changes and settles resolution profiles without disk IO per frame.
+        neofontrender.addons.chat.ChatLayoutMemoryController.frame(chatbox);
         float scale = chatbox.getScale();
 
-        GlStateManager.popMatrix(); // ignore what GuiIngame did.
         GlStateManager.pushMatrix();
+        try {
+            GlStateManager.scale(scale, scale, 1.0F);
+            GlStateManager.translate(chatbox.getBounds().x, chatbox.getBounds().y, 0.0F);
 
-        // Scale it accordingly
-        GlStateManager.scale(scale, scale, 1.0F);
-
-        // Make the upper left corner of the panel (0,0).
-        GlStateManager.translate(chatbox.getBounds().x, chatbox.getBounds().y, 0.0F);
-
-        // getEventX/Y only describes the last queued mouse event and becomes stale while the
-        // pointer is stationary. Hover rendering needs the current cursor converted from display
-        // pixels into this scaled ChatBox's local coordinate system every frame.
-        ScaledResolution resolution = new ScaledResolution(mc);
-        int screenMouseX = Mouse.getX() * resolution.getScaledWidth() / mc.displayWidth;
-        int screenMouseY = resolution.getScaledHeight()
-                - Mouse.getY() * resolution.getScaledHeight() / mc.displayHeight - 1;
-        mnm.mods.util.ILocation actual = chatbox.getActualLocation();
-        float actualScale = Math.max(0.01F, chatbox.getScale());
-        int mouseX = Math.round((screenMouseX - actual.getXPos()) / actualScale);
-        int mouseY = Math.round((screenMouseY - actual.getYPos()) / actualScale);
-        chatbox.drawComponent(mouseX, mouseY);
-
-        GlStateManager.popMatrix();
-        GlStateManager.pushMatrix(); // push to avoid gl errors
+            // getEventX/Y only describes the last queued mouse event and becomes stale while the
+            // pointer is stationary. Hover rendering needs the current cursor converted from
+            // display pixels into this scaled ChatBox's local coordinate system every frame.
+            ScaledResolution resolution = new ScaledResolution(mc);
+            int screenMouseX = Mouse.getX() * resolution.getScaledWidth() / mc.displayWidth;
+            int screenMouseY = resolution.getScaledHeight()
+                    - Mouse.getY() * resolution.getScaledHeight() / mc.displayHeight - 1;
+            mnm.mods.util.ILocation actual = chatbox.getActualLocation();
+            float actualScale = Math.max(0.01F, chatbox.getScale());
+            int mouseX = Math.round((screenMouseX - actual.getXPos()) / actualScale);
+            int mouseY = Math.round((screenMouseY - actual.getYPos()) / actualScale);
+            chatbox.drawComponent(mouseX, mouseY);
+        } finally {
+            GlStateManager.popMatrix();
+        }
     }
 
     @Override

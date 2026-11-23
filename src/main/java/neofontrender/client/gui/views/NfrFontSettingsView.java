@@ -15,6 +15,7 @@ import neofontrender.client.gui.component.base.NfrLabeledTextField;
 import neofontrender.client.gui.component.base.NfrLayout;
 import neofontrender.client.gui.component.base.NfrScrollablePane;
 import neofontrender.client.gui.component.base.NfrStringValue;
+import neofontrender.client.gui.component.base.NfrSettingsSearch;
 import neofontrender.client.gui.component.business.NfrFontForm;
 import neofontrender.client.gui.component.business.NfrFontList;
 import neofontrender.client.gui.component.business.NfrFontMetricsFields;
@@ -169,7 +170,8 @@ public final class NfrFontSettingsView extends ParentWidget<NfrFontSettingsView>
                 .bounds(1.0D, 16.0D);
         slider.tooltip(new RichTooltip().showUpTimer(8)
                 .addLine(tr("neofontrender.tooltip.oversample")));
-        return slider.size(260, 24);
+        return NfrSettingsSearch.register(slider.size(260, 24),
+                () -> tr("neofontrender.gui.label.oversample"), "oversample", "raster", "scale");
     }
 
     private static TextFieldWidget field(Supplier<String> getter, Consumer<String> setter, int maxLength) {
@@ -177,7 +179,8 @@ public final class NfrFontSettingsView extends ParentWidget<NfrFontSettingsView>
     }
 
     private static NfrLabeledTextField labeled(String key, TextFieldWidget field) {
-        return new NfrLabeledTextField(tr(key), field);
+        return NfrSettingsSearch.register(new NfrLabeledTextField(tr(key), field),
+                () -> tr(key), key, "text", "font");
     }
 
     private static TextWidget label(String text) {

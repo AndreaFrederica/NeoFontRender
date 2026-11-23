@@ -8,8 +8,10 @@ import net.minecraftforge.client.event.GuiOpenEvent;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import neofontrender.addons.inline.InlineGlyphMiddleware;
+import neofontrender.addons.inline.TextPipelineMiddleware;
+import neofontrender.addons.inline.EmbeddedContentConfig;
 import neofontrender.addons.mixin.AccessorGuiChatFeatures;
+import neofontrender.addons.build.UiBuildFeatures;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
@@ -19,6 +21,12 @@ import java.util.List;
 /** Gosling-style visual alias picker integrated into UIE's existing chat completion flow. */
 public final class EmojiCompletionController {
     public static final EmojiCompletionController INSTANCE = new EmojiCompletionController();
+
+    /** Diagnostic switch, -Dnfr.debug.commandCompletion=true. Logs emoji suggestion lookups. */
+    private static final boolean DEBUG_EMOJI =
+            UiBuildFeatures.DIAGNOSTIC_LOGS && Boolean.getBoolean("nfr.debug.commandCompletion");
+    private static final org.apache.logging.log4j.Logger LOGGER =
+            org.apache.logging.log4j.LogManager.getLogger("neofontrender.uie.completion");
 
     private final List<String> matches = new ArrayList<>();
     private GuiTextField input;
@@ -72,7 +80,8 @@ public final class EmojiCompletionController {
 
     private void refresh(GuiTextField field) {
         input = field;
-        if ((!EnhancedChatFeatures.goslingImageGlyphs() && !EnhancedChatFeatures.localImageGlyphs())
+        if ((!EnhancedChatFeatures.goslingImageGlyphs() && !EnhancedChatFeatures.localImageGlyphs()
+                && !EmbeddedContentConfig.svgEnabled())
                 || field == null || !field.isFocused()) {
             closeCandidates();
             return;
@@ -88,7 +97,13 @@ public final class EmojiCompletionController {
         }
         String prefix = token.substring(1);
         if (!prefix.matches("[\\w+\\-]*")) { closeCandidates(); return; }
-        List<String> next = InlineGlyphMiddleware.emojiSuggestions(prefix, 200);
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG_EMOJI) {
+            LOGGER.info("[emojiProbe] refresh prefix=[{}] text=[{}]", prefix, text);
+        }
+        List<String> next = TextPipelineMiddleware.emojiSuggestions(prefix, 200);
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && DEBUG_EMOJI) {
+            LOGGER.info("[emojiProbe] suggestions n={}", next == null ? -1 : next.size());
+        }
         if (!next.equals(matches)) {
             String old = selected >= 0 && selected < matches.size() ? matches.get(selected) : "";
             matches.clear();

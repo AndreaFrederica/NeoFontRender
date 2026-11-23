@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 public final class ExternalChatCompat {
-    private static final String SALUTATION_CHAT_PACKAGE =
-            "speiger.src.salutation.client.gui.chat.";
     private static final Map<GuiTextField, InputGeometry> SALUTATION_INPUTS =
             new WeakHashMap<>();
 
@@ -17,20 +15,6 @@ public final class ExternalChatCompat {
 
     public static boolean tabbyChatLoaded() {
         return Loader.isModLoaded("tabbychat2") && !BundledModRegistry.isTabbyChatBundled();
-    }
-
-    public static boolean salutationLoaded() {
-        return Loader.isModLoaded("salutation") && !BundledModRegistry.isSalutationBundled();
-    }
-
-    /**
-     * Salutation wraps GuiChat with its own command-completion screen. Use a name check instead of
-     * linking its classes so this addon remains fully optional when Salutation is not installed.
-     */
-    public static boolean isSalutationChatScreen(Object screen) {
-        return screen != null
-                && screen.getClass().getName().startsWith(SALUTATION_CHAT_PACKAGE)
-                && salutationLoaded();
     }
 
     public static void updateSalutationInput(

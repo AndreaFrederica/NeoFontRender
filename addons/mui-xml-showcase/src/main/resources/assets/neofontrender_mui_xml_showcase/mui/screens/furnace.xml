@@ -1,0 +1,28 @@
+<mui:container xmlns:mui="urn:mui" xmlns:nfr="urn:neofontrender:components" class="device-shell furnace-shell">
+    <mui:text class="device-title" text="XML Furnace"/>
+    <mui:text class="device-subtitle" text="Vanilla recipes and fuel run on the server"/>
+    <mui:button id="device-close" class="device-close" onclick="device:close">
+        <mui:text text="x"/>
+    </mui:button>
+
+    <mui:container id="input-slot" class="single-slot input-slot">
+        <mui:item-slot id="machine-input-slot" class="machine-slot input-slot-view" bind="machine.input"/>
+    </mui:container>
+    <mui:container id="fuel-slot" class="single-slot fuel-slot">
+        <mui:item-slot id="machine-fuel-slot" class="machine-slot fuel-slot-view" bind="machine.fuel"/>
+    </mui:container>
+    <mui:container id="output-slot" class="single-slot output-slot">
+        <mui:item-slot id="machine-output-slot" class="machine-slot output-slot-view" bind="machine.output"/>
+    </mui:container>
+    <mui:container id="cook-progress-host" class="progress-host cook-progress">
+        <mui:progress bind="cook_progress"/>
+    </mui:container>
+    <mui:container id="burn-progress-host" class="progress-host burn-progress">
+        <mui:progress bind="burn_progress"/>
+    </mui:container>
+    <mui:text class="input-caption" text="Input"/>
+    <mui:text class="fuel-caption" text="Fuel"/>
+    <mui:text class="output-caption" text="Output"/>
+
+    <nfr:player-inventory/>
+</mui:container>

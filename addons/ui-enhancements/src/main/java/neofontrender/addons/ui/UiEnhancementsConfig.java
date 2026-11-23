@@ -13,7 +13,7 @@ public final class UiEnhancementsConfig {
     public static synchronized void open() {
         if (file == null) {
             file = NfrConfigApi.builder(NfrUiEnhancements.MOD_ID)
-                    .storage(NfrConfigStorage.INDEPENDENT)
+                    .storage(NfrConfigStorage.LAYERED)
                     .fileName("neofontrender-ui-enhancements.toml")
                     .open();
         }
@@ -23,4 +23,5 @@ public final class UiEnhancementsConfig {
         open();
         return file;
     }
+    public static synchronized void promoteUserToPack() { file().promoteUserToPack(); }
 }

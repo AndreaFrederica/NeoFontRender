@@ -14,6 +14,7 @@ import neofontrender.addons.hud.api.HudBarRegistry;
 import neofontrender.addons.hud.api.HudBarSide;
 import neofontrender.addons.hud.api.HudBarValue;
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.build.UiBuildFeatures;
 
 final class HudBarsHandler {
     private final Arc3DHudBarRenderer renderer = new Arc3DHudBarRenderer();
@@ -28,7 +29,9 @@ final class HudBarsHandler {
         if (HudBarsConfig.yieldToClassicBar && Loader.isModLoaded("classicbar")) {
             if (!loggedClassicBar) {
                 loggedClassicBar = true;
-                NfrUiEnhancements.LOGGER.info("Classic Bar detected; Arc3D status bars will yield to it");
+                if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                    NfrUiEnhancements.LOGGER.info("Classic Bar detected; Arc3D status bars will yield to it");
+                }
             }
             return;
         }

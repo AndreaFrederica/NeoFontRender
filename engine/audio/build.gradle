@@ -1,0 +1,61 @@
+plugins { id 'java-library'; id 'com.gradleup.shadow' }
+
+repositories { mavenCentral() }
+java { toolchain { languageVersion = JavaLanguageVersion.of(nfrVersion('java_version').toInteger()) } }
+tasks.withType(JavaCompile).configureEach { options.release = 11 }
+tasks.named('compileTestJava') { options.release = 25 }
+dependencies {
+    implementation 'dev.arbjerg:lavaplayer:2.2.7'
+    // LavaPlayer uses SLF4J 2.x; bundle a relocated provider so the standalone
+    // shaded engine does not fall back to the NOP implementation.
+    implementation 'org.slf4j:slf4j-simple:2.0.13'
+    // Reads ID3, Vorbis Comment and MP4 tags; LavaPlayer does not expose album metadata.
+    api 'net.jthink:jaudiotagger:3.0.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:6.0.3'
+}
+test { useJUnitPlatform() }
+
+shadowJar {
+    archiveClassifier = 'bundled'
+    mergeServiceFiles()
+    // UIE registers LocalAudioSourceManager directly. Do not distribute the unused
+    // YouTube login implementation, which forwards credentials to a third party,
+    // or the convenience registrar that references those removed classes.
+    exclude 'com/sedmelluq/discord/lavaplayer/source/youtube/**'
+    exclude 'com/sedmelluq/discord/lavaplayer/source/AudioSourceManagers.class'
+    // JNI entry-point packages and native resource paths must remain unchanged.
+    ['org.apache.http', 'org.apache.commons', 'com.fasterxml.jackson', 'org.slf4j',
+     'org.mozilla', 'org.jsoup', 'org.json', 'net.iharder'].each {
+        relocate it, 'neofontrender.audio.internal.' + it
+    }
+    exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class'
+    doLast {
+        new java.util.zip.ZipFile(archiveFile.get().asFile).withCloseable { jar ->
+            jar.entries().each { entry ->
+                if (!entry.directory && entry.name.endsWith('.class')) {
+                    def bytes = jar.getInputStream(entry).withCloseable { it.bytes }
+                    def contents = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+                    if (contents.contains('youtube.minerea.su') ||
+                            contents.contains('com/sedmelluq/discord/lavaplayer/source/youtube/')) {
+                        throw new GradleException("Forbidden YouTube code or reference in audio bundle: ${entry.name}")
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Run the decoder regressions against the actual stripped distribution, rather
+// than the unfiltered Maven dependency used by the normal development classpath.
+tasks.register('testBundledAudio', Test) {
+    dependsOn tasks.named('shadowJar'), tasks.named('testClasses')
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = files(sourceSets.test.output, tasks.named('shadowJar').flatMap { it.archiveFile }) +
+            configurations.testRuntimeClasspath.filter {
+                it.name.startsWith('junit-') || it.name.startsWith('opentest4j-') ||
+                        it.name.startsWith('apiguardian-')
+            }
+    useJUnitPlatform()
+}
+tasks.named('check') { dependsOn tasks.named('testBundledAudio') }

@@ -39,6 +39,7 @@ public class ChatTray extends GuiPanel implements IGui {
 
     private final static TexturedModal MODAL = new TexturedModal(ChatBox.GUI_LOCATION, 0, 14, 254, 202);
     public static final int VERTICAL_WIDTH = 92;
+    static final int CONTROL_SIZE = 12;
 
     private GuiPanel tabList = new GuiPanel(new FlowLayout());
     private GuiComponent handle = new ChatHandle();
@@ -198,9 +199,17 @@ public class ChatTray extends GuiPanel implements IGui {
         public void drawComponent(int mouseX, int mouseY) {
             GlStateManager.enableBlend();
             int opac = (int)(mc.gameSettings.chatOpacity * 255) << 24;
-            drawBorders(4, 4, 8, 8, 0x999999 | opac);
+            // drawBorders extends one pixel above/left: this occupies [2, 9] on both axes.
+            drawBorders(3, 3, 9, 9, 0x999999 | opac);
             if (ChatKeepOpenPolicy.shouldKeepOpen(TabbyChat.getInstance().getChat().getActiveChannel())) {
                 Gui.drawRect(5, 5, 7, 7, 0xaaaaaa | opac);
+            }
+            if (isHovered()) {
+                String label = I18n.format(ChatKeepOpenPolicy.shouldKeepOpen(
+                        TabbyChat.getInstance().getChat().getActiveChannel())
+                        ? "neofontrender_ui_enhancements.chat.controls.keep_open.disable"
+                        : "neofontrender_ui_enhancements.chat.controls.keep_open.enable");
+                drawCaption(label, -mc.fontRenderer.getStringWidth(label) - 6, CONTROL_SIZE);
             }
         }
 
@@ -213,7 +222,7 @@ public class ChatTray extends GuiPanel implements IGui {
         @Override
         @Nonnull
         public Dimension getMinimumSize() {
-            return new Dimension(8, 8);
+            return new Dimension(CONTROL_SIZE, CONTROL_SIZE);
         }
     }
 
@@ -237,9 +246,9 @@ public class ChatTray extends GuiPanel implements IGui {
                 drawHorizontalLine(2, 8, 9, color);
                 drawVerticalLine(2, 4, 9, color);
                 drawVerticalLine(8, 7, 9, color);
-                drawHorizontalLine(5, 10, 2, color);
-                drawVerticalLine(10, 2, 7, color);
-                drawHorizontalLine(7, 10, 5, color);
+                drawHorizontalLine(5, 9, 2, color);
+                drawVerticalLine(9, 2, 7, color);
+                drawHorizontalLine(7, 9, 5, color);
                 drawVerticalLine(7, 2, 5, color);
             }
             if (isHovered()) {
@@ -258,7 +267,7 @@ public class ChatTray extends GuiPanel implements IGui {
         @Override
         @Nonnull
         public Dimension getMinimumSize() {
-            return new Dimension(12, 12);
+            return new Dimension(CONTROL_SIZE, CONTROL_SIZE);
         }
     }
 

@@ -4,9 +4,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.inventory.GuiEditSign;
 import net.minecraft.tileentity.TileEntitySign;
-import net.minecraft.util.ChatAllowedCharacters;
 import net.minecraft.util.text.TextComponentString;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.core.font.linebreak.SignPasteLayout;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.io.IOException;
+import java.util.List;
 
 @Mixin(GuiEditSign.class)
 public abstract class MixinGuiEditSign {
@@ -35,58 +36,25 @@ public abstract class MixinGuiEditSign {
         ci.cancel();
     }
 
+    /**
+     * Wraps the complete candidate line instead of accepting code points one at a time:
+     * a color token's measured width changes once the token completes, so incremental
+     * acceptance could split the token and store a line that renders literal markup.
+     */
     private void paste(String clipboard) {
         if (clipboard == null || clipboard.isEmpty()) {
             return;
         }
-
         int line = clampLine(this.editLine);
-        String current = lineText(line);
-        String normalized = clipboard.replace("\r\n", "\n").replace('\r', '\n');
-
-        for (int offset = 0; offset < normalized.length(); ) {
-            int codePoint = normalized.codePointAt(offset);
-            offset += Character.charCount(codePoint);
-
-            if (codePoint == '\n') {
-                setLine(line, current);
-                line++;
-                if (line > 3) {
-                    this.editLine = 3;
-                    return;
-                }
-                current = lineText(line);
-                continue;
-            }
-
-            String text = new String(Character.toChars(codePoint));
-            if (!isAllowed(text)) {
-                continue;
-            }
-
-            String appended = current + text;
-            if (!fitsSignLine(appended)) {
-                setLine(line, current);
-                line++;
-                if (line > 3) {
-                    this.editLine = 3;
-                    return;
-                }
-                current = lineText(line);
-                appended = current + text;
-                if (!fitsSignLine(appended)) {
-                    continue;
-                }
-            }
-            current = appended;
+        List<String> produced = SignPasteLayout.layout(
+                Minecraft.getMinecraft().fontRenderer, lineText(line), clipboard,
+                SignPasteLayout.LINE_WIDTH, SignPasteLayout.LINE_COUNT - line);
+        for (int index = 0; index < produced.size(); index++) {
+            setLine(line + index, produced.get(index));
         }
-
-        setLine(line, current);
-        this.editLine = clampLine(line);
-    }
-
-    private boolean fitsSignLine(String text) {
-        return Minecraft.getMinecraft().fontRenderer.getStringWidth(text) <= 90;
+        if (!produced.isEmpty()) {
+            this.editLine = clampLine(line + produced.size() - 1);
+        }
     }
 
     private String lineText(int line) {
@@ -98,15 +66,6 @@ public abstract class MixinGuiEditSign {
 
     private void setLine(int line, String text) {
         this.tileSign.signText[line] = new TextComponentString(text);
-    }
-
-    private static boolean isAllowed(String text) {
-        for (int i = 0; i < text.length(); i++) {
-            if (!ChatAllowedCharacters.isAllowedCharacter(text.charAt(i))) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private static int clampLine(int line) {

@@ -167,7 +167,8 @@ public class FontTexture implements AutoCloseable {
                     this.location,
                     u0, u1, v0, v1,
                     left, right, up, down,
-                    this.rasterScale
+                    this.rasterScale,
+                    FontPixelUtils.visibleBounds(pixels, pw, ph, left, up, right, down)
             );
         }
 

@@ -57,6 +57,21 @@ The optional experimental image-glyph middleware includes the emoji and picker d
 from TeamFruit's Emojicord/Gosling project and retains compatibility with its message tags.
 Those portions are distributed under the MIT License in `LICENSE-Gosling-Emojicord.txt`.
 
+# Experimental embedded content
+
+SVG parsing and rasterization use JSVG 2.1.0 by Jannis Weis, distributed under the
+MIT License. The complete license is included in `META-INF/LICENSE-JSVG.txt`.
+
+LaTeX parsing and rasterization use the unmodified JLaTeXMath 1.0.7 library and its
+Greek and Cyrillic font artifacts, distributed under GPLv2 with the Classpath Exception
+and the bundled font licenses. The upstream notice is included in
+`META-INF/LICENSE-JLaTeXMath.txt`; the individual font license texts also remain inside
+the embedded upstream JARs.
+
+The bundled default formula font Fira Math Regular is Copyright (C) 2018--2020 Xiangdong
+Zeng and is distributed under the SIL Open Font License 1.1. The complete license is
+included in `META-INF/LICENSE-FiraMath.txt`.
+
 # Camera platform sources
 
 The internal Shoulder Surfing-derived camera rig and collision sampling are

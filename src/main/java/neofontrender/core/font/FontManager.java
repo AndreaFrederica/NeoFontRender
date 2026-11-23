@@ -8,13 +8,16 @@ import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.api.color.TextColorPaletteRegistry;
+import neofontrender.api.text.route.TextRenderRouteApi;
 import neofontrender.core.font.awt.FontSet;
 import neofontrender.core.font.awt.FontTexture;
 import neofontrender.core.font.awt.GlyphProvider;
 import neofontrender.core.font.awt.AwtModernTextRenderer;
+import neofontrender.core.font.awt.AwtAsyncFallbackGlyphRenderer;
 import neofontrender.core.font.awt.providers.AwtTtfGlyphProvider;
 import neofontrender.core.font.awt.providers.MissingGlyphProvider;
 import neofontrender.core.font.backend.TextRenderBackend;
+import neofontrender.core.font.compat.CompatFontEngine;
 import neofontrender.core.font.cosmic.CosmicRuntimeSupport;
 import neofontrender.core.font.cosmic.CosmicTextRenderer;
 import neofontrender.core.font.support.FontRenderTuning;
@@ -27,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -50,6 +54,9 @@ public class FontManager implements AutoCloseable {
     private FontSet defaultFontSet;
     private TextRenderBackend textRenderBackend;
     private AwtModernTextRenderer modernAwtTextRenderer;
+    private volatile CompatFontEngine compatEngine;
+    /** Lazily created compat provider for a scoped draw (for example the F3 overlay). */
+    private volatile CompatFontEngine scopedCompatEngine;
     private final Map<String, TextRenderBackend> scopedBackends = new LinkedHashMap<>();
     private volatile boolean active = false;
     private volatile boolean cosmicActive = false;
@@ -58,6 +65,7 @@ public class FontManager implements AutoCloseable {
 
     // Async loading state
     private final AtomicReference<CompletableFuture<Void>> pendingReload = new AtomicReference<>();
+    private final AtomicLong reloadGeneration = new AtomicLong();
     private volatile boolean asyncLoading = false;
 
     private FontManager() {
@@ -86,47 +94,103 @@ public class FontManager implements AutoCloseable {
     /**
      * Synchronous font loading. Blocks the calling thread.
      */
-    public synchronized void reloadSync(IResourceManager resourceManager) {
-        closeInternal();
-        this.resourceManager = resourceManager;
-        reloadInternal(resourceManager);
+    public void reloadSync(IResourceManager resourceManager) {
+        long generation = beginReload();
+        if (NeofontrenderConfig.useAwtEngine()) {
+            PreparedAwtBackend prepared = null;
+            try {
+                prepared = prepareAwtBackend(resourceManager, generation);
+                synchronized (this) {
+                    if (generation == reloadGeneration.get()) {
+                        activatePreparedAwt(prepared, false);
+                        this.resourceManager = resourceManager;
+                    } else if (prepared != null) {
+                        prepared.close();
+                    }
+                }
+            } catch (Throwable error) {
+                if (prepared != null) prepared.close();
+                neofontrender.NeoFontRender.LOGGER.error(
+                        "Font reload failed; keeping the previous renderer", error);
+            }
+            return;
+        }
+        synchronized (this) {
+            closeInternal();
+            this.resourceManager = resourceManager;
+            reloadInternal(resourceManager, generation);
+        }
     }
 
     /**
-     * Asynchronous font loading. Returns immediately, loading happens on background thread.
-     * Call {@link #tick()} from the render thread to check completion.
+     * Prepare AWT providers off-thread, then create/upload the atlas and swap backends on the
+     * Minecraft client thread. The currently active backend remains usable until that swap.
      */
-    public void reloadAsync(IResourceManager resourceManager) {
-        // Cancel any pending reload
-        CompletableFuture<Void> pending = pendingReload.getAndSet(null);
-        if (pending != null) {
-            pending.cancel(false);
+    public synchronized void reloadAsync(IResourceManager resourceManager) {
+        if (!NeofontrenderConfig.useAwtEngine()) {
+            reloadSync(resourceManager);
+            return;
         }
-
-        this.resourceManager = resourceManager;
+        long generation = beginReload();
         this.asyncLoading = true;
 
         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+            PreparedAwtBackend prepared = null;
             try {
-                // Phase 1: Load font files and compute metrics (background thread)
-                // This is the expensive part - file I/O and AWT font loading
                 neofontrender.NeoFontRender.LOGGER.info("Starting async font loading...");
-                reloadSync(resourceManager);
-                neofontrender.NeoFontRender.LOGGER.info("Async font loading complete");
-            } catch (Exception e) {
-                neofontrender.NeoFontRender.LOGGER.error("Async font loading failed", e);
-                // Fall back to vanilla
-                synchronized (this) {
-                    active = false;
-                    cosmicActive = false;
-                    backendVersion = "vanilla Minecraft font renderer";
+                prepared = prepareAwtBackend(resourceManager, generation);
+                if (generation != reloadGeneration.get()) {
+                    if (prepared != null) prepared.close();
+                    return;
                 }
-            } finally {
-                asyncLoading = false;
+                PreparedAwtBackend ready = prepared;
+                Minecraft.getMinecraft().addScheduledTask(
+                        () -> finishAsyncAwtReload(resourceManager, ready, generation));
+            } catch (Throwable error) {
+                if (prepared != null) prepared.close();
+                Minecraft.getMinecraft().addScheduledTask(
+                        () -> failAsyncAwtReload(error, generation));
             }
         }, BACKGROUND_EXECUTOR);
 
-        pendingReload.set(future);
+        if (!pendingReload.compareAndSet(null, future)) future.cancel(false);
+    }
+
+    private synchronized long beginReload() {
+        TextRenderRouteApi.invalidate();
+        long generation = reloadGeneration.incrementAndGet();
+        CompletableFuture<Void> pending = pendingReload.getAndSet(null);
+        if (pending != null) pending.cancel(false);
+        asyncLoading = false;
+        return generation;
+    }
+
+    private synchronized void finishAsyncAwtReload(IResourceManager resourceManager,
+                                                    PreparedAwtBackend prepared, long generation) {
+        if (generation != reloadGeneration.get()) {
+            if (prepared != null) prepared.close();
+            return;
+        }
+        try {
+            activatePreparedAwt(prepared, false);
+            this.resourceManager = resourceManager;
+            neofontrender.NeoFontRender.LOGGER.info("Async font loading complete");
+        } catch (Throwable error) {
+            if (prepared != null) prepared.close();
+            neofontrender.NeoFontRender.LOGGER.error(
+                    "Async font activation failed; keeping the previous renderer", error);
+        } finally {
+            pendingReload.set(null);
+            asyncLoading = false;
+        }
+    }
+
+    private synchronized void failAsyncAwtReload(Throwable error, long generation) {
+        if (generation != reloadGeneration.get()) return;
+        pendingReload.set(null);
+        asyncLoading = false;
+        neofontrender.NeoFontRender.LOGGER.error(
+                "Async font preparation failed; keeping the previous renderer", error);
     }
 
     /**
@@ -136,21 +200,43 @@ public class FontManager implements AutoCloseable {
         return asyncLoading;
     }
 
-    /**
-     * Called from the render thread to handle async loading completion.
-     * No-op if async loading is not in progress.
-     */
+    /** Retained as a render-loop lifecycle hook; activation is scheduled directly on Minecraft. */
     public void tick() {
-        // Nothing to do - the async future handles completion
-        // This method exists for future use if we need render-thread finalization
     }
 
-    private void reloadInternal(IResourceManager resourceManager) {
+    private void reloadInternal(IResourceManager resourceManager, long generation) {
         if (NeofontrenderConfig.useVanillaEngine()) {
             this.active = false;
             this.cosmicActive = false;
             this.backendVersion = "vanilla Minecraft font renderer";
             resetVanillaFontTextureFiltering();
+            return;
+        }
+
+        if (NeofontrenderConfig.useCompatEngine()) {
+            closeInternal();
+            this.active = false;
+            this.cosmicActive = false;
+            try {
+                this.compatEngine = new CompatFontEngine(resourceManager);
+                if (this.compatEngine.isReady()) {
+                    this.backendVersion = "Compatibility glyph provider";
+                    neofontrender.NeoFontRender.LOGGER.info(
+                            "FontManager reloaded with the compatibility glyph provider");
+                } else {
+                    this.compatEngine.close();
+                    this.compatEngine = null;
+                    this.backendVersion = "vanilla Minecraft font renderer";
+                    neofontrender.NeoFontRender.LOGGER.warn(
+                            "Compatibility provider unavailable; keeping vanilla rendering");
+                }
+            } catch (Throwable error) {
+                this.compatEngine = null;
+                this.backendVersion = "vanilla Minecraft font renderer";
+                neofontrender.NeoFontRender.LOGGER.error(
+                        "Failed to initialize the compatibility provider; keeping vanilla rendering",
+                        error);
+            }
             return;
         }
 
@@ -185,6 +271,32 @@ public class FontManager implements AutoCloseable {
             }
         }
 
+        activatePreparedAwt(prepareAwtBackend(resourceManager, generation), preferCosmic);
+    }
+
+    private PreparedAwtBackend prepareAwtBackend(IResourceManager resourceManager, long generation) {
+        return prepareAwtBackend(resourceManager, generation, true,
+                4096);
+    }
+
+    /** Creates the glyph-only atlas used while an asynchronous Cosmic result is pending. */
+    public synchronized AwtAsyncFallbackGlyphRenderer createAsyncFallbackGlyphRenderer(
+            IResourceManager resourceManager) {
+        if (textureManager == null || resourceManager == null) return null;
+        PreparedAwtBackend prepared = null;
+        try {
+            prepared = prepareAwtBackend(resourceManager, reloadGeneration.get(), false,
+                    NeofontrenderConfig.asyncFallbackGlyphMaxEntries());
+            if (prepared == null) return null;
+            FontSet set = prepared.takeFontSet();
+            return new AwtAsyncFallbackGlyphRenderer(set, NeofontrenderConfig.adaptiveFontSize());
+        } finally {
+            if (prepared != null) prepared.close();
+        }
+    }
+
+    private PreparedAwtBackend prepareAwtBackend(IResourceManager resourceManager, long generation,
+                                                 boolean buildWidthBuckets, int glyphCacheLimit) {
         List<GlyphProvider> providers = new ArrayList<>();
 
         boolean ttfLoaded = false;
@@ -235,26 +347,46 @@ public class FontManager implements AutoCloseable {
 
         if (!ttfLoaded) {
             neofontrender.NeoFontRender.LOGGER.warn("No TTF font loaded; keeping vanilla rendering");
-            this.active = false;
-            this.backendVersion = "vanilla Minecraft font renderer";
-            return;
+            return null;
         }
 
         providers.add(new MissingGlyphProvider());
-
-        FontTexture atlas = new FontTexture(textureManager, new net.minecraft.util.ResourceLocation("neofontrender", "default"),
+        FontTexture atlas = new FontTexture(textureManager,
+                new ResourceLocation("neofontrender", "default/reload_" + generation),
                 rasterScale * FontRenderTuning.textureScale(rasterScale));
-        this.defaultFontSet = new FontSet(providers, atlas);
-        if (NeofontrenderConfig.performancePrewarmBasicLatin()) {
-            this.defaultFontSet.prewarmBasicLatin();
+        try {
+            return new PreparedAwtBackend(new FontSet(providers, atlas, glyphCacheLimit,
+                    glyphCacheLimit, buildWidthBuckets), providers.size());
+        } catch (RuntimeException | Error error) {
+            for (GlyphProvider provider : providers) provider.close();
+            throw error;
         }
+    }
+
+    /** Must run on the Minecraft client thread because prewarming allocates and uploads GL atlases. */
+    private void activatePreparedAwt(PreparedAwtBackend prepared, boolean cosmicFallback) {
+        if (prepared == null) {
+            closeInternal();
+            this.active = false;
+            this.cosmicActive = false;
+            this.backendVersion = "vanilla Minecraft font renderer";
+            return;
+        }
+        if (NeofontrenderConfig.performancePrewarmBasicLatin()) {
+            prepared.fontSet.prewarmBasicLatin();
+        }
+        closeInternal();
+        this.defaultFontSet = prepared.takeFontSet();
         this.active = true;
         this.cosmicActive = false;
         this.backendVersion = "AWT Java2D font renderer";
-        if (preferCosmic) {
-            neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with {} AWT providers after native backend fallback", providers.size());
+        if (cosmicFallback) {
+            neofontrender.NeoFontRender.LOGGER.info(
+                    "FontManager reloaded with {} AWT providers after native backend fallback",
+                    prepared.providerCount);
         } else {
-            neofontrender.NeoFontRender.LOGGER.info("FontManager reloaded with {} providers", providers.size());
+            neofontrender.NeoFontRender.LOGGER.info(
+                    "FontManager reloaded with {} providers", prepared.providerCount);
         }
     }
 
@@ -313,6 +445,49 @@ public class FontManager implements AutoCloseable {
         return cosmicActive && textRenderBackend != null;
     }
 
+    public boolean isCompatActive() {
+        CompatFontEngine engine = compatEngine;
+        return engine != null && engine.isReady();
+    }
+
+    public CompatFontEngine getCompatEngine() {
+        return compatEngine;
+    }
+
+    /**
+     * Engine the compatibility leaf hooks must draw with in the current scope. Outside a scope
+     * this is the active compat engine; inside a COMPAT scope it is a lazily created second
+     * provider so the overlay can use compat while the rest of the game uses another engine.
+     */
+    public synchronized CompatFontEngine getCompatEngineForRendering() {
+        if (neofontrender.core.font.support.FontEngineScope.current()
+                != neofontrender.core.font.support.FontEngineScope.Mode.COMPAT) {
+            return compatEngine;
+        }
+        if (compatEngine != null && compatEngine.isReady()) return compatEngine;
+        if (scopedCompatEngine == null && resourceManager != null) {
+            CompatFontEngine created = new CompatFontEngine(resourceManager);
+            if (created.isReady()) {
+                scopedCompatEngine = created;
+            } else {
+                created.close();
+            }
+        }
+        return scopedCompatEngine;
+    }
+
+    /** Scoped cosmic backend for a draw scope; reuses the active native backend when possible. */
+    public synchronized TextRenderBackend getScopedCosmicBackend() {
+        if (textRenderBackend != null && textRenderBackend.isReady() && isCosmicActive()) {
+            return textRenderBackend;
+        }
+        return getScopedTextBackend(neofontrender.api.text.FontRenderSpec.builder()
+                .backend(neofontrender.api.text.FontRenderBackend.COSMIC)
+                .fonts(NeofontrenderConfig.fontFamily())
+                .size(NeofontrenderConfig.fontSize())
+                .build());
+    }
+
     /** Human-readable renderer implementation and ABI shown in the F3 diagnostics. */
     public synchronized String getBackendVersion() {
         return backendVersion;
@@ -320,6 +495,20 @@ public class FontManager implements AutoCloseable {
 
     public synchronized boolean isTextBackendActive() {
         return cosmicActive && textRenderBackend != null;
+    }
+
+    /**
+     * Backend identity and readiness snapshot used by layout caches.
+     *
+     * <p>A layout measured while the configured backend was unavailable (or before a
+     * resource reload finished) must not be reused once that backend becomes ready; the
+     * reload generation and the active flags together identify that state.</p>
+     */
+    public long backendState() {
+        return (reloadGeneration.get() << 3)
+                | (isSfrActive() ? 1L : 0L)
+                | (isCosmicActive() ? 2L : 0L)
+                | (isTextBackendActive() ? 4L : 0L);
     }
 
     public synchronized FontSet getDefaultFontSet() {
@@ -351,6 +540,9 @@ public class FontManager implements AutoCloseable {
      * and vanilla selections receive a lazily-created AWT adapter with true per-size atlases.
      */
     public synchronized TextRenderBackend getModernTextBackend() {
+        if (NeofontrenderConfig.useCompatEngine()) {
+            return null;
+        }
         if (textRenderBackend != null && textRenderBackend.isReady()
                 && textRenderBackend.supportsNativeFontSize()) {
             return textRenderBackend;
@@ -397,11 +589,22 @@ public class FontManager implements AutoCloseable {
     }
 
     @Override
-    public synchronized void close() {
-        closeInternal();
+    public void close() {
+        beginReload();
+        synchronized (this) {
+            closeInternal();
+        }
     }
 
     private void closeInternal() {
+        if (compatEngine != null) {
+            compatEngine.close();
+            compatEngine = null;
+        }
+        if (scopedCompatEngine != null) {
+            scopedCompatEngine.close();
+            scopedCompatEngine = null;
+        }
         if (modernAwtTextRenderer != null) {
             modernAwtTextRenderer.close();
             modernAwtTextRenderer = null;
@@ -410,15 +613,38 @@ public class FontManager implements AutoCloseable {
             defaultFontSet.close();
             defaultFontSet = null;
         }
-        if (textRenderBackend != null) {
-            textRenderBackend.close();
-            textRenderBackend = null;
-        }
+        TextRenderBackend primaryBackend = textRenderBackend;
+        if (primaryBackend != null) primaryBackend.close();
+        textRenderBackend = null;
         for (TextRenderBackend backend : scopedBackends.values()) {
-            if (backend != textRenderBackend) backend.close();
+            if (backend != primaryBackend) backend.close();
         }
         scopedBackends.clear();
         active = false;
         cosmicActive = false;
+    }
+
+    private static final class PreparedAwtBackend implements AutoCloseable {
+        private FontSet fontSet;
+        private final int providerCount;
+
+        private PreparedAwtBackend(FontSet fontSet, int providerCount) {
+            this.fontSet = fontSet;
+            this.providerCount = providerCount;
+        }
+
+        private FontSet takeFontSet() {
+            FontSet prepared = fontSet;
+            fontSet = null;
+            return prepared;
+        }
+
+        @Override
+        public void close() {
+            if (fontSet != null) {
+                fontSet.close();
+                fontSet = null;
+            }
+        }
     }
 }

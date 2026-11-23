@@ -70,7 +70,7 @@ public final class ElectricElytraConfig {
     public static synchronized void load() {
         if (file == null) {
             file = NfrConfigApi.builder(ElectricElytraMod.MOD_ID)
-                    .storage(NfrConfigStorage.INDEPENDENT)
+                    .storage(NfrConfigStorage.LAYERED)
                     .fileName("neofontrender-electric-elytra.toml")
                     .open();
         }

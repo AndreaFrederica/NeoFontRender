@@ -9,19 +9,30 @@ import java.util.function.Function;
 public final class ChatSelectionModel<T> {
     private Cursor<T> anchor;
     private Cursor<T> focus;
+    private List<T> cachedRangeLines;
+    private Map<T, Range> cachedRanges;
+    private Cursor<T> cachedAnchor;
+    private Cursor<T> cachedFocus;
+    private List<T> cachedIndexLines;
+    private Map<T, Integer> cachedIndices;
 
     public void clear() {
         anchor = null;
         focus = null;
+        invalidateCache();
     }
 
     public void begin(T line, int position) {
         anchor = new Cursor<>(line, position);
         focus = new Cursor<>(line, position);
+        invalidateCache();
     }
 
     public void update(T line, int position) {
-        if (anchor != null) focus = new Cursor<>(line, position);
+        if (anchor != null) {
+            focus = new Cursor<>(line, position);
+            invalidateCache();
+        }
     }
 
     public boolean hasSelection() {
@@ -48,6 +59,8 @@ public final class ChatSelectionModel<T> {
     public Map<T, Range> ranges(List<T> bottomUpLines, Function<T, String> text) {
         Selection<T> selection = selection(bottomUpLines);
         if (selection == null) return Collections.emptyMap();
+        if (bottomUpLines == cachedRangeLines && anchor == cachedAnchor && focus == cachedFocus
+                && cachedRanges != null) return cachedRanges;
         Map<T, Range> ranges = new IdentityHashMap<>();
         for (int index = selection.topIndex; index >= selection.bottomIndex; index--) {
             T item = bottomUpLines.get(index);
@@ -56,13 +69,57 @@ public final class ChatSelectionModel<T> {
             int end = index == selection.bottomIndex ? selection.bottomPosition : length;
             ranges.put(item, new Range(clamp(start, length), clamp(end, length)));
         }
+        cachedRangeLines = bottomUpLines;
+        cachedAnchor = anchor;
+        cachedFocus = focus;
+        cachedRanges = ranges;
         return ranges;
+    }
+
+    private void invalidateCache() {
+        cachedRangeLines = null;
+        cachedRanges = null;
+        cachedAnchor = null;
+        cachedFocus = null;
+    }
+
+    /** Computes selection ranges only for rows currently being drawn. */
+    public Map<T, Range> visibleRanges(List<T> bottomUpLines, List<T> visibleLines,
+                                       Function<T, String> text) {
+        Selection<T> selection = selection(bottomUpLines);
+        if (selection == null || visibleLines.isEmpty()) return Collections.emptyMap();
+        if (bottomUpLines != cachedIndexLines || cachedIndices == null) {
+            Map<T, Integer> indices = new IdentityHashMap<>();
+            for (int index = 0; index < bottomUpLines.size(); index++) {
+                indices.put(bottomUpLines.get(index), index);
+            }
+            cachedIndexLines = bottomUpLines;
+            cachedIndices = indices;
+        }
+        Map<T, Range> result = new IdentityHashMap<>();
+        for (T line : visibleLines) {
+            Integer index = cachedIndices.get(line);
+            if (index == null || index < selection.bottomIndex || index > selection.topIndex) continue;
+            int length = text.apply(line).length();
+            int start = index == selection.topIndex ? selection.topPosition : 0;
+            int end = index == selection.bottomIndex ? selection.bottomPosition : length;
+            result.put(line, new Range(clamp(start, length), clamp(end, length)));
+        }
+        return result;
     }
 
     private Selection<T> selection(List<T> lines) {
         if (!hasSelection()) return null;
-        int anchorIndex = lines.indexOf(anchor.line);
-        int focusIndex = lines.indexOf(focus.line);
+        if (lines != cachedIndexLines || cachedIndices == null) {
+            Map<T, Integer> indices = new IdentityHashMap<>();
+            for (int index = 0; index < lines.size(); index++) indices.put(lines.get(index), index);
+            cachedIndexLines = lines;
+            cachedIndices = indices;
+        }
+        Integer anchorPosition = cachedIndices.get(anchor.line);
+        Integer focusPosition = cachedIndices.get(focus.line);
+        int anchorIndex = anchorPosition == null ? -1 : anchorPosition;
+        int focusIndex = focusPosition == null ? -1 : focusPosition;
         if (anchorIndex < 0 || focusIndex < 0) return null;
         if (anchorIndex > focusIndex || anchorIndex == focusIndex && anchor.position <= focus.position) {
             return new Selection<>(anchorIndex, anchor.position, focusIndex, focus.position);

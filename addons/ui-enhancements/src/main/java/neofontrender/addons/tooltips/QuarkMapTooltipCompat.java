@@ -35,7 +35,7 @@ public final class QuarkMapTooltipCompat {
         QuarkMapTooltipLayout.Placement placement = QuarkMapTooltipLayout.placeForTooltip(
                 resolution.getScaledWidth(), resolution.getScaledHeight(),
                 event.getX(), event.getY(), event.getWidth(),
-                TooltipConfig.horizontalPadding, TooltipConfig.verticalPadding);
+                TooltipConfig.leftPadding, TooltipConfig.rightPadding, TooltipConfig.topPadding);
         drawPanel(minecraft, event.getStack(), mapData, placement);
         return true;
     }

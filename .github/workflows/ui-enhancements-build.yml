@@ -10,12 +10,14 @@ on:
       - 'addons/ui-enhancements-server/**'
       - 'addons/electric-elytra/**'
       - '.gitmodules'
+      - 'external/ModularUI'
       - 'src/main/java/icyllis/arc3d/**'
       - 'src/main/java/neofontrender/api/**'
       - 'src/main/resources/META-INF/LICENSE-Arc3D.txt'
       - 'build.gradle'
       - 'settings.gradle'
       - 'gradle.properties'
+      - 'gradle/versions.properties'
       - 'gradle/**'
       - 'gradlew'
       - 'gradlew.bat'
@@ -32,12 +34,14 @@ on:
       - 'addons/ui-enhancements-server/**'
       - 'addons/electric-elytra/**'
       - '.gitmodules'
+      - 'external/ModularUI'
       - 'src/main/java/icyllis/arc3d/**'
       - 'src/main/java/neofontrender/api/**'
       - 'src/main/resources/META-INF/LICENSE-Arc3D.txt'
       - 'build.gradle'
       - 'settings.gradle'
       - 'gradle.properties'
+      - 'gradle/versions.properties'
       - 'gradle/**'
       - 'gradlew'
       - 'gradlew.bat'
@@ -70,7 +74,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build pinned ModularUI dependency
+      - name: Build ModularUI submodule dependency
         id: modularui
         uses: ./.github/actions/prepare-modularui
 
@@ -81,13 +85,18 @@ jobs:
           java-version: '25'
           cache: gradle
 
+      - name: Install audio test encoder
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+
       - name: Build and stage bundle
         run: >-
           ./gradlew
+          :engine:audio:testBundledAudio
           :addons:ui-enhancements:stageUiEnhancementsRelease
           :addons:ui-enhancements-controller:stageUiEnhancementsControllerRelease
           :addons:ui-enhancements-server:stageUiEnhancementsServerRelease
           :addons:electric-elytra:stageElectricElytraRelease
+          :addons:mui-xml-showcase:stageMuiXmlShowcaseRelease
           --no-daemon
 
       - name: Validate installable JARs
@@ -97,7 +106,7 @@ jobs:
         run: |
           set -euo pipefail
           read_property() {
-            sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" gradle.properties | tr -d '\r' | xargs
+            sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" gradle/versions.properties | tr -d '\r' | xargs
           }
           UIE_VERSION="$(read_property ui_enhancements_version)"
           expected=(
@@ -106,6 +115,7 @@ jobs:
             "build/release/uie-controller/neofontrender-ui-enhancements-controller-$(read_property ui_enhancements_controller_version).jar"
             "build/release/uie-server/neofontrender-ui-enhancements-server-$(read_property ui_enhancements_server_version).jar"
             "build/release/electric-elytra/neofontrender-electric-elytra-$(read_property electric_elytra_version).jar"
+            "build/release/mui-xml-showcase/neofontrender-mui-xml-showcase-$(read_property mui_xml_showcase_version).jar"
           )
           for jar in "${expected[@]}"; do
             test -s "$jar" || { echo "Missing release JAR: $jar" >&2; exit 1; }
@@ -114,6 +124,7 @@ jobs:
 
           jar="build/release/uie/neofontrender-ui-enhancements-${UIE_VERSION}.jar"
           entries="$(jar tf "$jar")"
+          if grep -q "^ae2/" <<<"$entries"; then echo "AE2 compile signatures must not be bundled" >&2; exit 1; fi
           grep -Fxq 'mcmod.info' <<<"$entries"
           grep -Fxq 'mixins.neofontrender_ui_enhancements.json' <<<"$entries"
           grep -Fxq 'neofontrender/addons/mixin/UiEnhancementsMixinLoader.class' <<<"$entries"
@@ -131,5 +142,6 @@ jobs:
             build/release/uie-controller/*.jar
             build/release/uie-server/*.jar
             build/release/electric-elytra/*.jar
+            build/release/mui-xml-showcase/*.jar
           if-no-files-found: error
           retention-days: 14

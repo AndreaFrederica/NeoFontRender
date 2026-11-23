@@ -55,21 +55,11 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
         private final boolean originalHorizon = FlightRollConfig.hudHorizon;
         private final boolean originalInputIndicator = FlightRollConfig.hudInputIndicator;
         private final int originalHudScale = FlightRollConfig.hudScalePercent;
+        private final boolean originalHudMaskEnabled = FlightRollConfig.hudMaskEnabled;
+        private final int originalHudMaskColor = FlightRollConfig.hudMaskColor;
+        private final int originalHudMaskOpacity = FlightRollConfig.hudMaskOpacityPercent;
         private final boolean originalHideVanillaCrosshair =
                 CrosshairConfig.hideVanillaDuringFlightHud;
-        private final boolean originalHideForgeCrosshair =
-                CrosshairConfig.hideForgeLayerDuringFlightHud;
-        private final boolean originalHideHotbar = FlightRollConfig.hudHideHotbar;
-        private final boolean originalHidePlayerStatus = FlightRollConfig.hudHidePlayerStatus;
-        private final boolean originalHideExperience = FlightRollConfig.hudHideExperience;
-        private final boolean originalHideChat = FlightRollConfig.hudHideChat;
-        private final boolean originalHideBossBars = FlightRollConfig.hudHideBossBars;
-        private final boolean originalHidePotionIcons = FlightRollConfig.hudHidePotionIcons;
-        private final boolean originalHideSubtitles = FlightRollConfig.hudHideSubtitles;
-        private final boolean originalHidePlayerList = FlightRollConfig.hudHidePlayerList;
-        private final boolean originalHideText = FlightRollConfig.hudHideText;
-        private final boolean originalHideFirstPersonHand =
-                FlightRollConfig.hudHideFirstPersonHand;
 
         @Override public IWidget createView(NfrSettingsPageContext context) {
             NfrSettingsControls c = context.controls();
@@ -195,45 +185,26 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
                             50.0D, 100.0D, 1.0D,
                             () -> FlightRollConfig.hudScalePercent + "%",
                             "tooltip.flight_roll.hud_scale"))
+                    .add(c.toggleText(() -> tr("gui.flight_roll.hud_mask"),
+                            () -> tr("tooltip.flight_roll.hud_mask"),
+                            () -> FlightRollConfig.hudMaskEnabled,
+                            value -> FlightRollConfig.hudMaskEnabled = value))
+                    .add(c.colorText("flight_hud_mask_color",
+                            () -> tr("gui.flight_roll.hud_mask_color"),
+                            () -> FlightRollConfig.hudMaskColor,
+                            value -> FlightRollConfig.hudMaskColor = 0xFF000000 | (value & 0x00FFFFFF),
+                            false).size(260, 24))
+                    .add(slider("gui.flight_roll.hud_mask_opacity",
+                            () -> FlightRollConfig.hudMaskOpacityPercent,
+                            value -> FlightRollConfig.hudMaskOpacityPercent = (int) Math.round(value),
+                            0.0D, 100.0D, 1.0D,
+                            () -> FlightRollConfig.hudMaskOpacityPercent + "%",
+                            "tooltip.flight_roll.hud_mask_opacity"))
                     .add(hudVisibilityToggle(c, "hud_hide_crosshair",
                             "tooltip.crosshair.hide_flight",
                             () -> CrosshairConfig.hideVanillaDuringFlightHud,
                             value -> CrosshairConfig.hideVanillaDuringFlightHud = value))
-                    .add(hudVisibilityToggle(c, "hud_hide_mod_crosshairs",
-                            "tooltip.crosshair.hide_forge_flight",
-                            () -> CrosshairConfig.hideForgeLayerDuringFlightHud,
-                            value -> CrosshairConfig.hideForgeLayerDuringFlightHud = value))
-                    .add(hudVisibilityToggle(c, "hud_hide_hotbar",
-                            () -> FlightRollConfig.hudHideHotbar,
-                            value -> FlightRollConfig.hudHideHotbar = value))
-                    .add(hudVisibilityToggle(c, "hud_hide_player_status",
-                            () -> FlightRollConfig.hudHidePlayerStatus,
-                            value -> FlightRollConfig.hudHidePlayerStatus = value))
-                    .add(hudVisibilityToggle(c, "hud_hide_experience",
-                            () -> FlightRollConfig.hudHideExperience,
-                            value -> FlightRollConfig.hudHideExperience = value))
-                    .add(hudVisibilityToggle(c, "hud_hide_chat",
-                            () -> FlightRollConfig.hudHideChat,
-                            value -> FlightRollConfig.hudHideChat = value))
-                    .add(hudVisibilityToggle(c, "hud_hide_boss_bars",
-                            () -> FlightRollConfig.hudHideBossBars,
-                            value -> FlightRollConfig.hudHideBossBars = value))
-                    .add(hudVisibilityToggle(c, "hud_hide_potion_icons",
-                            () -> FlightRollConfig.hudHidePotionIcons,
-                            value -> FlightRollConfig.hudHidePotionIcons = value))
-                    .add(hudVisibilityToggle(c, "hud_hide_subtitles",
-                            () -> FlightRollConfig.hudHideSubtitles,
-                            value -> FlightRollConfig.hudHideSubtitles = value))
-                    .add(hudVisibilityToggle(c, "hud_hide_player_list",
-                            () -> FlightRollConfig.hudHidePlayerList,
-                            value -> FlightRollConfig.hudHidePlayerList = value))
-                    .add(hudVisibilityToggle(c, "hud_hide_text",
-                            () -> FlightRollConfig.hudHideText,
-                            value -> FlightRollConfig.hudHideText = value))
-                    .add(hudVisibilityToggle(c, "hud_hide_first_person_hand",
-                            "tooltip.flight_roll.hud_hide_first_person_hand",
-                            () -> FlightRollConfig.hudHideFirstPersonHand,
-                            value -> FlightRollConfig.hudHideFirstPersonHand = value));
+                    ;
             return new PageView(grid);
         }
 
@@ -271,18 +242,10 @@ final class FlightRollSettingsPage implements NfrSettingsPage {
             FlightRollConfig.hudHorizon = originalHorizon;
             FlightRollConfig.hudInputIndicator = originalInputIndicator;
             FlightRollConfig.hudScalePercent = originalHudScale;
+            FlightRollConfig.hudMaskEnabled = originalHudMaskEnabled;
+            FlightRollConfig.hudMaskColor = originalHudMaskColor;
+            FlightRollConfig.hudMaskOpacityPercent = originalHudMaskOpacity;
             CrosshairConfig.hideVanillaDuringFlightHud = originalHideVanillaCrosshair;
-            CrosshairConfig.hideForgeLayerDuringFlightHud = originalHideForgeCrosshair;
-            FlightRollConfig.hudHideHotbar = originalHideHotbar;
-            FlightRollConfig.hudHidePlayerStatus = originalHidePlayerStatus;
-            FlightRollConfig.hudHideExperience = originalHideExperience;
-            FlightRollConfig.hudHideChat = originalHideChat;
-            FlightRollConfig.hudHideBossBars = originalHideBossBars;
-            FlightRollConfig.hudHidePotionIcons = originalHidePotionIcons;
-            FlightRollConfig.hudHideSubtitles = originalHideSubtitles;
-            FlightRollConfig.hudHidePlayerList = originalHidePlayerList;
-            FlightRollConfig.hudHideText = originalHideText;
-            FlightRollConfig.hudHideFirstPersonHand = originalHideFirstPersonHand;
         }
     }
 

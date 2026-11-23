@@ -1,10 +1,14 @@
 package neofontrender.core.font.awt;
 
+import neofontrender.api.text.TextVisualBounds;
+
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
 import neofontrender.core.font.support.FontRenderPipeline;
+import neofontrender.core.font.support.FontRenderPerfStats;
+import neofontrender.core.font.support.OptionalGlProgramBinding;
 import neofontrender.core.font.support.FontRenderTuning;
 
 /**
@@ -25,11 +29,20 @@ public class BakedGlyph {
     private final float up;
     private final float down;
     private final float rasterScale;
+    private final TextVisualBounds visibleBounds;
 
     public BakedGlyph(ResourceLocation textureLocation,
                       float u0, float u1, float v0, float v1,
                       float left, float right, float up, float down,
                       float rasterScale) {
+        this(textureLocation, u0, u1, v0, v1, left, right, up, down, rasterScale,
+                new TextVisualBounds(left, up, right, down));
+    }
+
+    public BakedGlyph(ResourceLocation textureLocation,
+                      float u0, float u1, float v0, float v1,
+                      float left, float right, float up, float down, float rasterScale,
+                      TextVisualBounds visibleBounds) {
         this.textureLocation = textureLocation;
         this.u0 = u0;
         this.u1 = u1;
@@ -40,6 +53,7 @@ public class BakedGlyph {
         this.up = up;
         this.down = down;
         this.rasterScale = rasterScale;
+        this.visibleBounds = visibleBounds;
     }
 
     public ResourceLocation getTextureLocation() {
@@ -50,20 +64,29 @@ public class BakedGlyph {
         return rasterScale;
     }
 
+    public float getU0() { return u0; }
+    public float getU1() { return u1; }
+    public float getV0() { return v0; }
+    public float getV1() { return v1; }
+    public float getLeft() { return left; }
+    public float getRight() { return right; }
+    public float getUp() { return up; }
+    public float getDown() { return down; }
+
     public float visualLeft() {
-        return left;
+        return visibleBounds.left;
     }
 
     public float visualRight() {
-        return right;
+        return visibleBounds.right;
     }
 
     public float visualTop() {
-        return up;
+        return visibleBounds.top;
     }
 
     public float visualBottom() {
-        return down;
+        return visibleBounds.bottom;
     }
 
     /**
@@ -79,12 +102,26 @@ public class BakedGlyph {
      */
     public void render(boolean italic, float x, float y,
                        float red, float green, float blue, float alpha) {
+        renderClipped(italic, x, y, red, green, blue, alpha, 0.0F, 0.0F);
+    }
+
+    /** Draws a vertically cropped glyph for TextAnimator's glitch slice layers. */
+    public void renderClipped(boolean italic, float x, float y,
+                              float red, float green, float blue, float alpha,
+                              float maskTop, float maskBottom) {
         float f = FontRenderTuning.alignToPixel(x + this.left);
         float f1 = FontRenderTuning.alignToPixel(x + this.right);
         float f2 = this.up;
         float f3 = this.down;
         float f4 = FontRenderTuning.alignToPixel(y + f2);
         float f5 = FontRenderTuning.alignToPixel(y + f3);
+        float clippedTop = Math.max(0.0F, Math.min(1.0F, maskTop));
+        float clippedBottom = Math.max(0.0F, Math.min(1.0F, maskBottom));
+        float clippedV0 = this.v0 + (this.v1 - this.v0) * clippedTop;
+        float clippedV1 = this.v1 - (this.v1 - this.v0) * clippedBottom;
+        f4 += (f5 - f4) * clippedTop;
+        f5 -= (f5 - FontRenderTuning.alignToPixel(y + f2)) * clippedBottom;
+        if (f5 <= f4 || clippedV1 <= clippedV0) return;
         float slant0 = italic ? 1.0F - 0.25F * f2 : 0.0F;
         float slant1 = italic ? 1.0F - 0.25F * f3 : 0.0F;
         FontRenderTuning.applyBoundTextureFilter(rasterScale);
@@ -92,29 +129,35 @@ public class BakedGlyph {
         // AWT glyph pages are normalized to white straight-alpha in AwtTtfGlyphProvider.
         // Do not use premultiplied blending here: GL_ONE blending makes
         // low-coverage white edge texels contribute at full strength and produces a bright halo.
-        try (FontRenderPipeline.State ignored = FontRenderPipeline.begin(rasterScale, false)) {
+        final long started = FontRenderPerfStats.enabled() ? System.nanoTime() : 0L;
+        try (FontRenderPipeline.State state = FontRenderPipeline.begin(rasterScale, false);
+             OptionalGlProgramBinding.ExternalProgramScope ignored = state.preserveExternalProgram()) {
             Tessellator tessellator = Tessellator.getInstance();
             BufferBuilder buffer = tessellator.getBuffer();
             buffer.begin(7, DefaultVertexFormats.POSITION_TEX_COLOR);
 
             buffer.pos(f + slant0, f4, 0.0D)
-                  .tex(this.u0, this.v0)
+                  .tex(this.u0, clippedV0)
                   .color(red, green, blue, alpha)
                   .endVertex();
             buffer.pos(f + slant1, f5, 0.0D)
-                  .tex(this.u0, this.v1)
+                  .tex(this.u0, clippedV1)
                   .color(red, green, blue, alpha)
                   .endVertex();
             buffer.pos(f1 + slant1, f5, 0.0D)
-                  .tex(this.u1, this.v1)
+                  .tex(this.u1, clippedV1)
                   .color(red, green, blue, alpha)
                   .endVertex();
             buffer.pos(f1 + slant0, f4, 0.0D)
-                  .tex(this.u1, this.v0)
+                  .tex(this.u1, clippedV0)
                   .color(red, green, blue, alpha)
                   .endVertex();
 
             tessellator.draw();
+        } finally {
+            if (FontRenderPerfStats.enabled()) {
+                FontRenderPerfStats.recordGlyphDraw(System.nanoTime() - started);
+            }
         }
     }
 

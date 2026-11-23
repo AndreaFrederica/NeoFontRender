@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import neofontrender.addons.ui.NfrUiEnhancements;
 import neofontrender.addons.api.flight.FlightApi;
+import neofontrender.addons.build.UiBuildFeatures;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -132,7 +133,9 @@ enum FlightHudThemeManager {
         themes.putAll(loaded);
         fingerprint = fingerprint(directory);
         lastCheckNanos = System.nanoTime();
-        NfrUiEnhancements.LOGGER.info("Loaded {} flight HUD themes from {}", themes.size(), directory);
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+            NfrUiEnhancements.LOGGER.info("Loaded {} flight HUD themes from {}", themes.size(), directory);
+        }
     }
 
     private void reloadIfChanged() {

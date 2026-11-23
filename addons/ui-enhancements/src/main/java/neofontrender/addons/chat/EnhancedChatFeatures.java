@@ -1,5 +1,7 @@
 package neofontrender.addons.chat;
 
+import neofontrender.addons.inline.EmbeddedContentConfig;
+
 /** Public bridge used by the embedded Tabby renderer without exposing mutable config fields. */
 public final class EnhancedChatFeatures {
     private EnhancedChatFeatures() {}
@@ -33,7 +35,8 @@ public final class EnhancedChatFeatures {
     }
 
     public static boolean inlineGlyphs() {
-        return goslingImageGlyphs() || externalImageGlyphs() || localImageGlyphs();
+        return goslingImageGlyphs() || externalImageGlyphs() || localImageGlyphs()
+                || EmbeddedContentConfig.latexEnabled() || EmbeddedContentConfig.svgEnabled();
     }
 
     public static boolean imageGlyphHover() {

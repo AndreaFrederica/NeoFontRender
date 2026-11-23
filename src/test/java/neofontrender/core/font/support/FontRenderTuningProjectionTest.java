@@ -30,6 +30,22 @@ class FontRenderTuningProjectionTest {
                 modelView(1.0F, 0.0F), perspective(70.0F), WIDTH, HEIGHT)));
     }
 
+    @Test
+    void rasterScalePinIsNestedAndRestoresPreviousSelection() {
+        try (FontRenderTuning.RasterScaleScope first = FontRenderTuning.pinRasterScale(3.5F)) {
+            assertEquals(3.5F, FontRenderTuning.effectiveRasterScale(12.0F), 0.0001F);
+            try (FontRenderTuning.RasterScaleScope second = FontRenderTuning.pinRasterScale(6.0F)) {
+                assertEquals(6.0F, FontRenderTuning.effectiveRasterScale(12.0F), 0.0001F);
+            }
+            assertEquals(3.5F, FontRenderTuning.effectiveRasterScale(12.0F), 0.0001F);
+        }
+        // Avoid querying the unpinned GL/config path in this pure unit test; a new scope must still
+        // work after the outer scope has removed its thread-local state.
+        try (FontRenderTuning.RasterScaleScope restored = FontRenderTuning.pinRasterScale(7.0F)) {
+            assertEquals(7.0F, FontRenderTuning.effectiveRasterScale(12.0F), 0.0001F);
+        }
+    }
+
     private static float[] modelView(float scale, float distance) {
         float[] matrix = identity();
         matrix[0] = scale;

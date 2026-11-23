@@ -1,0 +1,16 @@
+gradle.projectsEvaluated {
+    rootProject.tasks.register('nfrLicenseInventory') {
+        doLast {
+            def rows = []
+            [':':['contain','relocate'], ':addons:ui-enhancements':['contain'], ':engine:audio':['runtimeClasspath'], ':addons:ui-enhancements-controller':['contain']].each { path, names ->
+                def p = rootProject.project(path)
+                names.each { name ->
+                    p.configurations.getByName(name).resolvedConfiguration.resolvedArtifacts.each { a ->
+                        rows.add([project:path, group:a.moduleVersion.id.group, name:a.name, version:a.moduleVersion.id.version, file:a.file.absolutePath])
+                    }
+                }
+            }
+            new File(System.getProperty('java.io.tmpdir'), 'nfr-maven-inventory.json').text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(rows))
+        }
+    }
+}

@@ -56,6 +56,7 @@ public final class NfrOptionDropdown extends ContextMenuButton<NfrOptionDropdown
                         : label.get() + ": " + display.apply(getter.get()))
                 .actions(NavigationAction.ACTIVATE)
                 .build());
+        NfrSettingsSearch.register(this, label, name, "dropdown");
         requiresClick();
         // We provide the menu's relative anchor ourselves because ModularUI's widget Area does
         // not contain the render-time translation applied by ancestor scroll widgets.

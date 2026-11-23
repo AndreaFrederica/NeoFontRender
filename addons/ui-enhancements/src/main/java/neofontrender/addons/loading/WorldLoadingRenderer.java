@@ -9,6 +9,7 @@ import net.minecraft.client.gui.GuiMainMenu;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiScreenWorking;
 import net.minecraft.client.multiplayer.ChunkProviderClient;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
@@ -118,6 +119,12 @@ public enum WorldLoadingRenderer {
             WorldLoadingSnapshotManager.INSTANCE.requestCleanExitFrame();
         }
         if (event.getGui() instanceof GuiDownloadTerrain) {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (mc.getIntegratedServer() == null) {
+                ServerData server = mc.getCurrentServerData();
+                WorldLoadingSnapshotManager.INSTANCE.prepareForServer(
+                        server == null ? null : server.serverIP);
+            }
             resumeAfterAcceptedPrompt = false;
             begin(Minecraft.getMinecraft(), System.nanoTime());
             vanillaStage = I18n.format("multiplayer.downloadingTerrain");

@@ -6,12 +6,12 @@ import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import neofontrender.addons.api.inline.InlineGlyph;
-import neofontrender.addons.api.inline.InlineImageHandle;
+import neofontrender.api.text.pipeline.InlineContent;
+import neofontrender.addons.api.content.InlineImageHandle;
 import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.support.ShadowColorPolicy;
 
-final class RemoteImageGlyph implements InlineGlyph {
+final class RemoteImageGlyph implements InlineContent {
     private static final int MAX_INLINE_IMAGE_WIDTH = 128;
     private static final int MAX_INLINE_IMAGE_HEIGHT = 48;
     private static final int INLINE_PADDING = 2;

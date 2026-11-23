@@ -100,13 +100,12 @@ Sarasa 字体在 \uE700-\uE7FF 范围有 Nerd Font 图标
 ### 方案 A：渲染前转换成现代多颜色文本（采用）
 
 PUA 协议不应散落到 `MixinFontRenderer`、Skia、Cosmic、SFR 和 vanilla 的各个绘制与测量
-循环里。NeoFontRender 在统一的 raw-text 预处理管线中识别协议：
+循环里。NeoFontRender 在统一的结构化语法引擎中识别协议：
 
-1. `TinkersAntiqueTextPreprocessor` 解码每三个 PUA 字符，并从可见文本中移除控制字符。
-2. 预处理结果保留 raw 字符串到可见字符串的边界映射，供裁剪和换行返回正确的 raw 索引。
-3. 解码结果转换成 `ModernText` 多颜色 run。
-4. `ModernTextApi` 在 API 层组合各 run 的布局；Cosmic、Skia 直接处理，SFR 和 vanilla
-   通过现代 AWT 适配器处理。
+1. `TinkersAntiqueSyntaxProvider` 解码每三个 PUA 字符，并发出结构化颜色操作。
+2. `StructuredText` 保留源字符串到可见字符串的 `SourceMap`，供裁剪和换行返回正确的源索引。
+3. AWT、Cosmic 和 vanilla compatibility route 消费相同的样式 span，不再各自识别 PUA。
+4. `ModernTextApi` 也先转换为相同协议，再进入统一测量、布局和后处理流程。
 
 这样颜色切换、绘制、宽度测量、裁剪和换行共用同一个中间表示，PUA 字符不会进入任何
 字体后端，也不会因 Nerd Font 覆盖而显示成图标。

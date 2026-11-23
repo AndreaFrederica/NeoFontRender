@@ -11,10 +11,12 @@ crate-type = ["cdylib"]
 cosmic-text = { version = "0.19", default-features = false, features = ["std", "swash"] }
 jni = { version = "0.21", default-features = false }
 skrifa = "0.40"
+rayon = "1.10"
+swash = "0.2.10"
 unicode-script = "0.5"
 
 [profile.release]
-opt-level = "z"
+opt-level = 3
 lto = "fat"
 codegen-units = 1
 panic = "unwind"

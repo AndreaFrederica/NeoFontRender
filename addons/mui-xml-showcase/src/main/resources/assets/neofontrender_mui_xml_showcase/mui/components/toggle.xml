@@ -1,0 +1,5 @@
+<mui:component-root xmlns:mui="urn:mui">
+    <mui:button class="toggle-row" id="${id}" checked="${checked}">
+        <mui:text class="toggle-label" text="${label}"/>
+    </mui:button>
+</mui:component-root>

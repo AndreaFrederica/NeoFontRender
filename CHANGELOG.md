@@ -1,5 +1,73 @@
 # Changelog
 
+## [Unreleased]
+
+## [0.7.4]
+
+- Keep modern font measurement and rendering on one raster scale, including routed vanilla
+  measurements and single-character width queries.
+
+## [uie/0.8.5]
+
+- Require exactly Revo Font 0.7.4 for the shared settings card component.
+
+## [0.7.3]
+
+- Add reusable full-row settings cards with stable grid sizing for addon management pages.
+
+## [uie/0.8.4]
+
+- Align the three TabbyChat window controls using equal hit areas and centered icons.
+- Add localized hover explanations for keeping chat input open and resizing the chat window.
+- Defer TabbyChat wrapping during resize hit-testing and cache Tiqian component wrapping to keep
+  window resizing responsive with long chat histories.
+- Add opt-in TabbyChat layout memory per resolution, GUI scale and chat scale, with a dedicated
+  management page and reusable NFR settings cards. Restore bounds before screen clamping and
+  persist settled resize changes or completed drags.
+- Require exactly Revo Font 0.7.3 for the shared settings card component.
+
+## [0.7.2]
+
+- Preserve destination alpha across Cosmic and SFR/AWT text draws so transparent glyph padding
+  cannot punch holes in offscreen framebuffers such as Xaero's entity-name minimap layer.
+- Keep the current renderer active while SFR fonts load asynchronously, and perform atlas upload,
+  prewarming, disposal, and backend activation on Minecraft's client thread.
+
+## [uie/0.8.3]
+
+- Load bundled UI translations through Minecraft's locale resource parser so localization conflict
+  trackers receive the correct `neofontrender_ui_enhancements` resource domain.
+- Expose detached camera proxies as minimal living entities so Actinium and similar renderers can
+  capture camera state without an invalid `EntityLivingBase` cast.
+- Align the runtime mod version with the packaged UIE version and require exactly Revo Font 0.7.2.
+
+## [uie/0.7.2]
+
+- Preserve RGB colors and gradients when Tabby chat and tooltips wrap onto multiple lines.
+- Keep every character's color in Tiqian's exported chat components, matching its positioned
+  render runs. Requires Revo Font 0.6.1 or newer.
+
+## [0.6.1]
+
+- Carry inline colors and text decorations across automatic and explicit line breaks, including
+  formatting resets and inherited component styles.
+- Preserve whole-paragraph RGB gradients when splitting formatted strings, without exposing
+  color markers or restarting gradients on continuation lines.
+- Prevent duplicate newline remainders, preserve mandatory breaks after soft wrapping, and
+  guarantee progress when a formatted glyph is wider than the available line.
+
+## [uie/0.7.0]
+
+- Route UIE structured inline content and CJK paragraph layout through NFR's unified text-rendering
+  protocol, including shared layout options for LaTeX, Typst, SVG, images, and emoji.
+
+## [0.6.0]
+
+- Introduce the unified structured-text, route, paragraph, GL component, and post-processing APIs
+  used by both modern renderers and optional content addons.
+- Add the standalone Text Render Lab for testing AWT, Cosmic, UIE, LaTeX, Typst, images, formatting,
+  CJK layout, shadows, and animated effects outside Minecraft.
+
 ## [electric-elytra/0.1.0]
 
 - Initial alpha of the Revo Electric Elytra submod: vanilla-control electric elytra and
@@ -10,6 +78,12 @@
 
 ## [uie/0.6.0]
 
+- Suppress Cleanroom 0.6.10+ chat suggestions while Revo UI owns command completion, preventing
+  duplicate dropdowns and requests while preserving Cleanroom completion in command blocks and
+  whenever Revo UI command completion is disabled.
+- Bring Revo UI command completion presentation in line with Cleanroom: deduplicate requests,
+  reject stale responses, replace complete tokens, show ghost text and command/argument colors,
+  and expose explicit selection plus a popup scrollbar.
 - Add loading-time prompt arbitration so Forge startup queries and modded confirmation screens
   remain visible and interactive, with a scrollable modern skin for Forge confirmations.
 - Expand the Flight API to v9 with shared quaternion attitude, body-pose and camera-tracking

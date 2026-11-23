@@ -15,7 +15,7 @@ import neofontrender.addons.electricelytra.network.ElectricElytraNetwork;
         modid = ElectricElytraMod.MOD_ID,
         name = ElectricElytraMod.MOD_NAME,
         version = ElectricElytraMod.VERSION,
-        dependencies = "required-after:neofontrender_ui_enhancements@[0.6.0,)",
+        dependencies = "required-after:neofontrender_ui_enhancements@[0.7.0,)",
         acceptedMinecraftVersions = "[1.12,1.13)"
 )
 public final class ElectricElytraMod {

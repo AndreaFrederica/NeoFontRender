@@ -129,12 +129,6 @@ public abstract class MixinGuiChat extends GuiScreen implements ITabCompleter {
         if (ChatKeyBindings.handledCurrentEvent()) return;
         int key = Keyboard.getEventKey();
         if (key == Keyboard.KEY_UP || key == Keyboard.KEY_DOWN) return;
-        // Salutation's ChatScreen already writes this event into our substituted inputField and
-        // immediately requests Brigadier completions for that value. Sending the same LWJGL event
-        // through TabbyChat's GuiText afterwards types it a second time and makes the completion
-        // request stale. Keep our self-drawn chat, but let Salutation own keyboard input while its
-        // wrapper is open. Mouse/component drawing remains on the normal TabbyChat path.
-        if (ExternalChatCompat.isSalutationChatScreen(that)) return;
         this.componentList.forEach(GuiComponent::handleKeyboardInput);
     }
 

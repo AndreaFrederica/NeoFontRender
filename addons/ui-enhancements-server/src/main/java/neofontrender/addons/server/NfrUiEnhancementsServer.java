@@ -6,6 +6,8 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
 import neofontrender.addons.chat.network.SelfMessageCapability;
+import neofontrender.addons.server.UiEnhancementsServerConfig;
+import neofontrender.addons.chat.network.ChatCharacterNetwork;
 import neofontrender.addons.flight.network.FlightRollNetwork;
 
 @Mod(
@@ -24,6 +26,8 @@ public final class NfrUiEnhancementsServer {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         FlightRollServerConfig.load(event.getModConfigurationDirectory());
+        UiEnhancementsServerConfig.load(event.getModConfigurationDirectory());
+        ChatCharacterNetwork.initialize();
     }
 
     @Mod.EventHandler

@@ -104,7 +104,8 @@ final class BlockOutlineConfig {
                 .define("outlines.pulse.periodMillis", 1500.0D, "Pulse cycle duration in milliseconds.")
                 .define("outlines.pulse.minimumAlpha", 0.35D, "Minimum pulse alpha multiplier.");
         enabled = file.getBoolean("outlines.enabled", true);
-        renderMode = normalizeRenderMode(file.getString("outlines.renderMode", MODE_GEOMETRY));
+        renderMode = BlockOutlineCompatibility.effectiveMode(
+                normalizeRenderMode(file.getString("outlines.renderMode", MODE_GEOMETRY)));
         globalLineWidth = (float) file.getDouble("outlines.globalLineWidth", 2.0D, 0.5D, 64.0D);
         globalColor = parseColor(file.getString("outlines.globalColor", "#66000000"), 0x66000000);
         outlineOpacity = (float) file.getDouble("outlines.opacity", 1.0D, 0.0D, 1.0D);

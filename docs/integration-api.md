@@ -70,3 +70,78 @@ localized text.
 NFR distributes Arc3D Core as an unrelocated contained library. Integrations can use the original
 `icyllis.arc3d.*` packages or the stable, explicitly named `neofontrender.api.arc3d.Arc3DApi`
 entry point. Do not bundle a second Arc3D copy when NFR is a required dependency.
+
+## Tooltip documents and model previews
+
+`NfrTooltipApi` lets integrations contribute coordinate-free visual nodes to the common tooltip
+layout. Register a `DocumentProvider` during client initialization and return only the nodes owned
+by the integration. Providers are composed, so registering one does not replace another.
+
+```java
+NfrTooltipApi.registerDocumentProvider((stack, lines) -> Optional.of(
+        NfrTooltipApi.TooltipDocument.builder(stack, lines)
+                .add(new NfrTooltipApi.GroupNode(Arrays.asList(
+                        new NfrTooltipApi.ItemNode(stack, stack.getCount(), true),
+                        new NfrTooltipApi.TextNode("Extra data", 0xFFB8D8FF)),
+                        NfrTooltipApi.LayoutDirection.HORIZONTAL,
+                        NfrTooltipApi.LayoutAlignment.CENTER, 3))
+                .build()));
+```
+
+`GroupNode` supports horizontal or vertical flow with alignment and gaps. `GridNode` accepts a
+maximum column count and reduces the count when the tooltip width is constrained. A top-level
+`PreviewNode` is laid out beside the text; nested previews follow their containing group or grid.
+
+The built-in request types are `ItemPreviewRequest` and `ArmorPreviewRequest`. Armor requests can
+use an armor stand or the current player's profile and can render one piece or a full equipment
+set. To add another preview type, use a namespaced renderer id on both sides of the contract:
+
+```java
+final class OrbRequest implements NfrTooltipApi.PreviewRequest {
+    @Override public NfrTooltipApi.PreviewKind previewKind() {
+        return NfrTooltipApi.PreviewKind.CUSTOM;
+    }
+
+    @Override public String rendererId() {
+        return "examplemod:energy_orb";
+    }
+}
+
+NfrTooltipApi.PreviewRegistry.register(new NfrTooltipApi.PreviewRenderer() {
+    @Override public NfrTooltipApi.PreviewKind previewKind() {
+        return NfrTooltipApi.PreviewKind.CUSTOM;
+    }
+
+    @Override public String id() {
+        return "examplemod:energy_orb";
+    }
+
+    @Override public NfrTooltipApi.PreviewSize measure(
+            NfrTooltipApi.PreviewRequest request, FontRenderer font) {
+        return new NfrTooltipApi.PreviewSize(32, 48);
+    }
+
+    @Override public void render(NfrTooltipApi.PreviewRequest request, int x, int y,
+                                 NfrTooltipApi.PreviewSize size, FontRenderer font) {
+        // Draw inside the measured rectangle and restore every GL state you modify.
+    }
+});
+```
+
+A `PreviewSelector` may select the request for an item before UIE applies its built-in tool,
+weapon and armor rules. Renderer and effect registrations replace an existing entry with the same
+case-insensitive id; `unregister` removes the entry only when it still points to that same instance.
+Custom `PreviewEffect` implementations that draw outside the measured model rectangle should
+override `outsets(PreviewRequest, PreviewSize)` and return `PreviewInsets`; the shared layout then
+reserves those pixels around nested and top-level previews.
+Optional providers, selectors, finalizers and preview backends are isolated from tooltip failures.
+The `render(ItemStack, List<String>, ...)` convenience overload composes every registered document
+provider before invoking the renderer; use the `TooltipDocument` overload when the caller already
+owns the complete node list.
+
+Visual item families can be placed at an explicit logical marker created with
+`NfrTooltipApi.visualAnchorLine(family, producer)`. Supported built-in families are `items` and
+`text`. Marker lines have zero visual height and are removed from normal text measurement.
+
+The built-in preview style format and resource locations are documented in
+[`tooltip-preview-styles.md`](tooltip-preview-styles.md).

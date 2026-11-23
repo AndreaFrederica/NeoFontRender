@@ -15,6 +15,7 @@ import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 import mnm.mods.tabbychat.core.GuiNewChatTC;
 import neofontrender.addons.mixin.InvokerGuiNewChatHistory;
 import neofontrender.addons.ui.NfrUiEnhancements;
+import neofontrender.addons.build.UiBuildFeatures;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -178,7 +179,7 @@ public enum ChatHistoryManager {
         Minecraft mc = Minecraft.getMinecraft();
         int updateCounter = mc.ingameGUI == null ? 0 : mc.ingameGUI.getUpdateCounter();
         ((InvokerGuiNewChatHistory) chat).nfrUi$restoreChatLine(component, id, updateCounter, false);
-        if (EnhancedChatConfigAccess.logRestoredHistory()) {
+        if (UiBuildFeatures.DIAGNOSTIC_LOGS && EnhancedChatConfigAccess.logRestoredHistory()) {
             NfrUiEnhancements.LOGGER.info("[CHAT] {}", sanitizeForLog(component));
         }
     }
@@ -224,7 +225,9 @@ public enum ChatHistoryManager {
             // The JSON is preserved as a backup under .migrated in case of manual rollback.
             Files.move(legacyFile, legacyFile.resolveSibling(legacyFile.getFileName() + LEGACY_SUFFIX),
                     StandardCopyOption.REPLACE_EXISTING);
-            NfrUiEnhancements.LOGGER.info("Migrated {} chat messages from legacy JSON to H2 database", imported[0]);
+            if (UiBuildFeatures.DIAGNOSTIC_LOGS) {
+                NfrUiEnhancements.LOGGER.info("Migrated {} chat messages from legacy JSON to H2 database", imported[0]);
+            }
         } catch (Exception exception) {
             // Rolled back: the store is still empty, so the import retries on next launch.
             NfrUiEnhancements.LOGGER.warn("Could not migrate legacy chat history from {}", legacyFile, exception);

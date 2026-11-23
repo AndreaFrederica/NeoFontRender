@@ -23,6 +23,8 @@ public interface ModCompat {
     }
 
     /**
+     * Called before mod discovery: only inspect the mixin name here. Rules that return
+     * false must also make isActive() safe during bootstrap (for example resource probing).
      * @param mixinClassName fully-qualified mixin class name
      * @return false to prevent the mixin from being applied
      */

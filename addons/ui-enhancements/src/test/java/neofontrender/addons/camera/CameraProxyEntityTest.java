@@ -3,6 +3,7 @@ package neofontrender.addons.camera;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class CameraProxyEntityTest {
     @Test
@@ -10,6 +11,8 @@ class CameraProxyEntityTest {
         net.minecraft.init.Bootstrap.register();
         CameraProxyEntity proxy = new CameraProxyEntity(null);
 
+        assertInstanceOf(net.minecraft.entity.EntityLivingBase.class, proxy);
+        assertEquals(proxy.getMaxHealth(), proxy.getHealth(), 0.0F);
         proxy.setCameraPose(128.5D, 72.25D, -31.75D, 42.0F, -18.0F);
 
         assertEquals(proxy.posX, proxy.prevPosX, 0.0D);

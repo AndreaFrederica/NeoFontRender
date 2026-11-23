@@ -1,0 +1,4 @@
+<protocol id="neofontrender_mui_xml_showcase:chest-256" schema-version="2">
+    <slot-range prefix="machine.storage." count="256" type="showcase:machine-slot" version="1" ordinal="0"/>
+    <component src="protocol-components/player-inventory.xml" ordinal-offset="256"/>
+</protocol>

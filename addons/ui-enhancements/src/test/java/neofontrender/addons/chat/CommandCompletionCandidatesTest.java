@@ -7,6 +7,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CommandCompletionCandidatesTest {
     @Test
@@ -45,5 +47,21 @@ class CommandCompletionCandidatesTest {
                 "/thaumcraft", CommandCompletionCandidates.Source.SERVER);
 
         assertEquals("/thaumcraft", CommandCompletionCandidates.plain(styled));
+    }
+
+    @Test
+    void argumentPlaceholdersAreDetectedAndShownInTheirOwnColor() {
+        assertTrue(CommandCompletionCandidates.isPlaceholder("<menu_identifier>"));
+        assertTrue(CommandCompletionCandidates.isPlaceholder("<player>"));
+        assertFalse(CommandCompletionCandidates.isPlaceholder("gamemode"));
+        assertFalse(CommandCompletionCandidates.isPlaceholder("<>"));
+        assertFalse(CommandCompletionCandidates.isPlaceholder("<unclosed"));
+        assertFalse(CommandCompletionCandidates.isPlaceholder("unopened>"));
+
+        String placeholder = CommandCompletionCandidates.styled(
+                "<menu_identifier>", CommandCompletionCandidates.Source.SERVER);
+        assertEquals(TextFormatting.DARK_GRAY + "<menu_identifier>" + TextFormatting.RESET, placeholder);
+        // Still selectable, and still inserts exactly the plain text.
+        assertEquals("<menu_identifier>", CommandCompletionCandidates.plain(placeholder));
     }
 }
