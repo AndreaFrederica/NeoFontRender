@@ -18,6 +18,7 @@ import neofontrender.api.color.TextColorPaletteRegistry;
 import neofontrender.api.text.FontRenderSpec;
 import neofontrender.build.BuildFeatures;
 import neofontrender.core.config.NeofontrenderConfig;
+import neofontrender.core.font.compat.VanillaAsciiSheet;
 import neofontrender.core.font.backend.TextRenderBackend;
 import neofontrender.core.font.backend.TextRenderResult;
 import neofontrender.core.font.FontManager;
@@ -3276,6 +3277,8 @@ public final class CosmicTextRenderer implements TextRenderBackend {
     private static final String OBFUSCATED_CANDIDATES =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
                     + "\u5929\u5730\u7384\u9ec4\u5b87\u5b99\u6d2a\u8352\u4e2d\u6587\u6d4b\u8bd5";
+    private static final String[] RELAXED_OBFUSCATED_CANDIDATES =
+            VanillaAsciiSheet.obfuscationGlyphs().split("");
 
     static String[] obfuscatedCandidates(float target, ToDoubleFunction<String> measure) {
         List<ObfuscatedCandidate> candidates = new ArrayList<>(OBFUSCATED_CANDIDATES.length());
@@ -3309,14 +3312,16 @@ public final class CosmicTextRenderer implements TextRenderBackend {
             this.run = run;
             this.fontSize = fontSize;
             this.scale = scale;
+            boolean relaxed = NeofontrenderConfig.relaxedObfuscation();
             float cursor = 0.0F;
             for (int index = 0; index < run.text.length();) {
                 int codePoint = run.text.codePointAt(index);
                 String original = new String(Character.toChars(codePoint));
                 float width = measureAtSize(original, run.bold, run.italic, fontSize);
                 if (width > 0.0F && !Character.isWhitespace(codePoint) && !Character.isSpaceChar(codePoint)) {
-                    slots.add(new ObfuscatedSlot(cursor, width,
-                            candidatesNearestTo(width, run.bold, run.italic, fontSize), index));
+                    String[] candidates = relaxed ? RELAXED_OBFUSCATED_CANDIDATES
+                            : candidatesNearestTo(width, run.bold, run.italic, fontSize);
+                    slots.add(new ObfuscatedSlot(cursor, width, candidates, index));
                 }
                 cursor += width;
                 index += Character.charCount(codePoint);

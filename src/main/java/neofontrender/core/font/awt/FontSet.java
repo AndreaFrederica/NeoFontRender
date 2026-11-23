@@ -1,7 +1,9 @@
 package neofontrender.core.font.awt;
 
 import neofontrender.build.BuildFeatures;
+import neofontrender.core.config.NeofontrenderConfig;
 import neofontrender.core.font.awt.providers.AwtTtfGlyphProvider;
+import neofontrender.core.font.compat.VanillaAsciiSheet;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -306,6 +308,10 @@ public class FontSet implements AutoCloseable {
 
     @Nullable
     public BakedGlyph getRandomGlyph(float advance) {
+        if (NeofontrenderConfig.relaxedObfuscation()) {
+            String glyphs = VanillaAsciiSheet.obfuscationGlyphs();
+            return getGlyph(glyphs.charAt(RANDOM.nextInt(glyphs.length())));
+        }
         int w = (int) Math.ceil(advance);
         List<Integer> bucket = glyphsByWidth.get(w);
         if (bucket == null || bucket.isEmpty()) {
@@ -321,11 +327,15 @@ public class FontSet implements AutoCloseable {
     /** Deterministic variant used to keep foreground and shadow aligned in one animation frame. */
     @Nullable
     public BakedGlyph getRandomGlyph(float advance, long seed) {
+        int mixed = (int) (seed ^ seed >>> 32);
+        if (NeofontrenderConfig.relaxedObfuscation()) {
+            String glyphs = VanillaAsciiSheet.obfuscationGlyphs();
+            return getGlyph(glyphs.charAt(Math.floorMod(mixed, glyphs.length())));
+        }
         int w = (int) Math.ceil(advance);
         List<Integer> bucket = glyphsByWidth.get(w);
         if (bucket == null || bucket.isEmpty()) bucket = findNearestGlyphBucket(w);
         if (bucket == null || bucket.isEmpty()) return null;
-        int mixed = (int) (seed ^ seed >>> 32);
         int cp = bucket.get(Math.floorMod(mixed, bucket.size()));
         return getGlyph(cp);
     }

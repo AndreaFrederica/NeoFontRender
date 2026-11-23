@@ -25,6 +25,8 @@ public final class NfrFixesSettingsView extends NfrContentView<NfrFixesSettingsV
                         () -> d.fixUnicodeTextDeletion, value -> d.fixUnicodeTextDeletion = value))
                 .add(c.toggle("neofontrender.gui.option.fix_cjk_line_break", "neofontrender.tooltip.fix_cjk_line_break",
                         () -> d.fixCjkLineBreak, value -> d.fixCjkLineBreak = value))
+                .add(c.toggle("neofontrender.gui.option.relaxed_obfuscation", "neofontrender.tooltip.relaxed_obfuscation",
+                        () -> d.relaxedObfuscation, value -> d.relaxedObfuscation = value))
                 .add(c.toggle("neofontrender.gui.option.sign_paste", "neofontrender.tooltip.sign_paste",
                         () -> d.allowSignPaste, value -> d.allowSignPaste = value));
         if (contributedControls != null) {

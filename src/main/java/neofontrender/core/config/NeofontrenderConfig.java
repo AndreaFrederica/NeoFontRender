@@ -631,6 +631,10 @@ public final class NeofontrenderConfig {
         return cached.fixCjkLineBreak;
     }
 
+    public static boolean relaxedObfuscation() {
+        return cached.relaxedObfuscation;
+    }
+
     /** Master switch for the protocol-aware wrapping system (color tokens are never split). */
     public static boolean protocolWrapEnabled() {
         return cached.protocolWrapEnabled;
@@ -918,6 +922,10 @@ public final class NeofontrenderConfig {
 
     public static void setFixCjkLineBreak(boolean value) {
         setValue("fix.cjkLineBreak", value);
+    }
+
+    public static void setRelaxedObfuscation(boolean value) {
+        setValue("fix.relaxedObfuscation", value);
     }
 
     public static void setProtocolWrapEnabled(boolean value) {
@@ -1619,6 +1627,7 @@ public final class NeofontrenderConfig {
             w.write("\n");
             w.write("[fix]\n");
             w.write("cjkLineBreak = true\n");
+            w.write("relaxedObfuscation = false\n");
             w.write("\n");
             w.write("[laboratory]\n");
             w.write("brilliantAnyPosition = false\n");
@@ -1701,6 +1710,7 @@ public final class NeofontrenderConfig {
         config.setComment("input.fixUnicodeTextDeletion", "Delete a whole Unicode code point in text fields instead of half of an emoji surrogate pair.");
         config.setComment("fix", "Compatibility and text-behavior fixes.");
         config.setComment("fix.cjkLineBreak", "Allow CJK wrapping opportunities while enforcing basic line-start and line-end punctuation rules.");
+        config.setComment("fix.relaxedObfuscation", "Use the vanilla obfuscation character set without filtering by width in the Cosmic and AWT renderers.");
         config.setComment("fix.protocolWrap", "Master switch for protocol-aware wrapping: every wrapped line is rebuilt from the parsed draw state, so color tokens (#RRGGBB gradients, TiC PUA) are never split and gradients keep their phase.");
         config.setComment("fix.protocolWrapScopes.chat", "Use protocol-aware wrapping for chat, books and component-based text.");
         config.setComment("fix.protocolWrapScopes.tooltip", "Use protocol-aware wrapping for tooltips and their inline content.");
@@ -1848,6 +1858,7 @@ public final class NeofontrenderConfig {
         private final boolean allowSignPaste;
         private final boolean fixUnicodeTextDeletion;
         private final boolean fixCjkLineBreak;
+        private final boolean relaxedObfuscation;
         private final boolean protocolWrapEnabled;
         private final boolean protocolWrapChat;
         private final boolean protocolWrapTooltip;
@@ -1980,6 +1991,7 @@ public final class NeofontrenderConfig {
             allowSignPaste = true;
             fixUnicodeTextDeletion = true;
             fixCjkLineBreak = true;
+            relaxedObfuscation = false;
             protocolWrapEnabled = true;
             protocolWrapChat = true;
             protocolWrapTooltip = true;
@@ -2113,6 +2125,7 @@ public final class NeofontrenderConfig {
             allowSignPaste = config.getOrElse("input.allowSignPaste", true);
             fixUnicodeTextDeletion = config.getOrElse("input.fixUnicodeTextDeletion", true);
             fixCjkLineBreak = config.getOrElse("fix.cjkLineBreak", true);
+            relaxedObfuscation = config.getOrElse("fix.relaxedObfuscation", false);
             protocolWrapEnabled = config.getOrElse("fix.protocolWrap", true);
             protocolWrapChat = config.getOrElse("fix.protocolWrapScopes.chat", true);
             protocolWrapTooltip = config.getOrElse("fix.protocolWrapScopes.tooltip", true);
